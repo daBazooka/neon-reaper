@@ -183,6 +183,7 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
 .chr.on{border-color:var(--cy);box-shadow:0 0 24px rgba(38,240,255,.28);background:rgba(38,240,255,.08)}
 .chr.lock{opacity:.55}
 .chr em{font-size:30px;font-style:normal;display:block;margin-bottom:6px}
+.chrShip{position:static;inset:auto;width:48px;height:48px;display:block;margin:0 auto 6px}
 .chr .nm{font:900 12px/1 var(--f1);letter-spacing:1px}
 .chr .ds{font:600 9.5px/1.3 var(--f2);color:var(--dim);margin-top:5px;height:26px}
 .chr .pr{font:900 10px/1 var(--f1);color:var(--or);margin-top:6px}
@@ -2481,21 +2482,26 @@ function announce(txt,color){
 }
 
 /* ---------------- 18. RENDER ---------------- */
-function poly(x,y,r,sides,rot){
-  ctx.beginPath();
+function poly(x,y,r,sides,rot,c){
+  c = c||ctx;
+  c.beginPath();
   for(let i=0;i<sides;i++){ const a = rot + i/sides*TAU;
     const px=x+Math.cos(a)*r, py=y+Math.sin(a)*r;
-    i?ctx.lineTo(px,py):ctx.moveTo(px,py); }
-  ctx.closePath();
+    i?c.lineTo(px,py):c.moveTo(px,py); }
+  c.closePath();
 }
-/* wide shape roster for the swarm: plain N-gons plus a handful of hand-built
-   silhouettes (stars, diamond, cross, spiky burst) so the horde reads as
-   many distinct creatures rather than one recolored blob */
-function drawShape(x,y,r,shape,rot){
-  if(typeof shape === 'number' || !shape){ poly(x,y,r,shape||6,rot); return; }
+/* wide shape roster for the swarm + player ships: plain N-gons plus a
+   handful of hand-built silhouettes (stars, diamond, cross, spiky burst,
+   arrow, blade, wings, kite) so the horde — and every Reaper — reads as
+   a distinct shape rather than one recolored blob. Takes an optional
+   canvas context as the last arg (defaults to the main game `ctx`) so the
+   same drawing code can render into a menu-card preview canvas too. */
+function drawShape(x,y,r,shape,rot,c){
+  c = c||ctx;
+  if(typeof shape === 'number' || !shape){ poly(x,y,r,shape||6,rot,c); return; }
   const rp = (px,py,i)=>{ const cx=x+px*Math.cos(rot)-py*Math.sin(rot), cy=y+px*Math.sin(rot)+py*Math.cos(rot);
-    i?ctx.lineTo(cx,cy):ctx.moveTo(cx,cy); };
-  ctx.beginPath();
+    i?c.lineTo(cx,cy):c.moveTo(cx,cy); };
+  c.beginPath();
   if(shape==='diamond'){
     [[0,-r*1.3],[r*.78,0],[0,r*1.3],[-r*.78,0]].forEach(([px,py],i)=>rp(px,py,i));
   } else if(shape==='cross'){
@@ -2516,8 +2522,8 @@ function drawShape(x,y,r,shape,rot){
     [[r*1.7,0],[-r*.25,r*.32],[-r*.95,0],[-r*.25,-r*.32]].forEach(([px,py],i)=>rp(px,py,i));
   } else if(shape==='wings'){
     [[r*1.25,0],[-r*.15,r*1.15],[-r*.7,r*.18],[-r*.7,-r*.18],[-r*.15,-r*1.15]].forEach(([px,py],i)=>rp(px,py,i));
-  } else { poly(x,y,r,6,rot); return; }
-  ctx.closePath();
+  } else { poly(x,y,r,6,rot,c); return; }
+  c.closePath();
 }
 const menuDots = [];
 function renderMenuBG(){
@@ -3187,7 +3193,7 @@ function renderHeroes(){
     const owned = !!save.chars[c.id], on = save.char===c.id;
     const el=document.createElement('div');
     el.className='chr'+(on?' on':'')+(owned?'':' lock');
-    el.innerHTML = `<em>${c.e}</em><div class="nm">${c.n}</div><div class="ds">${c.d}</div>
+    el.innerHTML = `<canvas class="chrShip"></canvas><div class="nm">${c.n}</div><div class="ds">${c.d}</div>
       <div class="pr">${owned? (on?'SELECTED':'TAP TO USE') : '◈ '+c.price}</div>`;
     el.onclick = ()=>{
       Snd.click();
@@ -3197,7 +3203,25 @@ function renderHeroes(){
       else toast('NOT ENOUGH', 'Need '+(c.price-save.coins)+' more ◈');
     };
     h.appendChild(el);
+    drawShipPreview(el.querySelector('.chrShip'), c, owned);
   });
+}
+/* draws each Reaper's actual in-run ship shape/color as its menu card icon,
+   using the same drawShape() the live run uses, so the pick screen shows
+   exactly what you'll be flying */
+function drawShipPreview(cv2, c, owned){
+  const dpr = Math.min(window.devicePixelRatio||1, 2), S = 48;
+  cv2.width = S*dpr; cv2.height = S*dpr;
+  const c2 = cv2.getContext('2d');
+  c2.setTransform(dpr,0,0,dpr,0,0);
+  c2.translate(S/2, S/2); c2.rotate(-Math.PI/4);
+  const col = owned ? c.sc : '#5a6478';
+  c2.globalCompositeOperation='lighter';
+  c2.globalAlpha=.32; c2.fillStyle=col; c2.beginPath(); c2.arc(0,0,20,0,TAU); c2.fill();
+  c2.globalAlpha=1; c2.globalCompositeOperation='source-over';
+  c2.fillStyle = owned ? '#eaffff' : '#8494b8';
+  drawShape(0,0,15,c.ship||3,0,c2); c2.fill();
+  c2.strokeStyle=col; c2.lineWidth=2.4; drawShape(0,0,17,c.ship||3,0,c2); c2.stroke();
 }
 $('heroBtn').onclick = ()=>{ Snd.click(); hideAll(); show('heroScreen'); renderHeroes(); refreshCoins(); };
 $('heroBack').onclick = ()=>{ Snd.click(); goMenu(); };
