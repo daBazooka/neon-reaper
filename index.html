@@ -334,6 +334,7 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
       <button class="btn ghost" id="achBtn">★ GOALS</button>
       <button class="btn ghost" id="statsBtn">⚙ MORE</button>
     </div>
+    <button class="btn ghost" id="evoBtn">⚛ EVOLUTION CODEX</button>
     <button class="btn ad" id="freeCoinBtn">▶ FREE 300 ◈ <small id="freeLeft"></small></button>
     <button class="btn ghost" id="globalBtn">🌐 GLOBAL — LEADERBOARD &amp; CHAT</button>
     <button class="btn ghost" id="partyBtn">🤝 PLAY WITH FRIENDS</button>
@@ -516,11 +517,24 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   <div class="panel"><div class="list" id="achList" style="max-height:60vh"></div></div>
 </div>
 
+<!-- EVOLUTION CODEX -->
+<div class="screen hidden" id="evoScreen">
+  <div class="backb" id="evoBack">‹ BACK</div>
+  <h2 class="tt" style="margin-top:56px">EVOLUTION CODEX</h2>
+  <div class="sub">MAX A WEAPON (LV8) + ITS PAIRED PASSIVE (LV5) IN ONE RUN</div>
+  <div class="panel"><div class="list" id="evoList" style="max-height:64vh"></div></div>
+</div>
+
 <!-- STATS -->
 <div class="screen hidden" id="statsScreen">
   <div class="backb" id="statsBack">‹ BACK</div>
   <h2 class="tt" style="margin-top:56px">CAREER</h2>
   <div class="grid2" id="careerGrid"></div>
+  <div class="panel" id="ascendPanel" style="max-width:440px">
+    <div class="sub" style="margin:0 0 8px">ASCENSION</div>
+    <div class="hintrow" id="ascendTxt" style="margin:0 0 10px">Max every permanent upgrade to unlock Ascension.</div>
+    <button class="btn gold" id="ascendBtn" disabled style="max-width:none">⇑ ASCEND</button>
+  </div>
   <div class="col">
     <button class="btn ghost" id="sfxBtn2">♪ SOUND: ON</button>
     <button class="btn ghost" id="musBtn">♫ MUSIC: ON</button>
@@ -578,7 +592,7 @@ const Store = {
 };
 const defaultSave = () => ({
   coins: 0, best: 0, bestTime: 0, runs: 0, kills: 0, bosses: 0, revives: 0, playtime: 0,
-  bossRushBest: 0, hardcoreBest: 0, timeAttackBest: 0,
+  bossRushBest: 0, hardcoreBest: 0, timeAttackBest: 0, ascension: 0,
   meta: { vit:0, pow:0, swift:0, mag:0, greed:0, wis:0, fort:0, armor:0, regen:0, rev:0 },
   chars: { volt:1 }, char: 'volt',
   ach: {}, achClaimed: {}, daily: { last: 0, streak: 0 },
@@ -1303,6 +1317,7 @@ function checkEvolutions(){
       w.evo = true; evolved = true;
       announce('EVOLVED: '+ev.n+'!', '#ffd23c'); Snd.big(); Snd.sweep(true); shake(10); zoomKick(1.1);
       toast('WEAPON EVOLVED', ev.n);
+      save.evosSeen = save.evosSeen||{}; save.evosSeen[w.id] = 1;
     }
   }
   if(evolved){ save.weaponsEvolved = (save.weaponsEvolved||0)+1; persist(); checkAch(); }
@@ -1337,7 +1352,12 @@ const CHARS = [
   { id:'vesper',  n:'VESPER',  e:'➹', w:'swarm', price:32000, d:'+2 extra projectiles, always swarming.',         hp:0,   dmg:1,    spd:1.05, cd:.92,extra:{multi:2} },
   { id:'warden',  n:'WARDEN',  e:'⛨', w:'mine',  price:40000, d:'+50 HP, +3 flat armor. Slow but unkillable.',    hp:50,  dmg:1,    spd:.85,  cd:1,  extra:{armorFlat:3} },
   { id:'crimson', n:'CRIMSON', e:'❖', w:'blaster',price:50000, d:'Berserker: +35% dmg, +18% fire rate, glass HP.',hp:-30, dmg:1.35, spd:1.1,  cd:.82,extra:{} },
-  { id:'nemesis', n:'NEMESIS', e:'♛', w:'laser', price:75000, d:'The apex Reaper. +25% area/XP/luck, tanky.',     hp:40,  dmg:1.2,  spd:1.1,  cd:.9, extra:{area:.15,xp:.15,luck:.15} }
+  { id:'nemesis', n:'NEMESIS', e:'♛', w:'laser', price:75000, d:'The apex Reaper. +25% area/XP/luck, tanky.',     hp:40,  dmg:1.2,  spd:1.1,  cd:.9, extra:{area:.15,xp:.15,luck:.15} },
+  { id:'ghost',   n:'GHOST',   e:'☾', w:'orbit', price:90000,  d:'15% chance to dodge any hit entirely.',       hp:-10, dmg:1,    spd:1.15, cd:1,  extra:{dodge:.15} },
+  { id:'eclipse', n:'ECLIPSE', e:'☄', w:'chain', price:110000, d:'Ultimate charges 45% faster.',                hp:0,   dmg:1.1,  spd:1,    cd:1,  extra:{ultCdMul:.55} },
+  { id:'aeon',    n:'AEON',    e:'⏣', w:'blaster',price:130000,d:'Starts with 2 weapons already equipped.',      hp:0,   dmg:.95,  spd:1,    cd:1,  extra:{secondWep:'nova'} },
+  { id:'magma',   n:'MAGMA',   e:'♆', w:'hole',  price:150000, d:'+30% area. Devastating, fragile black holes.', hp:-20, dmg:1.4,  spd:.95,  cd:1,  extra:{area:.3} },
+  { id:'titan',   n:'TITAN',   e:'⛰', w:'mine',  price:200000, d:'+80 HP, +6 flat armor. A walking fortress.',   hp:80,  dmg:.9,   spd:.8,   cd:1.1,extra:{armorFlat:6} }
 ];
 const charById = id => CHARS.find(c=>c.id===id) || CHARS[0];
 
@@ -1352,12 +1372,18 @@ const ULTIMATES = {
   vesper: { n:'MISSILE BARRAGE',i:'➹', c:'#ff2fb9', cd:16, d:'20 homing missiles launch at once' },
   warden: { n:'MINEFIELD',      i:'⛨', c:'#ffb020', cd:19, d:'Carpet-drops a ring of live mines' },
   crimson:{ n:'BLOOD FRENZY',   i:'❖', c:'#ff3b5c', cd:14, d:'Instant Frenzy + 25% heal' },
-  nemesis:{ n:'APEX EXTINCTION',i:'♛', c:'#ffd23c', cd:22, d:'Screen-wide nuke + heal + invuln' }
+  nemesis:{ n:'APEX EXTINCTION',i:'♛', c:'#ffd23c', cd:22, d:'Screen-wide nuke + heal + invuln' },
+  ghost:  { n:'PHANTOM STEP',   i:'☾', c:'#cfe0ff', cd:15, d:'3s total invulnerability + speed burst' },
+  eclipse:{ n:'TOTALITY',       i:'☄', c:'#2a1840', cd:12, d:'Blackout nova + chains to everyone' },
+  aeon:   { n:'TIME DILATION',  i:'⏣', c:'#7fd6ff', cd:18, d:'All weapons fire again instantly' },
+  magma:  { n:'CALDERA',        i:'♆', c:'#ff6a1a', cd:20, d:'Three giant black holes erupt' },
+  titan:  { n:'BULWARK',        i:'⛰', c:'#8494b8', cd:20, d:'Huge shield nova + heal + armor spike' }
 };
 function fireUltimate(){
   if(!P || G.state!=='PLAY' || G.ultCd>0) return;
   const u = ULTIMATES[P.char.id]; if(!u) return;
-  G.ultCd = G.ultMax = u.cd;
+  const cdMul = P.char.extra.ultCdMul || 1;
+  G.ultCd = G.ultMax = u.cd * cdMul;
   announce(u.n+'!', u.c); Snd.big(); Snd.sweep(true); shake(14); G.flash=.5; zoomKick(1.12); G.wash=.8; G.washC=u.c;
   shock(P.x,P.y,260,u.c,6);
   const dmg = (30 + P.level*4) * P.dmgMul;
@@ -1416,6 +1442,47 @@ function fireUltimate(){
       P.invul = Math.max(P.invul, 2.4);
       break;
     }
+    case 'ghost': {
+      P.invul = Math.max(P.invul, 3);
+      P.vx += P.faceX*380; P.vy += P.faceY*380;
+      burst(P.x,P.y,20,'#cfe0ff',220,.5,3.5);
+      break;
+    }
+    case 'eclipse': {
+      const R = 260*P.area;
+      for(const e of enemies.slice()){
+        if(dist2(e,P) < (R+e.r)*(R+e.r)){
+          beams.push({ x1:P.x, y1:P.y, x2:e.x, y2:e.y, life:.3, c:'#2a1840', w:4, jag:1 });
+          const c = Math.random()<P.crit; damage(e, dmg*1.2*(c?P.critMul:1), c, '#8b5cff');
+        }
+      }
+      break;
+    }
+    case 'aeon': {
+      P.wep.forEach(w=>{ w.t = 0; });
+      burst(P.x,P.y,18,'#7fd6ff',180,.4,3);
+      break;
+    }
+    case 'magma': {
+      for(let i=0;i<3;i++){
+        const a = Math.random()*TAU, d = rnd(120,320);
+        holes.push({ x:P.x+Math.cos(a)*d, y:P.y+Math.sin(a)*d, r:150*P.area, life:4.5, dmg:dmg*.55, t:0, ult:1 });
+      }
+      break;
+    }
+    case 'titan': {
+      const R = 240*P.area;
+      shock(P.x,P.y,R,'#8494b8',8);
+      for(const e of enemies.slice()){
+        if(dist2(e,P) < (R+e.r)*(R+e.r)){
+          const c = Math.random()<P.crit; damage(e, dmg*.8*(c?P.critMul:1), c, '#8494b8', e.x-P.x, e.y-P.y);
+          e.kb=.3; e.kbx=(e.x-P.x); e.kby=(e.y-P.y);
+        }
+      }
+      P.hp = Math.min(P.maxHp, P.hp + P.maxHp*.3);
+      P.invul = Math.max(P.invul, 1.6);
+      break;
+    }
   }
   toast('ULTIMATE', u.n);
   save.ultsUsed = (save.ultsUsed||0)+1; persist(); checkAch();
@@ -1468,7 +1535,9 @@ const ACHS = [
   { k:'rush5', n:'BOSS GAUNTLET',  d:'Score 20,000 in Boss Rush',  r:700,  t:s=>s.bossRushBest>=20000 },
   { k:'arenas',n:'WORLD TRAVELER', d:'Win a run in every arena',   r:1200, t:s=>ARENAS.every(a=>(s.arenasCleared||{})[a.id]) },
   { k:'evo1',  n:'TRANSCENDENT',   d:'Evolve a weapon',            r:500,  t:s=>(s.weaponsEvolved||0)>=1 },
-  { k:'evo8',  n:'FULL ASCENSION', d:'Evolve 8 weapons total',     r:2500, t:s=>(s.weaponsEvolved||0)>=8 }
+  { k:'evo8',  n:'PERFECT ARSENAL',d:'Evolve 8 weapons total',     r:2500, t:s=>(s.weaponsEvolved||0)>=8 },
+  { k:'asc1',  n:'ASCENDED',      d:'Ascend for the first time',   r:1000, t:s=>(s.ascension||0)>=1 },
+  { k:'asc5',  n:'BEYOND MORTAL', d:'Ascend 5 times',              r:5000, t:s=>(s.ascension||0)>=5 }
 ];
 
 /* ---------------- 9. CONTENT: DAILY QUESTS ---------------- */
@@ -1605,6 +1674,7 @@ function newPlayer(){
     wep:[{ id:c.w, lvl:1, t:0 }], pas:{}, char:c,
     kills:0, dmgDealt:0
   };
+  if(c.extra.secondWep) p.wep.push({ id:c.extra.secondWep, lvl:1, t:0 });
   p.baseHp = 120 + m.vit*10 + c.hp;
   recalc(p); p.hp = p.maxHp;
   return p;
@@ -1627,6 +1697,11 @@ function recalc(p){
   p.luck    = L('fortune')*.08 + m.fort*.04 + (c.extra.luck||0);
   p.extraProj = L('multi') + (c.extra.multi||0);
   p.coinMul = 1 + m.greed*.08;
+  p.dodge = c.extra.dodge||0;
+  const asc = save.ascension||0;
+  p.dmgMul *= (1 + asc*.03);
+  p.coinMul *= (1 + asc*.06);
+  p.xpMul *= (1 + asc*.03);
   if(p.hp > p.maxHp) p.hp = p.maxHp;
 }
 
@@ -2368,6 +2443,9 @@ function nukeScreen(){
   announce('OVERLOAD!', '#ffffff');
 }
 function hurtPlayer(amt){
+  if(P.dodge>0 && Math.random()<P.dodge){
+    dnum(P.x, P.y-26, 0, false, '#cfe0ff', 'DODGE!'); Snd.tone(1800,.08,'sine',.06,2200); return;
+  }
   amt = Math.max(1, amt - P.armor);
   P.hp -= amt; P.invul = .5; P.hitT = .2;
   Snd.hurt(); shake(7); G.combo = 0; G.comboT = 0; G.frzCharge *= .75;
@@ -2877,7 +2955,7 @@ $('chestOk').onclick = ()=>{ Snd.click(); hide('chestScreen');
 /* ---------------- 23. SCREEN HELPERS ---------------- */
 function show(id){ $(id).classList.remove('hidden'); }
 function hide(id){ $(id).classList.add('hidden'); }
-const SCREENS = ['menuScreen','modeScreen','dailyScreen','lvlScreen','chestScreen','pauseScreen','overScreen','reviveScreen','shopScreen','heroScreen','achScreen','statsScreen'];
+const SCREENS = ['menuScreen','modeScreen','dailyScreen','lvlScreen','chestScreen','pauseScreen','overScreen','reviveScreen','shopScreen','heroScreen','achScreen','evoScreen','statsScreen'];
 function hideAll(){ SCREENS.forEach(hide); }
 
 /* ---------------- 24. RUN FLOW ---------------- */
@@ -3118,6 +3196,24 @@ function renderAch(){
 $('achBtn').onclick = ()=>{ Snd.click(); hideAll(); show('achScreen'); renderAch(); };
 $('achBack').onclick = ()=>{ Snd.click(); goMenu(); };
 
+function renderEvoCodex(){
+  const h=$('evoList'); h.innerHTML='';
+  WKEYS.forEach(wk=>{
+    const ev = EVOLUTIONS[wk]; if(!ev) return;
+    const W = WEAPONS[wk], Pz = PASSIVES[ev.passive];
+    const seen = !!((save.evosSeen||{})[wk]);
+    const el = document.createElement('div');
+    el.className = 'item ach ' + (seen?'done':'');
+    el.innerHTML = `<div class="ic" style="color:${seen?'#ffd23c':'var(--dim)'}">${seen?ev.i:'?'}</div>
+      <div class="gr"><div class="nm">${seen?ev.n:'???'}</div>
+      <div class="ds">${W.i} ${W.n} Lv${WMAX} + ${Pz.i} ${Pz.n} Lv${PMAX}</div></div>
+      <div style="font:900 18px/1 var(--f1);color:${seen?'var(--li)':'var(--dim)'}">${seen?'★':'☆'}</div>`;
+    h.appendChild(el);
+  });
+}
+$('evoBtn').onclick = ()=>{ Snd.click(); hideAll(); show('evoScreen'); renderEvoCodex(); };
+$('evoBack').onclick = ()=>{ Snd.click(); goMenu(); };
+
 /* ---------------- 28. STATS ---------------- */
 function renderStats(){
   const g=$('careerGrid');
@@ -3125,11 +3221,19 @@ function renderStats(){
     ['RUNS',save.runs],['BOSSES SLAIN',save.bosses],['REVIVES USED',save.revives],
     ['SHARDS',fmtN(save.coins)],['TIME PLAYED',fmtT(save.playtime)],['DAY STREAK',save.daily.streak],
     ['GOALS',Object.keys(save.achClaimed||{}).length+'/'+ACHS.length],
-    ['BOSS RUSH BEST',fmtN(save.bossRushBest)],['HARDCORE BEST',fmtN(save.hardcoreBest)],['TIME ATTACK BEST',fmtN(save.timeAttackBest)]];
+    ['BOSS RUSH BEST',fmtN(save.bossRushBest)],['HARDCORE BEST',fmtN(save.hardcoreBest)],['TIME ATTACK BEST',fmtN(save.timeAttackBest)],
+    ['ASCENSIONS',save.ascension||0]];
   g.innerHTML = rows.map(r=>`<div class="stat"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('');
   $('sfxBtn2').textContent='♪ SOUND: '+(save.opt.sfx?'ON':'OFF');
   $('musBtn').textContent='♫ MUSIC: '+(save.opt.mus?'ON':'OFF');
   $('shakeBtn').textContent='☲ SCREEN SHAKE: '+(save.opt.shake?'ON':'OFF');
+  const metaMax = META.reduce((a,m)=>a+m.max,0);
+  const metaCur = Object.values(save.meta).reduce((a,b)=>a+b,0);
+  const canAscend = metaCur>=metaMax;
+  $('ascendBtn').disabled = !canAscend;
+  $('ascendTxt').textContent = canAscend
+    ? `Reset all permanent upgrades & shards for +3% permanent damage/XP and +6% shards, forever (currently +${((save.ascension||0)*3)}% dmg/xp, +${((save.ascension||0)*6)}% shards).`
+    : `Max every permanent upgrade (${metaCur}/${metaMax}) to unlock Ascension — a permanent damage/XP/shard boost that stacks every time.`;
 }
 $('statsBtn').onclick = ()=>{ Snd.click(); hideAll(); show('statsScreen'); renderStats(); };
 $('statsBack').onclick = ()=>{ Snd.click(); goMenu(); };
@@ -3137,6 +3241,16 @@ $('sfxBtn2').onclick = ()=>{ Snd.setSfx(!save.opt.sfx); renderStats(); };
 $('musBtn').onclick = ()=>{ Snd.setMus(!save.opt.mus); renderStats(); };
 $('shakeBtn').onclick = ()=>{ save.opt.shake = save.opt.shake?0:1; persist(); renderStats(); };
 $('wipeBtn').onclick = ()=>{ if(confirm('Erase ALL progress permanently?')){ save=defaultSave(); writeSave(); location.reload(); } };
+$('ascendBtn').onclick = ()=>{
+  const metaMax = META.reduce((a,m)=>a+m.max,0);
+  if(Object.values(save.meta).reduce((a,b)=>a+b,0) < metaMax) return;
+  if(!confirm('Ascend now? This resets every permanent upgrade and your shard balance, but grants a permanent stacking bonus to damage, XP and shard gain forever. This cannot be undone.')) return;
+  save.ascension = (save.ascension||0)+1;
+  save.meta = defaultSave().meta;
+  save.coins = 0;
+  persist(); Snd.big(); toast('ASCENDED', 'Ascension '+save.ascension+' — permanent power gained');
+  checkAch(); refreshCoins(); renderStats();
+};
 
 /* ---------------- 29. QUESTS ---------------- */
 const runQ = { kills:0, time:0, level:0, score:0, boss:0, coins:0, combo:0 };
