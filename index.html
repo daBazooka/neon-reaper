@@ -1787,14 +1787,23 @@ function hitstop(v){ G.hitstop = Math.max(G.hitstop, v); }
 
 /* ---------------- 14. ENEMY SPAWNING ---------------- */
 const ETYPES = {
-  grunt   :{ hp:11,  spd:56,  r:13, dmg:9,  sides:3, c:'#ff5e7a', sc:10,  at:0 },
-  runner  :{ hp:7,   spd:104, r:10, dmg:7,  sides:4, c:'#ffd23c', sc:14,  at:22 },
-  brute   :{ hp:46,  spd:40,  r:21, dmg:16, sides:6, c:'#b6ff3c', sc:26,  at:45 },
-  shooter :{ hp:20,  spd:44,  r:14, dmg:10, sides:5, c:'#26f0ff', sc:30,  at:70, ranged:true },
-  splitter:{ hp:26,  spd:52,  r:17, dmg:12, sides:8, c:'#c47bff', sc:24,  at:100, splits:true },
-  orbiter :{ hp:34,  spd:88,  r:12, dmg:11, sides:3, c:'#ff9b3c', sc:28,  at:130, orbit:true },
-  wraith  :{ hp:64,  spd:70,  r:16, dmg:18, sides:4, c:'#ff2fb9', sc:44,  at:175 },
-  titan   :{ hp:180, spd:34,  r:28, dmg:24, sides:6, c:'#7f8cff', sc:80,  at:230 }
+  grunt     :{ hp:11,  spd:56,  r:13, dmg:9,  shape:3,       c:'#ff5e7a', sc:10,  at:0 },
+  spike     :{ hp:9,   spd:120, r:9,  dmg:6,  shape:'star5', c:'#ff6ec7', sc:12,  at:10 },
+  runner    :{ hp:7,   spd:104, r:10, dmg:7,  shape:4,       c:'#ffd23c', sc:14,  at:22 },
+  crystal   :{ hp:30,  spd:48,  r:16, dmg:13, shape:7,       c:'#4dffef', sc:20,  at:35 },
+  brute     :{ hp:46,  spd:40,  r:21, dmg:16, shape:6,       c:'#b6ff3c', sc:26,  at:45 },
+  viper     :{ hp:18,  spd:95,  r:12, dmg:12, shape:'diamond',c:'#9cff4d', sc:22,  at:60 },
+  shooter   :{ hp:20,  spd:44,  r:14, dmg:10, shape:5,       c:'#26f0ff', sc:30,  at:70, ranged:true },
+  seeker    :{ hp:24,  spd:46,  r:15, dmg:11, shape:9,       c:'#ff8a3c', sc:32,  at:85, ranged:true },
+  splitter  :{ hp:26,  spd:52,  r:17, dmg:12, shape:8,       c:'#c47bff', sc:24,  at:100, splits:true },
+  phantom   :{ hp:30,  spd:58,  r:17, dmg:13, shape:'cross', c:'#b980ff', sc:28,  at:115, splits:true },
+  orbiter   :{ hp:34,  spd:88,  r:12, dmg:11, shape:3,       c:'#ff9b3c', sc:28,  at:130, orbit:true },
+  comet     :{ hp:40,  spd:100, r:13, dmg:15, shape:'star6', c:'#ffe14d', sc:36,  at:150, orbit:true },
+  wraith    :{ hp:64,  spd:70,  r:16, dmg:18, shape:4,       c:'#ff2fb9', sc:44,  at:175 },
+  juggernaut:{ hp:140, spd:36,  r:26, dmg:22, shape:10,      c:'#ff4d6a', sc:70,  at:200 },
+  titan     :{ hp:180, spd:34,  r:28, dmg:24, shape:6,       c:'#7f8cff', sc:80,  at:230 },
+  nova      :{ hp:70,  spd:50,  r:18, dmg:20, shape:'burst', c:'#4dc9ff', sc:55,  at:260, ranged:true },
+  voidling  :{ hp:220, spd:42,  r:30, dmg:28, shape:12,      c:'#6a4dff', sc:95,  at:300 }
 };
 function availTypes(t){ return Object.keys(ETYPES).filter(k=>ETYPES[k].at<=t); }
 function hpScale(t){ return 1 + t*.015 + Math.pow(t/100, 1.82); }
@@ -1805,7 +1814,7 @@ function spawnAt(type, x, y, mult, elite){
     type, x, y, vx:0, vy:0,
     hp: d.hp*s*(elite?9:1), maxHp:d.hp*s*(elite?9:1),
     r: d.r*(elite?1.75:1), spd: d.spd*(elite?.8:1)*(1+Math.min(.85,G.t/320)),
-    dmg: d.dmg*(1+G.t/145), sides:d.sides, c: elite?'#ffd23c':d.c,
+    dmg: d.dmg*(1+G.t/145), shape:d.shape, c: elite?'#ffd23c':d.c,
     score: d.sc*(elite?14:1), rot:Math.random()*TAU, slowT:0, hitT:0,
     elite:!!elite, boss:false, shootT:rnd(1,3), ranged:d.ranged, splits:d.splits, orbit:d.orbit,
     kb:0, kbx:0, kby:0
@@ -2396,7 +2405,7 @@ function syncEnemiesFromSnapshot(dt){
     if(!e){
       const d = ETYPES[s.t] || ETYPES.grunt;
       e = { type:s.t, x:s.x, y:s.y, vx:0, vy:0, r:d.r*(s.el?1.75:1), spd:0,
-            dmg:d.dmg, sides:d.sides, c: s.b?'#ff2fb9': s.el?'#ffd23c':d.c,
+            dmg:d.dmg, shape:d.shape, c: s.b?'#ff2fb9': s.el?'#ffd23c':d.c,
             score:0, rot:Math.random()*TAU, slowT:0, hitT:0, elite:!!s.el, boss:!!s.b,
             kb:0, kbx:0, kby:0, netId:s.id, netFollow:true };
       enemies.push(e);
@@ -2477,6 +2486,29 @@ function poly(x,y,r,sides,rot){
   for(let i=0;i<sides;i++){ const a = rot + i/sides*TAU;
     const px=x+Math.cos(a)*r, py=y+Math.sin(a)*r;
     i?ctx.lineTo(px,py):ctx.moveTo(px,py); }
+  ctx.closePath();
+}
+/* wide shape roster for the swarm: plain N-gons plus a handful of hand-built
+   silhouettes (stars, diamond, cross, spiky burst) so the horde reads as
+   many distinct creatures rather than one recolored blob */
+function drawShape(x,y,r,shape,rot){
+  if(typeof shape === 'number' || !shape){ poly(x,y,r,shape||6,rot); return; }
+  const rp = (px,py,i)=>{ const cx=x+px*Math.cos(rot)-py*Math.sin(rot), cy=y+px*Math.sin(rot)+py*Math.cos(rot);
+    i?ctx.lineTo(cx,cy):ctx.moveTo(cx,cy); };
+  ctx.beginPath();
+  if(shape==='diamond'){
+    [[0,-r*1.3],[r*.78,0],[0,r*1.3],[-r*.78,0]].forEach(([px,py],i)=>rp(px,py,i));
+  } else if(shape==='cross'){
+    const w=r*.42;
+    [[-w,-r],[w,-r],[w,-w],[r,-w],[r,w],[w,w],[w,r],[-w,r],[-w,w],[-r,w],[-r,-w],[-w,-w]].forEach(([px,py],i)=>rp(px,py,i));
+  } else if(shape.indexOf('star')===0 || shape==='burst'){
+    const pts = shape==='burst' ? 10 : (parseInt(shape.slice(4),10)||5);
+    const inner = shape==='burst' ? .34 : .45, outerMul = shape==='burst' ? 1.15 : 1;
+    for(let i=0;i<pts*2;i++){
+      const a = i/(pts*2)*TAU, rr = (i%2===0 ? r*outerMul : r*inner);
+      rp(Math.cos(a)*rr, Math.sin(a)*rr, i);
+    }
+  } else { poly(x,y,r,6,rot); return; }
   ctx.closePath();
 }
 const menuDots = [];
@@ -2618,10 +2650,11 @@ function render(){
     const flash = e.hitT>0;
     ctx.fillStyle = flash? '#ffffff' : e.c;
     ctx.strokeStyle = flash? '#ffffff' : e.c;
-    ctx.globalAlpha = .22; poly(0,0,e.r*1.45,e.sides,0); ctx.fill(); ctx.globalAlpha=1;
-    poly(0,0,e.r,e.sides,0); ctx.fill();
-    ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.55)'; poly(0,0,e.r,e.sides,0); ctx.stroke();
-    if(e.elite && !e.boss){ ctx.strokeStyle='#ffd23c'; ctx.lineWidth=3; poly(0,0,e.r*1.28,e.sides,.4); ctx.stroke(); }
+    const eShape = e.shape || e.sides || 6;
+    ctx.globalAlpha = .22; drawShape(0,0,e.r*1.45,eShape,0); ctx.fill(); ctx.globalAlpha=1;
+    drawShape(0,0,e.r,eShape,0); ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.55)'; drawShape(0,0,e.r,eShape,0); ctx.stroke();
+    if(e.elite && !e.boss){ ctx.strokeStyle='#ffd23c'; ctx.lineWidth=3; drawShape(0,0,e.r*1.28,eShape,.4); ctx.stroke(); }
     if(e.boss){
       ctx.strokeStyle=e.c; ctx.lineWidth=4; poly(0,0,e.r*1.3,e.sides,-gt*.6); ctx.stroke();
       ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.globalAlpha=.7; poly(0,0,e.r*1.5,e.sides+2,gt*.4); ctx.stroke(); ctx.globalAlpha=1;
