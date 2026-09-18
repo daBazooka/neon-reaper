@@ -555,6 +555,7 @@ const Store = {
 };
 const defaultSave = () => ({
   coins: 0, best: 0, bestTime: 0, runs: 0, kills: 0, bosses: 0, revives: 0, playtime: 0,
+  bossRushBest: 0, hardcoreBest: 0, timeAttackBest: 0,
   meta: { vit:0, pow:0, swift:0, mag:0, greed:0, wis:0, fort:0, armor:0, regen:0, rev:0 },
   chars: { volt:1 }, char: 'volt',
   ach: {}, achClaimed: {}, daily: { last: 0, streak: 0 },
@@ -1340,7 +1341,7 @@ function fireUltimate(){
     }
     case 'tesla': {
       for(const e of enemies.slice()){
-        beams.push({ x1:P.x, y1:P.y, x2:e.x, y2:e.y, life:.25, c:'#8b5cff', w:3 });
+        beams.push({ x1:P.x, y1:P.y, x2:e.x, y2:e.y, life:.25, c:'#8b5cff', w:3, jag:1 });
         const c = Math.random()<P.crit; damage(e, dmg*.8*(c?P.critMul:1), c, '#8b5cff');
       }
       break;
@@ -1369,6 +1370,7 @@ function fireUltimate(){
     }
   }
   toast('ULTIMATE', u.n);
+  save.ultsUsed = (save.ultsUsed||0)+1; persist(); checkAch();
 }
 $('ultwrap').addEventListener('click', ()=>{ Snd.click(); fireUltimate(); });
 
@@ -1409,8 +1411,14 @@ const ACHS = [
   { k:'wmax',  n:'PERFECTED',      d:'Max out any weapon (Lv8)',  r:500,  t:s=>!!s.maxedWeapon },
   { k:'full',  n:'LOADED',         d:'Hold 6 weapons at once',    r:700,  t:s=>!!s.sixWeapons },
   { k:'str7',  n:'DEVOTED',        d:'7-day login streak',        r:1000, t:s=>s.daily.streak>=7 },
-  { k:'allc',  n:'ROSTER',         d:'Unlock every Reaper',       r:2000, t:s=>CHARS.every(c=>s.chars[c.id]) },
-  { k:'meta',  n:'ARSENAL',        d:'Buy 20 permanent upgrades', r:1500, t:s=>Object.values(s.meta).reduce((a,b)=>a+b,0)>=20 }
+  { k:'allc',  n:'ROSTER',         d:'Unlock every Reaper',       r:6000, t:s=>CHARS.every(c=>s.chars[c.id]) },
+  { k:'meta',  n:'ARSENAL',        d:'Buy 20 permanent upgrades', r:1500, t:s=>Object.values(s.meta).reduce((a,b)=>a+b,0)>=20 },
+  { k:'ult1',  n:'UNLEASHED',      d:'Fire your first ULTIMATE',  r:100,  t:s=>(s.ultsUsed||0)>=1 },
+  { k:'ult50', n:'POWER OVERWHELMING',d:'Fire 50 ULTIMATEs',      r:800,  t:s=>(s.ultsUsed||0)>=50 },
+  { k:'hard1', n:'NO MERCY',       d:'Complete a Hardcore run',   r:400,  t:s=>s.hardcoreBest>0 },
+  { k:'ta1',   n:'AGAINST THE CLOCK',d:'Complete a Time Attack run',r:400,t:s=>s.timeAttackBest>0 },
+  { k:'rush5', n:'BOSS GAUNTLET',  d:'Score 20,000 in Boss Rush',  r:700,  t:s=>s.bossRushBest>=20000 },
+  { k:'arenas',n:'WORLD TRAVELER', d:'Win a run in every arena',   r:1200, t:s=>ARENAS.every(a=>(s.arenasCleared||{})[a.id]) }
 ];
 
 /* ---------------- 9. CONTENT: DAILY QUESTS ---------------- */
@@ -1562,20 +1570,22 @@ const MODES = [
   { id:'hardcore', n:'HARDCORE',  i:'⛧', d:'One life, tougher enemies, +40% shards.' }
 ];
 const ARENAS = [
-  { id:'grid', n:'NEON GRID',      i:'▦', theme:0, hazard:null,      d:'The classic arena. No hazards.' },
-  { id:'ice',  n:'FROZEN WASTES',  i:'❄', theme:5, hazard:'ice',     d:'Icy patches slow anyone inside.' },
-  { id:'lava', n:'INFERNO CORE',   i:'♨', theme:3, hazard:'lava',    d:'Molten pools scorch the careless.' },
-  { id:'void', n:'VOID RIFT',      i:'◍', theme:7, hazard:'gravity', d:'Gravity wells drag you off course.' }
+  { id:'grid',  n:'NEON GRID',      i:'▦', theme:0, hazard:null,      d:'The classic arena. No hazards.' },
+  { id:'ice',   n:'FROZEN WASTES',  i:'❄', theme:5, hazard:'ice',     d:'Icy patches slow anyone inside.' },
+  { id:'lava',  n:'INFERNO CORE',   i:'♨', theme:3, hazard:'lava',    d:'Molten pools scorch the careless.' },
+  { id:'void',  n:'VOID RIFT',      i:'◍', theme:7, hazard:'gravity', d:'Gravity wells drag you off course.' },
+  { id:'swamp', n:'TOXIC SWAMP',    i:'☣', theme:4, hazard:'poison',  d:'Poison bogs sap HP the longer you linger.' },
+  { id:'storm', n:'STORM ZONE',     i:'⚡', theme:6, hazard:'storm',   d:'Lightning strikes telegraphed danger zones.' }
 ];
 const hazards = [];
 function spawnHazards(){
   hazards.length = 0;
   const kind = ARENAS[G.arenaI].hazard;
   if(!kind) return;
-  const n = 5;
+  const n = kind==='storm' ? 7 : 5;
   for(let i=0;i<n;i++){
     const a = i/n*TAU + rnd(-.3,.3), d = rnd(700,2200);
-    hazards.push({ x:Math.cos(a)*d, y:Math.sin(a)*d, r:rnd(140,220), kind, pulse:Math.random()*TAU });
+    hazards.push({ x:Math.cos(a)*d, y:Math.sin(a)*d, r:rnd(140,220), kind, pulse:Math.random()*TAU, strikeT:rnd(1.5,3.5), poisonR:0 });
   }
 }
 function tickHazards(dt){
@@ -1590,11 +1600,28 @@ function tickHazards(dt){
         const dx=h.x-P.x, dy=h.y-P.y, d=Math.sqrt(d2)||1;
         P.x += dx/d*60*dt; P.y += dy/d*60*dt;
       }
+      else if(h.kind==='poison'){
+        P.poisonT = Math.max(P.poisonT||0, 2.5);
+        if(Math.random()<dt*2.4) hurtPlayer(3+G.t*.01);
+      }
     }
     if(h.kind==='lava'){
       for(const e of enemies){ if(dist2(h,e) < h.r*h.r && Math.random()<dt*2) e.hp -= 4; }
     }
+    if(h.kind==='storm'){
+      h.strikeT -= dt;
+      if(h.strikeT<=0){
+        h.strikeT = rnd(2.2,4.2);
+        const a = Math.random()*TAU, d = Math.random()*h.r*.8;
+        const sx = h.x+Math.cos(a)*d, sy = h.y+Math.sin(a)*d;
+        shock(sx,sy,60,'#fff',5); burst(sx,sy,16,'#c8f0ff',260,.4,3.5); Snd.tone(1600,.12,'sawtooth',.1,300); shake(3);
+        if(dist2({x:sx,y:sy},P) < 70*70) hurtPlayer(14+G.t*.03);
+        for(const e of enemies){ if(dist2({x:sx,y:sy},e) < 70*70) e.hp -= 40; }
+      }
+    }
   }
+  // poison lingers briefly after leaving a bog, like a stacking debuff
+  if(P.poisonT>0){ P.poisonT -= dt; if(Math.random()<dt*1.6) hurtPlayer(2); }
 }
 
 /* ---------------- 13. FX HELPERS ---------------- */
@@ -1895,7 +1922,7 @@ const FIRE = {
     const dmg = (22+l*13)*P.dmgMul;
     for(let i=0;i<hops;i++){
       if(!cur) break; seen.add(cur);
-      beams.push({ x1:from.x, y1:from.y, x2:cur.x, y2:cur.y, life:.18, c:'#8b5cff', w:3 });
+      beams.push({ x1:from.x, y1:from.y, x2:cur.x, y2:cur.y, life:.18, c:'#8b5cff', w:3, jag:1 });
       const c = Math.random()<P.crit;
       damage(cur, dmg*(c?P.critMul:1)*(1-i*.06), c, '#8b5cff');
       from = cur; cur = nearest(cur.x,cur.y, 260, seen);
@@ -1905,6 +1932,8 @@ const FIRE = {
   nova(l){
     const R = (110+l*22)*P.area, dmg=(20+l*12)*P.dmgMul;
     shock(P.x,P.y,R,'#7fd6ff',5);
+    shock(P.x,P.y,R*.6,'#ffffff',2);
+    burst(P.x,P.y,16,'#7fd6ff',R*1.8,.4,3.2);
     for(const e of enemies.slice()){
       if(dist2(e,P) < (R+e.r)*(R+e.r)){
         const c = Math.random()<P.crit;
@@ -2332,7 +2361,8 @@ function render(){
   for(const h of hazards){
     if(h.x+h.r<L||h.x-h.r>R||h.y+h.r<T||h.y-h.r>B) continue;
     const pulse = .5+.5*Math.sin(h.pulse*1.6);
-    const col = h.kind==='lava' ? '255,90,40' : h.kind==='ice' ? '120,220,255' : '150,90,255';
+    const col = h.kind==='lava' ? '255,90,40' : h.kind==='ice' ? '120,220,255'
+      : h.kind==='poison' ? '150,230,60' : h.kind==='storm' ? '230,230,255' : '150,90,255';
     const g = ctx.createRadialGradient(h.x,h.y,h.r*.1,h.x,h.y,h.r);
     g.addColorStop(0,'rgba('+col+','+(.28+pulse*.12)+')');
     g.addColorStop(1,'rgba('+col+',0)');
@@ -2391,7 +2421,18 @@ function render(){
   for(const bm of beams){
     ctx.globalAlpha = clamp(bm.life*4,0,1);
     ctx.strokeStyle=bm.c; ctx.lineWidth=bm.w; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(bm.x1,bm.y1); ctx.lineTo(bm.x2,bm.y2); ctx.stroke();
+    ctx.beginPath();
+    if(bm.jag){
+      const segs = 6, dx=(bm.x2-bm.x1)/segs, dy=(bm.y2-bm.y1)/segs;
+      const nx=-dy, ny=dx, nl=Math.hypot(nx,ny)||1;
+      ctx.moveTo(bm.x1,bm.y1);
+      for(let s=1;s<segs;s++){
+        const jag = rnd(-10,10);
+        ctx.lineTo(bm.x1+dx*s + nx/nl*jag, bm.y1+dy*s + ny/nl*jag);
+      }
+      ctx.lineTo(bm.x2,bm.y2);
+    } else { ctx.moveTo(bm.x1,bm.y1); ctx.lineTo(bm.x2,bm.y2); }
+    ctx.stroke();
     ctx.globalAlpha*=.4; ctx.lineWidth=bm.w*2.6; ctx.stroke();
     ctx.globalAlpha=1;
   }
@@ -2811,6 +2852,10 @@ function finishRun(){
   save.coins += lastEarned;
   save.runs++; save.kills += G.kills;
   if(G.score > save.best) save.best = G.score;
+  if(G.mode==='bossrush' && G.score>save.bossRushBest) save.bossRushBest = G.score;
+  if(G.mode==='hardcore' && G.score>save.hardcoreBest) save.hardcoreBest = G.score;
+  if(G.mode==='timeattack' && G.score>save.timeAttackBest) save.timeAttackBest = G.score;
+  if(G.t>=60){ save.arenasCleared = save.arenasCleared||{}; save.arenasCleared[(ARENAS[G.arenaI]||ARENAS[0]).id] = 1; }
   if(G.t > save.bestTime) save.bestTime = G.t;
   qSet('kills', G.kills, true);
   persist();
@@ -2944,7 +2989,8 @@ function renderStats(){
   const rows = [['BEST SCORE',fmtN(save.best)],['LONGEST RUN',fmtT(save.bestTime)],['TOTAL KILLS',fmtN(save.kills)],
     ['RUNS',save.runs],['BOSSES SLAIN',save.bosses],['REVIVES USED',save.revives],
     ['SHARDS',fmtN(save.coins)],['TIME PLAYED',fmtT(save.playtime)],['DAY STREAK',save.daily.streak],
-    ['GOALS',Object.keys(save.ach).length+'/'+ACHS.length]];
+    ['GOALS',Object.keys(save.achClaimed||{}).length+'/'+ACHS.length],
+    ['BOSS RUSH BEST',fmtN(save.bossRushBest)],['HARDCORE BEST',fmtN(save.hardcoreBest)],['TIME ATTACK BEST',fmtN(save.timeAttackBest)]];
   g.innerHTML = rows.map(r=>`<div class="stat"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('');
   $('sfxBtn2').textContent='♪ SOUND: '+(save.opt.sfx?'ON':'OFF');
   $('musBtn').textContent='♫ MUSIC: '+(save.opt.mus?'ON':'OFF');
