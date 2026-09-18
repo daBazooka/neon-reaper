@@ -268,6 +268,27 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
 #bosstele{position:absolute;inset:0;pointer-events:none;z-index:4;box-shadow:inset 0 0 0 0 rgba(255,0,60,0);transition:box-shadow .15s}
 #bosstele.on{box-shadow:inset 0 0 140px 20px rgba(255,20,60,.55);animation:telewarn .35s ease-in-out infinite}
 @keyframes telewarn{50%{box-shadow:inset 0 0 90px 10px rgba(255,20,60,.35)}}
+
+/* ---- low-HP tension vignette ---- */
+#dmgflash.lowhp{animation:heartbeat 1s ease-in-out infinite}
+@keyframes heartbeat{0%,100%{opacity:.22}12%{opacity:.55}24%{opacity:.22}36%{opacity:.42}50%{opacity:.18}}
+
+/* ---- evolved weapon slot ---- */
+.wslot.evo{box-shadow:0 0 14px #ffd23c,inset 0 0 8px rgba(255,210,60,.5);border-color:#ffd23c;animation:evoglow 1.6s ease-in-out infinite}
+@keyframes evoglow{50%{box-shadow:0 0 22px #ffd23c,inset 0 0 12px rgba(255,210,60,.7)}}
+
+/* ---- boss enrage ---- */
+#bosswrap.enraged #bossname{color:#ff3b5c;text-shadow:0 0 14px #ff3b5c;animation:enragetxt .4s ease-in-out infinite}
+@keyframes enragetxt{50%{transform:scale(1.06)}}
+
+/* ---- minimap ---- */
+#minimap{position:absolute;top:70px;left:12px;width:92px;height:92px;border-radius:50%;
+  background:radial-gradient(circle,rgba(10,14,28,.75),rgba(6,8,16,.9));border:1px solid var(--line);
+  box-shadow:0 4px 18px rgba(0,0,0,.5);opacity:.92}
+
+/* ---- chest tier ---- */
+.chesttier{font:900 11px/1 var(--f1);letter-spacing:2px;text-align:center;margin-top:4px}
+.chesttier.bronze{color:#c98a52}.chesttier.silver{color:#cfd8e8}.chesttier.gold{color:#ffd23c}
 </style>
 </head>
 <body>
@@ -291,6 +312,7 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   <div id="bosswrap"><div id="bossname">BOSS</div><div id="bosshpwrap"><div id="bosshp"></div></div></div>
   <div id="announce"></div>
   <div id="pausebtn">❚❚</div>
+  <canvas id="minimap" width="92" height="92"></canvas>
   <div id="weprow"></div>
   <div id="ultwrap"><div id="ultBtn"><span id="ultIcon">⚡</span></div><div id="ultlbl">ULTIMATE</div></div>
   <div id="hpwrap"><div id="hpbar"></div><div id="hptxt">100/100</div></div>
@@ -357,8 +379,9 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
 
 <!-- CHEST -->
 <div class="screen hidden" id="chestScreen">
-  <div style="font-size:78px;animation:bob 1s ease-in-out infinite">🎁</div>
+  <div id="chestIcon" style="font-size:78px;animation:bob 1s ease-in-out infinite">🎁</div>
   <h2 class="tt" style="margin-top:12px">ELITE CACHE</h2>
+  <div id="chestTier" class="chesttier"></div>
   <div class="cards" id="chestHost" style="max-width:440px"></div>
   <button class="btn" id="chestOk" style="margin-top:14px">COLLECT</button>
 </div>
@@ -1259,6 +1282,31 @@ const WEAPONS = {
   hole   :{ n:'SINGULARITY', i:'◍', c:'#c47bff', d:l=>`pulls + shreds · ${(12+l*7)} dmg/tick · r+${l*8}%`, cd:l=>7.5-l*.45 }
 };
 const WKEYS = Object.keys(WEAPONS);
+/* Evolutions: max weapon (Lv8) + the paired passive at Lv5 silently transforms it. */
+const EVOLUTIONS = {
+  blaster:{ passive:'might',    n:'PULSE ANNIHILATOR', i:'✹' },
+  orbit:  { passive:'area',     n:"REAPER'S WHEEL",     i:'❋' },
+  chain:  { passive:'crit',     n:'STORMBRINGER',       i:'☈' },
+  nova:   { passive:'vitality', n:'PERMAFROST',         i:'❆' },
+  swarm:  { passive:'multi',    n:'HIVE MIND',          i:'➽' },
+  laser:  { passive:'rapid',    n:'GOD RAY',            i:'‡' },
+  mine:   { passive:'armor',    n:'DEMOLITION EXPERT',  i:'✺' },
+  hole:   { passive:'magnet',   n:'SUPERMASSIVE',       i:'⬤' }
+};
+function checkEvolutions(){
+  if(!P) return;
+  let evolved=false;
+  for(const w of P.wep){
+    const ev = EVOLUTIONS[w.id];
+    if(!ev || w.evo) continue;
+    if(w.lvl>=WMAX && (P.pas[ev.passive]||0)>=PMAX){
+      w.evo = true; evolved = true;
+      announce('EVOLVED: '+ev.n+'!', '#ffd23c'); Snd.big(); Snd.sweep(true); shake(10); zoomKick(1.1);
+      toast('WEAPON EVOLVED', ev.n);
+    }
+  }
+  if(evolved){ save.weaponsEvolved = (save.weaponsEvolved||0)+1; persist(); checkAch(); }
+}
 
 /* ---------------- 5. CONTENT: PASSIVES ---------------- */
 const PASSIVES = {
@@ -1418,7 +1466,9 @@ const ACHS = [
   { k:'hard1', n:'NO MERCY',       d:'Complete a Hardcore run',   r:400,  t:s=>s.hardcoreBest>0 },
   { k:'ta1',   n:'AGAINST THE CLOCK',d:'Complete a Time Attack run',r:400,t:s=>s.timeAttackBest>0 },
   { k:'rush5', n:'BOSS GAUNTLET',  d:'Score 20,000 in Boss Rush',  r:700,  t:s=>s.bossRushBest>=20000 },
-  { k:'arenas',n:'WORLD TRAVELER', d:'Win a run in every arena',   r:1200, t:s=>ARENAS.every(a=>(s.arenasCleared||{})[a.id]) }
+  { k:'arenas',n:'WORLD TRAVELER', d:'Win a run in every arena',   r:1200, t:s=>ARENAS.every(a=>(s.arenasCleared||{})[a.id]) },
+  { k:'evo1',  n:'TRANSCENDENT',   d:'Evolve a weapon',            r:500,  t:s=>(s.weaponsEvolved||0)>=1 },
+  { k:'evo8',  n:'FULL ASCENSION', d:'Evolve 8 weapons total',     r:2500, t:s=>(s.weaponsEvolved||0)>=8 }
 ];
 
 /* ---------------- 9. CONTENT: DAILY QUESTS ---------------- */
@@ -1443,6 +1493,7 @@ function rollQuests(){
 
 /* ---------------- 10. CANVAS / CAMERA ---------------- */
 const cv = $('cv'), ctx = cv.getContext('2d', { alpha:false });
+const mmCv = $('minimap'), mmCtx = mmCv.getContext('2d');
 let CW=0, CH=0, DPR=1, SC=1, VW=0, VH=0;
 const ARENA = 6000; // half-extent (expanded world)
 function resize(){
@@ -1492,6 +1543,24 @@ cv.addEventListener('mousedown', downH); addEventListener('mousemove', moveH); a
 cv.addEventListener('touchstart', downH, {passive:false}); addEventListener('touchmove', moveH, {passive:false});
 addEventListener('touchend', upH); addEventListener('touchcancel', upH);
 
+/* ---- gamepad support: left stick moves, A/cross fires ultimate, start pauses ---- */
+let gpConnected = false, gpPadLatch = false, gpUltLatch = false;
+addEventListener('gamepadconnected', ()=>{ gpConnected = true; toast('CONTROLLER', 'Gamepad connected'); });
+addEventListener('gamepaddisconnected', ()=>{ gpConnected = false; });
+function pollGamepad(onMove){
+  if(!gpConnected || !navigator.getGamepads) return;
+  const gp = navigator.getGamepads()[0]; if(!gp) return;
+  const gx = Math.abs(gp.axes[0]||0)>.18 ? gp.axes[0] : 0;
+  const gy = Math.abs(gp.axes[1]||0)>.18 ? gp.axes[1] : 0;
+  if(gx||gy) onMove(gx,gy);
+  const ultDown = gp.buttons[0] && gp.buttons[0].pressed;
+  if(ultDown && !gpUltLatch) fireUltimate();
+  gpUltLatch = ultDown;
+  const pauseDown = (gp.buttons[9] && gp.buttons[9].pressed) || (gp.buttons[8] && gp.buttons[8].pressed);
+  if(pauseDown && !gpPadLatch){ if(G.state==='PLAY') pauseGame(); else if(G.state==='PAUSE') resumeGame(); }
+  gpPadLatch = pauseDown;
+}
+
 /* ---------------- 12. GAME STATE ---------------- */
 const G = {
   state:'MENU', t:0, score:0, kills:0, runCoins:0, combo:0, comboT:0, maxCombo:0,
@@ -1499,7 +1568,7 @@ const G = {
   bossRef:null, pendingLevels:0, rerolls:1, freeRevives:0, usedRevive:0, dead:false,
   chestQ:0, streakKill:0, streakT:0, tsTimer:0,
   themeI:0, wash:0, washC:'#26f0ff', camZ:1, slowT:0, frenzy:false, frzCharge:0, frzT:0, lastMin:0, nearCd:0, musT:0,
-  ultCd:0, ultMax:16, ultFx:null, mode:'classic', arenaI:0
+  ultCd:0, ultMax:16, ultFx:null, mode:'classic', arenaI:0, hbT:0
 };
 
 /* ---- palette: the whole world re-skins itself every time you level ---- */
@@ -1717,7 +1786,7 @@ function spawnBoss(){
     r: (52+G.bossN*3.5)*kind.sizeMul, spd: 46+G.bossN*3, dmg: (38+G.bossN*9)*kind.dmgMul*hard, sides:6,
     c:kind.c, score:1800*(1+G.bossN), rot:0, slowT:0, hitT:0,
     elite:false, boss:true, shootT:2, phase:0, chargeT:5.4, name: BOSSNAMES[G.bossN % BOSSNAMES.length],
-    kind:kind.pattern, spiralA:0, telegraph:0,
+    kind:kind.pattern, spiralA:0, telegraph:0, ageT:0, enraged:false,
     kb:0, kbx:0, kby:0
   };
   enemies.push(b); G.bossRef = b; G.bossN++;
@@ -1822,7 +1891,7 @@ function killEnemy(e){
   if(e.boss){
     Snd.boom(); shake(24); hitstop(.2); G.flash=.6; G.slowT=1.1; zoomKick(1.16); Snd.sweep(false);
     shock(e.x,e.y,360,'#ff2fb9',7);
-    save.bosses++; G.bossRef=null; $('bosswrap').style.opacity=0; $('bosstele').classList.remove('on');
+    save.bosses++; G.bossRef=null; $('bosswrap').style.opacity=0; $('bosstele').classList.remove('on'); $('bosswrap').classList.remove('enraged');
     dropGem(e.x,e.y,3,26); for(let k=0;k<22;k++) dropCoin(e.x+rnd(-50,50), e.y+rnd(-50,50), 14);
     G.chestQ++; announce('BOSS DOWN!', '#b6ff3c'); Ads.happy(); qProg('boss',1);
   } else if(e.elite){
@@ -1865,25 +1934,27 @@ function fireWeapons(dt){
     if(w.id==='orbit'){ continue; }
     w.t -= dt;
     if(w.t<=0){
-      const cd = Math.max(.07, W.cd(w.lvl) * P.cdMul);
+      const cd = Math.max(.07, W.cd(w.lvl) * P.cdMul * (w.evo?.6:1));
       w.t = cd;
-      FIRE[w.id](w.lvl);
+      FIRE[w.id](w.lvl, !!w.evo);
     }
   }
   // orbit blades
-  const ol = wlvl('orbit');
+  const orbW = P.wep.find(w=>w.id==='orbit');
+  const ol = orbW ? orbW.lvl : 0;
   if(ol){
-    const need = 1 + Math.ceil(ol/2) + Math.floor(P.extraProj/2);
+    const orbEvo = !!(orbW && orbW.evo);
+    const need = (1 + Math.ceil(ol/2) + Math.floor(P.extraProj/2)) * (orbEvo?2:1);
     if(orbs.length !== need){
       orbs.length = 0;
       for(let i=0;i<need;i++) orbs.push({ a: i/need*TAU, hit:new Map() });
     }
     const bladeUlt = G.ultFx && G.ultFx.kind==='blade' && G.ultFx.t>0;
-    const R = (74 + ol*7) * P.area, sp = (2.3 + ol*.14) * (bladeUlt?3:1), dmg = (12+ol*8)*P.dmgMul*(bladeUlt?4:1);
+    const R = (74 + ol*7) * P.area * (orbEvo?1.25:1), sp = (2.3 + ol*.14) * (bladeUlt?3:1), dmg = (12+ol*8)*P.dmgMul*(bladeUlt?4:1)*(orbEvo?1.6:1);
     for(const o of orbs){
       o.a += sp*dt;
       if(o.hit.size>160) o.hit.clear();
-      o.x = P.x + Math.cos(o.a)*R; o.y = P.y + Math.sin(o.a)*R; o.r = (11+ol*1.4)*P.area;
+      o.x = P.x + Math.cos(o.a)*R; o.y = P.y + Math.sin(o.a)*R; o.r = (11+ol*1.4)*P.area*(orbEvo?1.2:1);
       for(let i=enemies.length-1;i>=0;i--){
         const e = enemies[i]; const cd = o.hit.get(e)||0;
         if(cd>0){ o.hit.set(e, cd-dt); continue; }
@@ -1905,57 +1976,57 @@ function shootBullet(x,y,ang,spd,dmg,opt){
   }, opt||{}));
 }
 const FIRE = {
-  blaster(l){
-    const n = 1 + Math.floor(l/2) + P.extraProj;
+  blaster(l, evo){
+    const n = (1 + Math.floor(l/2) + P.extraProj) * (evo?2:1);
     const tg = nearest(P.x,P.y, 720);
     const base = tg ? Math.atan2(tg.y-P.y, tg.x-P.x) : Math.atan2(P.faceY,P.faceX);
-    const dmg = (16+l*9)*P.dmgMul;
+    const dmg = (16+l*9)*P.dmgMul*(evo?1.6:1);
     for(let i=0;i<n;i++){
       const off = (i-(n-1)/2) * .16;
-      shootBullet(P.x,P.y, base+off, 560, dmg, { c:'#26f0ff', pierce: Math.floor(l/4), r:5.5*P.area, homing:.9 });
+      shootBullet(P.x,P.y, base+off, 560, dmg, { c: evo?'#ffd23c':'#26f0ff', pierce: evo?99:Math.floor(l/4), r:5.5*P.area*(evo?1.3:1), homing: evo?2.2:.9 });
     }
     Snd.shoot();
   },
-  chain(l){
+  chain(l, evo){
     const first = nearest(P.x,P.y,520); if(!first) return;
-    const hops = 2+l, seen = new Set(); let cur = first, from = P;
-    const dmg = (22+l*13)*P.dmgMul;
+    const hops = evo ? 999 : 2+l, seen = new Set(); let cur = first, from = P;
+    const dmg = (22+l*13)*P.dmgMul*(evo?1.4:1);
     for(let i=0;i<hops;i++){
       if(!cur) break; seen.add(cur);
-      beams.push({ x1:from.x, y1:from.y, x2:cur.x, y2:cur.y, life:.18, c:'#8b5cff', w:3, jag:1 });
+      beams.push({ x1:from.x, y1:from.y, x2:cur.x, y2:cur.y, life:.18, c: evo?'#fff':'#8b5cff', w:evo?4:3, jag:1 });
       const c = Math.random()<P.crit;
-      damage(cur, dmg*(c?P.critMul:1)*(1-i*.06), c, '#8b5cff');
-      from = cur; cur = nearest(cur.x,cur.y, 260, seen);
+      damage(cur, dmg*(c?P.critMul:1)*(1-i*.03), c, '#8b5cff');
+      from = cur; cur = nearest(cur.x,cur.y, evo?520:260, seen);
     }
     Snd.tone(1100,.1,'sawtooth',.06,400);
   },
-  nova(l){
-    const R = (110+l*22)*P.area, dmg=(20+l*12)*P.dmgMul;
+  nova(l, evo){
+    const R = (110+l*22)*P.area*(evo?1.35:1), dmg=(20+l*12)*P.dmgMul*(evo?1.3:1);
     shock(P.x,P.y,R,'#7fd6ff',5);
     shock(P.x,P.y,R*.6,'#ffffff',2);
-    burst(P.x,P.y,16,'#7fd6ff',R*1.8,.4,3.2);
+    burst(P.x,P.y,evo?26:16,'#7fd6ff',R*1.8,.4,3.2);
     for(const e of enemies.slice()){
       if(dist2(e,P) < (R+e.r)*(R+e.r)){
         const c = Math.random()<P.crit;
         damage(e, dmg*(c?P.critMul:1), c, '#7fd6ff', e.x-P.x, e.y-P.y);
-        e.slowT = 2 + l*.2; e.slowAmt = clamp(.2+l*.05,0,.72);
+        e.slowT = (evo?4:2) + l*.2; e.slowAmt = clamp((evo?.4:.2)+l*.05,0,.85);
       }
     }
     Snd.tone(300,.3,'sine',.11,80);
   },
-  swarm(l){
-    const n = 1+l+P.extraProj, dmg=(24+l*12)*P.dmgMul;
+  swarm(l, evo){
+    const n = (1+l+P.extraProj) * (evo?2:1), dmg=(24+l*12)*P.dmgMul*(evo?1.35:1);
     for(let i=0;i<n;i++){
       const a = Math.random()*TAU;
-      shootBullet(P.x,P.y,a,180,dmg,{ c:'#ff2fb9', homing:5.2, life:3.4, r:5*P.area, accel:520, trail:1 });
+      shootBullet(P.x,P.y,a,evo?230:180,dmg,{ c: evo?'#fff':'#ff2fb9', homing:evo?7.5:5.2, life:3.4, r:5*P.area, accel:evo?680:520, trail:1 });
     }
     Snd.tone(760,.09,'triangle',.05,1200);
   },
-  laser(l){
+  laser(l, evo){
     const tg = nearest(P.x,P.y,900);
     const a = tg? Math.atan2(tg.y-P.y,tg.x-P.x) : Math.atan2(P.faceY,P.faceX);
-    const len = 1000, w = (16+l*3.2)*P.area, dmg=(32+l*20)*P.dmgMul;
-    beams.push({ x1:P.x, y1:P.y, x2:P.x+Math.cos(a)*len, y2:P.y+Math.sin(a)*len, life:.26, c:'#ff3b5c', w });
+    const len = 1000, w = (16+l*3.2)*P.area*(evo?1.9:1), dmg=(32+l*20)*P.dmgMul*(evo?1.5:1);
+    beams.push({ x1:P.x, y1:P.y, x2:P.x+Math.cos(a)*len, y2:P.y+Math.sin(a)*len, life:evo?.36:.26, c: evo?'#fff':'#ff3b5c', w });
     const dx=Math.cos(a), dy=Math.sin(a);
     for(const e of enemies.slice()){
       const px=e.x-P.x, py=e.y-P.y, proj=px*dx+py*dy;
@@ -1966,18 +2037,18 @@ const FIRE = {
         damage(e, dmg*(c?P.critMul:1), c, '#ff3b5c', dx*60, dy*60);
       }
     }
-    shake(3); Snd.tone(180,.22,'sawtooth',.1,60);
+    shake(evo?5:3); Snd.tone(180,.22,'sawtooth',.1,60);
   },
-  mine(l){
-    const n = 1+Math.floor(l/3);
+  mine(l, evo){
+    const n = (1+Math.floor(l/3)) * (evo?2:1);
     for(let i=0;i<n;i++)
       mines.push({ x:P.x+rnd(-40,40), y:P.y+rnd(-40,40), r:11*P.area, arm:.45, life:9,
-        dmg:(50+l*30)*P.dmgMul, blast:(80+l*12)*P.area });
+        dmg:(50+l*30)*P.dmgMul*(evo?1.3:1), blast:(80+l*12)*P.area*(evo?1.25:1), chain:!!evo });
   },
-  hole(l){
+  hole(l, evo){
     const tg = nearest(P.x,P.y,600);
     const x = tg? tg.x : P.x + P.faceX*160, y = tg? tg.y : P.y + P.faceY*160;
-    holes.push({ x, y, r:(90+l*9)*P.area, life:3.6, dmg:(12+l*7)*P.dmgMul, t:0 });
+    holes.push({ x, y, r:(90+l*9)*P.area*(evo?1.4:1), life:evo?5.2:3.6, dmg:(12+l*7)*P.dmgMul*(evo?1.5:1), t:0 });
     Snd.tone(70,.7,'sine',.14,35); shake(5);
   }
 };
@@ -1995,6 +2066,7 @@ function update(dt){
     if(keys['w']||keys['arrowup']) iy-=1;
     if(keys['s']||keys['arrowdown']) iy+=1;
     if(inp.active){ ix+=inp.dx; iy+=inp.dy; }
+    pollGamepad((gx,gy)=>{ ix+=gx; iy+=gy; });
     const m = Math.hypot(ix,iy);
     if(m>1){ ix/=m; iy/=m; }
     if(m>.05){ P.faceX=ix/Math.max(m,1e-4); P.faceY=iy/Math.max(m,1e-4); }
@@ -2007,6 +2079,11 @@ function update(dt){
     if(P.hitT>0) P.hitT-=dt;
     if(P.regen>0 && P.hp<P.maxHp) P.hp = Math.min(P.maxHp, P.hp + P.regen*dt);
   }
+
+  // ---- low-HP tension: heartbeat vignette + pulse when critically low
+  const lowHp = !spectating && P.hp/P.maxHp < .2;
+  $('dmgflash').classList.toggle('lowhp', lowHp);
+  if(lowHp){ G.hbT = (G.hbT||0) - dt; if(G.hbT<=0){ G.hbT = .82; Snd.tone(70,.14,'sine',.14,55); } }
 
   // ---- camera
   cam.x = lerp(cam.x, P.x, 1-Math.pow(.002,dt));
@@ -2038,11 +2115,17 @@ function update(dt){
     if(e.slowT>0){ e.slowT-=dt; sp *= (1-(e.slowAmt||.3)); }
     const dx = P.x-e.x, dy = P.y-e.y, d = Math.hypot(dx,dy)||1;
     if(e.boss){
-      e.rot += dt*.9;
-      e.chargeT -= dt; e.shootT -= dt;
-      if(e.chargeT<=0){ e.chargeT = clamp(5.4 - G.bossN*.3, 2.6, 5.4); e.vx = dx/d*420; e.vy = dy/d*420; shake(5); }
-      e.vx = lerp(e.vx, dx/d*sp, 1-Math.pow(.25,dt));
-      e.vy = lerp(e.vy, dy/d*sp, 1-Math.pow(.25,dt));
+      e.ageT = (e.ageT||0) + dt;
+      if(!e.enraged && e.ageT>42){
+        e.enraged = true;
+        if(e===G.bossRef){ announce('ENRAGED!', '#ff3b5c'); Snd.sweep(true); shake(16); $('bosswrap').classList.add('enraged'); }
+      }
+      const enrageMul = e.enraged ? 1.55 : 1;
+      e.rot += dt*.9*enrageMul;
+      e.chargeT -= dt; e.shootT -= dt*enrageMul;
+      if(e.chargeT<=0){ e.chargeT = clamp(5.4 - G.bossN*.3, 2.6, 5.4)/enrageMul; e.vx = dx/d*420*enrageMul; e.vy = dy/d*420*enrageMul; shake(5); }
+      e.vx = lerp(e.vx, dx/d*sp*enrageMul, 1-Math.pow(.25,dt));
+      e.vy = lerp(e.vy, dy/d*sp*enrageMul, 1-Math.pow(.25,dt));
       // telegraph: flash a warning vignette just before the next big attack lands
       const willFire = e.shootT<=.45 && e.shootT>0;
       if(willFire && e===G.bossRef) $('bosstele').classList.add('on');
@@ -2052,7 +2135,7 @@ function update(dt){
         if(e===G.bossRef) $('bosstele').classList.remove('on');
       }
       // summon
-      if(Math.random()<dt*.45){ const p2=ringPos(); spawnAt(pick(availTypes(G.t)), p2.x, p2.y); }
+      if(Math.random()<dt*.45*enrageMul){ const p2=ringPos(); spawnAt(pick(availTypes(G.t)), p2.x, p2.y); }
     } else if(e.orbit){
       const want = 140, a0 = Math.atan2(-dy,-dx) + dt*1.6;
       const tx = P.x + Math.cos(a0)*want, ty = P.y + Math.sin(a0)*want;
@@ -2141,6 +2224,10 @@ function update(dt){
       Snd.boom(); shake(5);
       for(const e of enemies.slice()){ if(dist2(e,mn) < (mn.blast+e.r)*(mn.blast+e.r)){
         const c=Math.random()<P.crit; damage(e, mn.dmg*(c?P.critMul:1), c, '#ffb020', e.x-mn.x, e.y-mn.y); } }
+      if(mn.chain){
+        for(const other of mines){ if(other===mn || other.life<=0) continue;
+          if(dist2(other,mn) < 220*220){ other.life = 0; other.arm = 0; } }
+      }
     }
   }
   // ---- black holes
@@ -2253,7 +2340,7 @@ function syncEnemiesFromSnapshot(dt){
     }
   }
   if(bossFound){ G.bossRef = bossFound; $('bosswrap').style.opacity=1; $('bossname').textContent='PARTY BOSS'; }
-  else if(G.bossRef && G.bossRef.netFollow){ G.bossRef = null; $('bosswrap').style.opacity=0; }
+  else if(G.bossRef && G.bossRef.netFollow){ G.bossRef = null; $('bosswrap').style.opacity=0; $('bosswrap').classList.remove('enraged'); }
 }
 
 function nearMiss(e){
@@ -2565,6 +2652,44 @@ function render(){
     ctx.fillStyle=g2; ctx.fillRect(0,0,CW,CH);
   }
   if(G.flash>0){ ctx.fillStyle='rgba(255,255,255,'+(G.flash*.5)+')'; ctx.fillRect(0,0,CW,CH); }
+  renderMinimap();
+}
+function renderMinimap(){
+  if(!P || G.state!=='PLAY') return;
+  const S = 92, C = S/2, RAD = 40;
+  mmCtx.clearRect(0,0,S,S);
+  mmCtx.save(); mmCtx.beginPath(); mmCtx.arc(C,C,RAD,0,TAU); mmCtx.clip();
+  const scale = RAD/2600; // world units shown out to ~2600 before clamping to edge
+  const plot = (wx,wy)=>{
+    let dx=(wx-P.x)*scale, dy=(wy-P.y)*scale;
+    const d = Math.hypot(dx,dy);
+    if(d > RAD-4){ dx = dx/d*(RAD-4); dy = dy/d*(RAD-4); }
+    return [C+dx, C+dy];
+  };
+  // hazards
+  for(const h of hazards){
+    const [hx,hy] = plot(h.x,h.y);
+    mmCtx.fillStyle = h.kind==='lava'?'rgba(255,90,40,.55)':h.kind==='ice'?'rgba(120,220,255,.5)'
+      : h.kind==='poison'?'rgba(150,230,60,.5)':h.kind==='storm'?'rgba(230,230,255,.5)':'rgba(150,90,255,.5)';
+    mmCtx.beginPath(); mmCtx.arc(hx,hy,4,0,TAU); mmCtx.fill();
+  }
+  // elites
+  for(const e of enemies){ if(!e.elite || e.boss) continue;
+    const [ex,ey] = plot(e.x,e.y);
+    mmCtx.fillStyle='#ffd23c'; mmCtx.beginPath(); mmCtx.arc(ex,ey,2.6,0,TAU); mmCtx.fill();
+  }
+  // boss
+  if(G.bossRef){
+    const [bx,by] = plot(G.bossRef.x,G.bossRef.y);
+    mmCtx.fillStyle='#ff2fb9';
+    const pulse = 3.4+Math.sin(gt*8)*1.2;
+    mmCtx.beginPath(); mmCtx.arc(bx,by,pulse,0,TAU); mmCtx.fill();
+  }
+  mmCtx.restore();
+  // ring + player dot
+  mmCtx.strokeStyle='rgba(38,240,255,.5)'; mmCtx.lineWidth=1.5;
+  mmCtx.beginPath(); mmCtx.arc(C,C,RAD,0,TAU); mmCtx.stroke();
+  mmCtx.fillStyle='#fff'; mmCtx.beginPath(); mmCtx.arc(C,C,3.2,0,TAU); mmCtx.fill();
 }
 
 /* ---------------- 19. LOOP ---------------- */
@@ -2616,8 +2741,8 @@ function updateHUD(){
 }
 function renderWepRow(){
   const h = $('weprow'); h.innerHTML='';
-  for(const w of P.wep){ const W=WEAPONS[w.id];
-    h.insertAdjacentHTML('beforeend', `<div class="wslot${w.lvl>=WMAX?' max':''}" style="color:${W.c}">${W.i}<b>${w.lvl}</b></div>`); }
+  for(const w of P.wep){ const W=WEAPONS[w.id]; const ev = w.evo && EVOLUTIONS[w.id];
+    h.insertAdjacentHTML('beforeend', `<div class="wslot${w.lvl>=WMAX?' max':''}${ev?' evo':''}" style="color:${ev?'#ffd23c':W.c}" title="${ev?ev.n:W.n}">${ev?ev.i:W.i}<b>${w.lvl}</b></div>`); }
   for(const k in P.pas){ const Pz=PASSIVES[k];
     h.insertAdjacentHTML('beforeend', `<div class="wslot${P.pas[k]>=PMAX?' max':''}" style="color:#8494b8;font-size:14px">${Pz.i}<b>${P.pas[k]}</b></div>`); }
 }
@@ -2696,7 +2821,7 @@ function applyOffer(o){
     P.pas[o.id] = (P.pas[o.id]||0)+1;
     if(o.id==='vitality') P.hp += 22;
   } else { P.hp = Math.min(P.maxHp, P.hp + P.maxHp*.45); }
-  recalc(P); renderWepRow(); persist();
+  recalc(P); checkEvolutions(); renderWepRow(); persist();
 }
 function openLevelUp(){
   G.state='LVL'; Snd.lvl(); Snd.sweep(true); Ads.happy();
@@ -2724,14 +2849,24 @@ $('adRerollBtn').onclick = ()=> Ads.rewarded('+2 rerolls', ok=>{ if(!ok) return;
   G.rerolls+=2; $('rerollN').textContent=G.rerolls; $('rerollBtn').disabled=false; toast('REWARD','+2 rerolls added'); });
 
 /* ---------------- 22. CHEST ---------------- */
+const CHEST_TIERS = [
+  { k:'bronze', n:'BRONZE CACHE', icon:'🎁', coins:30 },
+  { k:'silver', n:'SILVER CACHE', icon:'🎀', coins:70 },
+  { k:'gold',   n:'GOLD CACHE',   icon:'👑', coins:150 }
+];
 function openChest(){
   G.state='CHEST'; Snd.big(); Ads.gameplayStop();
   const n = 1 + (Math.random() < .35 + P.luck ? 1 : 0) + (Math.random() < .12 + P.luck*.5 ? 1 : 0);
+  const tier = CHEST_TIERS[clamp(n-1,0,2)];
   const offs = buildOffers(n);
   offs.forEach(applyOffer);
   drawCards($('chestHost'), offs, ()=>{});
   Array.from($('chestHost').children).forEach(c=>c.style.pointerEvents='none');
-  G.runCoins += 30;
+  $('chestIcon').textContent = tier.icon;
+  document.querySelector('#chestScreen .tt').textContent = tier.n;
+  $('chestTier').textContent = ''; $('chestTier').className = 'chesttier '+tier.k;
+  $('chestTier').textContent = '+'+tier.coins+' ◈ BONUS SHARDS';
+  G.runCoins += tier.coins;
   show('chestScreen');
 }
 $('chestOk').onclick = ()=>{ Snd.click(); hide('chestScreen');
@@ -2760,7 +2895,7 @@ function startRun(){
   Snd.setIntensity(0,false,false);
   spawnHazards();
   G.freeRevives = G.mode==='hardcore' ? 0 : save.meta.rev;
-  $('bosswrap').style.opacity=0; $('dmgflash').style.opacity=0; $('bosstele').classList.remove('on');
+  $('bosswrap').style.opacity=0; $('dmgflash').style.opacity=0; $('bosstele').classList.remove('on'); $('bosswrap').classList.remove('enraged');
   P = newPlayer(); cam.x=P.x; cam.y=P.y;
   G.rerolls += (P.char.extra.rerolls||0);
   renderWepRow(); renderUltBtn();
@@ -2773,8 +2908,8 @@ function startRun(){
 function pauseGame(){ if(G.state!=='PLAY') return; G.state='PAUSE'; Ads.gameplayStop();
   $('sfxBtn').textContent = '♪ SOUND: ' + (save.opt.sfx?'ON':'OFF');
   const bl = $('buildList'); bl.innerHTML='';
-  P.wep.forEach(w=>{ const W=WEAPONS[w.id];
-    bl.insertAdjacentHTML('beforeend', `<div class="item"><div class="ic" style="color:${W.c}">${W.i}</div><div class="gr"><div class="nm">${W.n}</div><div class="ds">${W.d(w.lvl)}</div><div class="pips">${Array.from({length:WMAX},(_,i)=>`<i class="${i<w.lvl?'on':''}"></i>`).join('')}</div></div></div>`); });
+  P.wep.forEach(w=>{ const W=WEAPONS[w.id]; const ev = w.evo && EVOLUTIONS[w.id];
+    bl.insertAdjacentHTML('beforeend', `<div class="item"><div class="ic" style="color:${ev?'#ffd23c':W.c}">${ev?ev.i:W.i}</div><div class="gr"><div class="nm">${ev?ev.n+' (EVOLVED)':W.n}</div><div class="ds">${W.d(w.lvl)}</div><div class="pips">${Array.from({length:WMAX},(_,i)=>`<i class="${i<w.lvl?'on':''}"></i>`).join('')}</div></div></div>`); });
   Object.keys(P.pas).forEach(k=>{ const Pz=PASSIVES[k];
     bl.insertAdjacentHTML('beforeend', `<div class="item"><div class="ic">${Pz.i}</div><div class="gr"><div class="nm">${Pz.n}</div><div class="ds">${Pz.d(P.pas[k])}</div><div class="pips">${Array.from({length:PMAX},(_,i)=>`<i class="${i<P.pas[k]?'on':''}"></i>`).join('')}</div></div></div>`); });
   show('pauseScreen'); }
