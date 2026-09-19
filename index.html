@@ -2924,7 +2924,16 @@ function hurtPlayer(amt){
   const f = $('dmgflash'); f.style.opacity = clamp(1 - P.hp/P.maxHp, .25, 1);
   setTimeout(()=>{ f.style.opacity = P.hp/P.maxHp < .3 ? .45 : 0; }, 130);
   dnum(P.x, P.y-26, amt, false, '#ff3b5c');
-  if(P.hp<=0){ P.hp=0; onDeath(); }
+  if(P.hp<=0){
+    // death is switched off for the entire main story campaign — leveling,
+    // the 50-boss gauntlet, even the final boss himself. The only place
+    // you can actually die in story mode is the endless DEADLY WAVE that
+    // starts once the mother is rescued (G.postRescue), exactly the
+    // "endless simulation after level 100" this is meant to gate.
+    // Every other mode (classic/hardcore/bossrush/easy) is unaffected.
+    if(isStoryMode() && !G.postRescue){ P.hp = 1; }
+    else { P.hp=0; onDeath(); }
+  }
 }
 function gainXP(v){
   if(G.mode==='easy') v *= 1.15;
@@ -4258,7 +4267,7 @@ function checkStoryMilestones(){
     G._lastMilestone = P.level;
     if(P.level<100) announce('LEVEL '+P.level+' — SHE’S STILL WAITING', '#ff9fd6');
   }
-  if(P.level%3===0 && P.level>0 && P.level!==G._lastQuoteLevel){
+  if(P.level%2===0 && P.level>0 && P.level!==G._lastQuoteLevel){
     G._lastQuoteLevel = P.level;
     triggerMilestoneQuote();
   }
@@ -4330,7 +4339,8 @@ function onFinalBossOrAllyKilled(e){
         // more levels past the rescue is meant to be nearly impossible.
         G.postRescue = true; G.rescueLevel = P.level;
         G.state='PLAY'; last=0; acc=0; Ads.gameplayStart();
-        announce('SHE\'S HOME. NOW SURVIVE WHAT\'S LEFT.', '#ff3b5c');
+        announce('DEADLY WAVE — SHE\'S HOME. NOW SURVIVE.', '#ff3b5c');
+        toast('DEADLY WAVE', 'Death is real again. This is the only fight you can actually lose.', 'linear-gradient(135deg,#ff3b5c,#7a0f22)');
       });
     }, 900);
   }
