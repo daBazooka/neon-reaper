@@ -3715,27 +3715,45 @@ const MILESTONE_QUOTES = [
   'Somewhere out there, right now, a mother is still listening for footsteps that sound like yours.',
   'The scariest part of losing someone isn’t the silence. It’s how normal the rest of the world keeps acting anyway.',
   'You don’t get closure. You only get to choose what you do with what’s left.',
-  'One day you’ll hold her again, and every single one of these fights will have been worth it.'
+  'One day you’ll hold her again, and every single one of these fights will have been worth it.',
+  'You still remember exactly what her kitchen smelled like. You always will.',
+  'Somewhere in you is still a kid who believed she could fix anything.',
+  'You used to fall asleep to her voice, not the sound of a fight.',
+  'There was a version of you that never had to be this strong. Don’t forget he existed.',
+  'You keep chasing a childhood that already ended. That’s not weakness. That’s love with nowhere else to go.',
+  'The safest you ever felt was somewhere you can’t go back to. That’s what you’re really fighting for.',
+  'You don’t remember the day it all changed. You remember every single day since.',
+  'Some part of you is still that kid in the doorway, waiting for her to come back first.',
+  'You grew up in the space where she should have been.',
+  'You didn’t lose your childhood. You’re still fighting to get it back.'
 ];
+// the single release point for the shared voice lock — whichever system
+// (milestone quote or ambient VO) was speaking calls this when it's done,
+// so a milestone that got queued behind an *ambient* line (not just
+// behind another milestone) still actually gets its turn afterward
+function releaseVoice(){
+  G._voiceBusy = false;
+  if(G._mqQueued){ G._mqQueued = false; triggerMilestoneQuote(); }
+}
 function triggerMilestoneQuote(){
-  // never interrupts a quote already being said — if another one comes due
-  // (even seconds later, well before this one finishes) it's remembered
-  // and starts the moment the current line actually finishes, text and
-  // voice both, instead of cutting it off mid-sentence
-  if(G._mqSpeaking){ G._mqQueued = true; return; }
+  // never interrupts ANY other spoken line in the game (ambient VO included,
+  // not just another milestone quote) — if one comes due while something
+  // else is still being said, it's remembered and starts the instant the
+  // current line actually finishes, text and voice both, instead of both
+  // fighting over the same speech channel at once
+  if(G._voiceBusy){ G._mqQueued = true; return; }
   if(!G.milestoneQueue || !G.milestoneQueue.length) G.milestoneQueue = shuffle(MILESTONE_QUOTES.slice());
   const text = G.milestoneQueue.pop();
   const el = $('milestoneQuote'); const t = $('mqText');
   t.textContent = text; el.classList.add('show');
   clearTimeout(el._hideT);
-  G._mqSpeaking = true;
+  G._voiceBusy = true;
   const gen = (G._mqGen = (G._mqGen||0) + 1);
   const finish = ()=>{
     if(gen!==G._mqGen) return;
     Snd.duckMusic(false);
     el.classList.remove('show');
-    G._mqSpeaking = false;
-    if(G._mqQueued){ G._mqQueued = false; triggerMilestoneQuote(); }
+    releaseVoice();
   };
   // a low thunder-crack under the line itself — sells "a god is speaking"
   // rather than just "the music got quieter"
@@ -3786,11 +3804,25 @@ const PLAYER_AMBIENT = {
 };
 function playerAmbientLine(){
   if(!P || !isStoryMode() || G.state!=='PLAY') return;
+  // same shared voice lock as milestone quotes — skip this beat entirely
+  // rather than talk over (or get talked over by) whatever's already
+  // playing; the timer already re-rolled a fresh 42-70s wait regardless,
+  // so missing one ambient line here is low-stakes and never noticeable
+  if(G._voiceBusy) return;
   const prog = clamp(P.level/100, 0, 1);
   const pool = prog>.66 ? PLAYER_AMBIENT.late : prog>.33 ? PLAYER_AMBIENT.mid : PLAYER_AMBIENT.early;
   const text = pick(pool);
-  speakLine({ speaker:'YOU', cls:'you', text, mood: prog>.66?'scared':null, shake: prog>.66?1:0 });
+  const gen = (G._ambGen = (G._ambGen||0) + 1);
+  const utter = speakLine({ speaker:'YOU', cls:'you', text, mood: prog>.66?'scared':null, shake: prog>.66?1:0 });
   toast('YOU', text, 'linear-gradient(135deg,#26f0ff,#8b5cff)');
+  if(utter){
+    G._voiceBusy = true;
+    const clear = ()=>{ if(gen===G._ambGen) releaseVoice(); };
+    utter.onend = clear; utter.onerror = clear;
+    const words = Math.max(1, text.trim().split(/\s+/).length);
+    const estMs = Math.max(1200, (words/(3.7*(utter.rate||1)))*1000);
+    setTimeout(clear, estMs + 3000);
+  }
 }
 const STORY = {
   intro: [
@@ -4312,7 +4344,7 @@ function _beginRunNow(){
   G.ultCd=4; G.ultFx=null;
   G.finalArmed=false; G.finalBattleActive=false; G.finalAllies=[]; G.finalBossRef=null; G.motherRescued=false; G._lastMilestone=0; G._badEndingShown=false;
   G.postRescue=false; G.rescueLevel=0; G.storyBossKills=0; G.dmgLog=[]; G.lastBossHp=0; G.ambientT=rnd(24,40);
-  G.milestoneQueue=[]; G._lastQuoteLevel=0; G._mqSpeaking=false; G._mqQueued=false;
+  G.milestoneQueue=[]; G._lastQuoteLevel=0; G._voiceBusy=false; G._mqQueued=false;
   const arena = ARENAS[G.arenaI]||ARENAS[0];
   setTheme(arena.theme,false); theme.bg=THEMES[arena.theme].bg.slice(); theme.g=THEMES[arena.theme].g.slice();
   Snd.setIntensity(0,false,false);
