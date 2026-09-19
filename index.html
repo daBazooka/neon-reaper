@@ -834,22 +834,26 @@ const Snd = {
     this.stopCutsceneMusic();
     if(!this.ready || !save.opt.mus) return;
     const root = dark ? [220,196,174.6,164.8] : [261.6,293.6,329.6,220]; // Am-ish / hopeful C-ish
+    const theme = this.M.momTheme;
     this.csStep = 0;
     const playPhrase = ()=>{
       if(!this.ready) return;
       const t = this.ctx.currentTime;
       const r = root[this.csStep % root.length];
-      // low pad, long and soft
-      this.at(r/2, 3.6, 'sine', .05, t, null, -4);
-      this.at(r/2, 3.6, 'triangle', .035, t, null, 4);
-      // a single high, lonely piano-like note a beat later
-      if(this.csStep % 2 === 0){
-        this.at(r*2, 1.4, 'triangle', .045, t+.9);
-      }
+      // low pad, long and soft — louder and with a warm fifth underneath
+      // so the cutscene score fills the room instead of just gesturing at it
+      this.at(r/2, 4.2, 'sine', .075, t, null, -4);
+      this.at(r/2, 4.2, 'triangle', .05, t, null, 4);
+      this.at(r/2*1.5, 4.2, 'sine', .03, t, null, 0);
+      // "her theme" itself, not a generic note — so every cutscene, not
+      // just the ending, is unmistakably her melody
+      const note = theme[this.csStep % theme.length] * (dark ? .5 : 1);
+      this.at(note, 2.0, 'triangle', .075, t+.9, null, -2);
+      this.at(note/2, 2.0, 'sine', .045, t+.9);
       this.csStep++;
     };
     playPhrase();
-    this.csTimer = setInterval(playPhrase, 3600);
+    this.csTimer = setInterval(playPhrase, 3200);
   },
   stopCutsceneMusic(){ clearInterval(this.csTimer); this.csTimer=null; },
   blip(){ this.tone(rnd(700,900), .025, 'square', .025, null); },
@@ -857,7 +861,7 @@ const Snd = {
     if(!this.ready || !save.opt.sfx) return;
     const t=this.ctx.currentTime;
     const chord = dark ? [174.6,220,261.6] : [261.6,329.6,392,523.2];
-    chord.forEach((f,i)=> this.at(f, 2.6, 'triangle', .06, t+i*.05, null, i*3));
+    chord.forEach((f,i)=> this.at(f, 3.2, 'triangle', .09, t+i*.05, null, i*3));
   }
 };
 
@@ -3091,6 +3095,7 @@ function drawCards(host, offers, onPick){
   });
 }
 function applyOffer(o){
+  const d = offerHTML(o);
   if(o.kind==='w'){
     const ex = P.wep.find(w=>w.id===o.id);
     if(ex){ ex.lvl++; if(ex.lvl>=WMAX){ save.maxedWeapon=1; } }
@@ -3101,6 +3106,9 @@ function applyOffer(o){
     if(o.id==='vitality') P.hp += 22;
   } else { P.hp = Math.min(P.maxHp, P.hp + P.maxHp*.45); }
   recalc(P); checkEvolutions(); renderWepRow(); persist();
+  // proof the power actually landed — not just a card disappearing
+  toast(d.nm, d.lv, `linear-gradient(135deg,${d.col},rgba(255,255,255,.15))`);
+  dnum(P.x, P.y-P.r-30, 0, false, d.col, '+ '+d.nm);
 }
 function openLevelUp(){
   G.state='LVL'; Snd.lvl(); Snd.sweep(true); Ads.happy();
@@ -3268,7 +3276,8 @@ const STORY = {
     { speaker:'', cls:'narr', text:'He found her first.', dark:1, art:'boss', hold:1200 },
     { speaker:'THE HOLLOW KING', cls:'boss', text:'No one is coming for you, little flower. No one ever does.', dark:1, art:'both', mood:'captive', shake:1, hold:1700 },
     { speaker:'MOTHER', cls:'mom', text:'My child... if you can hear me... don’t let him win. Don’t give up...', dark:1, art:'mom', mood:'captive', hold:1800 },
-    { speaker:'', cls:'narr', text:'You remember her voice from a thousand ordinary mornings. You never thought you’d need to remember it to survive.', dark:1, art:'mom', mood:'captive', hold:2000 },
+    { speaker:'', cls:'narr', text:'You remember her voice from a thousand ordinary mornings. You never thought you’d need to remember it to survive.', dark:0, art:'memory', hold:2400 },
+    { speaker:'', cls:'narr', text:'Her hands always smelled like flour and rain. Small kitchens. Songs with no tune you could ever name.', dark:0, art:'memory', hold:2200 },
     { speaker:'', cls:'narr', text:'He is the strongest thing this world has ever made. And the cruelest.', dark:1, art:'boss', hold:1500 },
     { speaker:'', cls:'narr', text:'He is not alone. He never needs to be.', dark:1, art:'both', hold:1300 },
     { speaker:'', cls:'narr', text:'One path remains. A hundred trials between you and her. Most who try do not finish it.', dark:1, art:'wide', hold:1900 },
@@ -3279,11 +3288,16 @@ const STORY = {
     { speaker:'', cls:'narr', text:'He falls.', dark:1, art:'boss', hold:1300 },
     { speaker:'', cls:'narr', text:'The chains break before his last breath even leaves him.', dark:0, art:'mom', mood:'joy', hold:1600 },
     { speaker:'MOTHER', cls:'mom', text:'...is it you? Is it really you?', dark:0, art:'mom', mood:'joy', hold:1700 },
-    { speaker:'', cls:'narr', text:'A hundred trials. Every one of them, for this second.', dark:0, art:'both', mood:'joy', hold:1800 },
+    { speaker:'', cls:'narr', text:'Up close, she sees everything the fight cost you. None of it frightens her. Not for a second.', dark:0, art:'embrace', mood:'joy', hold:2400 },
+    { speaker:'MOTHER', cls:'mom', text:'Oh — look at you. Look what they put you through. Come here. Come here right now.', dark:0, art:'embrace', mood:'joy', hold:2400 },
+    { speaker:'', cls:'narr', text:'A hundred trials. Every single one of them, for this exact second.', dark:0, art:'both', mood:'joy', hold:1800 },
     { speaker:'', cls:'narr', text:'You run to her. She is already reaching for you.', dark:0, art:'embrace', hold:2000 },
+    { speaker:'', cls:'narr', text:'For one long moment, neither of you says anything at all. You don’t need to.', dark:0, art:'embrace', mood:'joy', hold:2600 },
     { speaker:'MOTHER', cls:'mom', text:'I never once stopped believing you’d come. Not for one single day.', dark:0, art:'embrace', mood:'joy', hold:2200 },
     { speaker:'MOTHER', cls:'mom', text:'Your father would be so proud of you. I hope, wherever he is, he can see this too.', dark:0, art:'embrace', mood:'joy', hold:2600 },
     { speaker:'MOTHER', cls:'mom', text:'Whatever you carried to reach me — I hope you never have to carry alone again.', dark:0, art:'mom', mood:'joy', hold:2400 },
+    { speaker:'YOU', cls:'you', text:'I was so afraid, Mom. The whole way here. I never told anyone that. Not once.', dark:0, art:'embrace', hold:2400 },
+    { speaker:'MOTHER', cls:'mom', text:'Being afraid and coming anyway — that is the only kind of brave that has ever mattered.', dark:0, art:'embrace', mood:'joy', hold:2600 },
     { speaker:'YOU', cls:'you', text:'I told you I was coming. I meant every word of it.', dark:0, art:'embrace', mood:'joy', hold:1900 },
     { speaker:'YOU', cls:'you', text:'I’m here, Mom. I’m not going anywhere.', dark:0, art:'embrace', mood:'joy', hold:1800 },
     { speaker:'', cls:'narr', text:'This was never really about the hundred levels, or the boss, or the score.', dark:0, art:'wide', hold:2200 },
@@ -3295,9 +3309,13 @@ const STORY = {
   ],
   badEnding: [
     { speaker:'THE HOLLOW KING', cls:'boss', text:'You were never going to be enough.', dark:1, art:'boss', shake:1, hold:1400 },
-    { speaker:'', cls:'narr', text:'He laughs. Somewhere far away, the light behind her eyes goes out.', dark:1, art:'lost', hold:1700, fast:1 },
-    { speaker:'MOTHER', cls:'mom', text:'...I waited. I’m sorry. I waited as long as I could...', dark:1, art:'lost', mood:'captive', hold:1900, fast:1 },
-    { speaker:'', cls:'you', text:'SHE IS STILL WAITING. TRY AGAIN.', dark:1, art:'title', hold:1500, fast:1 }
+    { speaker:'MOTHER', cls:'mom', text:'No — NO! Please, don’t touch him! Don’t you dare touch my child—!', dark:1, art:'devour', mood:'scared', shake:1, hold:1900, fast:1 },
+    { speaker:'', cls:'narr', text:'She is still shouting your name when the dark closes over her.', dark:1, art:'devour', mood:'scared', shake:1, hold:2100, fast:1 },
+    { speaker:'THE HOLLOW KING', cls:'boss', text:'She screamed for you right until the end. They always do.', dark:1, art:'boss', shake:1, hold:2000, fast:1 },
+    { speaker:'', cls:'narr', text:'Somewhere, a light that waited for you every single day simply stops.', dark:1, art:'lost', hold:2200, fast:1 },
+    { speaker:'', cls:'you', text:'SHE IS GONE. YOU WERE TOO SLOW.', dark:1, art:'title', hold:1800, fast:1 },
+    { speaker:'', cls:'narr', text:'Somewhere, in some other try, you were just a little stronger — and you made it in time.', dark:1, art:'wide', hold:2200, fast:1 },
+    { speaker:'', cls:'you', text:'TRY AGAIN. DON’T LET IT END LIKE THIS.', dark:1, art:'title', hold:1800, fast:1 }
   ]
 };
 const Cutscene = {
@@ -3325,7 +3343,7 @@ const Cutscene = {
   _advance(){
     this.idx++;
     if(this.idx>=this.script.length){ this._end(); return; }
-    const line = this.script[this.idx]; this.curLine=line;
+    const line = this.script[this.idx]; this.curLine=line; this._lineT0=gt;
     $('csVignette').className = (line.dark?'dark':'') + (line.shake?' rage':'');
     if(line.shake) shake(10);
     if(line.art==='title') Snd.swell(line.dark);
@@ -3389,6 +3407,33 @@ const Cutscene = {
       const p = .4+.3*Math.sin(t*2);
       shroud.addColorStop(0,'rgba(0,0,0,0)'); shroud.addColorStop(1,'rgba(0,0,0,'+p+')');
       c.fillStyle=shroud; c.fillRect(0,0,W,H);
+    } else if(line.art==='memory'){
+      // a warm flashback, not the present: mother standing, unharmed, a
+      // small silhouette of the child she raised beside her — dimmed and
+      // desaturated at the edges so it unmistakably reads as "the past"
+      const glow=c.createRadialGradient(cx,cy,10,cx,cy,150*sc);
+      glow.addColorStop(0,'rgba(255,222,170,.28)'); glow.addColorStop(1,'rgba(0,0,0,0)');
+      c.fillStyle=glow; c.beginPath(); c.arc(cx,cy,150*sc,0,TAU); c.fill();
+      drawMotherArt(c, cx+18*sc, cy, sc*1.25, t, 'joy');
+      c.save(); c.translate(cx-42*sc, cy+24*sc); c.scale(sc*.8,sc*.8);
+      c.fillStyle='rgba(255,233,201,.92)';
+      c.beginPath(); c.ellipse(0,10,13,18,0,0,TAU); c.fill();
+      c.beginPath(); c.arc(0,-14,10,0,TAU); c.fill();
+      c.restore();
+      c.fillStyle='rgba(5,6,13,.42)'; c.fillRect(0,0,W,H);
+    } else if(line.art==='devour'){
+      // stylized, not graphic: he looms, she shrinks and is pulled into
+      // shadow. no gore, just the unmistakable shape of her being taken.
+      const lt = Math.max(0, gt - this._lineT0);
+      drawFinalBossArt(c, cx, cy, sc*1.9, t);
+      const shrink = clamp(1 - lt*.22, .1, 1);
+      c.globalAlpha = shrink;
+      drawMotherArt(c, cx, cy+14*sc, sc*1.2*shrink, t, 'scared');
+      c.globalAlpha = 1;
+      const swallow = c.createRadialGradient(cx,cy,8*sc,cx,cy,210*sc);
+      const p = clamp(.22+lt*.32, 0, .94);
+      swallow.addColorStop(0,'rgba(20,0,4,'+p+')'); swallow.addColorStop(1,'rgba(0,0,0,0)');
+      c.fillStyle=swallow; c.fillRect(0,0,W,H);
     } else if(line.art==='title'){
       const glow = c.createRadialGradient(cx,cy,10,cx,cy,180*sc);
       glow.addColorStop(0, line.dark?'rgba(255,59,92,.35)':'rgba(182,255,60,.3)');
