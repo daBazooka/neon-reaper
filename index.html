@@ -3413,15 +3413,87 @@ function drawAllyArt(c,x,y,s,t,col){
   c.shadowBlur=0;
   c.restore();
 }
+/* a small unnamed silhouette — not the mother, not a full character,
+   just the shape of a child. Reused across the whole origin-story
+   sequence so it reads as continuous, not a new drawing each time. */
+function drawChildArt(c,x,y,s){
+  c.save(); c.translate(x,y); c.scale(s,s);
+  c.fillStyle='rgba(255,233,201,.95)';
+  c.beginPath(); c.ellipse(0,10,13,18,0,0,TAU); c.fill();
+  c.beginPath(); c.arc(0,-14,10,0,TAU); c.fill();
+  c.restore();
+}
+/* a small pitched-roof home, drawn as pure silhouette against its own
+   glow — lit warm and gold for the happy years, dark and shuttered once
+   the story turns. this is the "detailed background" the intro leans
+   on instead of a flat starfield: one consistent set piece the whole
+   origin sequence happens in front of. */
+function drawHouseArt(c,x,y,s,t,lit){
+  c.save(); c.translate(x,y); c.scale(s,s);
+  if(lit){
+    const g=c.createRadialGradient(0,20,20,0,20,170);
+    g.addColorStop(0,'rgba(255,200,120,.2)'); g.addColorStop(1,'rgba(0,0,0,0)');
+    c.fillStyle=g; c.beginPath(); c.arc(0,20,170,0,TAU); c.fill();
+  }
+  c.fillStyle='rgba(9,10,16,.95)';
+  c.fillRect(-160,58,320,36);
+  c.strokeStyle='rgba(120,120,150,.22)'; c.lineWidth=1;
+  for(let gx=-150;gx<160;gx+=18){ c.beginPath(); c.moveTo(gx,60); c.lineTo(gx-6,92); c.stroke(); }
+  c.fillStyle='#05060b';
+  c.beginPath();
+  c.moveTo(-82,58); c.lineTo(-82,4); c.lineTo(0,-56); c.lineTo(82,4); c.lineTo(82,58); c.closePath(); c.fill();
+  c.strokeStyle= lit ? 'rgba(200,180,150,.5)' : 'rgba(130,130,160,.4)'; c.lineWidth=2.2; c.stroke();
+  // roofline ridge highlight
+  c.strokeStyle='rgba(255,255,255,.12)'; c.lineWidth=1.5;
+  c.beginPath(); c.moveTo(-82,4); c.lineTo(0,-56); c.lineTo(82,4); c.stroke();
+  c.fillStyle = lit ? '#2e1c10' : '#080503';
+  c.fillRect(-16,26,32,32);
+  c.strokeStyle='rgba(180,140,100,.3)'; c.lineWidth=1; c.strokeRect(-16,26,32,32);
+  const glow = lit ? .82+.16*Math.sin(t*2.2) : .04;
+  c.fillStyle=`rgba(255,200,120,${glow})`;
+  c.fillRect(-52,10,27,23);
+  c.fillRect(25,10,27,23);
+  c.strokeStyle=`rgba(255,255,255,${lit?.4:.1})`; c.lineWidth=1;
+  c.strokeRect(-52,10,27,23); c.strokeRect(25,10,27,23);
+  c.restore();
+}
+/* rain + occasional lightning, laid over a scene rather than replacing
+   it — the closest this canvas-shape art style gets to "cinematic"
+   without needing actual image assets */
+function drawStormArt(c,W,H,t){
+  c.save();
+  c.strokeStyle='rgba(180,200,255,.3)'; c.lineWidth=1.1;
+  for(let i=0;i<46;i++){
+    const rx=(i*53+t*300)%(W+60)-30, ry=(i*97+t*640)%(H+60)-30;
+    c.beginPath(); c.moveTo(rx,ry); c.lineTo(rx-9,ry+26); c.stroke();
+  }
+  const flashPhase = Math.sin(t*.7+1.3);
+  if(flashPhase>0.965){
+    c.fillStyle=`rgba(220,230,255,${(flashPhase-0.965)/0.035*.45})`;
+    c.fillRect(0,0,W,H);
+  }
+  c.restore();
+}
 const STORY = {
   intro: [
+    // --- ORIGIN: birth, childhood, and the night it was taken from him ---
+    { speaker:'', cls:'narr', text:'Every story like this one has a beginning most people never think to ask about.', dark:1, art:'wide', hold:1900 },
+    { speaker:'', cls:'narr', text:'He was born on a quiet, unremarkable morning, to a woman who had already decided — before he ever took his first breath — that she would love him without limit.', dark:0, art:'birth', hold:2800 },
+    { speaker:'', cls:'narr', text:'She held him like he was the only thing that had ever truly mattered. In every way that counted, he was.', dark:0, art:'birth', hold:2400 },
+    { speaker:'', cls:'narr', text:'Years passed in a small house at the edge of nowhere important. Ordinary mornings. Her hands always smelled like flour and rain.', dark:0, art:'home', hold:2600 },
+    { speaker:'', cls:'narr', text:'Songs with no tune you could ever name. A childhood built almost entirely out of her.', dark:0, art:'home', hold:2200 },
+    { speaker:'', cls:'narr', text:'It was, for a while, an entirely unremarkable life. That, it turns out, was the best part.', dark:0, art:'home', hold:2200 },
+    { speaker:'', cls:'narr', text:'Then, one ordinary night, without warning or mercy, that life ended.', dark:1, art:'wide', hold:1900, fast:1 },
+    { speaker:'', cls:'narr', text:'The Hollow King came for her in the dark. He took her, and left a small boy standing alone in a doorway that would never feel like home again.', dark:1, art:'abduction', shake:1, hold:2900, fast:1 },
+    { speaker:'', cls:'narr', text:'He was far too small to stop it. He has never once forgiven himself for that.', dark:1, art:'abduction', hold:2200, fast:1 },
+    { speaker:'', cls:'narr', text:'Years became a weapon. A child’s helplessness became, slowly and deliberately, a young man’s resolve.', dark:1, art:'wide', hold:2400 },
+    // --- PRESENT DAY: where she is now, and what's guarding her ---
     { speaker:'', cls:'narr', text:'Somewhere past the last light of the city, in a place that isn’t on any map...', dark:1, art:'wide', hold:1600 },
     { speaker:'MOTHER', cls:'mom', text:'...hello? Is someone there? Please... I’m so scared...', dark:1, art:'mom', mood:'captive', hold:1500 },
-    { speaker:'', cls:'narr', text:'He found her first.', dark:1, art:'boss', hold:1200 },
+    { speaker:'', cls:'narr', text:'He found her first, all those years ago. He has never once let her go.', dark:1, art:'boss', hold:1600 },
     { speaker:'THE HOLLOW KING', cls:'boss', text:'No one is coming for you, little flower. No one ever does.', dark:1, art:'both', mood:'captive', shake:1, hold:1700 },
     { speaker:'MOTHER', cls:'mom', text:'My child... if you can hear me... don’t let him win. Don’t give up...', dark:1, art:'mom', mood:'captive', hold:1800 },
     { speaker:'', cls:'narr', text:'You remember her voice from a thousand ordinary mornings. You never thought you’d need to remember it to survive.', dark:0, art:'memory', hold:2400 },
-    { speaker:'', cls:'narr', text:'Her hands always smelled like flour and rain. Small kitchens. Songs with no tune you could ever name.', dark:0, art:'memory', hold:2200 },
     { speaker:'', cls:'narr', text:'He is the strongest thing this world has ever made. And the cruelest.', dark:1, art:'boss', hold:1500 },
     { speaker:'', cls:'narr', text:'He is not alone. He never needs to be.', dark:1, art:'both', hold:1300 },
     { speaker:'', cls:'narr', text:'One path remains. Fifty of his own standing between you and her, and a hundred trials besides. Most who try do not finish it.', dark:1, art:'wide', hold:2200 },
@@ -3447,6 +3519,7 @@ const STORY = {
     { speaker:'', cls:'narr', text:'For one long moment, neither of you says anything at all. You don’t need to.', dark:0, art:'embrace', mood:'joy', hold:2600 },
     { speaker:'MOTHER', cls:'mom', text:'I never once stopped believing you’d come. Not for one single day.', dark:0, art:'embrace', mood:'joy', hold:2200 },
     { speaker:'MOTHER', cls:'mom', text:'Your father would be so proud of you. I hope, wherever he is, he can see this too.', dark:0, art:'embrace', mood:'joy', hold:2600 },
+    { speaker:'', cls:'narr', text:'You were the boy in that doorway once, small and helpless, watching the dark take everything. You are not that boy anymore.', dark:0, art:'both', mood:'joy', hold:2800 },
     { speaker:'MOTHER', cls:'mom', text:'Whatever you carried to reach me — I hope you never have to carry alone again.', dark:0, art:'mom', mood:'joy', hold:2400 },
     { speaker:'YOU', cls:'you', text:'I was so afraid, Mom. The whole way here. I never told anyone that. Not once.', dark:0, art:'embrace', hold:2400 },
     { speaker:'MOTHER', cls:'mom', text:'Being afraid and coming anyway — that is the only kind of brave that has ever mattered.', dark:0, art:'embrace', mood:'joy', hold:2600 },
@@ -3456,7 +3529,7 @@ const STORY = {
     { speaker:'', cls:'narr', text:'It was about the people worth all of it. Yours is waiting somewhere too — mother, father, whoever it is.', dark:0, art:'wide', hold:2600 },
     { speaker:'', cls:'narr', text:'Whatever you’re fighting for — don’t stop. Not today. Not ever.', dark:0, art:'wide', hold:2600 },
     { speaker:'', cls:'you', text:'MOTHER FREED.', dark:0, art:'title', hold:2200 },
-    { speaker:'', cls:'narr', text:'You walk her home yourself, every step of it. She is finally, truly safe.', dark:0, art:'mom', mood:'joy', hold:2400 },
+    { speaker:'', cls:'narr', text:'You walk her home yourself, every step of it — back to the same small house, the same doorway, finally lit again.', dark:0, art:'home', hold:2800 },
     { speaker:'', cls:'narr', text:'But he was never the only thing out here — and now, whatever remains knows exactly who you are.', dark:1, art:'wide', hold:2600 }
   ],
   badEnding: [
@@ -3498,6 +3571,11 @@ function pickVoiceFor(wantsFemale){
   pool.sort((a,b)=> (qualityHints.test(b.name)?1:0) - (qualityHints.test(a.name)?1:0));
   return pool[0];
 }
+// faster pacing across every cutscene, voice or not — applied to every
+// line's own authored hold time rather than overriding it outright, so
+// relative pacing between a quick beat and a lingering one is preserved
+const HOLD_SCALE = .7;
+function holdMs(line){ return Math.max(450, (line.hold||1400)*HOLD_SCALE); }
 function speakLine(line){
   if(!window.speechSynthesis || !save.opt.voice || !line || !line.text) return null;
   try{
@@ -3509,13 +3587,13 @@ function speakLine(line){
     // mood/shake, not just who's speaking, so a frightened line and a
     // joyful line from the same character actually sound different
     if(line.cls==='mom'){
-      u.pitch = line.mood==='joy' ? 1.32 : 1.5; u.rate = line.mood==='joy' ? .93 : 1.08;
+      u.pitch = line.mood==='joy' ? 1.32 : 1.5; u.rate = line.mood==='joy' ? 1.06 : 1.22;
       try{ const v = pickVoiceFor(true); if(v) u.voice = v; }catch(e){}
     } else if(line.cls==='boss'){
-      u.pitch = line.shake ? .26 : .38; u.rate = line.shake ? .76 : .83;
+      u.pitch = line.shake ? .26 : .38; u.rate = line.shake ? .88 : .97;
       try{ const v = pickVoiceFor(false); if(v) u.voice = v; }catch(e){}
-    } else if(line.cls==='you'){ u.pitch=1.05; u.rate = line.shake ? 1.1 : .95; }
-    else { u.pitch=.88; u.rate = line.fast ? 1.0 : .87; }
+    } else if(line.cls==='you'){ u.pitch=1.05; u.rate = line.shake ? 1.24 : 1.1; }
+    else { u.pitch=.88; u.rate = line.fast ? 1.15 : 1.0; }
     u.volume=1;
     speechSynthesis.speak(u);
     return u;
@@ -3571,7 +3649,7 @@ const Cutscene = {
       // measured speed of THIS voice on THIS device (elapsed time so far
       // / characters spoken so far) — self-calibrating instead of guessing
       const words = Math.max(1, line.text.trim().split(/\s+/).length);
-      const estMs = Math.max(600, (words/(2.6*utter.rate))*1000);
+      const estMs = Math.max(450, (words/(3.1*utter.rate))*1000);
       let stepMs = clamp(estMs/chars.length, 14, 85);
       let i=0;
       const runInterval = ()=>{
@@ -3610,7 +3688,7 @@ const Cutscene = {
         clearTimeout(this._voiceFallbackT);
         clearInterval(this._typeIV);
         for(const sp of el.children) sp.classList.add('on');
-        this._waitT = setTimeout(()=>this._advance(), 380);
+        this._waitT = setTimeout(()=>this._advance(), 200);
       };
       utter.onerror = ()=>{
         if(!this.playing || gen!==this._speakGen) return;
@@ -3618,17 +3696,17 @@ const Cutscene = {
         clearTimeout(this._voiceFallbackT);
         clearInterval(this._typeIV);
         for(const sp of el.children) sp.classList.add('on');
-        this._waitT = setTimeout(()=>this._advance(), line.hold||1400);
+        this._waitT = setTimeout(()=>this._advance(), holdMs(line));
       };
     } else {
       let i=0;
       this._typeIV = setInterval(()=>{
         if(i>=chars.length){ clearInterval(this._typeIV);
-          this._waitT = setTimeout(()=>this._advance(), line.hold||1400); return; }
+          this._waitT = setTimeout(()=>this._advance(), holdMs(line)); return; }
         el.children[i].classList.add('on');
         if(chars[i]!==' ' && (i%2===0)) Snd.blip();
         i++;
-      }, line.fast ? 12 : line.art==='title' ? 55 : 26);
+      }, line.fast ? 8 : line.art==='title' ? 40 : 18);
     }
   },
   skip(){ this._end(); },
@@ -3707,6 +3785,40 @@ const Cutscene = {
       const p = clamp(.22+lt*.32, 0, .94);
       swallow.addColorStop(0,'rgba(20,0,4,'+p+')'); swallow.addColorStop(1,'rgba(0,0,0,0)');
       c.fillStyle=swallow; c.fillRect(0,0,W,H);
+    } else if(line.art==='birth'){
+      const glow=c.createRadialGradient(cx,cy,10,cx,cy,170*sc);
+      glow.addColorStop(0,'rgba(255,230,190,.4)'); glow.addColorStop(1,'rgba(0,0,0,0)');
+      c.fillStyle=glow; c.beginPath(); c.arc(cx,cy,170*sc,0,TAU); c.fill();
+      drawMotherArt(c, cx, cy, sc*1.35, t, 'joy');
+      // a newborn bundle, held out and forward — clear of her own body
+      // silhouette (which shares its cream/peach palette) and lit with
+      // its own small glow so it reads as its own distinct shape
+      c.save(); c.translate(cx+34*sc, cy+52*sc); c.scale(sc*1.05,sc*1.05);
+      const bg = c.createRadialGradient(0,0,2,0,0,22);
+      bg.addColorStop(0,'rgba(255,248,238,.55)'); bg.addColorStop(1,'rgba(255,248,238,0)');
+      c.fillStyle=bg; c.beginPath(); c.arc(0,0,22,0,TAU); c.fill();
+      c.fillStyle='#fff8ee'; c.strokeStyle='rgba(255,255,255,.6)'; c.lineWidth=1.2;
+      c.beginPath(); c.ellipse(0,0,15,11,0,0,TAU); c.fill(); c.stroke();
+      c.fillStyle='#ffe3cf'; c.beginPath(); c.arc(-7,-1,6.5,0,TAU); c.fill();
+      c.restore();
+      for(let i=0;i<9;i++){ const a=t*.9+i/9*TAU, rr=95*sc+Math.sin(t*1.5+i)*8*sc;
+        c.fillStyle='rgba(255,225,170,.65)'; c.beginPath(); c.arc(cx+Math.cos(a)*rr, cy-8+Math.sin(a)*rr*.6, 1.8,0,TAU); c.fill(); }
+    } else if(line.art==='home'){
+      // the house sits at a fixed screen depth behind the characters,
+      // like a backdrop, instead of trying to align to their feet —
+      // simpler and reads correctly at every viewport size
+      drawHouseArt(c, cx, H*.66, sc*1.0, t, true);
+      drawMotherArt(c, cx-30*sc, cy, sc*1.0, t, 'joy');
+      drawChildArt(c, cx+24*sc, cy+16*sc, sc*.62);
+    } else if(line.art==='abduction'){
+      drawStormArt(c, W, H, t);
+      drawHouseArt(c, cx, H*.72, sc*.92, t, false);
+      drawFinalBossArt(c, cx+34*sc, cy-46*sc, sc*2.15, t);
+      c.save(); c.globalAlpha=.92;
+      drawMotherArt(c, cx-52*sc, cy+26*sc, sc*.82, t, 'scared');
+      c.restore();
+      drawChildArt(c, cx-10*sc, H*.68, sc*.55);
+      drawStormArt(c, W, H, t+37);
     } else if(line.art==='title'){
       const glow = c.createRadialGradient(cx,cy,10,cx,cy,180*sc);
       glow.addColorStop(0, line.dark?'rgba(255,59,92,.35)':'rgba(182,255,60,.3)');
