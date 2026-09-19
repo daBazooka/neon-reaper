@@ -1531,13 +1531,13 @@ function checkEvolutions(){
 
 /* ---------------- 5. CONTENT: PASSIVES ---------------- */
 const PASSIVES = {
-  might   :{ n:'OVERCHARGE', i:'✚', d:l=>`+${l*20}% all damage` },
+  might   :{ n:'OVERCHARGE', i:'✚', d:l=>`+${l*30}% all damage` },
   haste   :{ n:'HYPERTHREAD', i:'»', d:l=>`+${l*7}% move speed` },
   rapid   :{ n:'COOLANT', i:'⏱', d:l=>`+${Math.round((1-1/(1+.09*l))*100)}% fire rate` },
   magnet  :{ n:'GRAVWELL', i:'◎', d:l=>`+${l*25}% pickup radius` },
   vitality:{ n:'BIOFRAME', i:'♥', d:l=>`+${l*22} max HP (heals)` },
   regen   :{ n:'NANITES', i:'✜', d:l=>`+${(l*.5).toFixed(1)} HP / sec` },
-  crit    :{ n:'WEAK POINT', i:'✷', d:l=>`+${l*5}% crit · +${l*26}% crit dmg` },
+  crit    :{ n:'WEAK POINT', i:'✷', d:l=>`+${l*6}% crit · +${l*34}% crit dmg` },
   armor   :{ n:'PLATING', i:'⛊', d:l=>`−${(l*1.5).toFixed(1)} dmg taken` },
   wisdom  :{ n:'NEURAL LINK', i:'◆', d:l=>`+${l*10}% XP gained` },
   fortune :{ n:'LUCKY CORE', i:'☘', d:l=>`+${l*8}% rare drops & offers` },
@@ -1916,13 +1916,13 @@ function xpFor(l){ return Math.floor(5 + l*3.1 + Math.pow(l,1.72)); }
 function recalc(p){
   const m = save.meta, c = p.char, pa = p.pas;
   const L = k => pa[k]||0;
-  p.maxHp   = p.baseHp + L('vitality')*22;
-  p.dmgMul  = (1 + L('might')*.2) * (1 + m.pow*.05) * c.dmg;
+  p.maxHp   = p.baseHp + L('vitality')*22 + (p.level||0)*10;
+  p.dmgMul  = (1 + L('might')*.3) * (1 + m.pow*.05) * c.dmg;
   p.speed   = 232 * (1 + L('haste')*.07) * (1 + m.swift*.03) * c.spd;
   p.cdMul   = c.cd / (1 + L('rapid')*.09);
   p.magnet  = 96 * (1 + L('magnet')*.25) * (1 + m.mag*.08);
   p.area    = (1 + L('area')*.12) * (1 + (c.extra.area||0));
-  p.crit    = .05 + L('crit')*.05 + (c.extra.crit||0);
+  p.crit    = .05 + L('crit')*.06 + (c.extra.crit||0);
   p.critMul = 2 + L('crit')*.26;
   p.armor   = L('armor')*1.5 + m.armor + (c.extra.armorFlat||0);
   p.regen   = L('regen')*.5 + m.regen*.2;
@@ -2181,6 +2181,11 @@ function spawnBoss(){
   const p = ringPos();
   const kind = BOSSKINDS[G.bossN % BOSSKINDS.length];
   const hard = G.mode==='hardcore' ? 1.3 : G.mode==='easy' ? .78 : G.mode==='classic' ? 1.2 : 1;
+  // difficulty (dmg/size/speed/non-story hp) plateaus after a handful of
+  // regular bosses instead of climbing forever — every regular boss should
+  // stay killable; only the final boss (its own hardcoded stats below,
+  // never spawned through here) is meant to actually be hard
+  const bossDiffN = Math.min(G.bossN, 8);
   let baseHp;
   if(isStoryMode()){
     // sized off real, recent trash-mob DPS, not a fixed curve — a roughly
@@ -2197,12 +2202,12 @@ function spawnBoss(){
     G.lastBossHp = baseHp;
   } else {
     const s = hpScale(G.t);
-    baseHp = 2000 * s * (1+G.bossN*.55) * kind.hpMul * hard;
+    baseHp = 2000 * s * (1+bossDiffN*.55) * kind.hpMul * hard;
   }
   const b = {
     type:'boss', x:p.x, y:p.y, vx:0, vy:0,
     hp: baseHp, maxHp: baseHp,
-    r: (52+G.bossN*3.5)*kind.sizeMul, spd: 46+G.bossN*3, dmg: (38+G.bossN*9)*kind.dmgMul*hard*postRescueMul(), sides:6,
+    r: (52+bossDiffN*3.5)*kind.sizeMul, spd: 46+bossDiffN*3, dmg: (38+bossDiffN*9)*kind.dmgMul*hard*postRescueMul(), sides:6,
     c:kind.c, _baseColor:kind.c, score:1800*(1+G.bossN), rot:0, slowT:0, hitT:0,
     elite:false, boss:true, shootT:2, phase:0, chargeT:5.4, name: BOSSNAMES[G.bossN % BOSSNAMES.length],
     kind:kind.pattern, spiralA:0, telegraph:0, ageT:0, enraged:false, shieldT:0, reflectT:0, pullT:0,
@@ -2916,11 +2921,14 @@ function gainXP(v){
   if(G.mode==='easy') v *= 1.15;
   P.xp += v;
   const story = isStoryMode();
+  let leveled = false;
   while(P.xp >= P.xpNext){
     P.xp -= P.xpNext; P.level++; P.xpNext = story ? xpForStory(P.level) : xpFor(P.level);
-    G.pendingLevels++;
+    G.pendingLevels++; leveled = true;
+    P.hp += 10; // matches the +10 max HP recalc() grants per level, so leveling up heals too
     if(P.level > (save.maxLevel||0)){ save.maxLevel = P.level; }
   }
+  if(leveled) recalc(P); // max HP scales with level — keep it (and the HP bar) in sync the instant you level up
   if(story) checkStoryMilestones();
   if(G.pendingLevels>0 && G.state==='PLAY') autoLevelUp();
 }
@@ -3705,7 +3713,23 @@ const MILESTONE_QUOTES = [
   'Whatever happens at level 100, you already proved something just by getting this far.',
   'You were smaller than this fight once. You’re not anymore.',
   'Every fire eventually burns itself out. Make sure you don’t, first.',
-  'Keep going. Not for him. For her.'
+  'Keep going. Not for him. For her.',
+  'The version of you that started this isn’t the version that finishes it. That’s not a loss.',
+  'Pain you turn into purpose stops being wasted pain.',
+  'Nobody becomes strong by avoiding what breaks them. They become strong by surviving it.',
+  'You don’t have to win today. You just have to not quit today.',
+  'The world doesn’t owe you an easy fight. Fight anyway.',
+  'Some people wait their whole lives for a reason. You already have yours.',
+  'Revenge fades the second it’s finished. Love doesn’t.',
+  'You’re not fighting to become someone new. You’re fighting to get back to who you were before this started.',
+  'The strongest thing you can do with rage is refuse to let it choose for you.',
+  'Nobody remembers how many times you fell. They remember that you stood back up.',
+  'You measure a life by who it was for, not how loud it was.',
+  'The bravest thing isn’t fighting without fear. It’s fighting scared and going anyway.',
+  'You don’t have to forgive him to stop carrying him.',
+  'Some doors only open once you stop trying to kick them down.',
+  'Every level you survive is a promise kept to someone who isn’t here to see it yet.',
+  'You’ll know you’ve won the day you stop needing to.'
 ];
 function showMilestoneQuote(text){
   const el = $('milestoneQuote'); const t = $('mqText');
@@ -4163,7 +4187,7 @@ function checkStoryMilestones(){
     G._lastMilestone = P.level;
     if(P.level<100) announce('LEVEL '+P.level+' — SHE’S STILL WAITING', '#ff9fd6');
   }
-  if(P.level%5===0 && P.level>0 && P.level!==G._lastQuoteLevel){
+  if(P.level%3===0 && P.level>0 && P.level!==G._lastQuoteLevel){
     G._lastQuoteLevel = P.level;
     triggerMilestoneQuote();
   }
@@ -4179,21 +4203,22 @@ function checkStoryMilestones(){
 function triggerFinalBattle(){
   G.finalBattleActive = true;
   const kindCycle = BOSSKINDS.map(k=>k.pattern);
-  const kind = { pattern:kindCycle[0], c:'#ff2040', sizeMul:1.8, hpMul:1, dmgMul:1.9 };
-  // sized directly off the 50th boss's own HP (roughly 4x it, matching
-  // this fight's ~3.5-raw-minute target against that one's ~52s), not
+  const kind = { pattern:kindCycle[0], c:'#ff2040', sizeMul:1.9, hpMul:1, dmgMul:2.2 };
+  // sized directly off the 50th boss's own HP (roughly 5x it now — the
+  // one fight in the whole run that's actually meant to be hard, since
+  // every regular boss before it is deliberately capped), not
   // recomputed from recentDps() here — recentDps only samples trash-mob
   // damage, which is naturally inflated by splash/multi-target weapons
   // hitting several grunts at once, so it overstates true single-target
   // output against one boss. G.lastBossHp already reflects genuine,
   // proven single-target kill capability from 50 real boss fights.
   const dps = Math.max(70, recentDps());
-  let baseHp = G.lastBossHp ? G.lastBossHp * 4 : dps * 210;
+  let baseHp = G.lastBossHp ? G.lastBossHp * 5.2 : dps * 260;
   const ax = P.x, ay = P.y - 260;
   const b = {
     type:'boss', x:ax, y:ay, vx:0, vy:0,
-    hp:baseHp, maxHp:baseHp, r:70*kind.sizeMul, spd:52, dmg:60*kind.dmgMul, sides:6,
-    c:kind.c, _baseColor:kind.c, score:50000, rot:0, slowT:0, hitT:0, elite:false, boss:true, shootT:1.6, phase:0, chargeT:4,
+    hp:baseHp, maxHp:baseHp, r:70*kind.sizeMul, spd:56, dmg:60*kind.dmgMul, sides:6,
+    c:kind.c, _baseColor:kind.c, score:50000, rot:0, slowT:0, hitT:0, elite:false, boss:true, shootT:1.4, phase:0, chargeT:3.4,
     name:'THE HOLLOW KING', kind:kind.pattern, kindCycle, kindIdx:0, spiralA:0, telegraph:0, ageT:0, enraged:false,
     shieldT:0, reflectT:0, pullT:0, tauntT:rnd(10,16),
     kb:0, kbx:0, kby:0, finalBoss:true
