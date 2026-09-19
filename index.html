@@ -2174,22 +2174,20 @@ function spawnBoss(){
   const p = ringPos();
   const kind = BOSSKINDS[G.bossN % BOSSKINDS.length];
   const hard = G.mode==='hardcore' ? 1.3 : G.mode==='easy' ? .78 : G.mode==='classic' ? 1.2 : 1;
-  // difficulty (dmg/size/speed/non-story hp) plateaus after a handful of
-  // regular bosses instead of climbing forever — every regular boss should
-  // stay killable, and the plateau itself is deliberately gentle so most
-  // players can clear a run on their first try; only the final boss (its
-  // own hardcoded stats below, never spawned through here) is meant to
-  // actually be hard
-  const bossDiffN = Math.min(G.bossN, 5);
+  // no boss — including the final one — is meant to be genuinely hard
+  // anymore: difficulty plateaus fast and low, so most players can clear
+  // a run on their first try. Size is handled completely separately from
+  // difficulty below: bosses are deliberately much bigger for spectacle,
+  // with none of the HP/damage that a bigger threat would normally imply
+  const bossDiffN = Math.min(G.bossN, 4);
   let baseHp;
   if(isStoryMode()){
-    // sized off real, recent trash-mob DPS, not a fixed curve — a shorter,
-    // easier ~36s fight for whatever build the player actually has right
-    // now, not the ~52s it used to target. real fights run a bit longer
-    // than this raw number since dodging costs uptime that standing still
-    // and trading hits wouldn't.
+    // sized off real, recent trash-mob DPS, not a fixed curve — a short,
+    // easy ~26s fight for whatever build the player actually has right now.
+    // real fights run a bit longer than this raw number since dodging
+    // costs uptime that standing still and trading hits wouldn't.
     const dps = Math.max(70, recentDps());
-    let target = dps * 36 * kind.hpMul * postRescueMul();
+    let target = dps * 26 * kind.hpMul * postRescueMul();
     // rate-limited against the last boss's HP too — a noisy single dps
     // sample (a lull with no grunts nearby, a sudden AOE clear) should
     // never make one boss wildly easier or harder than the one before it
@@ -2198,12 +2196,15 @@ function spawnBoss(){
     G.lastBossHp = baseHp;
   } else {
     const s = hpScale(G.t);
-    baseHp = 1600 * s * (1+bossDiffN*.4) * kind.hpMul * hard;
+    baseHp = 1300 * s * (1+bossDiffN*.3) * kind.hpMul * hard;
   }
   const b = {
     type:'boss', x:p.x, y:p.y, vx:0, vy:0,
     hp: baseHp, maxHp: baseHp,
-    r: (48+bossDiffN*2.5)*kind.sizeMul, spd: 42+bossDiffN*2, dmg: (28+bossDiffN*6)*kind.dmgMul*hard*postRescueMul(), sides:6,
+    // size (r) is deliberately on its own, much bigger scale than the
+    // difficulty stats — a boss should look like a huge threat without
+    // actually hitting like one
+    r: (95+bossDiffN*6)*kind.sizeMul, spd: 38+bossDiffN*1.5, dmg: (18+bossDiffN*3)*kind.dmgMul*hard*postRescueMul(), sides:6,
     c:kind.c, _baseColor:kind.c, score:1800*(1+G.bossN), rot:0, slowT:0, hitT:0,
     elite:false, boss:true, shootT:2, phase:0, chargeT:5.4, name: BOSSNAMES[G.bossN % BOSSNAMES.length],
     kind:kind.pattern, spiralA:0, telegraph:0, ageT:0, enraged:false, shieldT:0, reflectT:0, pullT:0,
@@ -2217,9 +2218,13 @@ function spawnBoss(){
 function bossAttack(e, cyc){
   e.shootT = cyc;
   const kind = e.kind || 'radial';
-  const bn = qNum(1,.72,.5); // bullet-count multiplier: thins every pattern on weaker devices
+  // .65/.48/.32 instead of 1/.72/.5 — every boss attack is thinner now,
+  // matching "bosses should be easy" as much as it helps mobile perf
+  const bn = qNum(.65,.48,.32);
   if(kind==='radial'){
-    const n = Math.max(4,Math.round((12+G.bossN*2)*bn)), off=Math.random()*TAU;
+    // capped the same way spawnBoss() caps its own difficulty scaling —
+    // this was the one pattern still reading raw, uncapped G.bossN
+    const n = Math.max(4,Math.round((12+Math.min(G.bossN,4)*2)*bn)), off=Math.random()*TAU;
     for(let k=0;k<n;k++){ const a = off + k/n*TAU;
       pushEBullet({x:e.x,y:e.y,vx:Math.cos(a)*200,vy:Math.sin(a)*200,r:8,dmg:e.dmg*.5,life:4.2,c:e.c}); }
     Snd.tone(140,.3,'sawtooth',.1,50);
@@ -2633,7 +2638,7 @@ function update(dt){
       const enrageMul = (e.enraged ? 1.55 : 1) * berserkMul;
       e.rot += dt*.9*enrageMul;
       e.chargeT -= dt; e.shootT -= dt*enrageMul;
-      if(e.chargeT<=0){ e.chargeT = clamp(5.4 - G.bossN*.3, 2.6, 5.4)/enrageMul; e.vx = dx/d*420*enrageMul; e.vy = dy/d*420*enrageMul; shake(5); }
+      if(e.chargeT<=0){ e.chargeT = clamp(5.4 - Math.min(G.bossN,4)*.3, 4.2, 5.4)/enrageMul; e.vx = dx/d*420*enrageMul; e.vy = dy/d*420*enrageMul; shake(5); }
       e.vx = lerp(e.vx, dx/d*sp*enrageMul, 1-Math.pow(.25,dt));
       e.vy = lerp(e.vy, dy/d*sp*enrageMul, 1-Math.pow(.25,dt));
       // shield / reflect windows tick down and release their color tint
@@ -2657,7 +2662,7 @@ function update(dt){
       const willFire = e.shootT<=.45 && e.shootT>0;
       if(willFire && e===G.bossRef) $('bosstele').classList.add('on');
       if(e.shootT<=0){
-        const cyc = clamp(2.3 - G.bossN*.14, 1.05, 2.3);
+        const cyc = clamp(2.3 - Math.min(G.bossN,4)*.14, 1.7, 2.3);
         if(e.finalBoss && e.kindCycle){ e.kindIdx = (e.kindIdx+1) % e.kindCycle.length; e.kind = e.kindCycle[e.kindIdx]; }
         bossAttack(e, cyc);
         if(e===G.bossRef) $('bosstele').classList.remove('on');
@@ -2906,6 +2911,9 @@ function hurtPlayer(amt){
   if(G.mode==='easy') amt *= .72;
   else if(G.mode==='classic') amt *= 1.15;
   amt = Math.max(1, amt - P.armor);
+  // no single hit — boss or otherwise — can ever take more than half your
+  // current max HP, so nothing in the game can burst you down in one shot
+  amt = Math.min(amt, P.maxHp*.5);
   P.hp -= amt; P.invul = G.mode==='easy' ? .7 : .5; P.hitT = .2; P.noDmgT = 0;
   Snd.hurt(); shake(7); G.combo = 0; G.comboT = 0; G.frzCharge *= .75;
   const f = $('dmgflash'); f.style.opacity = clamp(1 - P.hp/P.maxHp, .25, 1);
@@ -3762,10 +3770,12 @@ function triggerMilestoneQuote(){
   // higher 'you' voice or even the regular documentary narrator
   const utter = speakLine({ speaker:'', cls:'god', text });
   if(utter){
-    // ducked hard, but not all the way to near-silent — the theme should
-    // still be audibly playing underneath, just clearly, unmistakably
-    // quieter than the voice, not sound like it stopped
-    Snd.duckMusic(true, .08);
+    // barely ducked — the song stays in the background for the whole
+    // match, the same volume the whole time, never dropping low enough
+    // to read as quiet or stopped. The line itself carries clarity through
+    // its low, deliberate "god voice" register and full TTS volume, not
+    // by silencing the music underneath it
+    Snd.duckMusic(true, .75);
     utter.onend = finish;
     utter.onerror = finish;
     // stays on screen for exactly as long as the voice takes to say it,
@@ -4259,26 +4269,25 @@ function checkStoryMilestones(){
 function triggerFinalBattle(){
   G.finalBattleActive = true;
   const kindCycle = BOSSKINDS.map(k=>k.pattern);
-  const kind = { pattern:kindCycle[0], c:'#ff2040', sizeMul:1.9, hpMul:1, dmgMul:2.2 };
-  // sized directly off the 50th boss's own HP — the multiplier (7.5x) is
-  // higher than it looks specifically to cancel out the regular gauntlet
-  // being deliberately made much easier: G.lastBossHp is now a ~36s fight
-  // instead of ~52s, so this keeps the final boss's own absolute toughness
-  // where it was — the one fight in the whole run that's actually meant to
-  // be hard, since every regular boss (and now its allies) is deliberately
-  // eased off. Not recomputed from recentDps() here — recentDps only
-  // samples trash-mob damage, which is naturally inflated by splash/
-  // multi-target weapons hitting several grunts at once, so it overstates
-  // true single-target output against one boss. G.lastBossHp already
-  // reflects genuine, proven single-target kill capability from 50 real
-  // boss fights.
+  // no boss is meant to be hard anymore, the final one included — sizeMul
+  // and the flat r bonus below make him by far the biggest thing in the
+  // game, but hpMul/dmgMul are deliberately no harder than a regular boss
+  const kind = { pattern:kindCycle[0], c:'#ff2040', sizeMul:3.2, hpMul:1, dmgMul:1 };
+  // sized directly off the 50th boss's own HP — a small step up (1.6x),
+  // just enough that the final fight still feels like a finale, not the
+  // 7.5x spike this used to be. Not recomputed from recentDps() here —
+  // recentDps only samples trash-mob damage, which is naturally inflated
+  // by splash/multi-target weapons hitting several grunts at once, so it
+  // overstates true single-target output against one boss. G.lastBossHp
+  // already reflects genuine, proven single-target kill capability from
+  // 50 real boss fights.
   const dps = Math.max(70, recentDps());
-  let baseHp = G.lastBossHp ? G.lastBossHp * 7.5 : dps * 270;
+  let baseHp = G.lastBossHp ? G.lastBossHp * 1.6 : dps * 42;
   const ax = P.x, ay = P.y - 260;
   const b = {
     type:'boss', x:ax, y:ay, vx:0, vy:0,
-    hp:baseHp, maxHp:baseHp, r:70*kind.sizeMul, spd:56, dmg:60*kind.dmgMul, sides:6,
-    c:kind.c, _baseColor:kind.c, score:50000, rot:0, slowT:0, hitT:0, elite:false, boss:true, shootT:1.4, phase:0, chargeT:3.4,
+    hp:baseHp, maxHp:baseHp, r:130*kind.sizeMul, spd:40, dmg:20*kind.dmgMul, sides:6,
+    c:kind.c, _baseColor:kind.c, score:50000, rot:0, slowT:0, hitT:0, elite:false, boss:true, shootT:2, phase:0, chargeT:5,
     name:'THE HOLLOW KING', kind:kind.pattern, kindCycle, kindIdx:0, spiralA:0, telegraph:0, ageT:0, enraged:false,
     shieldT:0, reflectT:0, pullT:0, tauntT:rnd(10,16),
     kb:0, kbx:0, kby:0, finalBoss:true
