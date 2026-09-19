@@ -171,6 +171,24 @@ h2.tt{font:900 20px/1 var(--f1);letter-spacing:2px;margin-bottom:12px;text-align
 #adSpin{width:42px;height:42px;border-radius:50%;border:3px solid rgba(255,255,255,.14);border-top-color:var(--cy);animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(1turn)}}
 #adTimer{font:700 12px/1 var(--f1);color:var(--dim);letter-spacing:2px}
+
+/* ---- CUTSCENE ---- */
+#cutscene{position:absolute;inset:0;z-index:70;background:#000;overflow:hidden}
+#csStage{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1}
+#csVignette{position:absolute;inset:0;pointer-events:none;z-index:2;box-shadow:inset 0 0 0 0 rgba(255,0,40,0);transition:box-shadow 1.2s ease}
+#csVignette.dark{box-shadow:inset 0 0 180px 40px rgba(0,0,0,.85)}
+#csVignette.rage{box-shadow:inset 0 0 160px 50px rgba(255,10,30,.55);animation:telewarn .5s ease-in-out infinite}
+#csSkip{position:absolute;top:16px;right:16px;z-index:5;pointer-events:auto;cursor:pointer;background:rgba(255,255,255,.08);border:1px solid var(--line);color:var(--dim);border-radius:10px;padding:8px 14px;font:700 11px/1 var(--f1);letter-spacing:1px}
+#csBox{position:absolute;left:0;right:0;bottom:0;z-index:3;min-height:118px;padding:16px 22px 22px;background:linear-gradient(180deg,rgba(5,6,13,0),rgba(5,6,13,.96) 30%);display:flex;flex-direction:column;justify-content:flex-end;gap:6px}
+#csSpeaker{font:900 12px/1 var(--f1);letter-spacing:3px;opacity:.9}
+#csSpeaker.mom{color:#ff9fd6}
+#csSpeaker.boss{color:#ff3b5c}
+#csSpeaker.you{color:var(--cy)}
+#csSpeaker.narr{color:var(--dim)}
+#csText{font:600 16px/1.5 var(--f2);color:#f2f6ff;min-height:52px;max-width:640px;text-shadow:0 2px 8px rgba(0,0,0,.8)}
+#csText .car{opacity:0}
+#csText .car.on{opacity:1}
+@media (max-width:560px){ #csText{font-size:14px} #csBox{padding:12px 16px 18px} }
 .chartitle{font:900 15px/1 var(--f1);letter-spacing:1px}
 #dailyGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;width:100%;margin:10px 0}
 .day{aspect-ratio:.72;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:700 9px/1 var(--f1);color:var(--dim)}
@@ -548,6 +566,8 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
     <button class="btn ghost" id="shakeBtn">☲ SCREEN SHAKE: ON</button>
     <button class="btn ghost" id="qualityBtn">◨ GRAPHICS: AUTO</button>
     <div class="hintrow" style="margin:2px 0 0">AUTO watches your device's speed and turns down effects on its own if things start to chug — pick a fixed level if you'd rather choose yourself.</div>
+    <button class="btn ghost hidden" id="rewatchIntroBtn">🎬 REWATCH: THE BEGINNING</button>
+    <button class="btn ghost hidden" id="rewatchEndBtn">🎬 REWATCH: SHE'S FREE</button>
     <button class="btn ghost" id="wipeBtn" style="color:var(--rd)">⌫ RESET ALL DATA</button>
   </div>
 </div>
@@ -560,6 +580,17 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   </div>
   <div id="adTimer">UNLOCKING REWARD</div>
   <button class="btn ghost hidden" id="adSkip" style="max-width:220px">SKIP</button>
+</div>
+
+<!-- CUTSCENE (shared by the intro and the ending) -->
+<div id="cutscene" class="hidden">
+  <div id="csVignette"></div>
+  <canvas id="csStage"></canvas>
+  <button id="csSkip">SKIP ›</button>
+  <div id="csBox">
+    <div id="csSpeaker"></div>
+    <div id="csText"></div>
+  </div>
 </div>
 
 <script>
@@ -602,6 +633,7 @@ const Store = {
 const defaultSave = () => ({
   coins: 0, best: 0, bestTime: 0, runs: 0, kills: 0, bosses: 0, revives: 0, playtime: 0,
   bossRushBest: 0, hardcoreBest: 0, timeAttackBest: 0, ascension: 0,
+  introSeen: 0, motherFreed: 0, maxStoryLevel: 0,
   meta: { vit:0, pow:0, swift:0, mag:0, greed:0, wis:0, fort:0, armor:0, regen:0, rev:0 },
   chars: { volt:1 }, char: 'volt',
   ach: {}, achClaimed: {}, daily: { last: 0, streak: 0 },
@@ -781,7 +813,43 @@ const Snd = {
     }catch(e){}
   },
   setSfx(v){ save.opt.sfx = v?1:0; if(this.sfxGain) this.sfxGain.gain.value = v?1:0; persist(); },
-  setMus(v){ save.opt.mus = v?1:0; if(this.musGain) this.musGain.gain.value = v?.32:0; persist(); }
+  setMus(v){ save.opt.mus = v?1:0; if(this.musGain) this.musGain.gain.value = v?.32:0; persist(); },
+
+  /* ---- cutscene score: a slow, sparse minor-key piano+pad cue.
+     Procedural oscillators, not a recording — kept deliberately spare
+     (long notes, silence between phrases) since that reads as more
+     "emotional score" than a busy synth ever could. */
+  csTimer:null, csStep:0,
+  startCutsceneMusic(dark){
+    this.init(); this.resume();
+    this.stopCutsceneMusic();
+    if(!this.ready || !save.opt.mus) return;
+    const root = dark ? [220,196,174.6,164.8] : [261.6,293.6,329.6,220]; // Am-ish / hopeful C-ish
+    this.csStep = 0;
+    const playPhrase = ()=>{
+      if(!this.ready) return;
+      const t = this.ctx.currentTime;
+      const r = root[this.csStep % root.length];
+      // low pad, long and soft
+      this.at(r/2, 3.6, 'sine', .05, t, null, -4);
+      this.at(r/2, 3.6, 'triangle', .035, t, null, 4);
+      // a single high, lonely piano-like note a beat later
+      if(this.csStep % 2 === 0){
+        this.at(r*2, 1.4, 'triangle', .045, t+.9);
+      }
+      this.csStep++;
+    };
+    playPhrase();
+    this.csTimer = setInterval(playPhrase, 3600);
+  },
+  stopCutsceneMusic(){ clearInterval(this.csTimer); this.csTimer=null; },
+  blip(){ this.tone(rnd(700,900), .025, 'square', .025, null); },
+  swell(dark){
+    if(!this.ready || !save.opt.sfx) return;
+    const t=this.ctx.currentTime;
+    const chord = dark ? [174.6,220,261.6] : [261.6,329.6,392,523.2];
+    chord.forEach((f,i)=> this.at(f, 2.6, 'triangle', .06, t+i*.05, null, i*3));
+  }
 };
 
 /* ---------------- 3. AD MANAGER ----------------
@@ -1546,7 +1614,9 @@ const ACHS = [
   { k:'evo1',  n:'TRANSCENDENT',   d:'Evolve a weapon',            r:500,  t:s=>(s.weaponsEvolved||0)>=1 },
   { k:'evo8',  n:'PERFECT ARSENAL',d:'Evolve 8 weapons total',     r:2500, t:s=>(s.weaponsEvolved||0)>=8 },
   { k:'asc1',  n:'ASCENDED',      d:'Ascend for the first time',   r:1000, t:s=>(s.ascension||0)>=1 },
-  { k:'asc5',  n:'BEYOND MORTAL', d:'Ascend 5 times',              r:5000, t:s=>(s.ascension||0)>=5 }
+  { k:'asc5',  n:'BEYOND MORTAL', d:'Ascend 5 times',              r:5000, t:s=>(s.ascension||0)>=5 },
+  { k:'mom500',n:'HALFWAY HOME',  d:'Reach level 500 in Save Her', r:1500, t:s=>(s.maxStoryLevel||0)>=500 },
+  { k:'momfree',n:'SHE’S FREE',d:'Defeat the Hollow King and save her', r:10000, t:s=>!!s.motherFreed }
 ];
 
 /* ---------------- 9. CONTENT: DAILY QUESTS ---------------- */
@@ -1850,8 +1920,8 @@ function ringPos(){
 }
 function spawnWave(dt){
   if(enemies.length > qNum(300,200,120)) return;
-  const hard = G.mode==='hardcore', easy = G.mode==='easy';
-  const rate = clamp(3.0 + G.t*.058, 3, 16) * (G.bossRef ? .5 : 1) * (hard?1.35:easy?.55:1);
+  const hard = G.mode==='hardcore', easy = G.mode==='easy', story = G.mode==='classic';
+  const rate = clamp(3.0 + G.t*.058, 3, 16) * (G.bossRef ? .5 : 1) * (hard?1.35:easy?.78:story?1.25:1);
   G.spawnAcc += rate*dt;
   const types = availTypes(G.t);
   while(G.spawnAcc >= 1){
@@ -1859,17 +1929,17 @@ function spawnWave(dt){
     const p = ringPos();
     // weight toward newer types
     const w = []; types.forEach((k,i)=>{ const n = 1 + i*1.3; for(let j=0;j<n;j++) w.push(k); });
-    spawnAt(pick(w), p.x, p.y, hard?1.3:easy?.6:1);
+    spawnAt(pick(w), p.x, p.y, hard?1.3:easy?.82:story?1.2:1);
   }
   // elites
   G.eliteT -= dt;
   if(G.eliteT<=0 && !G.bossRef){
-    G.eliteT = clamp((easy?46:28) - G.t*.02, easy?30:14, easy?46:28);
-    const p = ringPos(); const e = spawnAt(pick(types), p.x, p.y, hard?1.5:easy?.6:1, true);
+    G.eliteT = clamp((easy?34:story?22:28) - G.t*.02, easy?18:story?11:14, easy?34:story?22:28);
+    const p = ringPos(); const e = spawnAt(pick(types), p.x, p.y, hard?1.5:easy?.82:story?1.25:1, true);
     announce('ELITE INCOMING', '#ffd23c'); Snd.big();
   }
   // boss
-  const nextBoss = G.mode==='bossrush' ? (20 + G.bossN*45) : (easy ? (140+G.bossN*130) : (80 + G.bossN*95));
+  const nextBoss = G.mode==='bossrush' ? (20 + G.bossN*45) : (easy ? (100+G.bossN*100) : story ? (65+G.bossN*80) : (80 + G.bossN*95));
   if(G.t >= nextBoss && !G.bossRef) spawnBoss();
 }
 const BOSSNAMES = ['THE DEVOURER','NULLSPIKE','ARCHON PRIME','VOID MONARCH','THE LAST ECHO','OMEGA WARDEN'];
@@ -1885,7 +1955,7 @@ function spawnBoss(){
   const p = ringPos();
   const s = hpScale(G.t);
   const kind = BOSSKINDS[G.bossN % BOSSKINDS.length];
-  const hard = G.mode==='hardcore' ? 1.3 : G.mode==='easy' ? .55 : 1;
+  const hard = G.mode==='hardcore' ? 1.3 : G.mode==='easy' ? .78 : G.mode==='classic' ? 1.2 : 1;
   const baseHp = 2000 * s * (1+G.bossN*.55) * kind.hpMul * hard;
   const b = {
     type:'boss', x:p.x, y:p.y, vx:0, vy:0,
@@ -1988,6 +2058,7 @@ const KWORDS = [[8,'NICE'],[16,'SAVAGE'],[28,'BRUTAL'],[45,'INSANE'],[70,'GODLIK
 function killEnemy(e){
   const i = enemies.indexOf(e); if(i<0) return;
   enemies.splice(i,1); e.dead = true;
+  if(e.finalBoss || e.finalAlly) onFinalBossOrAllyKilled(e);
   P.kills++; G.kills++;
   G.combo++; G.comboT = 2.6; if(G.combo>G.maxCombo) G.maxCombo=G.combo;
   G.streakKill++; G.streakT = 1.1;
@@ -2206,6 +2277,12 @@ function update(dt){
 
   // ---- hazard zones (arena modifiers)
   if(!spectating) tickHazards(dt);
+
+  // ---- the final battle: reachable once level 1000 opens the path
+  if(!spectating && G.mode==='classic' && G.finalArmed && !G.finalBattleActive
+     && dist2(P,FINAL_ARENA) < FINAL_ARENA.r*FINAL_ARENA.r){
+    triggerFinalBattle();
+  }
 
   if(!spectating){
     if(!(Party.active && !Party.isLeader)) spawnWave(dt);
@@ -2478,9 +2555,10 @@ function hurtPlayer(amt){
   if(P.dodge>0 && Math.random()<P.dodge){
     dnum(P.x, P.y-26, 0, false, '#cfe0ff', 'DODGE!'); Snd.tone(1800,.08,'sine',.06,2200); return;
   }
-  if(G.mode==='easy') amt *= .45;
+  if(G.mode==='easy') amt *= .72;
+  else if(G.mode==='classic') amt *= 1.15;
   amt = Math.max(1, amt - P.armor);
-  P.hp -= amt; P.invul = G.mode==='easy' ? .9 : .5; P.hitT = .2;
+  P.hp -= amt; P.invul = G.mode==='easy' ? .7 : .5; P.hitT = .2;
   Snd.hurt(); shake(7); G.combo = 0; G.comboT = 0; G.frzCharge *= .75;
   const f = $('dmgflash'); f.style.opacity = clamp(1 - P.hp/P.maxHp, .25, 1);
   setTimeout(()=>{ f.style.opacity = P.hp/P.maxHp < .3 ? .45 : 0; }, 130);
@@ -2488,13 +2566,15 @@ function hurtPlayer(amt){
   if(P.hp<=0){ P.hp=0; onDeath(); }
 }
 function gainXP(v){
-  if(G.mode==='easy') v *= 1.5;
+  if(G.mode==='easy') v *= 1.15;
   P.xp += v;
+  const story = G.mode==='classic';
   while(P.xp >= P.xpNext){
-    P.xp -= P.xpNext; P.level++; P.xpNext = xpFor(P.level);
+    P.xp -= P.xpNext; P.level++; P.xpNext = story ? xpForStory(P.level) : xpFor(P.level);
     G.pendingLevels++;
     if(P.level > (save.maxLevel||0)){ save.maxLevel = P.level; }
   }
+  if(story) checkStoryMilestones();
   if(G.pendingLevels>0 && G.state==='PLAY') openLevelUp();
 }
 function announce(txt,color){
@@ -2853,6 +2933,14 @@ function renderMinimap(){
     const pulse = 3.4+Math.sin(gt*8)*1.2;
     mmCtx.beginPath(); mmCtx.arc(bx,by,pulse,0,TAU); mmCtx.fill();
   }
+  // her beacon — once the path opens, always visible, always pointing home
+  if(G.mode==='classic' && G.finalArmed && !G.motherRescued){
+    const [fx,fy] = plot(FINAL_ARENA.x, FINAL_ARENA.y);
+    const pulse = 3+Math.sin(gt*5)*1.4;
+    mmCtx.strokeStyle='#ff9fd6'; mmCtx.lineWidth=1.5;
+    mmCtx.beginPath(); mmCtx.arc(fx,fy,pulse+3,0,TAU); mmCtx.stroke();
+    mmCtx.fillStyle='#ff9fd6'; mmCtx.beginPath(); mmCtx.arc(fx,fy,pulse,0,TAU); mmCtx.fill();
+  }
   mmCtx.restore();
   // ring + player dot
   mmCtx.strokeStyle='rgba(38,240,255,.5)'; mmCtx.lineWidth=1.5;
@@ -3061,9 +3149,279 @@ function hide(id){ $(id).classList.add('hidden'); }
 const SCREENS = ['menuScreen','modeScreen','dailyScreen','lvlScreen','chestScreen','pauseScreen','overScreen','reviveScreen','shopScreen','heroScreen','achScreen','evoScreen','statsScreen'];
 function hideAll(){ SCREENS.forEach(hide); }
 
+/* ---------------- 23b. STORY: "SAVE HER" ----------------
+   Classic mode is the story mode. Somewhere at level 1000 waits a
+   fixed arena, a final boss, his lieutenants, and your mother. This
+   section holds: the cutscene playback engine (typed subtitles, no
+   voice — see the chat reply for why), the hand-drawn mother/boss
+   art, the two scripts, and the level-1000 trigger/win condition. */
+const FINAL_ARENA = { x: 4200, y: -3400, r: 640 };
+function drawFlowerArt(c,x,y,r,petal,core){
+  c.save(); c.translate(x,y);
+  c.fillStyle=petal;
+  for(let i=0;i<5;i++){ c.save(); c.rotate(i/5*TAU);
+    c.beginPath(); c.ellipse(0,-r*.9,r*.55,r*.9,0,0,TAU); c.fill(); c.restore(); }
+  c.fillStyle=core; c.beginPath(); c.arc(0,0,r*.5,0,TAU); c.fill();
+  c.restore();
+}
+/* she's drawn small and round on purpose — soft where everything else
+   in this game is sharp, so she reads as precious rather than powerful */
+function drawMotherArt(c,x,y,s,t,mood){
+  c.save(); c.translate(x,y); c.scale(s,s);
+  const bob = Math.sin(t*2)*3; c.translate(0,bob);
+  if(mood==='captive'){
+    c.strokeStyle='rgba(130,130,150,.85)'; c.lineWidth=3;
+    for(let i=-1;i<=1;i+=2){ c.beginPath(); c.moveTo(i*24,-6); c.lineTo(i*74,-64); c.stroke();
+      c.beginPath(); c.arc(i*74,-64,4,0,TAU); c.fillStyle='rgba(130,130,150,.85)'; c.fill(); }
+  }
+  const bodyGrad = c.createRadialGradient(0,10,4,0,10,42);
+  bodyGrad.addColorStop(0,'#fff2e8'); bodyGrad.addColorStop(1,'#ffc9a8');
+  c.fillStyle=bodyGrad;
+  c.beginPath(); c.ellipse(0,16,32,38,0,0,TAU); c.fill();
+  c.fillStyle='#ffe3cf'; c.beginPath(); c.arc(0,-26,25,0,TAU); c.fill();
+  c.fillStyle='#6b4636'; c.beginPath(); c.arc(0,-30,26,Math.PI*1.02,Math.PI*1.98); c.fill();
+  drawFlowerArt(c,15,-44,9,'#ff6ec7','#ffd23c');
+  const blink = Math.sin(t*1.3)>0.985 ? .15 : 1;
+  c.fillStyle='#3a2418';
+  c.save(); c.translate(-8,-25); c.scale(1,blink); c.beginPath(); c.arc(0,0,3,0,TAU); c.fill(); c.restore();
+  c.save(); c.translate(8,-25); c.scale(1,blink); c.beginPath(); c.arc(0,0,3,0,TAU); c.fill(); c.restore();
+  c.strokeStyle='#a5563b'; c.lineWidth=2.2; c.beginPath();
+  if(mood==='joy') c.arc(0,-16,6.5,.15*Math.PI,.85*Math.PI);
+  else c.arc(0,-13,6.5,1.15*Math.PI,1.85*Math.PI);
+  c.stroke();
+  if(mood==='captive'||mood==='scared'){
+    const d1=(t*1.7)%1, d2=((t*1.7)+.5)%1;
+    c.fillStyle='rgba(120,200,255,.85)';
+    c.beginPath(); c.ellipse(-8,-16+d1*28,1.8,3.2,0,0,TAU); c.fill();
+    c.beginPath(); c.ellipse(8,-18+d2*28,1.8,3.2,0,0,TAU); c.fill();
+  }
+  if(mood==='joy'){
+    for(let i=0;i<6;i++){ const a=t*1.5+i/6*TAU, rr=48+Math.sin(t*3+i)*6;
+      c.fillStyle='rgba(255,210,60,.8)'; c.beginPath(); c.arc(Math.cos(a)*rr,-20+Math.sin(a)*rr,2,0,TAU); c.fill(); }
+  }
+  c.restore();
+}
+function drawFinalBossArt(c,x,y,s,t){
+  c.save(); c.translate(x,y); c.scale(s,s);
+  const pulse=.5+.5*Math.sin(t*3);
+  const g=c.createRadialGradient(0,0,20,0,0,150);
+  g.addColorStop(0,'rgba(150,0,30,.85)'); g.addColorStop(1,'rgba(0,0,0,0)');
+  c.fillStyle=g; c.beginPath(); c.arc(0,0,150,0,TAU); c.fill();
+  c.save(); c.rotate(t*.08);
+  c.fillStyle='#1a0508'; c.strokeStyle='#ff2040'; c.lineWidth=3;
+  const pts=12; c.beginPath();
+  for(let i=0;i<pts*2;i++){ const a=i/(pts*2)*TAU, rr= i%2===0?92:42;
+    const px=Math.cos(a)*rr, py=Math.sin(a)*rr; i?c.lineTo(px,py):c.moveTo(px,py); }
+  c.closePath(); c.fill(); c.stroke(); c.restore();
+  c.fillStyle='#2a0710'; c.beginPath(); c.arc(0,0,54,0,TAU); c.fill();
+  c.strokeStyle='#ff2040'; c.lineWidth=2.5; c.beginPath(); c.arc(0,0,54,0,TAU); c.stroke();
+  // angry brows — two downward slashes over each eye
+  c.strokeStyle='#ff2040'; c.lineWidth=3.5; c.lineCap='round';
+  c.beginPath(); c.moveTo(-24,-19); c.lineTo(-9,-13); c.stroke();
+  c.beginPath(); c.moveTo(24,-19); c.lineTo(9,-13); c.stroke();
+  c.fillStyle='#fff'; c.shadowColor='#ff2040'; c.shadowBlur=14+pulse*10;
+  c.beginPath(); c.ellipse(-16,-4,5,7,0,0,TAU); c.fill();
+  c.beginPath(); c.ellipse(16,-4,5,7,0,0,TAU); c.fill();
+  c.shadowBlur=0;
+  // jagged, toothy grin — not a smile, a threat
+  c.fillStyle='#0a0203'; c.beginPath();
+  c.moveTo(-22,16); c.quadraticCurveTo(0,32,22,16); c.quadraticCurveTo(0,26,-22,16); c.closePath(); c.fill();
+  c.strokeStyle='#ff2040'; c.lineWidth=2; c.stroke();
+  c.fillStyle='#fff';
+  for(let i=0;i<6;i++){ const tx=-19+i*7.6, up=i%2===0;
+    c.beginPath();
+    if(up){ c.moveTo(tx,17); c.lineTo(tx+3.5,17); c.lineTo(tx+1.75,24); }
+    else { c.moveTo(tx,26); c.lineTo(tx+3.5,26); c.lineTo(tx+1.75,19); }
+    c.closePath(); c.fill();
+  }
+  c.restore();
+}
+function drawAllyArt(c,x,y,s,t,col){
+  c.save(); c.translate(x,y); c.scale(s,s); c.rotate(t*.5);
+  c.fillStyle=col; c.globalAlpha=.85;
+  drawShape(0,0,30,8,0,c); c.fill();
+  c.globalAlpha=1; c.strokeStyle='#fff'; c.lineWidth=2; drawShape(0,0,30,8,0,c); c.stroke();
+  c.rotate(-t*.5);
+  c.fillStyle='#fff'; c.shadowColor=col; c.shadowBlur=10;
+  c.beginPath(); c.arc(-8,-2,2.6,0,TAU); c.fill();
+  c.beginPath(); c.arc(8,-2,2.6,0,TAU); c.fill();
+  c.shadowBlur=0;
+  c.restore();
+}
+const STORY = {
+  intro: [
+    { speaker:'', cls:'narr', text:'Somewhere past the last light of the city, in a place that isn’t on any map...', dark:1, art:'wide', hold:1600 },
+    { speaker:'MOTHER', cls:'mom', text:'...hello? Is someone there? Please... I’m so scared...', dark:1, art:'mom', mood:'captive', hold:1500 },
+    { speaker:'', cls:'narr', text:'He found her first.', dark:1, art:'boss', hold:1200 },
+    { speaker:'THE HOLLOW KING', cls:'boss', text:'No one is coming for you, little flower. No one ever does.', dark:1, art:'both', mood:'captive', shake:1, hold:1700 },
+    { speaker:'MOTHER', cls:'mom', text:'My child... if you can hear me... don’t let him win. Don’t give up...', dark:1, art:'mom', mood:'captive', hold:1800 },
+    { speaker:'', cls:'narr', text:'He is the strongest thing this world has ever made. And the cruelest.', dark:1, art:'boss', hold:1500 },
+    { speaker:'', cls:'narr', text:'He is not alone. He never needs to be.', dark:1, art:'both', hold:1300 },
+    { speaker:'', cls:'narr', text:'One path remains. A thousand trials between you and her. Almost no one finishes it.', dark:1, art:'wide', hold:1900 },
+    { speaker:'', cls:'you', text:'SAVE HER.', dark:1, art:'title', hold:1600 }
+  ],
+  ending: [
+    { speaker:'', cls:'narr', text:'He falls.', dark:1, art:'boss', hold:1300 },
+    { speaker:'', cls:'narr', text:'The chains break before his last breath even leaves him.', dark:0, art:'mom', mood:'joy', hold:1600 },
+    { speaker:'MOTHER', cls:'mom', text:'...is it you? Is it really you?', dark:0, art:'mom', mood:'joy', hold:1700 },
+    { speaker:'', cls:'narr', text:'A thousand trials. Every one of them, for this second.', dark:0, art:'both', mood:'joy', hold:1800 },
+    { speaker:'MOTHER', cls:'mom', text:'I never once stopped believing you’d come. Not for one single day.', dark:0, art:'mom', mood:'joy', hold:2200 },
+    { speaker:'MOTHER', cls:'mom', text:'Whatever you carried to reach me — I hope you never have to carry alone again.', dark:0, art:'mom', mood:'joy', hold:2400 },
+    { speaker:'YOU', cls:'you', text:'I’m here, Mom. I’m not going anywhere.', dark:0, art:'mom', mood:'joy', hold:1800 },
+    { speaker:'', cls:'narr', text:'This was never really about the thousand levels, or the boss, or the score.', dark:0, art:'wide', hold:2200 },
+    { speaker:'', cls:'narr', text:'It was about the people worth all of it. Yours is waiting somewhere too.', dark:0, art:'wide', hold:2400 },
+    { speaker:'', cls:'narr', text:'Whatever you’re fighting for — don’t stop. Not today. Not ever.', dark:0, art:'wide', hold:2600 },
+    { speaker:'', cls:'you', text:'MOTHER FREED.', dark:0, art:'title', hold:2000 }
+  ]
+};
+const Cutscene = {
+  cv:null, c2:null, playing:false, script:null, idx:-1, onDone:null, t0:0, curLine:null,
+  init(){ this.cv=$('csStage'); this.c2=this.cv.getContext('2d'); },
+  resize(){
+    if(!this.cv) return;
+    const dpr=Math.min(window.devicePixelRatio||1,2), r=this.cv.getBoundingClientRect();
+    this.cv.width=Math.max(1,Math.floor(r.width*dpr)); this.cv.height=Math.max(1,Math.floor(r.height*dpr));
+    this.w=r.width; this.h=r.height;
+  },
+  play(script, dark, onDone){
+    if(!this.cv) this.init();
+    this.script=script; this.idx=-1; this.onDone=onDone; this.playing=true; this.t0=gt;
+    show('cutscene'); this.resize();
+    $('csVignette').className = dark ? 'dark' : '';
+    Snd.startCutsceneMusic(dark);
+    this._raf();
+    this._advance();
+  },
+  _raf(){
+    const loop=()=>{ if(!this.playing) return; this.resize(); this._draw(); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  },
+  _advance(){
+    this.idx++;
+    if(this.idx>=this.script.length){ this._end(); return; }
+    const line = this.script[this.idx]; this.curLine=line;
+    $('csVignette').className = (line.dark?'dark':'') + (line.shake?' rage':'');
+    if(line.shake) shake(10);
+    if(line.art==='title') Snd.swell(line.dark);
+    $('csSpeaker').textContent = line.speaker||''; $('csSpeaker').className = line.cls||'';
+    const el = $('csText'); el.innerHTML='';
+    const chars = Array.from(line.text);
+    chars.forEach(ch=>{ const sp=document.createElement('span'); sp.className='car'; sp.textContent = ch===' '?' ':ch; el.appendChild(sp); });
+    let i=0; clearInterval(this._typeIV); clearTimeout(this._waitT);
+    this._typeIV = setInterval(()=>{
+      if(i>=chars.length){ clearInterval(this._typeIV);
+        this._waitT = setTimeout(()=>this._advance(), line.hold||1400); return; }
+      el.children[i].classList.add('on');
+      if(chars[i]!==' ' && (i%2===0)) Snd.blip();
+      i++;
+    }, line.art==='title' ? 55 : 26);
+  },
+  skip(){ this._end(); },
+  _end(){
+    clearInterval(this._typeIV); clearTimeout(this._waitT);
+    this.playing=false; hide('cutscene'); $('csVignette').className='';
+    Snd.stopCutsceneMusic();
+    const cb=this.onDone; this.onDone=null;
+    if(cb) cb();
+  },
+  _draw(){
+    const c=this.c2, W=this.w, H=this.h, t=gt-this.t0;
+    if(!W||!H) return;
+    c.setTransform(Math.min(window.devicePixelRatio||1,2),0,0,Math.min(window.devicePixelRatio||1,2),0,0);
+    const bg = c.createLinearGradient(0,0,0,H);
+    bg.addColorStop(0,'#0a0509'); bg.addColorStop(1,'#03040a');
+    c.fillStyle=bg; c.fillRect(0,0,W,H);
+    // faint starfield
+    c.fillStyle='rgba(255,255,255,.5)';
+    for(let i=0;i<40;i++){ const rx=(i*97)%W, ry=(i*53+((t*4)%H))%H; c.globalAlpha=.15+.15*Math.sin(i+t); c.fillRect(rx,ry,1.6,1.6); }
+    c.globalAlpha=1;
+    const line = this.curLine; if(!line) return;
+    const cx=W/2, cy=H*.42, sc=Math.min(W,H)/420;
+    if(line.art==='mom'){ drawMotherArt(c, cx, cy, sc*1.6, t, line.mood||'captive'); }
+    else if(line.art==='boss'){
+      drawFinalBossArt(c, cx, cy, sc*1.5, t);
+      drawAllyArt(c, cx-140*sc, cy+40*sc, sc*.9, t, '#8b5cff');
+      drawAllyArt(c, cx+140*sc, cy+40*sc, sc*.9, t+1, '#ff8a3c');
+    } else if(line.art==='both'){
+      drawMotherArt(c, cx-90*sc, cy+20*sc, sc*1.1, t, line.mood||'captive');
+      drawFinalBossArt(c, cx+110*sc, cy-10*sc, sc*1.15, t);
+    } else if(line.art==='title'){
+      const glow = c.createRadialGradient(cx,cy,10,cx,cy,180*sc);
+      glow.addColorStop(0, line.dark?'rgba(255,59,92,.35)':'rgba(182,255,60,.3)');
+      glow.addColorStop(1,'rgba(0,0,0,0)');
+      c.fillStyle=glow; c.beginPath(); c.arc(cx,cy,180*sc,0,TAU); c.fill();
+      drawMotherArt(c, cx, cy+10*sc, sc*1.3, t, line.dark?'captive':'joy');
+    }
+    // 'wide' art: just the starfield + vignette, no character
+  }
+};
+$('csSkip').onclick = ()=>{ Snd.click(); Cutscene.skip(); };
+function xpForStory(l){
+  if(l<=60) return xpFor(l);
+  return Math.floor(3500 + (l-60)*9.5);
+}
+function checkStoryMilestones(){
+  if(G.mode!=='classic') return;
+  if(P.level>(save.maxStoryLevel||0)) save.maxStoryLevel = P.level;
+  if(P.level%100===0 && P.level>0 && P.level!==G._lastMilestone){
+    G._lastMilestone = P.level;
+    if(P.level<1000) announce('LEVEL '+P.level+' — SHE’S STILL WAITING', '#ff9fd6');
+  }
+  if(P.level>=1000 && !G.finalArmed){
+    G.finalArmed = true;
+    announce('THE FINAL PATH HAS OPENED', '#ff3b5c'); Snd.sweep(true); shake(14);
+    toast('MINIMAP', 'A beacon now marks her location');
+  }
+}
+function triggerFinalBattle(){
+  G.finalBattleActive = true;
+  const kind = { pattern:'omega', c:'#ff2040', sizeMul:1.8, hpMul:3.2, dmgMul:1.9 };
+  const s = hpScale(G.t);
+  const baseHp = 2000*s*(1+G.bossN*.55)*kind.hpMul;
+  const b = {
+    type:'boss', x:FINAL_ARENA.x, y:FINAL_ARENA.y-20, vx:0, vy:0,
+    hp:baseHp, maxHp:baseHp, r:70*kind.sizeMul, spd:52, dmg:60*kind.dmgMul, sides:6,
+    c:kind.c, score:50000, rot:0, slowT:0, hitT:0, elite:false, boss:true, shootT:1.6, phase:0, chargeT:4,
+    name:'THE HOLLOW KING', kind:kind.pattern, spiralA:0, telegraph:0, ageT:0, enraged:false,
+    kb:0, kbx:0, kby:0, finalBoss:true
+  };
+  enemies.push(b); G.bossRef=b; G.finalBossRef=b;
+  const allyDefs = [{dx:-160,dy:60,c:'#8b5cff'},{dx:160,dy:60,c:'#ff8a3c'},{dx:0,dy:130,c:'#4dc9ff'}];
+  G.finalAllies = allyDefs.map(a=>{
+    const e = spawnAt('titan', FINAL_ARENA.x+a.dx, FINAL_ARENA.y-20+a.dy, 2.4, true);
+    e.c = a.c; e.finalAlly = true; return e;
+  });
+  announce('⚠ THE HOLLOW KING ⚠', kind.c); Snd.big(); shake(24);
+  $('bosswrap').style.opacity=1; $('bossname').textContent='THE HOLLOW KING';
+  Snd.setIntensity(1,true,false); zoomKick(1.18); G.wash=.9; G.washC=kind.c;
+}
+function onFinalBossOrAllyKilled(e){
+  if(e.finalAlly){ G.finalAllies = (G.finalAllies||[]).filter(a=>a!==e); }
+  if(e.finalBoss){ G.finalBossRef = null; }
+  const alliesLeft = (G.finalAllies||[]).length;
+  if(!G.finalBossRef && alliesLeft===0 && G.finalBattleActive && !G.motherRescued){
+    G.motherRescued = true;
+    save.motherFreed = 1; persist();
+    setTimeout(()=>{
+      G.state='CUTSCENE'; Ads.gameplayStop();
+      Cutscene.play(STORY.ending, false, ()=>{ finishRun(); });
+    }, 900);
+  }
+}
+
 /* ---------------- 24. RUN FLOW ---------------- */
 function startRun(){
   Snd.init(); Snd.resume();
+  if(G.mode==='classic' && !save.introSeen){
+    hideAll(); $('hud').classList.add('hidden');
+    save.introSeen = 1; persist();
+    G.state='CUTSCENE'; Ads.gameplayStop();
+    Cutscene.play(STORY.intro, true, ()=>_beginRunNow());
+    return;
+  }
+  _beginRunNow();
+}
+function _beginRunNow(){
   hideAll(); $('hud').classList.remove('hidden');
   clearAll();
   G.t=0; G.score=0; G.kills=0; G.runCoins=0; G.combo=0; G.comboT=0; G.maxCombo=0;
@@ -3071,18 +3429,19 @@ function startRun(){
   G.bossRef=null; G.pendingLevels=0; G.rerolls=1; G.usedRevive=0; G.chestQ=0; G.streakKill=0; G.dead=false;
   G.frenzy=false; G.frzCharge=0; G.frzT=0; G.lastMin=0; G.nearCd=0; G.wash=0; G.camZ=1; G.slowT=0; G.musT=0;
   G.ultCd=4; G.ultFx=null;
+  G.finalArmed=false; G.finalBattleActive=false; G.finalAllies=[]; G.finalBossRef=null; G.motherRescued=false; G._lastMilestone=0;
   const arena = ARENAS[G.arenaI]||ARENAS[0];
   setTheme(arena.theme,false); theme.bg=THEMES[arena.theme].bg.slice(); theme.g=THEMES[arena.theme].g.slice();
   Snd.setIntensity(0,false,false);
   spawnHazards();
-  G.freeRevives = G.mode==='hardcore' ? 0 : G.mode==='easy' ? 3 : save.meta.rev;
+  G.freeRevives = G.mode==='hardcore' ? 0 : G.mode==='easy' ? 1 : save.meta.rev;
   $('bosswrap').style.opacity=0; $('dmgflash').style.opacity=0; $('bosstele').classList.remove('on'); $('bosswrap').classList.remove('enraged');
   P = newPlayer(); cam.x=P.x; cam.y=P.y;
   G.rerolls += (P.char.extra.rerolls||0);
   renderWepRow(); renderUltBtn();
   G.state='PLAY'; last=0; acc=0;
   Ads.gameplayStart();
-  announce(MODES.find(m=>m.id===G.mode)?.n || 'SURVIVE', '#26f0ff');
+  announce(G.mode==='classic' ? 'SAVE HER' : (MODES.find(m=>m.id===G.mode)?.n || 'SURVIVE'), '#26f0ff');
   // quest run-scoped progress reset
   qRunReset();
 }
@@ -3108,7 +3467,7 @@ function onDeath(forced){
     if(Party.isLeader) endPartyRound(); else enterSpectate();
     return;
   }
-  const reviveCap = G.mode==='easy' ? 5 : 2;
+  const reviveCap = G.mode==='easy' ? 3 : 2;
   if(!forced && G.mode!=='hardcore' && (G.usedRevive < reviveCap)){ openRevive(); return; }
   finishRun();
 }
@@ -3187,6 +3546,10 @@ function finishRun(){
   $('fLevel').textContent = P? P.level : 1;
   $('fCoins').textContent = lastEarned;
   $('dblBtn').disabled = false; $('dblBtn').textContent = '▶ DOUBLE SHARDS ×2';
+  if(G.motherRescued){
+    $('overTitle').textContent = '🏆 YOU SAVED HER';
+    $('overTitle').style.color = 'var(--li)';
+  }
   show('overScreen');
   checkAch();
   refreshCoins();
@@ -3356,6 +3719,8 @@ function renderStats(){
   $('shakeBtn').textContent='☲ SCREEN SHAKE: '+(save.opt.shake?'ON':'OFF');
   const qLabel = save.opt.quality==='auto' ? 'AUTO ('+quality().toUpperCase()+')' : save.opt.quality.toUpperCase();
   $('qualityBtn').textContent = '◨ GRAPHICS: '+qLabel;
+  $('rewatchIntroBtn').classList.toggle('hidden', !save.introSeen);
+  $('rewatchEndBtn').classList.toggle('hidden', !save.motherFreed);
   const metaMax = META.reduce((a,m)=>a+m.max,0);
   const metaCur = Object.values(save.meta).reduce((a,b)=>a+b,0);
   const canAscend = metaCur>=metaMax;
@@ -3376,6 +3741,8 @@ $('qualityBtn').onclick = ()=>{
   persist(); renderStats(); resize();
 };
 $('wipeBtn').onclick = ()=>{ if(confirm('Erase ALL progress permanently?')){ save=defaultSave(); writeSave(); location.reload(); } };
+$('rewatchIntroBtn').onclick = ()=>{ Snd.click(); hideAll(); Snd.init(); Snd.resume(); Cutscene.play(STORY.intro, true, ()=>goMenu()); };
+$('rewatchEndBtn').onclick = ()=>{ Snd.click(); hideAll(); Snd.init(); Snd.resume(); Cutscene.play(STORY.ending, false, ()=>goMenu()); };
 $('ascendBtn').onclick = ()=>{
   const metaMax = META.reduce((a,m)=>a+m.max,0);
   if(Object.values(save.meta).reduce((a,b)=>a+b,0) < metaMax) return;
