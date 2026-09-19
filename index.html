@@ -558,6 +558,8 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
     <button class="btn ghost" id="shakeBtn">☲ SCREEN SHAKE: ON</button>
     <button class="btn ghost" id="qualityBtn">◨ GRAPHICS: AUTO</button>
     <div class="hintrow" style="margin:2px 0 0">AUTO watches your device's speed and turns down effects on its own if things start to chug — pick a fixed level if you'd rather choose yourself.</div>
+    <button class="btn ghost hidden" id="voiceBtn">🔊 CUTSCENE VOICE: ON</button>
+    <div class="hintrow hidden" id="voiceHint" style="margin:2px 0 0">Your device's own built-in narrator reads the cutscene lines out loud — a real synthetic voice, not a recording, so it won't sound like a professional actor.</div>
     <button class="btn ghost" id="otherModesBtn">🎮 OTHER MODES &amp; ARENAS</button>
     <button class="btn ghost hidden" id="rewatchIntroBtn">🎬 REWATCH: THE BEGINNING</button>
     <button class="btn ghost hidden" id="rewatchEndBtn">🎬 REWATCH: SHE'S FREE</button>
@@ -632,7 +634,7 @@ const defaultSave = () => ({
   ach: {}, achClaimed: {}, daily: { last: 0, streak: 0 },
   quests: { day: 0, list: [], prog: [0,0,0], claimed: [0,0,0] },
   adCoins: { day: 0, used: 0 },
-  opt: { sfx: 1, mus: 1, shake: 1, quality: 'auto' },
+  opt: { sfx: 1, mus: 1, shake: 1, quality: 'auto', voice: 1 },
   seen: 0, netId: null, handle: null, blocked: {}
 });
 let save = defaultSave();
@@ -1966,32 +1968,74 @@ function spawnWave(dt){
     const p = ringPos(); const e = spawnAt(pick(types), p.x, p.y, hard?1.5:easy?.82:story?1.25:1, true);
     announce('ELITE INCOMING', '#ffd23c'); Snd.big();
   }
-  // boss
-  const nextBoss = G.mode==='bossrush' ? (20 + G.bossN*45) : (easy ? (100+G.bossN*100) : story ? (65+G.bossN*80) : (80 + G.bossN*95));
+  // boss — story mode is a real gauntlet: the first one arrives quickly,
+  // and because a new boss can never spawn while G.bossRef is still set,
+  // the rest queue up back-to-back the moment each one dies (a minute-long
+  // fight always blows straight past this threshold in the meantime)
+  const nextBoss = G.mode==='bossrush' ? (20 + G.bossN*45) : story ? (22 + G.bossN*18) : easy ? (28 + G.bossN*22) : (80 + G.bossN*95);
   if(G.t >= nextBoss && !G.bossRef) spawnBoss();
 }
-const BOSSNAMES = ['THE DEVOURER','NULLSPIKE','ARCHON PRIME','VOID MONARCH','THE LAST ECHO','OMEGA WARDEN'];
+const BOSSNAMES = ['THE DEVOURER','NULLSPIKE','ARCHON PRIME','VOID MONARCH','THE LAST ECHO','OMEGA WARDEN',
+  'THE MAW','GRIEFBRINGER','THE HOLLOW HAND','ASHEN TYRANT','THE UNBLINKING','CHAINBREAKER',
+  'THE PALE GENERAL','WORMWOOD','THE SILENT CREDITOR'];
+/* 14 unique powers, so a 50-boss gauntlet never feels like the same
+   fight on repeat. Each is a real mechanical difference, not just a
+   palette swap — see bossAttack() and the boss branch of update(). */
 const BOSSKINDS = [
-  { pattern:'radial', c:'#ff2fb9', sizeMul:1,   hpMul:1,   dmgMul:1 },
-  { pattern:'spiral', c:'#8b5cff', sizeMul:1.05,hpMul:1.15,dmgMul:1.1 },
-  { pattern:'triburst',c:'#ff3b5c',sizeMul:1.1, hpMul:1.3, dmgMul:1.2 },
-  { pattern:'ring',   c:'#ffb020', sizeMul:1.15,hpMul:1.45,dmgMul:1.3 },
-  { pattern:'laser',  c:'#26f0ff', sizeMul:1.2, hpMul:1.6, dmgMul:1.4 },
-  { pattern:'omega',  c:'#c47bff', sizeMul:1.3, hpMul:1.8, dmgMul:1.55 }
+  { pattern:'radial',  c:'#ff2fb9', sizeMul:1,    hpMul:1,    dmgMul:1 },
+  { pattern:'spiral',  c:'#8b5cff', sizeMul:1.05, hpMul:1.1,  dmgMul:1.08 },
+  { pattern:'triburst',c:'#ff3b5c', sizeMul:1.08, hpMul:1.1,  dmgMul:1.1 },
+  { pattern:'ring',    c:'#ffb020', sizeMul:1.1,  hpMul:1.1,  dmgMul:1.1 },
+  { pattern:'laser',   c:'#26f0ff', sizeMul:1.12, hpMul:1.12, dmgMul:1.15 },
+  { pattern:'omega',   c:'#c47bff', sizeMul:1.15, hpMul:1.15, dmgMul:1.2 },
+  { pattern:'vortex',  c:'#4dc9ff', sizeMul:1.1,  hpMul:1.1,  dmgMul:1.1, desc:'pulls you toward it while it fires' },
+  { pattern:'shield',  c:'#e8f2ff', sizeMul:1.1,  hpMul:1.2,  dmgMul:1.1, desc:'periodically nearly immune — bait the shield, burst after' },
+  { pattern:'siphon',  c:'#ff6ec7', sizeMul:1.08, hpMul:1.15, dmgMul:1.1, desc:'heals itself every attack cycle' },
+  { pattern:'blink',   c:'#ffd23c', sizeMul:1.05, hpMul:1.05, dmgMul:1.15, desc:'teleports beside you before it fires' },
+  { pattern:'toxic',   c:'#8cff3c', sizeMul:1.1,  hpMul:1.1,  dmgMul:1.05, desc:'its bullets poison on contact' },
+  { pattern:'twin',    c:'#ff8a3c', sizeMul:1.1,  hpMul:1.1,  dmgMul:1.1, desc:'calls in reinforcements constantly' },
+  { pattern:'berserker',c:'#ff2040',sizeMul:1.15, hpMul:1.2,  dmgMul:1.1, desc:'the lower its health, the harder it hits' },
+  { pattern:'reflect', c:'#c9ffb6', sizeMul:1.08, hpMul:1.1,  dmgMul:1.1, desc:'throws some of your own damage back at you' }
 ];
+/* rolling measure of the player's actual recent damage output, so boss
+   toughness scales to whatever the real build can do right now instead
+   of a guessed curve that inevitably falls behind (or way ahead of)
+   how strong builds actually get by boss 30 vs boss 5 */
+function recentDps(){
+  if(!G.dmgLog || !G.dmgLog.length) return 0;
+  const span = Math.max(1.2, Math.min(10, G.t - G.dmgLog[0].t));
+  let sum=0; for(const s of G.dmgLog) sum += s.amt;
+  return sum/span;
+}
 function spawnBoss(){
   const p = ringPos();
-  const s = hpScale(G.t);
   const kind = BOSSKINDS[G.bossN % BOSSKINDS.length];
   const hard = G.mode==='hardcore' ? 1.3 : G.mode==='easy' ? .78 : G.mode==='classic' ? 1.2 : 1;
-  const baseHp = 2000 * s * (1+G.bossN*.55) * kind.hpMul * hard;
+  let baseHp;
+  if(isStoryMode()){
+    // sized off real, recent trash-mob DPS, not a fixed curve — a roughly
+    // one-minute fight for whatever build the player actually has right
+    // now. real fights run a bit longer than this raw number since
+    // dodging costs uptime that standing still and trading hits wouldn't.
+    const dps = Math.max(70, recentDps());
+    let target = dps * 52 * kind.hpMul * postRescueMul();
+    // rate-limited against the last boss's HP too — a noisy single dps
+    // sample (a lull with no grunts nearby, a sudden AOE clear) should
+    // never make one boss wildly easier or harder than the one before it
+    if(G.lastBossHp) target = clamp(target, G.lastBossHp*.65, G.lastBossHp*1.4);
+    baseHp = target;
+    G.lastBossHp = baseHp;
+  } else {
+    const s = hpScale(G.t);
+    baseHp = 2000 * s * (1+G.bossN*.55) * kind.hpMul * hard;
+  }
   const b = {
     type:'boss', x:p.x, y:p.y, vx:0, vy:0,
     hp: baseHp, maxHp: baseHp,
     r: (52+G.bossN*3.5)*kind.sizeMul, spd: 46+G.bossN*3, dmg: (38+G.bossN*9)*kind.dmgMul*hard*postRescueMul(), sides:6,
-    c:kind.c, score:1800*(1+G.bossN), rot:0, slowT:0, hitT:0,
+    c:kind.c, _baseColor:kind.c, score:1800*(1+G.bossN), rot:0, slowT:0, hitT:0,
     elite:false, boss:true, shootT:2, phase:0, chargeT:5.4, name: BOSSNAMES[G.bossN % BOSSNAMES.length],
-    kind:kind.pattern, spiralA:0, telegraph:0, ageT:0, enraged:false,
+    kind:kind.pattern, spiralA:0, telegraph:0, ageT:0, enraged:false, shieldT:0, reflectT:0, pullT:0,
     kb:0, kbx:0, kby:0
   };
   enemies.push(b); G.bossRef = b; G.bossN++;
@@ -2041,6 +2085,60 @@ function bossAttack(e, cyc){
     if(Math.random()<.5){ const a = Math.atan2(P.y-e.y, P.x-e.x);
       beams.push({ x1:e.x, y1:e.y, x2:e.x+Math.cos(a)*1600, y2:e.y+Math.sin(a)*1600, life:.4, c:e.c, w:16 }); }
     Snd.tone(130,.35,'sawtooth',.13,45); shake(5);
+  } else if(kind==='vortex'){
+    const n = 10, off=Math.random()*TAU;
+    for(let k=0;k<n;k++){ const a = off + k/n*TAU;
+      ebullets.push({x:e.x,y:e.y,vx:Math.cos(a)*170,vy:Math.sin(a)*170,r:8,dmg:e.dmg*.4,life:4.8,c:e.c}); }
+    e.pullT = 1.6;
+    Snd.tone(80,.5,'sine',.15,250); shake(5);
+  } else if(kind==='shield'){
+    const n = 12, off=Math.random()*TAU;
+    for(let k=0;k<n;k++){ const a = off + k/n*TAU;
+      ebullets.push({x:e.x,y:e.y,vx:Math.cos(a)*190,vy:Math.sin(a)*190,r:8,dmg:e.dmg*.45,life:4.4,c:e.c}); }
+    // kept short and on a hard cooldown-independent timer: the attack
+    // cycle that re-triggers this can be as short as ~1.05s at high bossN
+    // (or on the final boss cycling every phase), so a shield window as
+    // long as its own refresh interval would mean permanent near-immunity
+    e._baseColor = e._baseColor||e.c; e.shieldT = .75; e.c = '#ffffff';
+    Snd.tone(500,.3,'triangle',.12,900);
+  } else if(kind==='siphon'){
+    const n = 10, off=Math.random()*TAU;
+    for(let k=0;k<n;k++){ const a = off + k/n*TAU;
+      ebullets.push({x:e.x,y:e.y,vx:Math.cos(a)*175,vy:Math.sin(a)*175,r:8,dmg:e.dmg*.42,life:4.6,c:e.c}); }
+    // healed as a multiple of its own attack power, not a % of maxHp — a
+    // percent-of-maxHp heal compounds with the very high HP this gauntlet
+    // uses and can out-heal the player's real DPS entirely, especially
+    // when the final boss cycles through this as 1 of 14 phases
+    e.hp = Math.min(e.maxHp, e.hp + e.dmg*4);
+    Snd.tone(300,.3,'sine',.12,150);
+  } else if(kind==='blink'){
+    const a0 = Math.random()*TAU;
+    e.x = P.x + Math.cos(a0)*220; e.y = P.y + Math.sin(a0)*220;
+    const n = 14, off=Math.random()*TAU;
+    for(let k=0;k<n;k++){ const a = off + k/n*TAU;
+      ebullets.push({x:e.x,y:e.y,vx:Math.cos(a)*220,vy:Math.sin(a)*220,r:8,dmg:e.dmg*.48,life:4.2,c:e.c}); }
+    shake(6); Snd.tone(700,.15,'square',.1,1600);
+  } else if(kind==='toxic'){
+    const n = 12, off=Math.random()*TAU;
+    for(let k=0;k<n;k++){ const a = off + k/n*TAU;
+      ebullets.push({x:e.x,y:e.y,vx:Math.cos(a)*160,vy:Math.sin(a)*160,r:9,dmg:e.dmg*.3,life:5,c:'#8cff3c',poison:true}); }
+    Snd.tone(200,.3,'sawtooth',.1,90);
+  } else if(kind==='twin'){
+    const n = 12, off=Math.random()*TAU;
+    for(let k=0;k<n;k++){ const a = off + k/n*TAU;
+      ebullets.push({x:e.x,y:e.y,vx:Math.cos(a)*195,vy:Math.sin(a)*195,r:8,dmg:e.dmg*.45,life:4.4,c:e.c}); }
+    Snd.tone(180,.3,'square',.1,60);
+  } else if(kind==='berserker'){
+    const n = 16, off=Math.random()*TAU;
+    for(let k=0;k<n;k++){ const a = off + k/n*TAU;
+      ebullets.push({x:e.x,y:e.y,vx:Math.cos(a)*230,vy:Math.sin(a)*230,r:8,dmg:e.dmg*.5,life:4,c:e.c}); }
+    Snd.tone(150,.35,'sawtooth',.13,40); shake(4);
+  } else if(kind==='reflect'){
+    const n = 10, off=Math.random()*TAU;
+    for(let k=0;k<n;k++){ const a = off + k/n*TAU;
+      ebullets.push({x:e.x,y:e.y,vx:Math.cos(a)*185,vy:Math.sin(a)*185,r:8,dmg:e.dmg*.42,life:4.6,c:e.c}); }
+    e._baseColor = e._baseColor||e.c; e.reflectT = .9; e.c = '#ff9fd6';
+    Snd.tone(650,.25,'triangle',.1,1200);
   }
 }
 
@@ -2057,6 +2155,20 @@ function nearest(x,y,maxd,skip){
 function damage(e, amt, crit, color, kbx, kby){
   if(G.frenzy) amt *= 1.75;
   amt = Math.max(1, amt);
+  if(e.shieldT>0) amt *= .15;
+  if(e.reflectT>0) hurtPlayer(amt*.25);
+  // recentDps() only samples damage against regular/elite enemies, never
+  // bosses — sizing a boss off damage dealt to a *different* boss (or,
+  // worse, to itself) is a feedback loop: a fast kill inflates the
+  // reading, which oversizes the next boss, whose slow kill (or fast
+  // burst-death) skews the next reading again, spiraling out of control
+  // within a handful of fights. Trash-mob DPS is a stable, honest proxy
+  // for real ongoing power instead.
+  if(G.state!=='SPECTATE' && !e.boss){
+    G.dmgLog = G.dmgLog || [];
+    G.dmgLog.push({t:G.t, amt});
+    while(G.dmgLog.length && G.dmgLog[0].t < G.t-10) G.dmgLog.shift();
+  }
   if(Party.active && !Party.isLeader && e.netFollow){
     // shared enemies are host-authoritative: show the hit locally, let the
     // host apply the real damage/kill, and still reward the follower directly
@@ -2100,6 +2212,11 @@ function killEnemy(e){
     save.bosses++; G.bossRef=null; $('bosswrap').style.opacity=0; $('bosstele').classList.remove('on'); $('bosswrap').classList.remove('enraged');
     dropGem(e.x,e.y,3,26); for(let k=0;k<22;k++) dropCoin(e.x+rnd(-50,50), e.y+rnd(-50,50), 14);
     G.chestQ++; announce('BOSS DOWN!', '#b6ff3c'); Ads.happy(); qProg('boss',1);
+    if(isStoryMode() && !e.finalBoss){
+      G.storyBossKills = (G.storyBossKills||0)+1;
+      const left = Math.max(0, 50-G.storyBossKills);
+      toast('BOSS ' + G.storyBossKills + ' / 50', left>0 ? left+' stand between you and him.' : 'The path to him is open.', '#ff3b5c');
+    }
   } else if(e.elite){
     Snd.boom(); shake(12); hitstop(.1); G.slowT=.35; zoomKick(1.07); shock(e.x,e.y,180,'#ffd23c',5);
     dropGem(e.x,e.y,3,8); for(let k=0;k<7;k++) dropCoin(e.x+rnd(-26,26), e.y+rnd(-26,26), 6);
@@ -2326,22 +2443,47 @@ function update(dt){
         e.enraged = true;
         if(e===G.bossRef){ announce('ENRAGED!', '#ff3b5c'); Snd.sweep(true); shake(16); $('bosswrap').classList.add('enraged'); }
       }
-      const enrageMul = e.enraged ? 1.55 : 1;
+      // berserker (and the final boss, who carries every power) hits and
+      // moves harder the closer it gets to death — a real desperation curve
+      const berserkMul = (e.kind==='berserker' || e.finalBoss) ? 1 + (1 - e.hp/e.maxHp)*1.5 : 1;
+      const enrageMul = (e.enraged ? 1.55 : 1) * berserkMul;
       e.rot += dt*.9*enrageMul;
       e.chargeT -= dt; e.shootT -= dt*enrageMul;
       if(e.chargeT<=0){ e.chargeT = clamp(5.4 - G.bossN*.3, 2.6, 5.4)/enrageMul; e.vx = dx/d*420*enrageMul; e.vy = dy/d*420*enrageMul; shake(5); }
       e.vx = lerp(e.vx, dx/d*sp*enrageMul, 1-Math.pow(.25,dt));
       e.vy = lerp(e.vy, dy/d*sp*enrageMul, 1-Math.pow(.25,dt));
+      // shield / reflect windows tick down and release their color tint
+      if(e.shieldT>0){ e.shieldT -= dt; if(e.shieldT<=0) e.c = e._baseColor||e.c; }
+      if(e.reflectT>0){ e.reflectT -= dt; if(e.reflectT<=0) e.c = e._baseColor||e.c; }
+      // vortex: while active, steadily drags the player toward it
+      if(e.pullT>0){ e.pullT -= dt;
+        const pdx=e.x-P.x, pdy=e.y-P.y, pd=Math.hypot(pdx,pdy)||1;
+        P.x += pdx/pd*90*dt; P.y += pdy/pd*90*dt;
+      }
+      // the final boss carries every power the gauntlet taught you to fear —
+      // it cycles through the whole kind roster instead of sticking to one
+      if(e.finalBoss && e.kindCycle){
+        e.tauntT = (e.tauntT===undefined ? rnd(14,20) : e.tauntT) - dt;
+        if(e.tauntT<=0){ e.tauntT = rnd(20,30);
+          announce(pick(FINAL_TAUNTS), '#ff3b5c'); Snd.big();
+          [660,520,400,300].forEach((f,i)=>setTimeout(()=>Snd.tone(f,.2,'sawtooth',.09,f*.6), i*90));
+        }
+      }
       // telegraph: flash a warning vignette just before the next big attack lands
       const willFire = e.shootT<=.45 && e.shootT>0;
       if(willFire && e===G.bossRef) $('bosstele').classList.add('on');
       if(e.shootT<=0){
         const cyc = clamp(2.3 - G.bossN*.14, 1.05, 2.3);
+        if(e.finalBoss && e.kindCycle){ e.kindIdx = (e.kindIdx+1) % e.kindCycle.length; e.kind = e.kindCycle[e.kindIdx]; }
         bossAttack(e, cyc);
         if(e===G.bossRef) $('bosstele').classList.remove('on');
       }
-      // summon
-      if(Math.random()<dt*.45*enrageMul){ const p2=ringPos(); spawnAt(pick(availTypes(G.t)), p2.x, p2.y); }
+      // summon — 'twin' bosses (and the final boss) call in reinforcements much harder than the rest
+      const summonChance = (e.kind==='twin' || e.finalBoss ? 1.9 : 1) * .45 * enrageMul;
+      if(Math.random()<dt*summonChance){
+        const p2=ringPos(); spawnAt(pick(availTypes(G.t)), p2.x, p2.y);
+        if((e.kind==='twin' || e.finalBoss) && Math.random()<.5){ const p3=ringPos(); spawnAt(pick(availTypes(G.t)), p3.x, p3.y, 1, true); }
+      }
     } else if(e.orbit){
       const want = 140, a0 = Math.atan2(-dy,-dx) + dt*1.6;
       const tx = P.x + Math.cos(a0)*want, ty = P.y + Math.sin(a0)*want;
@@ -2416,7 +2558,7 @@ function update(dt){
     const b=ebullets[i]; b.life-=dt; b.x+=b.vx*dt; b.y+=b.vy*dt;
     if(b.life<=0){ ebullets.splice(i,1); continue; }
     const rr=b.r+P.r;
-    if(dist2(b,P)<rr*rr && P.invul<=0){ hurtPlayer(b.dmg); ebullets.splice(i,1); }
+    if(dist2(b,P)<rr*rr && P.invul<=0){ hurtPlayer(b.dmg); if(b.poison) P.poisonT = Math.max(P.poisonT||0, 3); ebullets.splice(i,1); }
   }
   // ---- mines
   for(let i=mines.length-1;i>=0;i--){
@@ -3280,9 +3422,17 @@ const STORY = {
     { speaker:'', cls:'narr', text:'Her hands always smelled like flour and rain. Small kitchens. Songs with no tune you could ever name.', dark:0, art:'memory', hold:2200 },
     { speaker:'', cls:'narr', text:'He is the strongest thing this world has ever made. And the cruelest.', dark:1, art:'boss', hold:1500 },
     { speaker:'', cls:'narr', text:'He is not alone. He never needs to be.', dark:1, art:'both', hold:1300 },
-    { speaker:'', cls:'narr', text:'One path remains. A hundred trials between you and her. Most who try do not finish it.', dark:1, art:'wide', hold:1900 },
+    { speaker:'', cls:'narr', text:'One path remains. Fifty of his own standing between you and her, and a hundred trials besides. Most who try do not finish it.', dark:1, art:'wide', hold:2200 },
     { speaker:'YOU', cls:'you', text:'I’m coming, Mom. He cannot harm you. He cannot touch you. Not while I still have breath left.', dark:1, art:'mom', mood:'captive', hold:2400 },
     { speaker:'', cls:'you', text:'SAVE HER.', dark:1, art:'title', hold:1600 }
+  ],
+  finalConfront: [
+    { speaker:'', cls:'narr', text:'Something enormous turns to face you at last. It has been waiting.', dark:1, art:'boss', hold:1900 },
+    { speaker:'THE HOLLOW KING', cls:'boss', text:'Ah. There you are. I wondered how many of mine it would take to slow you down.', dark:1, art:'boss', shake:1, hold:2400 },
+    { speaker:'THE HOLLOW KING', cls:'boss', text:'She cried for the first hour. Screamed for the second. Do you want to know what she is doing now?', dark:1, art:'both', mood:'captive', shake:1, hold:2800 },
+    { speaker:'THE HOLLOW KING', cls:'boss', text:'Waiting. Still. Foolishly. Just like you were foolish enough to come all this way.', dark:1, art:'boss', shake:1, hold:2400 },
+    { speaker:'', cls:'narr', text:'He laughs — low, delighted, utterly certain you will fail like every single one before you.', dark:1, art:'boss', shake:1, hold:2100 },
+    { speaker:'YOU', cls:'you', text:'Then let’s find out.', dark:1, art:'title', hold:1800 }
   ],
   ending: [
     { speaker:'', cls:'narr', text:'He falls.', dark:1, art:'boss', hold:1300 },
@@ -3311,6 +3461,7 @@ const STORY = {
     { speaker:'THE HOLLOW KING', cls:'boss', text:'You were never going to be enough.', dark:1, art:'boss', shake:1, hold:1400 },
     { speaker:'MOTHER', cls:'mom', text:'No — NO! Please, don’t touch him! Don’t you dare touch my child—!', dark:1, art:'devour', mood:'scared', shake:1, hold:1900, fast:1 },
     { speaker:'', cls:'narr', text:'She is still shouting your name when the dark closes over her.', dark:1, art:'devour', mood:'scared', shake:1, hold:2100, fast:1 },
+    { speaker:'', cls:'narr', text:'She never got to see you again. Not once. Not even to say goodbye.', dark:1, art:'lost', hold:2000, fast:1 },
     { speaker:'THE HOLLOW KING', cls:'boss', text:'She screamed for you right until the end. They always do.', dark:1, art:'boss', shake:1, hold:2000, fast:1 },
     { speaker:'', cls:'narr', text:'Somewhere, a light that waited for you every single day simply stops.', dark:1, art:'lost', hold:2200, fast:1 },
     { speaker:'', cls:'you', text:'SHE IS GONE. YOU WERE TOO SLOW.', dark:1, art:'title', hold:1800, fast:1 },
@@ -3318,6 +3469,26 @@ const STORY = {
     { speaker:'', cls:'you', text:'TRY AGAIN. DON’T LET IT END LIKE THIS.', dark:1, art:'title', hold:1800, fast:1 }
   ]
 };
+/* The closest this can get to voice acting: the device's own built-in
+   text-to-speech, when the browser has one (window.speechSynthesis).
+   It's a real synthetic voice reading the line, not a recording and
+   not a performance — quality and even availability vary wildly by
+   device and browser, and it will never sound like a human actor. Off
+   by default is not an option here since the request was for it to be
+   on; it's a one-tap toggle in Settings for anyone who'd rather not. */
+function speakLine(line){
+  if(!window.speechSynthesis || !save.opt.voice || !line || !line.text) return;
+  try{
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(line.text);
+    if(line.cls==='mom'){ u.pitch=1.3; u.rate=.92; }
+    else if(line.cls==='boss'){ u.pitch=.55; u.rate=.86; }
+    else if(line.cls==='you'){ u.pitch=1.0; u.rate=.98; }
+    else { u.pitch=.95; u.rate=.9; }
+    u.volume=1;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
 const Cutscene = {
   cv:null, c2:null, playing:false, script:null, idx:-1, onDone:null, t0:0, curLine:null,
   init(){ this.cv=$('csStage'); this.c2=this.cv.getContext('2d'); },
@@ -3347,6 +3518,7 @@ const Cutscene = {
     $('csVignette').className = (line.dark?'dark':'') + (line.shake?' rage':'');
     if(line.shake) shake(10);
     if(line.art==='title') Snd.swell(line.dark);
+    speakLine(line);
     $('csSpeaker').textContent = line.speaker||''; $('csSpeaker').className = line.cls||'';
     const el = $('csText'); el.innerHTML='';
     const chars = Array.from(line.text);
@@ -3364,6 +3536,7 @@ const Cutscene = {
   _end(){
     clearInterval(this._typeIV); clearTimeout(this._waitT);
     this.playing=false; hide('cutscene'); $('csVignette').className='';
+    if(window.speechSynthesis) speechSynthesis.cancel();
     Snd.stopCutsceneMusic();
     const cb=this.onDone; this.onDone=null;
     if(cb) cb();
@@ -3445,15 +3618,23 @@ const Cutscene = {
   }
 };
 $('csSkip').onclick = ()=>{ Snd.click(); Cutscene.skip(); };
-/* Calibrated so a merely-average player, not just an expert, can reach
-   level 100 in roughly 10 minutes: familiar pace through level 25 (so the
-   early build-crafting still feels like the rest of the game), then a
-   fast, flat climb the rest of the way so the ending is actually within
-   reach for most people who commit to a real attempt, not a lucky few. */
+/* Level 100 is the floor, not the whole climb: the real gate is the
+   50-boss gauntlet (see G.storyBossKills below), each one a real fight,
+   so this curve just has to keep pace with a player killing that many
+   bosses' worth of gems long before level 100 is a concern. */
 function xpForStory(l){
   if(l<=25) return xpFor(l);
   return Math.floor(150 + (l-25)*7);
 }
+const FINAL_TAUNTS = [
+  'Still fighting? She is still screaming your name, you know.',
+  'I can still hear her. Can you?',
+  'Every second you waste here is a second I still have with her.',
+  'You should have been faster. She is paying for that, right now.',
+  'Ha. HA. You think this changes anything for her?',
+  'She begged, at first. They always beg.',
+  'Fifty of mine, and you are still standing. How disappointing for both of us.'
+];
 function checkStoryMilestones(){
   if(!isStoryMode()) return;
   if(P.level>(save.maxStoryLevel||0)) save.maxStoryLevel = P.level;
@@ -3461,22 +3642,35 @@ function checkStoryMilestones(){
     G._lastMilestone = P.level;
     if(P.level<100) announce('LEVEL '+P.level+' — SHE’S STILL WAITING', '#ff9fd6');
   }
-  if(P.level>=100 && !G.finalArmed && !G.finalBattleActive){
+  if(P.level>=100 && (G.storyBossKills||0)>=50 && !G.finalArmed && !G.finalBattleActive){
     G.finalArmed = true;
-    triggerFinalBattle();
+    G.state='CUTSCENE'; Ads.gameplayStop();
+    Cutscene.play(STORY.finalConfront, true, ()=>{
+      G.state='PLAY'; last=0; acc=0; Ads.gameplayStart();
+      triggerFinalBattle();
+    });
   }
 }
 function triggerFinalBattle(){
   G.finalBattleActive = true;
-  const kind = { pattern:'omega', c:'#ff2040', sizeMul:1.8, hpMul:3.2, dmgMul:1.9 };
-  const s = hpScale(G.t);
-  const baseHp = 2000*s*(1+G.bossN*.55)*kind.hpMul;
+  const kindCycle = BOSSKINDS.map(k=>k.pattern);
+  const kind = { pattern:kindCycle[0], c:'#ff2040', sizeMul:1.8, hpMul:1, dmgMul:1.9 };
+  // sized directly off the 50th boss's own HP (roughly 4x it, matching
+  // this fight's ~3.5-raw-minute target against that one's ~52s), not
+  // recomputed from recentDps() here — recentDps only samples trash-mob
+  // damage, which is naturally inflated by splash/multi-target weapons
+  // hitting several grunts at once, so it overstates true single-target
+  // output against one boss. G.lastBossHp already reflects genuine,
+  // proven single-target kill capability from 50 real boss fights.
+  const dps = Math.max(70, recentDps());
+  let baseHp = G.lastBossHp ? G.lastBossHp * 4 : dps * 210;
   const ax = P.x, ay = P.y - 260;
   const b = {
     type:'boss', x:ax, y:ay, vx:0, vy:0,
     hp:baseHp, maxHp:baseHp, r:70*kind.sizeMul, spd:52, dmg:60*kind.dmgMul, sides:6,
-    c:kind.c, score:50000, rot:0, slowT:0, hitT:0, elite:false, boss:true, shootT:1.6, phase:0, chargeT:4,
-    name:'THE HOLLOW KING', kind:kind.pattern, spiralA:0, telegraph:0, ageT:0, enraged:false,
+    c:kind.c, _baseColor:kind.c, score:50000, rot:0, slowT:0, hitT:0, elite:false, boss:true, shootT:1.6, phase:0, chargeT:4,
+    name:'THE HOLLOW KING', kind:kind.pattern, kindCycle, kindIdx:0, spiralA:0, telegraph:0, ageT:0, enraged:false,
+    shieldT:0, reflectT:0, pullT:0, tauntT:rnd(10,16),
     kb:0, kbx:0, kby:0, finalBoss:true
   };
   enemies.push(b); G.bossRef=b; G.finalBossRef=b;
@@ -3532,7 +3726,7 @@ function _beginRunNow(){
   G.frenzy=false; G.frzCharge=0; G.frzT=0; G.lastMin=0; G.nearCd=0; G.wash=0; G.camZ=1; G.slowT=0; G.musT=0;
   G.ultCd=4; G.ultFx=null;
   G.finalArmed=false; G.finalBattleActive=false; G.finalAllies=[]; G.finalBossRef=null; G.motherRescued=false; G._lastMilestone=0; G._badEndingShown=false;
-  G.postRescue=false; G.rescueLevel=0;
+  G.postRescue=false; G.rescueLevel=0; G.storyBossKills=0; G.dmgLog=[]; G.lastBossHp=0;
   const arena = ARENAS[G.arenaI]||ARENAS[0];
   setTheme(arena.theme,false); theme.bg=THEMES[arena.theme].bg.slice(); theme.g=THEMES[arena.theme].g.slice();
   Snd.setIntensity(0,false,false);
@@ -3818,6 +4012,10 @@ function renderStats(){
   $('shakeBtn').textContent='☲ SCREEN SHAKE: '+(save.opt.shake?'ON':'OFF');
   const qLabel = save.opt.quality==='auto' ? 'AUTO ('+quality().toUpperCase()+')' : save.opt.quality.toUpperCase();
   $('qualityBtn').textContent = '◨ GRAPHICS: '+qLabel;
+  if(window.speechSynthesis){
+    $('voiceBtn').classList.remove('hidden'); $('voiceHint').classList.remove('hidden');
+    $('voiceBtn').textContent = '🔊 CUTSCENE VOICE: '+(save.opt.voice?'ON':'OFF');
+  }
   $('rewatchIntroBtn').classList.toggle('hidden', !save.introSeen);
   $('rewatchEndBtn').classList.toggle('hidden', !save.motherFreed);
   const metaMax = META.reduce((a,m)=>a+m.max,0);
@@ -3833,6 +4031,7 @@ $('statsBack').onclick = ()=>{ Snd.click(); goMenu(); };
 $('sfxBtn2').onclick = ()=>{ Snd.setSfx(!save.opt.sfx); renderStats(); };
 $('musBtn').onclick = ()=>{ Snd.setMus(!save.opt.mus); renderStats(); };
 $('shakeBtn').onclick = ()=>{ save.opt.shake = save.opt.shake?0:1; persist(); renderStats(); };
+$('voiceBtn').onclick = ()=>{ save.opt.voice = save.opt.voice?0:1; persist(); renderStats(); if(!save.opt.voice && window.speechSynthesis) speechSynthesis.cancel(); };
 const QUALITY_CYCLE = ['auto','high','medium','low'];
 $('qualityBtn').onclick = ()=>{
   const i = QUALITY_CYCLE.indexOf(save.opt.quality);
