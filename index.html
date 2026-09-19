@@ -866,14 +866,14 @@ const Snd = {
      touch it, so the only way to make it stand out over the score is to
      duck the score itself while a line is actually being spoken */
   _ducked:false, _duckPrev:.32,
-  duckMusic(on){
+  duckMusic(on, depth){
     if(!this.ready || !this.musGain) return;
     const g = this.musGain.gain, t = this.ctx.currentTime;
     try{
       if(on){
         if(this._ducked) return;
         this._duckPrev = g.value; this._ducked = true;
-        g.cancelScheduledValues(t); g.setTargetAtTime(this._duckPrev*.16, t, .1);
+        g.cancelScheduledValues(t); g.setTargetAtTime(this._duckPrev*(depth!=null?depth:.16), t, .08);
       } else {
         if(!this._ducked) return;
         this._ducked = false;
@@ -3710,23 +3710,33 @@ const MILESTONE_QUOTES = [
   'One day you’ll hold her again, and every single one of these fights will have been worth it.'
 ];
 function triggerMilestoneQuote(){
+  // never interrupts a quote already being said — if another one comes due
+  // (even seconds later, well before this one finishes) it's remembered
+  // and starts the moment the current line actually finishes, text and
+  // voice both, instead of cutting it off mid-sentence
+  if(G._mqSpeaking){ G._mqQueued = true; return; }
   if(!G.milestoneQueue || !G.milestoneQueue.length) G.milestoneQueue = shuffle(MILESTONE_QUOTES.slice());
   const text = G.milestoneQueue.pop();
   const el = $('milestoneQuote'); const t = $('mqText');
   t.textContent = text; el.classList.add('show');
   clearTimeout(el._hideT);
+  G._mqSpeaking = true;
   const gen = (G._mqGen = (G._mqGen||0) + 1);
+  const finish = ()=>{
+    if(gen!==G._mqGen) return;
+    Snd.duckMusic(false);
+    el.classList.remove('show');
+    G._mqSpeaking = false;
+    if(G._mqQueued){ G._mqQueued = false; triggerMilestoneQuote(); }
+  };
   // deep male narrator register (no cls match -> the "documentary
-  // commentator" branch of speakLine), not the higher 'you' voice — and
-  // ducks the music hard so it reads clearly over the theme
+  // commentator" branch of speakLine), not the higher 'you' voice
   const utter = speakLine({ speaker:'', cls:'narr', text });
   if(utter){
-    Snd.duckMusic(true);
-    const finish = ()=>{
-      if(gen!==G._mqGen) return;
-      Snd.duckMusic(false);
-      el.classList.remove('show');
-    };
+    // ducked to 3% of its previous volume, not the usual 16% every other
+    // spoken line uses — deliberately extreme so the line is unmistakably
+    // louder than the theme, not just audible over it
+    Snd.duckMusic(true, .03);
     utter.onend = finish;
     utter.onerror = finish;
     // stays on screen for exactly as long as the voice takes to say it,
@@ -3736,7 +3746,7 @@ function triggerMilestoneQuote(){
     const estMs = Math.max(1800, (words/(3.7*.95))*1000);
     el._hideT = setTimeout(finish, estMs + 3500);
   } else {
-    el._hideT = setTimeout(()=>el.classList.remove('show'), 4200);
+    el._hideT = setTimeout(finish, 4200);
   }
   G.slowT = Math.max(G.slowT||0, .5); zoomKick(1.06); shake(4);
 }
@@ -4274,7 +4284,7 @@ function _beginRunNow(){
   G.ultCd=4; G.ultFx=null;
   G.finalArmed=false; G.finalBattleActive=false; G.finalAllies=[]; G.finalBossRef=null; G.motherRescued=false; G._lastMilestone=0; G._badEndingShown=false;
   G.postRescue=false; G.rescueLevel=0; G.storyBossKills=0; G.dmgLog=[]; G.lastBossHp=0; G.ambientT=rnd(24,40);
-  G.milestoneQueue=[]; G._lastQuoteLevel=0;
+  G.milestoneQueue=[]; G._lastQuoteLevel=0; G._mqSpeaking=false; G._mqQueued=false;
   const arena = ARENAS[G.arenaI]||ARENAS[0];
   setTheme(arena.theme,false); theme.bg=THEMES[arena.theme].bg.slice(); theme.g=THEMES[arena.theme].g.slice();
   Snd.setIntensity(0,false,false);
