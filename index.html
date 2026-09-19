@@ -64,6 +64,11 @@ canvas{display:block;position:absolute;inset:0;width:100%;height:100%}
 #bosshpwrap{height:11px;background:rgba(0,0,0,.6);border:1px solid var(--mg);border-radius:6px;overflow:hidden}
 #bosshp{height:100%;width:100%;background:linear-gradient(90deg,var(--mg),var(--vi));box-shadow:0 0 14px var(--mg);transition:width .12s}
 #announce{position:absolute;top:42%;left:0;right:0;text-align:center;font:900 44px/1 var(--f1);letter-spacing:4px;opacity:0;pointer-events:none}
+#milestoneQuote{position:absolute;left:0;right:0;bottom:24%;text-align:center;padding:0 22px;opacity:0;pointer-events:none;transition:opacity .7s ease;z-index:11}
+#milestoneQuote.show{opacity:1}
+#milestoneQuote .mq-text{display:inline-block;font:700 15px/1.5 var(--f2);font-style:italic;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.9);max-width:380px;background:rgba(5,6,13,.5);padding:11px 18px;border-radius:14px;border:1px solid rgba(255,159,214,.3);box-shadow:0 0 30px -6px rgba(255,159,214,.45)}
+#milestoneQuote .mq-who{display:block;font:800 8.5px/1 var(--f1);letter-spacing:2.5px;color:var(--dim);margin-top:7px}
+@media (max-width:560px){ #milestoneQuote{bottom:21%} #milestoneQuote .mq-text{font-size:13px;max-width:88vw} }
 #pausebtn{position:absolute;top:70px;right:12px;pointer-events:auto;width:38px;height:38px;border-radius:10px;background:var(--panel);border:1px solid var(--line);color:var(--txt);font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer}
 @media (max-width:560px){
   .chip{padding:4px 8px;font-size:11.5px}
@@ -347,6 +352,7 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   <div id="frzwrap"><div id="frzlbl">FRENZY</div><div id="frzbar"><i></i></div></div>
   <div id="bosswrap"><div id="bossname">BOSS</div><div id="bosshpwrap"><div id="bosshp"></div></div></div>
   <div id="announce"></div>
+  <div id="milestoneQuote"><div class="mq-text" id="mqText"></div><div class="mq-who">YOU</div></div>
   <div id="pausebtn">❚❚</div>
   <canvas id="minimap" width="92" height="92"></canvas>
   <div id="weprow"></div>
@@ -1880,7 +1886,7 @@ function newPlayer(){
   const c = charById(save.char), m = save.meta;
   const p = {
     x:0, y:0, vx:0, vy:0, r:14, angle:0, faceX:1, faceY:0,
-    level:1, xp:0, xpNext:5, invul:0, hitT:0, dashT:0,
+    level:1, xp:0, xpNext:5, invul:0, hitT:0, dashT:0, noDmgT:0,
     wep:[{ id:c.w, lvl:1, t:0 }], pas:{}, char:c,
     kills:0, dmgDealt:0
   };
@@ -2548,6 +2554,11 @@ function update(dt){
     if(P.invul>0) P.invul-=dt;
     if(P.hitT>0) P.hitT-=dt;
     if(P.regen>0 && P.hp<P.maxHp) P.hp = Math.min(P.maxHp, P.hp + P.regen*dt);
+    // out-of-combat recovery: 5 clean seconds and you're topping up to
+    // full within the next 10 — stacks with the NANITES passive trickle
+    // above, doesn't replace it
+    P.noDmgT = (P.noDmgT||0) + dt;
+    if(P.noDmgT>=5 && P.hp<P.maxHp) P.hp = Math.min(P.maxHp, P.hp + (P.maxHp/10)*dt);
   }
 
   // ---- low-HP tension: heartbeat vignette + pulse when critically low
@@ -2876,7 +2887,7 @@ function hurtPlayer(amt){
   if(G.mode==='easy') amt *= .72;
   else if(G.mode==='classic') amt *= 1.15;
   amt = Math.max(1, amt - P.armor);
-  P.hp -= amt; P.invul = G.mode==='easy' ? .7 : .5; P.hitT = .2;
+  P.hp -= amt; P.invul = G.mode==='easy' ? .7 : .5; P.hitT = .2; P.noDmgT = 0;
   Snd.hurt(); shake(7); G.combo = 0; G.comboT = 0; G.frzCharge *= .75;
   const f = $('dmgflash'); f.style.opacity = clamp(1 - P.hp/P.maxHp, .25, 1);
   setTimeout(()=>{ f.style.opacity = P.hp/P.maxHp < .3 ? .45 : 0; }, 130);
@@ -3629,6 +3640,47 @@ function drawStormArt(c,W,H,t){
    tone deliberately escalates — determined early, openly desperate by
    the time level 100 is close — same painful-voice pitch/rate curve
    the cutscenes use, since it goes through the same speakLine(). */
+/* every 5 levels, one of these — original lines, not quoted from any
+   show or actor. A quick, honest note on why: I can't reproduce a
+   copyrighted character's actual dialogue or clone a real voice actor's
+   performance (the Web Speech API has no voice-cloning capability even
+   if that were fine to do), so these are written for this game, in this
+   game's own voice, carrying a similar weight instead. */
+const MILESTONE_QUOTES = [
+  'You don’t have to be the bad guy. Not even to beat one.',
+  'What do you want to be, once this is over? Have you ever really thought about that?',
+  'In order to become a star, you have to burn.',
+  'Strength was never the same thing as cruelty. He just never learned the difference.',
+  'Every scar you’re collecting is proof you didn’t stop — not proof it didn’t hurt.',
+  'Somewhere between here and level 100, this stopped being about revenge and started being about her.',
+  'The people who hurt us don’t get to decide who we become.',
+  'You can want to hurt him and still choose not to become him.',
+  'This far in, and you still haven’t forgotten her voice. That’s the part that actually matters.',
+  'Fear didn’t stop you. It just came along for the ride.',
+  'Maybe courage was never the absence of being afraid.',
+  'You keep telling yourself "almost there." You’ve been saying that since level one.',
+  'Whatever happens at the end, make sure you’re still someone she’d recognize.',
+  'He burns everything he touches. Don’t become him just to beat him.',
+  'You don’t need to hate him to want him gone.',
+  'Somewhere, she’s still waiting. That’s worth more than winning ever was.',
+  'Whatever happens at level 100, you already proved something just by getting this far.',
+  'You were smaller than this fight once. You’re not anymore.',
+  'Every fire eventually burns itself out. Make sure you don’t, first.',
+  'Keep going. Not for him. For her.'
+];
+function showMilestoneQuote(text){
+  const el = $('milestoneQuote'); const t = $('mqText');
+  t.textContent = text; el.classList.add('show');
+  clearTimeout(el._hideT);
+  el._hideT = setTimeout(()=>el.classList.remove('show'), 4200);
+}
+function triggerMilestoneQuote(){
+  if(!G.milestoneQueue || !G.milestoneQueue.length) G.milestoneQueue = shuffle(MILESTONE_QUOTES.slice());
+  const text = G.milestoneQueue.pop();
+  showMilestoneQuote(text);
+  speakLine({ speaker:'YOU', cls:'you', text });
+  G.slowT = Math.max(G.slowT||0, .5); zoomKick(1.06); shake(4);
+}
 const PLAYER_AMBIENT = {
   early: [
     'I will do everything to meet my mom again.',
@@ -4072,6 +4124,10 @@ function checkStoryMilestones(){
     G._lastMilestone = P.level;
     if(P.level<100) announce('LEVEL '+P.level+' — SHE’S STILL WAITING', '#ff9fd6');
   }
+  if(P.level%5===0 && P.level>0 && P.level!==G._lastQuoteLevel){
+    G._lastQuoteLevel = P.level;
+    triggerMilestoneQuote();
+  }
   if(P.level>=100 && (G.storyBossKills||0)>=50 && !G.finalArmed && !G.finalBattleActive){
     G.finalArmed = true;
     G.state='CUTSCENE'; Ads.gameplayStop();
@@ -4158,6 +4214,7 @@ function _beginRunNow(){
   G.ultCd=4; G.ultFx=null;
   G.finalArmed=false; G.finalBattleActive=false; G.finalAllies=[]; G.finalBossRef=null; G.motherRescued=false; G._lastMilestone=0; G._badEndingShown=false;
   G.postRescue=false; G.rescueLevel=0; G.storyBossKills=0; G.dmgLog=[]; G.lastBossHp=0; G.ambientT=rnd(24,40);
+  G.milestoneQueue=[]; G._lastQuoteLevel=0;
   const arena = ARENAS[G.arenaI]||ARENAS[0];
   setTheme(arena.theme,false); theme.bg=THEMES[arena.theme].bg.slice(); theme.g=THEMES[arena.theme].g.slice();
   Snd.setIntensity(0,false,false);
