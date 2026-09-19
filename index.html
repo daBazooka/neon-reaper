@@ -1938,14 +1938,15 @@ const ARENAS = [
   { id:'swamp', n:'TOXIC SWAMP',    i:'☣', theme:4, hazard:'poison',  d:'Poison bogs sap HP the longer you linger.' },
   { id:'storm', n:'STORM ZONE',     i:'⚡', theme:6, hazard:'storm',   d:'Lightning strikes telegraphed danger zones.' }
 ];
-/* 21 curated deployments — every one is a real, distinct mode+arena
+/* 22 curated deployments — every one is a real, distinct mode+arena
    combination already backed by working rules (not bolted-on
    simulations): the base ruleset (story pacing, boss cadence, revive
    rules, score bonus) genuinely differs by MODES id, the arena
    genuinely changes the hazard you're fighting through and the visual
-   theme, and — for save_dad — the whole story, cast, villain, cutscenes
-   and quote pool are their own, never reused from Save Her (relation
-   defaults to 'mom' when a preset doesn't set one). */
+   theme, and — for save_dad / save_sister — the whole story, cast,
+   villain, cutscenes and quote pool are their own, never reused from
+   Save Her or each other (relation defaults to 'mom' when a preset
+   doesn't set one). */
 const PRESETS = [
   { id:'save', n:'SAVE HER', i:'💔', mode:'classic', arena:'grid', tag:'STORY', stars:3,
     d:'Where it all began. The full story, exactly as it was meant to be told.' },
@@ -1961,6 +1962,8 @@ const PRESETS = [
     d:'The night he lost her, replaying under a sky that never stops striking.' },
   { id:'save_dad', n:'SAVE DAD', i:'🛠', mode:'classic', arena:'grid', tag:'STORY', relation:'dad', stars:3,
     d:'A different family, a different villain, a different story. He owed a debt he never should have owed — you\'re here to settle it.' },
+  { id:'save_sister', n:'SAVE SISTER', i:'🎻', mode:'classic', arena:'grid', tag:'STORY', relation:'sister', stars:3,
+    d:'She spent your whole childhood catching you. A third story, a third villain — this time, you catch her back.' },
   { id:'first', n:'FIRST LIGHT', i:'🌈', mode:'easy', arena:'grid', tag:'GENTLE', stars:1,
     d:'A gentler Save Her. Built for a first try, or a young player on your lap.' },
   { id:'first_ice', n:'FIRST LIGHT: CALM ICE', i:'🌈', mode:'easy', arena:'ice', tag:'GENTLE', stars:1,
@@ -3587,11 +3590,56 @@ function drawFatherArt(c,x,y,s,t,mood){
   }
   c.restore();
 }
+/* the sister — a lean, athletic build with a high side-ponytail instead
+   of the mother's long loose hair or the father's short crop, and a
+   hair-tie accent instead of a flower. Same blink/tear/joy-sparkle
+   mechanics as the other two so moods read identically. */
+function drawSisterArt(c,x,y,s,t,mood){
+  c.save(); c.translate(x,y); c.scale(s,s);
+  const bob = Math.sin(t*2)*3.2; c.translate(0,bob);
+  if(mood==='captive'){
+    c.strokeStyle='rgba(130,130,150,.85)'; c.lineWidth=3;
+    for(let i=-1;i<=1;i+=2){ c.beginPath(); c.moveTo(i*22,-8); c.lineTo(i*70,-62); c.stroke();
+      c.beginPath(); c.arc(i*70,-62,4,0,TAU); c.fillStyle='rgba(130,130,150,.85)'; c.fill(); }
+  }
+  const bodyGrad = c.createRadialGradient(0,8,4,0,8,36);
+  bodyGrad.addColorStop(0,'#fff2e8'); bodyGrad.addColorStop(1,'#ffc9a8');
+  c.fillStyle=bodyGrad;
+  c.beginPath(); c.ellipse(0,14,26,34,0,0,TAU); c.fill();
+  c.fillStyle='#ffe3cf'; c.beginPath(); c.arc(0,-26,24,0,TAU); c.fill();
+  // high side-ponytail: a swept cap plus a single trailing shape, instead
+  // of the mother's full curtain of hair or the father's short crop
+  c.fillStyle='#5a3a2a'; c.beginPath(); c.arc(0,-31,25,Math.PI*1.02,Math.PI*1.98); c.fill();
+  c.save(); c.translate(22,-40); c.rotate(.5+Math.sin(t*1.6)*.12);
+  c.beginPath(); c.moveTo(0,0); c.quadraticCurveTo(20,10,14,38); c.quadraticCurveTo(6,20,-2,4); c.closePath();
+  c.fillStyle='#5a3a2a'; c.fill(); c.restore();
+  c.fillStyle='#ff6ec7'; c.beginPath(); c.arc(15,-43,4,0,TAU); c.fill();
+  const blink = Math.sin(t*1.3+.3)>0.985 ? .15 : 1;
+  c.fillStyle='#3a2418';
+  c.save(); c.translate(-7,-25); c.scale(1,blink); c.beginPath(); c.arc(0,0,2.8,0,TAU); c.fill(); c.restore();
+  c.save(); c.translate(7,-25); c.scale(1,blink); c.beginPath(); c.arc(0,0,2.8,0,TAU); c.fill(); c.restore();
+  c.strokeStyle='#a5563b'; c.lineWidth=2.2; c.beginPath();
+  if(mood==='joy'||mood==='crying') c.arc(0,-16,6,.15*Math.PI,.85*Math.PI);
+  else c.arc(0,-13,6,1.15*Math.PI,1.85*Math.PI);
+  c.stroke();
+  if(mood==='captive'||mood==='scared'||mood==='crying'){
+    const d1=(t*1.7)%1, d2=((t*1.7)+.5)%1;
+    c.fillStyle='rgba(120,200,255,.85)';
+    c.beginPath(); c.ellipse(-7,-16+d1*28,1.7,3,0,0,TAU); c.fill();
+    c.beginPath(); c.ellipse(7,-18+d2*28,1.7,3,0,0,TAU); c.fill();
+  }
+  if(mood==='joy'||mood==='crying'){
+    for(let i=0;i<6;i++){ const a=t*1.6+i/6*TAU, rr=46+Math.sin(t*3+i)*6;
+      c.fillStyle='rgba(255,110,199,.8)'; c.beginPath(); c.arc(Math.cos(a)*rr,-20+Math.sin(a)*rr,2,0,TAU); c.fill(); }
+  }
+  c.restore();
+}
 /* dispatches to whichever parent art fits the run's relation, so every
    scene in the cutscene draw switch below only has to call this once
    instead of branching itself */
 function drawParentArt(c,x,y,s,t,mood){
   if(G.relation==='dad') drawFatherArt(c,x,y,s,t,mood);
+  else if(G.relation==='sister') drawSisterArt(c,x,y,s,t,mood);
   else drawMotherArt(c,x,y,s,t,mood);
 }
 function drawFinalBossArt(c,x,y,s,t){
@@ -4328,6 +4376,126 @@ const MILESTONE_QUOTES_DAD = [
   'You don’t just want to win this. You want to walk back into that workshop and mean it when you say it’s over.',
   'He built you patiently, one ordinary evening at a time, and this — all of this — is what patience like that actually becomes.'
 ];
+/* the sister's quote pool — a third completely different throughline
+   (protection reversed, rhythm and tempo, catching instead of being
+   caught) from both the mother's (childhood/nostalgia) and the
+   father's (craftsmanship/debt), written fresh so nothing here repeats
+   a line from either other pool. Picked by G.relation, same timer,
+   same voice lock, same "god voice" narration. */
+const MILESTONE_QUOTES_SISTER = [
+  'She spent her whole childhood catching you. This is the one time you get to catch her back.',
+  'You learned to duck before you learned to read. Now you’re learning to stand your ground instead.',
+  'She said music was the only argument she ever won. You’re about to win one of your own.',
+  'Every older sibling keeps count of the times they showed up for you. She never once mentioned the number. Match it anyway.',
+  'You don’t need her permission to be the one who protects this time.',
+  'She taught you rhythm before she taught you anything else. Keep the beat. It’s carried you this far.',
+  'The little sibling doesn’t get to stay little forever. This is where that ends.',
+  'She never once let you feel like a burden. Don’t you dare feel like one now, either.',
+  'You spent years memorizing her courage without meaning to. Turns out you were paying closer attention than either of you knew.',
+  'A big sister’s whole job is making the scary things smaller. It’s your turn to return the favor.',
+  'She counted time out loud until yours finally matched hers. Count this fight the same way.',
+  'You don’t owe her a rescue. You owe her the same thing she always gave you: someone who shows up.',
+  'The tempo she taught you was never really about music. It was about not losing your footing when everything else did.',
+  'She was the first person who ever made you feel safe. Be that for her now.',
+  'You keep hearing her count-ins in your own head before every hard level. Good. Keep counting.',
+  'A sibling bond doesn’t come with an expiration date, even from behind a locked door.',
+  'She gave you her seat, her time, her patience, without ever once asking for credit. Go get her back without asking for any either.',
+  'You don’t need to be as fearless as she always looked. You need to be as stubborn as she actually was.',
+  'The Conductor thinks talent is something you own. Your sister taught you it’s something you give away, freely, your whole life.',
+  'She never let you see her scared. You’re allowed to be scared. Just don’t let it stop you either.',
+  'You were the reason she practiced patience long before patience was a virtue anyone else noticed in her.',
+  'A big sister’s love doesn’t announce itself. It just keeps showing up, level after level, until it’s the only explanation left.',
+  'She taught you that falling and failing were never the same word. Remember the difference here too.',
+  'You don’t need a violin to keep her rhythm alive. You just need to keep going, on beat, level after level.',
+  'The last thing she ever told you was to go live your life. This is what living it looks like now.',
+  'She was never trying to make you brave. She was just brave enough for both of you until you could catch up.',
+  'You inherited her stubbornness whether you wanted it or not. Use it.',
+  'A protector doesn’t stop protecting just because the roles switched. Neither should you.',
+  'She spent five years older than you pretending that wasn’t a full-time job. It was. Thank her by finishing this one.',
+  'You don’t remember every lesson she gave you. Your hands do. Trust them.',
+  'The Conductor collects talent like it’s a trophy. Your sister spent hers making you feel like you mattered. That’s the real difference here.',
+  'She used to say the scariest song was always the one you hadn’t practiced yet. Practice this one anyway.',
+  'You were the audience for every rehearsal she ever gave, whether she meant it as one or not. Be present for this one too.',
+  'A big sister’s bravery is the quiet kind — the kind that shows up every single day, not just the dramatic ones.',
+  'She caught you falling off a bike, off a ledge, off a bad decision. Catch her falling out of a cage.',
+  'You don’t need her cheering you on out loud to know she still would be.',
+  'The rhythm never left you. It’s been running under every fight since the day she was taken.',
+  'She never once made being the older one feel like a competition. Don’t make this one either — just finish it.',
+  'You were smaller than this fight once, the same way you were smaller than her once. You’re not anymore, either way.',
+  'A sibling who taught you to duck also taught you, without meaning to, exactly when to stop ducking.',
+  'She gave you her seat at every table that mattered. Go get her a seat at this one.',
+  'You don’t need to play it perfectly. She never did either. You just need to finish the piece.',
+  'The Conductor thinks he owns her talent. He forgot talent like hers was always meant to come home.',
+  'She held the door open behind her for you your whole childhood, without you ever once noticing the effort it took.',
+  'You keep hearing her old count-ins — one, two, ready — right before every level starts. Stay ready.',
+  'A big sister doesn’t need a spotlight to matter. She just needs someone worth showing up for. That was always you.',
+  'You don’t forgive yourself for being too small back then by staying small now.',
+  'She never let a bad note ruin the whole piece. Don’t let one bad level ruin the whole climb.',
+  'The strongest thing she ever taught you wasn’t music. It was that showing up quietly, every day, is its own kind of loud.',
+  'You were the reason she learned to be brave first. Be the reason she gets to stop having to be, for once.',
+  'A sibling bond built on being caught doesn’t break just because the hands doing the catching changed.',
+  'She spent years making room for you at every table, every stage, every hard conversation. Make room for her now.',
+  'You don’t need the whole orchestra behind you. You just need to keep the beat she taught you.',
+  'The Conductor collects prodigies like trophies. He never once understood what it costs to actually raise one who loves you back.',
+  'She taught you that a scared kid and a brave kid can be the exact same person, five minutes apart.',
+  'You were her whole audience once. Be worth performing this fight for.',
+  'A protector’s job never really ends. It just waits for the person they protected to be ready to return it.',
+  'She never asked you to be as strong as her. She just quietly built you into someone who eventually could be.',
+  'You keep swinging with the same stubbornness she used to practice a piece a hundred times before she’d play it for anyone.',
+  'The rhythm she gave you wasn’t a gift. It was a lifeline, disguised as a song, for exactly a moment like this.',
+  'She never let you believe you were too small to matter. Don’t let this fight convince you otherwise either.',
+  'You don’t need her validation to keep going. But you’re about to earn it anyway.',
+  'A big sister’s love is the kind that shows up in a thousand small ordinary rescues before it ever needs to show up in a big one.',
+  'She counted on you being brave someday, even on the days you weren’t sure you would be. Today is someday.',
+  'The Conductor has never once created anything. Your sister built you out of nothing but patience and rhythm. That’s the real advantage here.',
+  'You were raised by someone who turned every scary thing into something you could practice your way through. Practice this.',
+  'A sibling who taught you rhythm also taught you, without either of you realizing it, how to survive exactly this kind of fight.',
+  'She gave you her seat, her time, her courage, on loan, for years. This is where you finally pay it back in full.',
+  'You don’t need to be fearless to finish this. You need to be the same kind of stubborn she always was about an unfinished piece.',
+  'The last honest thing she ever told you was to go live your life. Living it means finishing this.',
+  'You inherited more than her stubbornness. You inherited her refusal to leave anyone behind, including yourself.',
+  'A sister who spent her whole childhood catching you did not raise someone who lets her fall.',
+  'The Conductor has never once had to build someone up from nothing. Everything you are was built by someone who has.',
+  'You keep hearing "ready, and—" in every level, every boss, every fall. Good. Keep listening.',
+  'She gave you a rhythm and a lesson disguised as a song. Turns out the lesson was the whole plan all along.',
+  'A person who never once quit on a hard piece raised a sibling who won’t quit on her either.',
+  'You’re not proving you can win. You’re proving every hour she spent on you actually took.',
+  'The Conductor wants this to be about talent. Your sister would want it to be about finishing the piece. Pick her version.',
+  'Every ordinary evening spent counting time with her was quietly building the exact person this fight actually needed.',
+  'She never raised her voice, and somehow that taught you more about courage than shouting ever could have.',
+  'You don’t need vengeance to get through this. You need the same patience she showed a stubborn piece at midnight.',
+  'A person who protects strangers with her whole heart for free does not deserve to be treated like something disposable.',
+  'Her hands are probably shaking by now. Yours don’t get to.',
+  'You are not the kid ducking behind her anymore. You are the one who finally learned to stand in front.',
+  'She built you the same way she built every piece she ever learned — patiently, honestly, and to actually last.',
+  'The Conductor collects what people can perform. He has no idea what it costs to raise someone who refuses to stop.',
+  'A promise made backstage, at midnight, over a half-learned piece, is still a promise.',
+  'You don’t need her to say it. You already know: she would be proud, and that has to be enough to keep moving.',
+  'Every level is just one more measure in the same unfinished piece.',
+  'She taught you that a missed note deserves a second try before anyone gives up on the whole song. Don’t give up on this fight either.',
+  'A sister who never once quit on a hard piece did not raise a quitter.',
+  'You keep swinging with hands that learned everything they know from someone who never once put an instrument down halfway through.',
+  'The stage light is off. Yours doesn’t have to be.',
+  'She is not a trophy. She is not an ensemble seat. She is your sister, and you are going to say that out loud when you find her.',
+  'A person who makes music that outlasts the applause does not deserve to be the thing someone else silences.',
+  'You don’t need to be fearless to finish this. You need to be the kind of stubborn that never once made sense to anyone but her.',
+  'The last thing she ever told you, without meaning to, was how to survive exactly this.',
+  'Every scar you earn on this climb is one more thing you’ll eventually be able to show her, and she’ll understand it without you explaining a word.',
+  'You are not rebuilding a performance. You are rebuilding a family, one level at a time.',
+  'She never once let you believe something was too broken to fix. Believe that about her now.',
+  'A debt like this was never going to be settled quietly. Good. She never taught you to be quiet about things that mattered either.',
+  'You keep hearing her in your own hands now — steady, unhurried, unwilling to quit on the piece.',
+  'The Conductor has spent his whole life taking talent apart. Your sister spent hers building people up. You know exactly which side raised you.',
+  'A sister who taught you patience with a stubborn piece also taught you patience with an impossible fight, without either of you realizing it at the time.',
+  'You don’t need her blessing to keep going. But you’re about to earn it anyway.',
+  'Every unfinished piece in that case has been waiting the same amount of time you have. Go finish all of it at once.',
+  'She measured a life by who she showed up for, not by how loud the applause was. Measure yours the same way, even here.',
+  'You are the last unfinished thing your sister ever started teaching. Go get finished.',
+  'A sister who never asked for thanks does not need you to thank her. She needs you to come home.',
+  'The debt was never fair. Neither was taking her. Go make something right out of both.',
+  'You don’t just want to win this. You want to walk back to that street corner and mean it when you say it’s over.',
+  'She built you patiently, one ordinary evening at a time, and this — all of this — is what patience like that actually becomes.'
+];
 // the single release point for the shared voice lock — whichever system
 // (milestone quote or ambient VO) was speaking calls this when it's done,
 // so a milestone that got queued behind an *ambient* line (not just
@@ -4347,7 +4515,7 @@ function triggerMilestoneQuote(){
   // reshuffled (not reset) only once it runs out, so a single match can
   // burn through the whole pool without a repeat before it ever cycles
   // back. G.relation picks which pool; the two never mix mid-run.
-  const qPool = G.relation==='dad' ? MILESTONE_QUOTES_DAD : MILESTONE_QUOTES;
+  const qPool = G.relation==='dad' ? MILESTONE_QUOTES_DAD : G.relation==='sister' ? MILESTONE_QUOTES_SISTER : MILESTONE_QUOTES;
   if(!G.milestoneQueue || !G.milestoneQueue.length) G.milestoneQueue = shuffle(qPool.slice());
   const text = G.milestoneQueue.pop();
   const el = $('milestoneQuote'); const t = $('mqText');
@@ -4435,6 +4603,29 @@ const PLAYER_AMBIENT_DAD = {
     'I don’t fight because I hate him. I fight because I love my father more than I fear him.'
   ]
 };
+const PLAYER_AMBIENT_SISTER = {
+  early: [
+    'I will do everything to see my sister again.',
+    'No matter what happens, I will see her face again.',
+    'Just a little further. I promised her I’d come.',
+    'Hold on, sis. I’m already on my way.',
+    'I used to think strength meant never losing a fight. I know better now.'
+  ],
+  mid: [
+    'I can feel it getting closer. I can’t stop now, not now.',
+    'Hold on. I’m not as far away as it feels.',
+    'Every one of these is one less between us.',
+    'I haven’t forgotten why I’m doing this. Not for one second.',
+    'None of this is really about beating him. It was only ever about her.'
+  ],
+  late: [
+    'Almost there. Please, just let me be enough.',
+    'I can’t lose her. Not after everything. Not now.',
+    'I’m coming, sis. I’m so close. Please still be there.',
+    'Just a little more. Just a little more and I see her again.',
+    'I don’t fight because I hate him. I fight because I love my sister more than I fear him.'
+  ]
+};
 function playerAmbientLine(){
   if(!P || !isStoryMode() || G.state!=='PLAY') return;
   // same shared voice lock as milestone quotes — skip this beat entirely
@@ -4443,7 +4634,7 @@ function playerAmbientLine(){
   // so missing one ambient line here is low-stakes and never noticeable
   if(G._voiceBusy) return;
   const prog = clamp(P.level/100, 0, 1);
-  const ambSet = G.relation==='dad' ? PLAYER_AMBIENT_DAD : PLAYER_AMBIENT;
+  const ambSet = G.relation==='dad' ? PLAYER_AMBIENT_DAD : G.relation==='sister' ? PLAYER_AMBIENT_SISTER : PLAYER_AMBIENT;
   const pool = prog>.66 ? ambSet.late : prog>.33 ? ambSet.mid : ambSet.early;
   const text = pick(pool);
   const gen = (G._ambGen = (G._ambGen||0) + 1);
@@ -4604,6 +4795,79 @@ const STORY_DAD = {
     { speaker:'', cls:'you', text:'TRY AGAIN. DON’T LET IT END LIKE THIS.', dark:1, art:'title', hold:1800, fast:1 }
   ]
 };
+/* the sister's story — a third completely independent circumstance and
+   villain from both the mother's (abduction) and father's (debt): a
+   cult-like collector of stolen prodigies, built around the reversed
+   protection dynamic of an older sister who always protected you first.
+   Every line here is original, never reused from STORY or STORY_DAD. */
+const STORY_SISTER = {
+  intro: [
+    { speaker:'', cls:'narr', text:'Some stories start with someone falling. This one starts with someone catching you instead, every single time, for years.', dark:1, art:'wide', hold:1900 },
+    { speaker:'', cls:'narr', text:'Your sister was five years older and had appointed herself your entire security detail before you could even talk.', dark:0, art:'home', hold:2800 },
+    { speaker:'', cls:'narr', text:'She played violin on the corner by the train station — not for the money, though the money helped, but because she said music was the only argument she’d ever actually won.', dark:0, art:'home', hold:2800 },
+    { speaker:'', cls:'narr', text:'She taught you to duck before you even knew what you were ducking from. That instinct saved you more than once.', dark:0, art:'home', hold:2400 },
+    { speaker:'', cls:'narr', text:'Then, the night of her biggest recital, three men in very nice suits stayed behind after the applause.', dark:1, art:'wide', hold:1900, fast:1 },
+    { speaker:'', cls:'narr', text:'The Conductor came for her personally that night. Talent like hers, he said, belonged in his court. He took her, and left an empty seat that never got filled again.', dark:1, art:'abduction', shake:1, hold:2900, fast:1 },
+    { speaker:'', cls:'narr', text:'You were far too small to stop it. You have never once forgiven yourself for that.', dark:1, art:'abduction', hold:2200, fast:1 },
+    { speaker:'', cls:'narr', text:'Years became rehearsal. A child’s helplessness became, slowly and deliberately, a young man’s resolve.', dark:1, art:'wide', hold:2400 },
+    { speaker:'', cls:'narr', text:'Somewhere past the last light of the city, in a hall that isn’t on any map...', dark:1, art:'wide', hold:1600 },
+    { speaker:'SISTER', cls:'sister', text:'...is someone there? Don’t — don’t let him hear you. Please tell me it isn’t you.', dark:1, art:'mom', mood:'captive', hold:1500 },
+    { speaker:'', cls:'narr', text:'He found her first, all those years ago. He has never once let her go.', dark:1, art:'boss', hold:1600 },
+    { speaker:'THE CONDUCTOR', cls:'boss', text:'Talent like hers doesn’t retire, little audience. It simply changes owners.', dark:1, art:'both', mood:'captive', shake:1, hold:1700 },
+    { speaker:'SISTER', cls:'sister', text:'Don’t come here. Don’t you dare come here for me. You were the one thing I got right — go live it.', dark:1, art:'mom', mood:'captive', hold:1800 },
+    { speaker:'', cls:'narr', text:'You remember her voice from a thousand ordinary evenings, counting time out loud until yours finally matched hers. You never thought you’d need that rhythm to survive.', dark:0, art:'memory', hold:2400 },
+    { speaker:'', cls:'narr', text:'The Conductor is the strongest thing this world has ever applauded. And the cruelest.', dark:1, art:'boss', hold:1500 },
+    { speaker:'', cls:'narr', text:'He is not alone. He never needs to be.', dark:1, art:'both', hold:1300 },
+    { speaker:'', cls:'narr', text:'One path remains. Fifty of his own standing between you and your sister, and a hundred trials besides. Most who try do not finish it.', dark:1, art:'wide', hold:2200 },
+    { speaker:'YOU', cls:'you', text:'I’m coming, sis. Whatever he thinks he owns — I’m taking it back.', dark:1, art:'mom', mood:'captive', hold:2400 },
+    { speaker:'', cls:'you', text:'SAVE HER. SHE SAVED YOU FIRST.', dark:1, art:'title', hold:1900 },
+    { speaker:'', cls:'you', text:'REACH LEVEL 100!', dark:1, art:'title', hold:1500, fast:1 }
+  ],
+  finalConfront: [
+    { speaker:'', cls:'narr', text:'Something enormous turns to face you at last. It has been waiting.', dark:1, art:'boss', hold:1900 },
+    { speaker:'THE CONDUCTOR', cls:'boss', text:'Ah. There you are. I wondered how many of my ensemble it would take to keep an audience of one occupied.', dark:1, art:'boss', shake:1, hold:2400 },
+    { speaker:'THE CONDUCTOR', cls:'boss', text:'She stopped fighting the tempo in the first year. Do you want to know what she plays now?', dark:1, art:'both', mood:'captive', shake:1, hold:2800 },
+    { speaker:'THE CONDUCTOR', cls:'boss', text:'Whatever I ask. Beautifully. Utterly certain you’d never come for an encore.', dark:1, art:'boss', shake:1, hold:2400 },
+    { speaker:'', cls:'narr', text:'He laughs — low, delighted, utterly certain you will fail like every single one before you.', dark:1, art:'boss', shake:1, hold:2100 },
+    { speaker:'YOU', cls:'you', text:'Then let’s change the setlist.', dark:1, art:'title', hold:1800 }
+  ],
+  ending: [
+    { speaker:'', cls:'narr', text:'He falls.', dark:1, art:'boss', hold:1300 },
+    { speaker:'', cls:'narr', text:'The chains break before his last breath even leaves him.', dark:0, art:'mom', mood:'joy', hold:1600 },
+    { speaker:'SISTER', cls:'sister', text:'...is it you? Is it actually you, or is this just another song my head made up down here?', dark:0, art:'mom', mood:'joy', hold:1700 },
+    { speaker:'', cls:'narr', text:'Up close, she sees everything the fight cost you. None of it frightens her. Not for a second.', dark:0, art:'embrace', mood:'joy', hold:2400 },
+    { speaker:'SISTER', cls:'sister', text:'Oh — look at you. Look what you carried to get here. Come here. Come here right now.', dark:0, art:'embrace', mood:'joy', hold:2400 },
+    { speaker:'', cls:'narr', text:'A hundred trials. Every single one of them, for this exact second.', dark:0, art:'both', mood:'joy', hold:1800 },
+    { speaker:'', cls:'narr', text:'You run to her. She is already reaching for you.', dark:0, art:'embrace', hold:2000 },
+    { speaker:'', cls:'narr', text:'For one long moment, neither of you says anything at all. You don’t need to.', dark:0, art:'embrace', mood:'joy', hold:2600 },
+    { speaker:'SISTER', cls:'sister', text:'I never once stopped believing you’d come. Not for one single day down here.', dark:0, art:'embrace', mood:'joy', hold:2200 },
+    { speaker:'SISTER', cls:'sister', text:'Look who finally learned to catch someone instead of needing to be caught.', dark:0, art:'embrace', mood:'joy', hold:2600 },
+    { speaker:'', cls:'narr', text:'You were the kid ducking behind her once, small and helpless, watching the dark take everything. You are not that kid anymore.', dark:0, art:'both', mood:'joy', hold:2800 },
+    { speaker:'SISTER', cls:'sister', text:'Whatever you had to become to reach me — I hope you never have to be that person again.', dark:0, art:'mom', mood:'joy', hold:2400 },
+    { speaker:'YOU', cls:'you', text:'I was so afraid, sis. The whole way here. I never told anyone that. Not once.', dark:0, art:'embrace', mood:'crying', hold:2400 },
+    { speaker:'', cls:'narr', text:'You are both crying now — not from fear this time. Neither of you cares who sees it.', dark:0, art:'embrace', mood:'crying', hold:2600 },
+    { speaker:'SISTER', cls:'sister', text:'Being afraid and coming anyway — that’s the only kind of brave I was ever actually trying to teach you.', dark:0, art:'embrace', mood:'crying', hold:2600 },
+    { speaker:'YOU', cls:'you', text:'I told you I was coming. I meant every word of it.', dark:0, art:'embrace', mood:'joy', hold:1900 },
+    { speaker:'YOU', cls:'you', text:'I’m here. I’m not going anywhere.', dark:0, art:'embrace', mood:'joy', hold:1800 },
+    { speaker:'', cls:'narr', text:'This was never really about the hundred levels, or the boss, or the score.', dark:0, art:'wide', hold:2200 },
+    { speaker:'', cls:'narr', text:'It was about the people worth all of it. Yours is waiting somewhere too — sister, brother, whoever it is.', dark:0, art:'wide', hold:2600 },
+    { speaker:'', cls:'narr', text:'Whatever you’re fighting for — don’t stop. Not today. Not ever.', dark:0, art:'wide', hold:2600 },
+    { speaker:'', cls:'you', text:'SISTER FREED.', dark:0, art:'title', hold:2200 },
+    { speaker:'', cls:'narr', text:'You walk her home yourself, every step of it — back to the same street corner, her violin case waiting exactly where she left it.', dark:0, art:'home', hold:2800 },
+    { speaker:'', cls:'narr', text:'But he was never the only thing out here — and now, whatever remains knows exactly who you are.', dark:1, art:'wide', hold:2600 }
+  ],
+  badEnding: [
+    { speaker:'THE CONDUCTOR', cls:'boss', text:'You were never going to make the encore.', dark:1, art:'boss', shake:1, hold:1400 },
+    { speaker:'SISTER', cls:'sister', text:'No — NO! Please, don’t touch him! Take me instead, not him—!', dark:1, art:'devour', mood:'scared', shake:1, hold:1900, fast:1 },
+    { speaker:'', cls:'narr', text:'She is still shouting your name when the dark closes over her.', dark:1, art:'devour', mood:'scared', shake:1, hold:2100, fast:1 },
+    { speaker:'', cls:'narr', text:'She never got to see you again. Not once. Not even to say goodbye.', dark:1, art:'lost', hold:2000, fast:1 },
+    { speaker:'THE CONDUCTOR', cls:'boss', text:'She kept playing your name right until the end. They always do.', dark:1, art:'boss', shake:1, hold:2000, fast:1 },
+    { speaker:'', cls:'narr', text:'Somewhere, a violin that waited for you every single night simply goes quiet.', dark:1, art:'lost', hold:2200, fast:1 },
+    { speaker:'', cls:'you', text:'SHE IS GONE. YOU WERE TOO SLOW.', dark:1, art:'title', hold:1800, fast:1 },
+    { speaker:'', cls:'narr', text:'Somewhere, in some other try, you were just a little stronger — and you made it in time.', dark:1, art:'wide', hold:2200, fast:1 },
+    { speaker:'', cls:'you', text:'TRY AGAIN. DON’T LET IT END LIKE THIS.', dark:1, art:'title', hold:1800, fast:1 }
+  ]
+};
 /* The closest this can get to voice acting: the device's own built-in
    text-to-speech, when the browser has one (window.speechSynthesis).
    It's a real synthetic voice reading the line, not a recording and
@@ -4624,16 +4888,17 @@ function pickVoiceFor(role){
   const femaleHints = /female|zira|samantha|victoria|susan|karen|moira|tessa|fiona|kate|serena|allison|ava|emma|joanna|salli|kimberly|amy|siri|google us english$/i;
   const maleHints = /male|david|daniel|alex|fred|george|james|oliver|arthur|eric|guy|mark|tom|google uk english male|matthew|brian|russell/i;
   const qualityHints = /natural|enhanced|premium|neural|google/i;
-  // boss, narr and dad all lean on deeper/male-leaning voices; mom leans
-  // female — the API gives no real gender field, only names to guess from
-  const hints = role==='mom' ? femaleHints : maleHints;
+  // boss, narr and dad all lean on deeper/male-leaning voices; mom and
+  // sister lean female — the API gives no real gender field, only names
+  // to guess from
+  const hints = (role==='mom' || role==='sister') ? femaleHints : maleHints;
   const pool = VoiceCache.list.filter(v=>hints.test(v.name));
   if(!pool.length) return null;
   pool.sort((a,b)=> (qualityHints.test(b.name)?1:0) - (qualityHints.test(a.name)?1:0));
-  if((role==='narr' || role==='dad') && pool.length>1){
-    // the commentator (and the father) shouldn't sound identical to the
-    // villain when the device happens to have more than one deep-leaning
-    // voice available
+  if((role==='narr' || role==='dad' || role==='sister') && pool.length>1){
+    // the commentator (and the father, and the sister) shouldn't sound
+    // identical to the villain/mother when the device happens to have
+    // more than one matching voice available
     return pool.find(v=>v!==pool[0]) || pool[0];
   }
   return pool[0];
@@ -4669,6 +4934,14 @@ function speakLine(line){
       u.pitch = line.mood==='joy' ? .58 : line.mood==='crying' ? .62 : pained ? .8 : .5;
       u.rate = line.mood==='joy' ? 1.05 : line.mood==='crying' ? .9 : pained ? 1.3 : 1.1;
       try{ const v = pickVoiceFor('dad'); if(v) u.voice = v; }catch(e){}
+    } else if(line.cls==='sister'){
+      // younger and brighter than mom's register, energetic rather than
+      // maternal-warm — the same female-leaning voice pool as mom, but a
+      // higher, quicker delivery so the two never sound interchangeable
+      const pained = line.mood==='captive' || line.mood==='scared';
+      u.pitch = line.mood==='joy' ? 1.18 : line.mood==='crying' ? 1.24 : pained ? 1.46 : 1.3;
+      u.rate = line.mood==='joy' ? 1.2 : line.mood==='crying' ? 1.0 : pained ? 1.48 : 1.34;
+      try{ const v = pickVoiceFor('sister'); if(v) u.voice = v; }catch(e){}
     } else if(line.cls==='boss'){
       // pushed to the literal floor of what the Web Speech API allows —
       // pitch 0 is as low/guttural as this can go, slow and dragging so
@@ -4977,8 +5250,17 @@ const FINAL_TAUNTS_DAD = [
   'He begged, at first. They always beg.',
   'Fifty of my collectors, and you are still standing. How disappointing for both of us.'
 ];
-function curTaunts(){ return G.relation==='dad' ? FINAL_TAUNTS_DAD : FINAL_TAUNTS; }
-function curStory(){ return G.relation==='dad' ? STORY_DAD : STORY; }
+const FINAL_TAUNTS_SISTER = [
+  'Still fighting? She is still playing your name, you know.',
+  'I can still hear her. Can you?',
+  'Every second you waste here is a second I still have with her.',
+  'You should have been faster. She is paying for that, right now.',
+  'Ha. HA. You think this changes anything for her?',
+  'She begged, at first. They always beg.',
+  'Fifty of my ensemble, and you are still standing. How disappointing for both of us.'
+];
+function curTaunts(){ return G.relation==='dad' ? FINAL_TAUNTS_DAD : G.relation==='sister' ? FINAL_TAUNTS_SISTER : FINAL_TAUNTS; }
+function curStory(){ return G.relation==='dad' ? STORY_DAD : G.relation==='sister' ? STORY_SISTER : STORY; }
 function checkStoryMilestones(){
   if(!isStoryMode()) return;
   if(P.level>(save.maxStoryLevel||0)) save.maxStoryLevel = P.level;
