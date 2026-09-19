@@ -764,13 +764,18 @@ const Snd = {
     const M=this.M, c=this.ctx;
     // tempo + layer count follow what is happening on screen
     const heat = M.boss? 1 : clamp(M.intensity,0,1);
-    // the closer a story run gets to level 100, the faster and more
+    // the closer a story run gets to the final boss, the faster and more
     // urgent the whole score gets — a slow climbing build the entire
     // run, on top of (not instead of) combat intensity, so it's always
-    // audibly racing toward the ending rather than just looping in place
-    M.progress = (M.story && P) ? clamp(P.level/100, 0, 1) : 0;
+    // audibly racing toward the ending rather than just looping in place.
+    // tracks whichever of the two final-boss gates (level 100, or 50
+    // regular boss kills) is actually closer, since either one can be
+    // the real bottleneck depending on how the player's run goes
+    const levelProg = (M.story && P) ? clamp(P.level/100, 0, 1) : 0;
+    const bossProg = (M.story && G.storyBossKills) ? clamp(G.storyBossKills/50, 0, 1) : 0;
+    M.progress = Math.max(levelProg, bossProg);
     M.menu = G.state==='MENU';
-    M.bpm = 118 + heat*26 + (M.frenzy?10:0) + M.progress*34;
+    M.bpm = 118 + heat*26 + (M.frenzy?10:0) + M.progress*46;
     const spb = 60/M.bpm/4;                       // one 16th note
     while(M.next < c.currentTime + .18){
       const t = M.next, s = M.step % 16, bar = (M.step>>4) % 4;
@@ -2171,17 +2176,20 @@ function spawnBoss(){
   const hard = G.mode==='hardcore' ? 1.3 : G.mode==='easy' ? .78 : G.mode==='classic' ? 1.2 : 1;
   // difficulty (dmg/size/speed/non-story hp) plateaus after a handful of
   // regular bosses instead of climbing forever — every regular boss should
-  // stay killable; only the final boss (its own hardcoded stats below,
-  // never spawned through here) is meant to actually be hard
-  const bossDiffN = Math.min(G.bossN, 8);
+  // stay killable, and the plateau itself is deliberately gentle so most
+  // players can clear a run on their first try; only the final boss (its
+  // own hardcoded stats below, never spawned through here) is meant to
+  // actually be hard
+  const bossDiffN = Math.min(G.bossN, 5);
   let baseHp;
   if(isStoryMode()){
-    // sized off real, recent trash-mob DPS, not a fixed curve — a roughly
-    // one-minute fight for whatever build the player actually has right
-    // now. real fights run a bit longer than this raw number since
-    // dodging costs uptime that standing still and trading hits wouldn't.
+    // sized off real, recent trash-mob DPS, not a fixed curve — a shorter,
+    // easier ~36s fight for whatever build the player actually has right
+    // now, not the ~52s it used to target. real fights run a bit longer
+    // than this raw number since dodging costs uptime that standing still
+    // and trading hits wouldn't.
     const dps = Math.max(70, recentDps());
-    let target = dps * 52 * kind.hpMul * postRescueMul();
+    let target = dps * 36 * kind.hpMul * postRescueMul();
     // rate-limited against the last boss's HP too — a noisy single dps
     // sample (a lull with no grunts nearby, a sudden AOE clear) should
     // never make one boss wildly easier or harder than the one before it
@@ -2190,12 +2198,12 @@ function spawnBoss(){
     G.lastBossHp = baseHp;
   } else {
     const s = hpScale(G.t);
-    baseHp = 2000 * s * (1+bossDiffN*.55) * kind.hpMul * hard;
+    baseHp = 1600 * s * (1+bossDiffN*.4) * kind.hpMul * hard;
   }
   const b = {
     type:'boss', x:p.x, y:p.y, vx:0, vy:0,
     hp: baseHp, maxHp: baseHp,
-    r: (52+bossDiffN*3.5)*kind.sizeMul, spd: 46+bossDiffN*3, dmg: (38+bossDiffN*9)*kind.dmgMul*hard*postRescueMul(), sides:6,
+    r: (48+bossDiffN*2.5)*kind.sizeMul, spd: 42+bossDiffN*2, dmg: (28+bossDiffN*6)*kind.dmgMul*hard*postRescueMul(), sides:6,
     c:kind.c, _baseColor:kind.c, score:1800*(1+G.bossN), rot:0, slowT:0, hitT:0,
     elite:false, boss:true, shootT:2, phase:0, chargeT:5.4, name: BOSSNAMES[G.bossN % BOSSNAMES.length],
     kind:kind.pattern, spiralA:0, telegraph:0, ageT:0, enraged:false, shieldT:0, reflectT:0, pullT:0,
@@ -3729,21 +3737,24 @@ function triggerMilestoneQuote(){
     G._mqSpeaking = false;
     if(G._mqQueued){ G._mqQueued = false; triggerMilestoneQuote(); }
   };
-  // deep male narrator register (no cls match -> the "documentary
-  // commentator" branch of speakLine), not the higher 'you' voice
-  const utter = speakLine({ speaker:'', cls:'narr', text });
+  // a low thunder-crack under the line itself — sells "a god is speaking"
+  // rather than just "the music got quieter"
+  if(save.opt.sfx){ Snd.noise(.5,.35,600); setTimeout(()=>Snd.tone(60,.6,'sine',.2,35),60); }
+  // booming "voice from the heavens" register (cls:'god'), not the
+  // higher 'you' voice or even the regular documentary narrator
+  const utter = speakLine({ speaker:'', cls:'god', text });
   if(utter){
-    // ducked to 3% of its previous volume, not the usual 16% every other
-    // spoken line uses — deliberately extreme so the line is unmistakably
-    // louder than the theme, not just audible over it
-    Snd.duckMusic(true, .03);
+    // ducked hard, but not all the way to near-silent — the theme should
+    // still be audibly playing underneath, just clearly, unmistakably
+    // quieter than the voice, not sound like it stopped
+    Snd.duckMusic(true, .08);
     utter.onend = finish;
     utter.onerror = finish;
     // stays on screen for exactly as long as the voice takes to say it,
     // with a generous fallback in case this device's TTS never fires
     // onend/onerror (silent/broken engines, some sandboxed browsers)
     const words = Math.max(1, text.trim().split(/\s+/).length);
-    const estMs = Math.max(1800, (words/(3.7*.95))*1000);
+    const estMs = Math.max(1800, (words/(3.7*.8))*1000);
     el._hideT = setTimeout(finish, estMs + 3500);
   } else {
     el._hideT = setTimeout(finish, 4200);
@@ -3916,6 +3927,13 @@ function speakLine(line){
       u.pitch = line.shake ? .22 : .34; u.rate = line.shake ? .86 : .99;
       try{ const v = pickVoiceFor('boss'); if(v) u.voice = v; }catch(e){}
     } else if(line.cls==='you'){ u.pitch = line.mood==='crying' ? 1.1 : 1.05; u.rate = line.mood==='crying' ? .92 : line.shake ? 1.32 : 1.18; }
+    else if(line.cls==='god'){
+      // the milestone quotes: a booming, deliberate, "voice from the
+      // heavens" register — lower and slower than even the documentary
+      // narrator, closer to a Greek-god pronouncement than a commentator
+      u.pitch=.32; u.rate=.8;
+      try{ const v = pickVoiceFor('narr'); if(v) u.voice = v; }catch(e){}
+    }
     else {
       // the commentator: deliberately deep, deliberately slow — a
       // documentary-narrator register, distinct from every character
@@ -4210,16 +4228,20 @@ function triggerFinalBattle(){
   G.finalBattleActive = true;
   const kindCycle = BOSSKINDS.map(k=>k.pattern);
   const kind = { pattern:kindCycle[0], c:'#ff2040', sizeMul:1.9, hpMul:1, dmgMul:2.2 };
-  // sized directly off the 50th boss's own HP (roughly 5x it now — the
-  // one fight in the whole run that's actually meant to be hard, since
-  // every regular boss before it is deliberately capped), not
-  // recomputed from recentDps() here — recentDps only samples trash-mob
-  // damage, which is naturally inflated by splash/multi-target weapons
-  // hitting several grunts at once, so it overstates true single-target
-  // output against one boss. G.lastBossHp already reflects genuine,
-  // proven single-target kill capability from 50 real boss fights.
+  // sized directly off the 50th boss's own HP — the multiplier (7.5x) is
+  // higher than it looks specifically to cancel out the regular gauntlet
+  // being deliberately made much easier: G.lastBossHp is now a ~36s fight
+  // instead of ~52s, so this keeps the final boss's own absolute toughness
+  // where it was — the one fight in the whole run that's actually meant to
+  // be hard, since every regular boss (and now its allies) is deliberately
+  // eased off. Not recomputed from recentDps() here — recentDps only
+  // samples trash-mob damage, which is naturally inflated by splash/
+  // multi-target weapons hitting several grunts at once, so it overstates
+  // true single-target output against one boss. G.lastBossHp already
+  // reflects genuine, proven single-target kill capability from 50 real
+  // boss fights.
   const dps = Math.max(70, recentDps());
-  let baseHp = G.lastBossHp ? G.lastBossHp * 5.2 : dps * 260;
+  let baseHp = G.lastBossHp ? G.lastBossHp * 7.5 : dps * 270;
   const ax = P.x, ay = P.y - 260;
   const b = {
     type:'boss', x:ax, y:ay, vx:0, vy:0,
@@ -4231,8 +4253,14 @@ function triggerFinalBattle(){
   };
   enemies.push(b); G.bossRef=b; G.finalBossRef=b;
   const allyDefs = [{dx:-160,dy:60,c:'#8b5cff'},{dx:160,dy:60,c:'#ff8a3c'},{dx:0,dy:130,c:'#4dc9ff'}];
+  // support cast, not three more bosses — sized off real dps (a few
+  // seconds each) instead of elite:true + hpScale(G.t), which on a long
+  // run could leave them tankier than the Hollow King himself. Only he
+  // is meant to be the hard part of this fight.
+  const allyHp = dps * 6;
   G.finalAllies = allyDefs.map(a=>{
-    const e = spawnAt('titan', ax+a.dx, ay+a.dy, 2.4, true);
+    const e = spawnAt('titan', ax+a.dx, ay+a.dy, .4, false);
+    e.hp = e.maxHp = allyHp;
     e.c = a.c; e.finalAlly = true; return e;
   });
   announce('⚠ THE HOLLOW KING ⚠', kind.c); Snd.big(); Snd.finalGateSting(); shake(24);
