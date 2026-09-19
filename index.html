@@ -724,7 +724,7 @@ const Snd = {
     this.musTimer = setInterval(()=>this.schedule(), 25);
   },
   M: {
-    step:0, next:0, bpm:124, intensity:0, boss:0, frenzy:0, stinger:0, story:0,
+    step:0, next:0, bpm:124, intensity:0, boss:0, frenzy:0, stinger:0, story:0, progress:0,
     // Am - F - C - G   (drives forward, resolves, repeats: the classic loop-forever progression)
     root:[55, 43.65, 65.41, 49],
     chord:[[220,261.63,329.63],[174.61,220,261.63],[196,261.63,329.63],[196,246.94,293.66]],
@@ -741,13 +741,22 @@ const Snd = {
     const M=this.M, c=this.ctx;
     // tempo + layer count follow what is happening on screen
     const heat = M.boss? 1 : clamp(M.intensity,0,1);
-    M.bpm = 118 + heat*26 + (M.frenzy?10:0);
+    // the closer a story run gets to level 100, the faster and more
+    // urgent the whole score gets — a slow climbing build the entire
+    // run, on top of (not instead of) combat intensity, so it's always
+    // audibly racing toward the ending rather than just looping in place
+    M.progress = (M.story && P) ? clamp(P.level/100, 0, 1) : 0;
+    M.bpm = 118 + heat*26 + (M.frenzy?10:0) + M.progress*34;
     const spb = 60/M.bpm/4;                       // one 16th note
     while(M.next < c.currentTime + .18){
       const t = M.next, s = M.step % 16, bar = (M.step>>4) % 4;
       const root = M.root[bar] * (M.boss? .5 : 1);
       const ch = M.chord[bar];
-      const lay = M.boss? 3 : M.intensity < .25 ? 0 : M.intensity < .55 ? 1 : M.intensity < .85 ? 2 : 3;
+      const combatLay = M.intensity < .25 ? 0 : M.intensity < .55 ? 1 : M.intensity < .85 ? 2 : 3;
+      // story progress alone gradually thickens the arrangement too, so
+      // the climb to level 100 keeps building fullness even between fights
+      const progressLay = M.progress>.8 ? 3 : M.progress>.5 ? 2 : M.progress>.2 ? 1 : 0;
+      const lay = M.boss? 3 : Math.max(combatLay, progressLay);
 
       // --- drums
       if(s===0||s===6||s===10) this.drum(t,'kick',.55);
@@ -775,11 +784,14 @@ const Snd = {
 
       // --- her theme: a recurring, prominent melodic line unique to the
       // story run, so a long attempt has something to hold onto besides
-      // the combat layers underneath it
-      if(M.story && M.step % 32 === 0){
+      // the combat layers underneath it — recurs twice as often, and a
+      // little louder, by the time you're close to level 100
+      const themeEvery = M.story ? Math.round(32 - M.progress*16) : 32;
+      if(M.story && themeEvery>0 && M.step % themeEvery === 0){
+        const themeVol = (M.boss? .16 : .14) + M.progress*.05;
         M.momTheme.forEach((f,i)=>{
-          this.at(f, spb*4.4, 'triangle', M.boss? .16 : .14, t + i*spb*4, null, -3);
-          this.at(f/2, spb*4.4, 'sine', .07, t + i*spb*4);
+          this.at(f, spb*4.4, 'triangle', themeVol, t + i*spb*4, null, -3);
+          this.at(f/2, spb*4.4, 'sine', .07+M.progress*.02, t + i*spb*4);
           this.at(f*2, spb*4.4, 'sine', .035, t + i*spb*4);
         });
       }
