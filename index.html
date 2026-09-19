@@ -666,6 +666,7 @@ const Snd = {
       this.master = this.ctx.createGain(); this.master.gain.value = .5; this.master.connect(this.ctx.destination);
       this.sfxGain = this.ctx.createGain(); this.sfxGain.gain.value = save.opt.sfx ? 1 : 0; this.sfxGain.connect(this.master);
       this.musGain = this.ctx.createGain(); this.musGain.gain.value = save.opt.mus ? .32 : 0; this.musGain.connect(this.master);
+      this._musBase = save.opt.mus ? .32 : 0;
       this.ready = true; this.startMusic();
     }catch(e){}
   },
@@ -690,8 +691,12 @@ const Snd = {
     const g = c.createGain(); g.gain.setValueAtTime(vol||.22,t); g.gain.exponentialRampToValueAtTime(.001,t+d);
     s.connect(f); f.connect(g); g.connect(this.sfxGain); s.start(t);
   },
-  shoot(){ this.tone(660, .06, 'square', .05, 300); },
-  hit(){ this.tone(rnd(300,420), .045, 'square', .045, 160); },
+  // both pushed down to near-null — these fire constantly (every shot,
+  // every enemy hit) and were quietly dominating the mix over both the
+  // music and the quotes just by sheer repetition, even at their old
+  // already-low per-call volumes
+  shoot(){ this.tone(660, .06, 'square', .012, 300); },
+  hit(){ this.tone(rnd(300,420), .045, 'square', .01, 160); },
   kill(n){ this.noise(.1, .1, 2000); this.ladder(n||0); },
   boom(){ this.noise(.36, .3, 2600); this.tone(90, .32, 'sine', .2, 35); },
   gem(){ this.tone(rnd(900,1250), .05, 'triangle', .05, 1500); },
@@ -838,24 +843,31 @@ const Snd = {
     }catch(e){}
   },
   setSfx(v){ save.opt.sfx = v?1:0; if(this.sfxGain) this.sfxGain.gain.value = v?1:0; persist(); },
-  setMus(v){ save.opt.mus = v?1:0; if(this.musGain) this.musGain.gain.value = v?.32:0; persist(); },
+  setMus(v){ save.opt.mus = v?1:0; this._musBase = v?.32:0; if(this.musGain) this.musGain.gain.value = this._musBase; persist(); },
   /* the TTS voice plays through the OS audio pipeline, completely
      outside this game's Web Audio graph — our own volume sliders can't
      touch it, so the only way to make it stand out over the score is to
-     duck the score itself while a line is actually being spoken */
-  _ducked:false, _duckPrev:.32,
+     duck the score itself while a line is actually being spoken.
+     Ducks/restores are always relative to _musBase (the last
+     intentionally-set volume), never to the gain node's live value —
+     with quotes now playing back-to-back with ~0 gap, reading the live
+     value here used to be a real bug: a duck-then-immediately-duck-again
+     would capture a value from mid-ramp-back-up (still near the ducked
+     floor) as the new "previous" baseline, compounding lower and lower
+     across dozens of quotes until the music was effectively silent. */
+  _ducked:false, _musBase:.32,
   duckMusic(on, depth){
     if(!this.ready || !this.musGain) return;
     const g = this.musGain.gain, t = this.ctx.currentTime;
     try{
       if(on){
         if(this._ducked) return;
-        this._duckPrev = g.value; this._ducked = true;
-        g.cancelScheduledValues(t); g.setTargetAtTime(this._duckPrev*(depth!=null?depth:.16), t, .08);
+        this._ducked = true;
+        g.cancelScheduledValues(t); g.setTargetAtTime(this._musBase*(depth!=null?depth:.16), t, .08);
       } else {
         if(!this._ducked) return;
         this._ducked = false;
-        g.cancelScheduledValues(t); g.setTargetAtTime(this._duckPrev, t, .3);
+        g.cancelScheduledValues(t); g.setTargetAtTime(this._musBase, t, .3);
       }
     }catch(e){}
   },
@@ -867,6 +879,7 @@ const Snd = {
     if(!this.ready || !this.musGain || !save.opt.mus) return;
     try{
       const t = this.ctx.currentTime;
+      this._musBase = .5;
       this.musGain.gain.cancelScheduledValues(t);
       this.musGain.gain.setValueAtTime(.02, t);
       this.musGain.gain.setTargetAtTime(.5, t, 1.1);
@@ -4355,12 +4368,14 @@ function triggerMilestoneQuote(){
   // higher 'you' voice or even the regular documentary narrator
   const utter = speakLine({ speaker:'', cls:'god', text });
   if(utter){
-    // barely ducked — the song stays in the background for the whole
-    // match, the same volume the whole time, never dropping low enough
-    // to read as quiet or stopped. The line itself carries clarity through
-    // its low, deliberate "god voice" register and full TTS volume, not
-    // by silencing the music underneath it
-    Snd.duckMusic(true, .75);
+    // ducked to a third of baseline — enough that the line clearly reads
+    // as louder than the music, without the old bug where reading the
+    // live (mid-transition) gain value on every rapid re-duck compounded
+    // the volume down toward silence over a run's worth of back-to-back
+    // quotes. duckMusic() now always ducks from/restores to the stable
+    // _musBase, so the piano is guaranteed to still be there between
+    // lines, just clearly quieter while one is playing
+    Snd.duckMusic(true, .35);
     utter.onend = finish;
     utter.onerror = finish;
     // stays on screen for exactly as long as the voice takes to say it,
@@ -5077,7 +5092,7 @@ function _beginRunNow(){
   Snd.master && (Snd.master.gain.value = isStoryMode() ? .92 : .5); // her theme deserves to actually be heard — loud, unmistakable
   if(Snd.musGain){
     if(isStoryMode()) Snd.swellInMusic();
-    else Snd.musGain.gain.value = save.opt.mus ? .32 : 0;
+    else { Snd._musBase = save.opt.mus ? .32 : 0; Snd.musGain.gain.value = Snd._musBase; }
   }
   spawnHazards();
   G.freeRevives = G.mode==='hardcore' ? 0 : G.mode==='easy' ? 1 : save.meta.rev;
