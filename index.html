@@ -120,8 +120,7 @@ h2.tt{font:900 20px/1 var(--f1);letter-spacing:2px;margin-bottom:12px;text-align
   background:linear-gradient(90deg,var(--cy),var(--mg));-webkit-background-clip:text;background-clip:text;color:transparent}
 .sub{font:600 10px/1 var(--f2);letter-spacing:2.5px;color:var(--dim);text-align:center;margin-bottom:12px}
 
-/* level up cards */
-#lvlScreen{background:radial-gradient(ellipse at 50% 40%,rgba(139,92,255,.3),rgba(5,6,13,.93) 70%)}
+/* reward cards (chest reveal) */
 .cards{display:flex;flex-direction:column;gap:11px;width:100%;max-width:440px}
 .card{pointer-events:auto;cursor:pointer;display:flex;gap:13px;align-items:center;padding:13px;border-radius:15px;
   background:linear-gradient(135deg,rgba(28,34,62,.95),rgba(14,18,38,.95));border:1px solid var(--line);
@@ -390,17 +389,6 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   </div>
 </div>
 
-<!-- LEVEL UP -->
-<div class="screen hidden" id="lvlScreen">
-  <h2 class="tt" id="lvlTitle">LEVEL UP</h2>
-  <div class="sub">CHOOSE YOUR POWER</div>
-  <div class="cards" id="cardHost"></div>
-  <div class="row" style="margin-top:13px;max-width:440px">
-    <button class="btn ghost" id="rerollBtn">⟳ REROLL (<span id="rerollN">0</span>)</button>
-    <button class="btn ad" id="adRerollBtn">▶ +2 REROLL</button>
-  </div>
-</div>
-
 <!-- CHEST -->
 <div class="screen hidden" id="chestScreen">
   <div id="chestIcon" style="font-size:78px;animation:bob 1s ease-in-out infinite">🎁</div>
@@ -559,7 +547,7 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
     <button class="btn ghost" id="qualityBtn">◨ GRAPHICS: AUTO</button>
     <div class="hintrow" style="margin:2px 0 0">AUTO watches your device's speed and turns down effects on its own if things start to chug — pick a fixed level if you'd rather choose yourself.</div>
     <button class="btn ghost hidden" id="voiceBtn">🔊 CUTSCENE VOICE: ON</button>
-    <div class="hintrow hidden" id="voiceHint" style="margin:2px 0 0">Your device's own built-in narrator reads the cutscene lines out loud — a real synthetic voice, not a recording, so it won't sound like a professional actor.</div>
+    <div class="hintrow hidden" id="voiceHint" style="margin:2px 0 0">Your device's own built-in narrator reads the cutscene lines out loud, timed to the on-screen text, with a lighter voice for her and a deep one for him where your device has one installed — a real synthetic voice, not a recording, so it won't sound like a professional actor.</div>
     <button class="btn ghost" id="otherModesBtn">🎮 OTHER MODES &amp; ARENAS</button>
     <button class="btn ghost hidden" id="rewatchIntroBtn">🎬 REWATCH: THE BEGINNING</button>
     <button class="btn ghost hidden" id="rewatchEndBtn">🎬 REWATCH: SHE'S FREE</button>
@@ -1439,7 +1427,7 @@ const CHARS = [
   { id:'saber', n:'SABER', e:'✧', w:'orbit',   price:1500,  d:'Fast & fragile. +22% speed.',     hp:-20,dmg:1.05, spd:1.22, cd:1,   extra:{}, ship:'star6', sc:'#b6ff3c' },
   { id:'cryo',  n:'CRYO',  e:'❄', w:'nova',    price:3500,  d:'+25% area, +30 HP, slower.',      hp:30, dmg:1,    spd:.93,  cd:1,   extra:{area:.25}, ship:6, sc:'#7fd6ff' },
   { id:'hex',   n:'HEX',   e:'◍', w:'hole',    price:7000,  d:'+25% luck, +15% XP. Glass build.',hp:-15,dmg:1,    spd:1.05, cd:1,   extra:{luck:.25,xp:.15}, ship:'kite', sc:'#c47bff' },
-  { id:'omega', n:'OMEGA', e:'☠', w:'laser',   price:15000, d:'+30% damage, +3 free rerolls.', hp:10, dmg:1.3,  spd:1,    cd:1,   extra:{rerolls:3}, ship:'burst', sc:'#ff3b5c' },
+  { id:'omega', n:'OMEGA', e:'☠', w:'laser',   price:15000, d:'+30% damage, always finds the strongest power on level-up.', hp:10, dmg:1.3,  spd:1,    cd:1,   extra:{rerolls:3}, ship:'burst', sc:'#ff3b5c' },
   { id:'tesla',   n:'TESLA',   e:'☇', w:'chain', price:25000, d:'+15% crit chance. Lightning specialist.',        hp:-10, dmg:1.1,  spd:1,    cd:1,  extra:{crit:.15}, ship:'star8', sc:'#8b5cff' },
   { id:'vesper',  n:'VESPER',  e:'➹', w:'swarm', price:32000, d:'+2 extra projectiles, always swarming.',         hp:0,   dmg:1,    spd:1.05, cd:.92,extra:{multi:2}, ship:'wings', sc:'#ff2fb9' },
   { id:'warden',  n:'WARDEN',  e:'⛨', w:'mine',  price:40000, d:'+50 HP, +3 flat armor. Slow but unkillable.',    hp:50,  dmg:1,    spd:.85,  cd:1,  extra:{armorFlat:3}, ship:8, sc:'#ffb020' },
@@ -1684,7 +1672,6 @@ addEventListener('keydown', e=>{
   if(e.key===' ' && G.state==='PLAY'){ fireUltimate(); }
   if(e.key==='Enter'){
     if(Cutscene.playing){ Cutscene.skip(); }
-    else if(G.state==='LVL'){ const c = document.querySelector('#cardHost .card'); if(c) c.click(); }
     else if(G.state==='CHEST'){ $('chestOk').click(); }
   }
   Snd.init(); Snd.resume();
@@ -2739,7 +2726,7 @@ function gainXP(v){
     if(P.level > (save.maxLevel||0)){ save.maxLevel = P.level; }
   }
   if(story) checkStoryMilestones();
-  if(G.pendingLevels>0 && G.state==='PLAY') openLevelUp();
+  if(G.pendingLevels>0 && G.state==='PLAY') autoLevelUp();
 }
 function announce(txt,color){
   const a = $('announce'); a.textContent = txt; a.style.color = color||'#fff';
@@ -3192,7 +3179,6 @@ function toast(title, body, color){
 }
 
 /* ---------------- 21. LEVEL UP ---------------- */
-let curOffers = [];
 function buildOffers(n){
   const pool = [];
   const weps = P.wep;
@@ -3252,30 +3238,26 @@ function applyOffer(o){
   toast(d.nm, d.lv, `linear-gradient(135deg,${d.col},rgba(255,255,255,.15))`);
   dnum(P.x, P.y-P.r-30, 0, false, d.col, '+ '+d.nm);
 }
-function openLevelUp(){
-  G.state='LVL'; Snd.lvl(); Snd.sweep(true); Ads.happy();
-  setTheme(P.level, true); zoomKick(1.13); shake(4); Ads.gameplayStop();
-  const xw=$('xpwrap'); xw.classList.remove('pop'); void xw.offsetWidth; xw.classList.add('pop');
-  $('lvlTitle').textContent = 'LEVEL ' + P.level;
-  $('rerollN').textContent = G.rerolls;
-  $('rerollBtn').disabled = G.rerolls<=0;
-  curOffers = buildOffers(3 + (P.luck>.3?1:0));
-  drawCards($('cardHost'), curOffers, o=>{ applyOffer(o); closeLevelUp(); });
-  show('lvlScreen');
+/* No more a level-up screen to stop and choose from — the power is
+   just added. G.rerolls (still granted per-character, e.g. Omega's +3)
+   is repurposed as "how many options get rolled and the best one kept"
+   instead of "how many times you may reroll a shown hand". */
+function autoLevelUp(){
+  while(G.pendingLevels>0){
+    G.pendingLevels--;
+    Snd.lvl(); Snd.sweep(true); Ads.happy();
+    setTheme(P.level, true); zoomKick(1.08); shake(3);
+    const xw=$('xpwrap'); xw.classList.remove('pop'); void xw.offsetWidth; xw.classList.add('pop');
+    const rollN = Math.max(1, G.rerolls||1);
+    const offers = buildOffers(rollN);
+    const rank = o => o.rare==='epic' ? 2 : o.rare==='rare' ? 1 : 0;
+    let best = offers[0];
+    for(const o of offers) if(rank(o) > rank(best)) best = o;
+    applyOffer(best);
+  }
+  if(G.chestQ>0){ G.chestQ--; openChest(); return true; }
+  return false;
 }
-function closeLevelUp(){
-  hide('lvlScreen');
-  G.pendingLevels--;
-  if(G.pendingLevels>0){ setTimeout(openLevelUp, 90); return; }
-  if(G.chestQ>0){ G.chestQ--; openChest(); return; }
-  G.state='PLAY'; last=0; acc=0; Ads.gameplayStart();
-}
-$('rerollBtn').onclick = ()=>{ if(G.rerolls<=0) return; G.rerolls--; Snd.click();
-  $('rerollN').textContent=G.rerolls; $('rerollBtn').disabled=G.rerolls<=0;
-  curOffers = buildOffers(3 + (P.luck>.3?1:0));
-  drawCards($('cardHost'), curOffers, o=>{ applyOffer(o); closeLevelUp(); }); };
-$('adRerollBtn').onclick = ()=> Ads.rewarded('+2 rerolls', ok=>{ if(!ok) return;
-  G.rerolls+=2; $('rerollN').textContent=G.rerolls; $('rerollBtn').disabled=false; toast('REWARD','+2 rerolls added'); });
 
 /* ---------------- 22. CHEST ---------------- */
 const CHEST_TIERS = [
@@ -3299,14 +3281,14 @@ function openChest(){
   show('chestScreen');
 }
 $('chestOk').onclick = ()=>{ Snd.click(); hide('chestScreen');
-  if(G.pendingLevels>0){ openLevelUp(); return; }
+  if(G.pendingLevels>0 && autoLevelUp()) return;
   if(G.chestQ>0){ G.chestQ--; openChest(); return; }
   G.state='PLAY'; last=0; acc=0; Ads.gameplayStart(); };
 
 /* ---------------- 23. SCREEN HELPERS ---------------- */
 function show(id){ $(id).classList.remove('hidden'); }
 function hide(id){ $(id).classList.add('hidden'); }
-const SCREENS = ['menuScreen','modeScreen','dailyScreen','lvlScreen','chestScreen','pauseScreen','overScreen','reviveScreen','shopScreen','heroScreen','achScreen','statsScreen'];
+const SCREENS = ['menuScreen','modeScreen','dailyScreen','chestScreen','pauseScreen','overScreen','reviveScreen','shopScreen','heroScreen','achScreen','statsScreen'];
 function hideAll(){ SCREENS.forEach(hide); }
 
 /* ---------------- 23b. STORY: "SAVE HER" ----------------
@@ -3476,18 +3458,41 @@ const STORY = {
    device and browser, and it will never sound like a human actor. Off
    by default is not an option here since the request was for it to be
    on; it's a one-tap toggle in Settings for anyone who'd rather not. */
+const VoiceCache = { list: [], ready:false };
+function refreshVoices(){ if(window.speechSynthesis){ VoiceCache.list = speechSynthesis.getVoices()||[]; VoiceCache.ready = VoiceCache.list.length>0; } }
+if(window.speechSynthesis){ refreshVoices(); speechSynthesis.onvoiceschanged = refreshVoices; }
+/* best-effort only: the Web Speech API exposes a voice name and language,
+   never an actual gender field, so this is a name-pattern heuristic —
+   it finds a plausibly female/male-sounding voice where one exists, but
+   on a device with only one or two generic voices installed, there may
+   be nothing suitable to pick and the default voice is used instead. */
+function pickVoiceFor(wantsFemale){
+  if(!VoiceCache.list.length) return null;
+  const femaleHints = /female|zira|samantha|victoria|susan|karen|moira|tessa|fiona|kate|serena|allison|ava|emma|joanna|salli|kimberly|amy|siri|google us english$/i;
+  const maleHints = /male|david|daniel|alex|fred|george|james|oliver|arthur|eric|guy|mark|tom|google uk english male/i;
+  const hints = wantsFemale ? femaleHints : maleHints;
+  return VoiceCache.list.find(v=>hints.test(v.name)) || null;
+}
 function speakLine(line){
-  if(!window.speechSynthesis || !save.opt.voice || !line || !line.text) return;
+  if(!window.speechSynthesis || !save.opt.voice || !line || !line.text) return null;
   try{
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(line.text);
-    if(line.cls==='mom'){ u.pitch=1.3; u.rate=.92; }
-    else if(line.cls==='boss'){ u.pitch=.55; u.rate=.86; }
-    else if(line.cls==='you'){ u.pitch=1.0; u.rate=.98; }
+    // pitch/rate track the line's own mood/shake, not just who's speaking,
+    // so a frightened line and a joyful line from the same character
+    // actually sound different from each other
+    if(line.cls==='mom'){
+      u.pitch = line.mood==='joy' ? 1.28 : 1.42; u.rate = line.mood==='joy' ? .95 : 1.05;
+      try{ const v = pickVoiceFor(true); if(v) u.voice = v; }catch(e){}
+    } else if(line.cls==='boss'){
+      u.pitch = line.shake ? .38 : .48; u.rate = line.shake ? .8 : .87;
+      try{ const v = pickVoiceFor(false); if(v) u.voice = v; }catch(e){}
+    } else if(line.cls==='you'){ u.pitch=1.0; u.rate = line.shake ? 1.04 : .98; }
     else { u.pitch=.95; u.rate=.9; }
     u.volume=1;
     speechSynthesis.speak(u);
-  }catch(e){}
+    return u;
+  }catch(e){ return null; }
 }
 const Cutscene = {
   cv:null, c2:null, playing:false, script:null, idx:-1, onDone:null, t0:0, curLine:null,
@@ -3518,23 +3523,75 @@ const Cutscene = {
     $('csVignette').className = (line.dark?'dark':'') + (line.shake?' rage':'');
     if(line.shake) shake(10);
     if(line.art==='title') Snd.swell(line.dark);
-    speakLine(line);
     $('csSpeaker').textContent = line.speaker||''; $('csSpeaker').className = line.cls||'';
     const el = $('csText'); el.innerHTML='';
     const chars = Array.from(line.text);
     chars.forEach(ch=>{ const sp=document.createElement('span'); sp.className='car'; sp.textContent = ch===' '?' ':ch; el.appendChild(sp); });
-    let i=0; clearInterval(this._typeIV); clearTimeout(this._waitT);
-    this._typeIV = setInterval(()=>{
-      if(i>=chars.length){ clearInterval(this._typeIV);
-        this._waitT = setTimeout(()=>this._advance(), line.hold||1400); return; }
-      el.children[i].classList.add('on');
-      if(chars[i]!==' ' && (i%2===0)) Snd.blip();
-      i++;
-    }, line.fast ? 12 : line.art==='title' ? 55 : 26);
+    clearInterval(this._typeIV); clearTimeout(this._waitT);
+    // a generation token: speakLine() cancels any still-playing utterance
+    // from the previous line, but a cancelled utterance can still fire its
+    // own onend/onerror afterward in some browsers — without this check
+    // that stray callback would call _advance() a second time and skip
+    // the line that just started
+    const gen = (this._speakGen = (this._speakGen||0) + 1);
+    const utter = speakLine(line);
+    if(utter){
+      // voice-driven sync: reveal on an estimated per-line pace (word
+      // count over the utterance's own rate), corrected live wherever the
+      // engine actually reports word boundaries, and finalized only when
+      // the browser confirms speech really has finished
+      const words = Math.max(1, line.text.trim().split(/\s+/).length);
+      const estMs = Math.max(600, (words/(2.6*utter.rate))*1000);
+      const stepMs = clamp(estMs/chars.length, 14, 85);
+      let i=0;
+      this._typeIV = setInterval(()=>{
+        if(i>=chars.length){ clearInterval(this._typeIV); return; }
+        if(el.children[i]) el.children[i].classList.add('on'); i++;
+      }, stepMs);
+      // a device that reports having speech synthesis but whose engine
+      // never actually calls back (silent/broken TTS, some sandboxed or
+      // headless environments) would otherwise stall the cutscene here
+      // forever — this bounds the wait so it always moves on eventually
+      clearTimeout(this._voiceFallbackT);
+      this._voiceFallbackT = setTimeout(()=>{
+        if(!this.playing || gen!==this._speakGen) return;
+        clearInterval(this._typeIV);
+        for(const sp of el.children) sp.classList.add('on');
+        this._advance();
+      }, estMs + 3000);
+      utter.onboundary = (ev)=>{
+        if(!this.playing || gen!==this._speakGen || typeof ev.charIndex!=='number') return;
+        i = Math.max(i, Math.min(chars.length, ev.charIndex));
+        for(let k=0;k<i;k++) if(el.children[k]) el.children[k].classList.add('on');
+      };
+      utter.onend = ()=>{
+        if(!this.playing || gen!==this._speakGen) return;
+        clearTimeout(this._voiceFallbackT);
+        clearInterval(this._typeIV);
+        for(const sp of el.children) sp.classList.add('on');
+        this._waitT = setTimeout(()=>this._advance(), 380);
+      };
+      utter.onerror = ()=>{
+        if(!this.playing || gen!==this._speakGen) return;
+        clearTimeout(this._voiceFallbackT);
+        clearInterval(this._typeIV);
+        for(const sp of el.children) sp.classList.add('on');
+        this._waitT = setTimeout(()=>this._advance(), line.hold||1400);
+      };
+    } else {
+      let i=0;
+      this._typeIV = setInterval(()=>{
+        if(i>=chars.length){ clearInterval(this._typeIV);
+          this._waitT = setTimeout(()=>this._advance(), line.hold||1400); return; }
+        el.children[i].classList.add('on');
+        if(chars[i]!==' ' && (i%2===0)) Snd.blip();
+        i++;
+      }, line.fast ? 12 : line.art==='title' ? 55 : 26);
+    }
   },
   skip(){ this._end(); },
   _end(){
-    clearInterval(this._typeIV); clearTimeout(this._waitT);
+    clearInterval(this._typeIV); clearTimeout(this._waitT); clearTimeout(this._voiceFallbackT);
     this.playing=false; hide('cutscene'); $('csVignette').className='';
     if(window.speechSynthesis) speechSynthesis.cancel();
     Snd.stopCutsceneMusic();
