@@ -286,6 +286,20 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
 .pickchip .nm{font:900 11.5px/1 var(--f1);letter-spacing:.8px}
 .pickchip .ds{font:600 9.5px/1.3 var(--f2);color:var(--dim);margin-top:4px}
 
+/* ---- MODES: 20 cinematic deployment cards ---- */
+.modecard{pointer-events:auto;cursor:pointer;display:flex;gap:12px;align-items:center;padding:12px 13px;border-radius:14px;
+  background:linear-gradient(135deg,rgba(255,255,255,.045),rgba(255,255,255,.015));border:1px solid var(--line);
+  border-left:3px solid var(--mc,var(--line));transition:transform .12s,border-color .15s,box-shadow .15s}
+.modecard:active{transform:scale(.98)}
+.modecard.on{border-color:var(--mc,var(--cy));box-shadow:0 0 22px -4px var(--mc,var(--cy));background:linear-gradient(135deg,rgba(38,240,255,.1),rgba(255,255,255,.02))}
+.modecard .ic{width:44px;height:44px;flex:0 0 44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:21px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.modecard .gr{flex:1;min-width:0}
+.modecard .hd{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.modecard .nm{font:900 12.5px/1 var(--f1);letter-spacing:.6px}
+.modecard .tag{font:800 8px/1 var(--f1);letter-spacing:1px;padding:3px 6px;border-radius:5px;background:var(--mc,var(--vi));color:#03060f}
+.modecard .ds{font:600 10.5px/1.35 var(--f2);color:var(--dim);margin-top:4px}
+.modecard .stars{font-size:9px;letter-spacing:1px;color:var(--or);margin-top:4px}
+
 /* ---- boss telegraph warning ---- */
 #bosstele{position:absolute;inset:0;pointer-events:none;z-index:4;box-shadow:inset 0 0 0 0 rgba(255,0,60,0);transition:box-shadow .15s}
 #bosstele.on{box-shadow:inset 0 0 140px 20px rgba(255,20,60,.55);animation:telewarn .35s ease-in-out infinite}
@@ -348,7 +362,7 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   <div class="tag">SURVIVE · STACK · BREAK THE SCORE</div>
   <div class="col">
     <button class="btn play" id="playBtn">▶ PLAY</button>
-    <button class="btn easy" id="easyPlayBtn">🌈 EASY PLAY <small>for young / new players — 1 tap, no menus</small></button>
+    <button class="btn easy" id="modesBtn">🎬 MODES <small>20 ways to play — pick your arena, pick your rules</small></button>
     <div class="row">
       <button class="btn ghost" id="shopBtn">⚡ UPGRADES</button>
       <button class="btn ghost" id="heroBtn">☗ REAPERS</button>
@@ -368,15 +382,13 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   <div class="hintrow">It's simple: drag or <kbd>WASD</kbd> to move — your weapons fire themselves. <kbd>SPACE</kbd> = your power. <kbd>ENTER</kbd> = confirm / skip. <kbd>P</kbd> = pause.</div>
 </div>
 
-<!-- MODE / ARENA SELECT -->
+<!-- MODES: 20 curated presets, each its own rules + arena -->
 <div class="screen hidden" id="modeScreen">
   <div class="backb" id="modeBack">‹ BACK</div>
-  <h2 class="tt" style="margin-top:56px">DEPLOY</h2>
-  <div class="sub">CHOOSE YOUR MODE</div>
-  <div class="chiprow" id="modeChips"></div>
-  <div class="sub">CHOOSE YOUR ARENA</div>
-  <div class="chiprow" id="arenaChips"></div>
-  <button class="btn play" id="modeStartBtn" style="max-width:340px">▶ DROP IN</button>
+  <h2 class="tt" style="margin-top:56px">CHOOSE YOUR DEPLOYMENT</h2>
+  <div class="sub">20 WAYS TO PLAY · TAP ONE TO SELECT</div>
+  <div class="list" id="modeList" style="max-width:520px;max-height:54vh"></div>
+  <button class="btn play" id="modeStartBtn" style="max-width:340px;margin-top:14px">▶ DROP IN</button>
 </div>
 
 <!-- DAILY -->
@@ -548,7 +560,6 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
     <div class="hintrow" style="margin:2px 0 0">AUTO watches your device's speed and turns down effects on its own if things start to chug — pick a fixed level if you'd rather choose yourself.</div>
     <button class="btn ghost hidden" id="voiceBtn">🔊 CUTSCENE VOICE: ON</button>
     <div class="hintrow hidden" id="voiceHint" style="margin:2px 0 0">Your device's own built-in narrator reads the cutscene lines out loud, timed to the on-screen text, with a lighter voice for her and a deep one for him where your device has one installed — a real synthetic voice, not a recording, so it won't sound like a professional actor.</div>
-    <button class="btn ghost" id="otherModesBtn">🎮 OTHER MODES &amp; ARENAS</button>
     <button class="btn ghost hidden" id="rewatchIntroBtn">🎬 REWATCH: THE BEGINNING</button>
     <button class="btn ghost hidden" id="rewatchEndBtn">🎬 REWATCH: SHE'S FREE</button>
     <button class="btn ghost" id="wipeBtn" style="color:var(--rd)">⌫ RESET ALL DATA</button>
@@ -782,18 +793,21 @@ const Snd = {
       // --- boss drone
       if(M.boss && s===0) this.at(root*.5, spb*15, 'sawtooth', .07, t, null, 11);
 
-      // --- her theme: a recurring, prominent melodic line unique to the
-      // story run, so a long attempt has something to hold onto besides
-      // the combat layers underneath it — recurs twice as often, and a
-      // little louder, by the time you're close to level 100
-      const themeEvery = M.story ? Math.round(32 - M.progress*16) : 32;
-      if(M.story && themeEvery>0 && M.step % themeEvery === 0){
-        const themeVol = (M.boss? .16 : .14) + M.progress*.05;
-        M.momTheme.forEach((f,i)=>{
-          this.at(f, spb*4.4, 'triangle', themeVol, t + i*spb*4, null, -3);
-          this.at(f/2, spb*4.4, 'sine', .07+M.progress*.02, t + i*spb*4);
-          this.at(f*2, spb*4.4, 'sine', .035, t + i*spb*4);
-        });
+      // --- her theme: a PERMANENT melodic through-line for the entire
+      // story run, not an occasional callback — one note of the phrase
+      // plays every single bar, forever, cycling through the 7-note loop
+      // continuously, so it's always audible from the first second to
+      // level 100, loud enough to carry over the rest of the mix, and
+      // swelling louder and thicker (a harmony joins past the midpoint)
+      // the closer the run gets to the end
+      if(M.story && s===0){
+        M._themeIdx = (M._themeIdx===undefined) ? 0 : (M._themeIdx+1) % M.momTheme.length;
+        const f = M.momTheme[M._themeIdx];
+        const themeVol = .24 + M.progress*.16;
+        this.at(f, spb*13, 'triangle', themeVol, t, null, -3);
+        this.at(f/2, spb*13, 'sine', .12+M.progress*.06, t);
+        this.at(f*2, spb*13, 'sine', .06+M.progress*.03, t);
+        if(M.progress>.5) this.at(f*1.5, spb*13, 'sine', .05+M.progress*.04, t, null, 5);
       }
 
       M.next += spb; M.step++;
@@ -844,6 +858,56 @@ const Snd = {
         g.cancelScheduledValues(t); g.setTargetAtTime(this._duckPrev, t, .3);
       }
     }catch(e){}
+  },
+  /* the cinematic fade-in right as the intro finishes on "SAVE HER." —
+     starts near silent and swells up to the full story-mode level over
+     about a second, instead of the theme just cutting in abruptly the
+     instant the cutscene ends */
+  swellInMusic(){
+    if(!this.ready || !this.musGain || !save.opt.mus) return;
+    try{
+      const t = this.ctx.currentTime;
+      this.musGain.gain.cancelScheduledValues(t);
+      this.musGain.gain.setValueAtTime(.02, t);
+      this.musGain.gain.setTargetAtTime(.5, t, 1.1);
+    }catch(e){}
+  },
+  /* a real musical "moment" the instant the final battle actually
+     opens (level 100 + 50 bosses) — not just louder combat music, a
+     distinct minor-key fanfare stinger layered on top */
+  finalGateSting(){
+    if(!this.ready || !save.opt.mus) return;
+    const t=this.ctx.currentTime;
+    [[174.6,1],[207.65,1],[261.63,1],[311.13,1.4]].forEach(([f,d],i)=>{
+      this.at(f, d, 'sawtooth', .22, t+i*.16, null, i*4-6);
+      this.at(f/2, d, 'sine', .12, t+i*.16);
+    });
+  },
+  /* the score itself breaks, every single time she is lost — a slow,
+     falling, unresolved phrase instead of the driving theme, so death
+     in story mode is felt musically, not just read as a title card */
+  griefSting(){
+    if(!this.ready || !save.opt.mus) return;
+    const t=this.ctx.currentTime;
+    const fall=[493.88,440,392,349.23,293.66];
+    fall.forEach((f,i)=>{
+      this.at(f, 1.8, 'triangle', .16, t+i*.42, f*.55, -4);
+      this.at(f/2, 1.8, 'sine', .09, t+i*.42);
+    });
+    if(this.musGain){
+      try{ this.musGain.gain.cancelScheduledValues(t); this.musGain.gain.setTargetAtTime(.06, t, .6); }catch(e){}
+    }
+  },
+  /* the reverse of griefSting — the score actually resolves and warms
+     the instant she's free, instead of just continuing to climb */
+  joySting(){
+    if(!this.ready || !save.opt.mus) return;
+    const t=this.ctx.currentTime;
+    const rise=[349.23,440,523.25,659.25,783.99];
+    rise.forEach((f,i)=>{
+      this.at(f, 1.4, 'triangle', .18, t+i*.16, null, i*3);
+      this.at(f/2, 1.4, 'sine', .1, t+i*.16);
+    });
   },
 
   /* ---- cutscene score: a slow, sparse minor-key piano+pad cue.
@@ -1852,6 +1916,55 @@ const ARENAS = [
   { id:'void',  n:'VOID RIFT',      i:'◍', theme:7, hazard:'gravity', d:'Gravity wells drag you off course.' },
   { id:'swamp', n:'TOXIC SWAMP',    i:'☣', theme:4, hazard:'poison',  d:'Poison bogs sap HP the longer you linger.' },
   { id:'storm', n:'STORM ZONE',     i:'⚡', theme:6, hazard:'storm',   d:'Lightning strikes telegraphed danger zones.' }
+];
+/* 20 curated deployments — every one is a real, distinct mode+arena
+   combination already backed by working rules (not 20 separate
+   simulations bolted on top): the base ruleset (story pacing, boss
+   cadence, revive rules, score bonus) genuinely differs by MODES id,
+   and the arena genuinely changes the hazard you're fighting through
+   and the visual theme, so each card plays and looks different, not
+   just reads different. */
+const PRESETS = [
+  { id:'save', n:'SAVE HER', i:'💔', mode:'classic', arena:'grid', tag:'STORY', stars:3,
+    d:'Where it all began. The full story, exactly as it was meant to be told.' },
+  { id:'save_ice', n:'SAVE HER: FROZEN WASTES', i:'💔', mode:'classic', arena:'ice', tag:'STORY', stars:4,
+    d:'The same eleven-year promise. Every step now costs you your footing.' },
+  { id:'save_lava', n:'SAVE HER: INFERNO CORE', i:'💔', mode:'classic', arena:'lava', tag:'STORY', stars:4,
+    d:'The same fifty bosses, kept honest by molten ground the whole way.' },
+  { id:'save_void', n:'SAVE HER: VOID RIFT', i:'💔', mode:'classic', arena:'void', tag:'STORY', stars:4,
+    d:'The same doorway waiting for him — and now gravity fights him too.' },
+  { id:'save_swamp', n:'SAVE HER: TOXIC SWAMP', i:'💔', mode:'classic', arena:'swamp', tag:'STORY', stars:4,
+    d:'The same climb to level 100, poisoned at every turn.' },
+  { id:'save_storm', n:'SAVE HER: STORM ZONE', i:'💔', mode:'classic', arena:'storm', tag:'STORY', stars:5,
+    d:'The night he lost her, replaying under a sky that never stops striking.' },
+  { id:'first', n:'FIRST LIGHT', i:'🌈', mode:'easy', arena:'grid', tag:'GENTLE', stars:1,
+    d:'A gentler Save Her. Built for a first try, or a young player on your lap.' },
+  { id:'first_ice', n:'FIRST LIGHT: CALM ICE', i:'🌈', mode:'easy', arena:'ice', tag:'GENTLE', stars:1,
+    d:'The gentle story, with a light, forgiving chill in the air.' },
+  { id:'first_swamp', n:'FIRST LIGHT: QUIET SWAMP', i:'🌈', mode:'easy', arena:'swamp', tag:'GENTLE', stars:2,
+    d:'The gentle story, with just enough poison to keep you moving.' },
+  { id:'first_storm', n:'FIRST LIGHT: SOFT STORM', i:'🌈', mode:'easy', arena:'storm', tag:'GENTLE', stars:2,
+    d:'The gentle story, under a storm that telegraphs everything early.' },
+  { id:'rush', n:'BOSS RUSH', i:'☠', mode:'bossrush', arena:'grid', tag:'ARCADE', stars:3,
+    d:'No story, no waiting. Bosses back to back, starting at 0:20.' },
+  { id:'rush_lava', n:'BOSS RUSH: MOLTEN GAUNTLET', i:'☠', mode:'bossrush', arena:'lava', tag:'ARCADE', stars:4,
+    d:'The bossrush cadence, fought across ground that’s actively trying to kill you too.' },
+  { id:'rush_storm', n:'BOSS RUSH: STORMFRONT', i:'☠', mode:'bossrush', arena:'storm', tag:'ARCADE', stars:4,
+    d:'Bosses on a stopwatch, lightning on its own.' },
+  { id:'rush_void', n:'BOSS RUSH: THE VOID MARCH', i:'☠', mode:'bossrush', arena:'void', tag:'ARCADE', stars:5,
+    d:'Rapid-fire bosses while gravity wells drag your dodges off course.' },
+  { id:'timea', n:'TIME ATTACK', i:'⏱', mode:'timeattack', arena:'grid', tag:'SPRINT', stars:3,
+    d:'Three minutes. No revives. Every second of score counts double.' },
+  { id:'timea_ice', n:'TIME ATTACK: BLACK ICE', i:'⏱', mode:'timeattack', arena:'ice', tag:'SPRINT', stars:4,
+    d:'The same three-minute sprint, on ground that won’t hold still.' },
+  { id:'timea_void', n:'TIME ATTACK: RIFT SPRINT', i:'⏱', mode:'timeattack', arena:'void', tag:'SPRINT', stars:4,
+    d:'A three-minute sprint through gravity wells, with no revives to fall back on.' },
+  { id:'hard', n:'HARDCORE', i:'⛧', mode:'hardcore', arena:'grid', tag:'NO MERCY', stars:4,
+    d:'One life. Tougher enemies. No second chances, no exceptions.' },
+  { id:'hard_lava', n:'HARDCORE: THE INFERNO', i:'⛧', mode:'hardcore', arena:'lava', tag:'NO MERCY', stars:5,
+    d:'One life, in an arena that’s just as unforgiving as the enemies are.' },
+  { id:'hard_storm', n:'HARDCORE: EYE OF THE STORM', i:'⛧', mode:'hardcore', arena:'storm', tag:'NO MERCY', stars:5,
+    d:'One life, one mistake, lightning that never waits for you to be ready.' }
 ];
 const hazards = [];
 function spawnHazards(){
@@ -3571,16 +3684,22 @@ if(window.speechSynthesis){ refreshVoices(); speechSynthesis.onvoiceschanged = r
    it finds a plausibly female/male-sounding voice where one exists, but
    on a device with only one or two generic voices installed, there may
    be nothing suitable to pick and the default voice is used instead. */
-function pickVoiceFor(wantsFemale){
+function pickVoiceFor(role){
   if(!VoiceCache.list.length) return null;
   const femaleHints = /female|zira|samantha|victoria|susan|karen|moira|tessa|fiona|kate|serena|allison|ava|emma|joanna|salli|kimberly|amy|siri|google us english$/i;
   const maleHints = /male|david|daniel|alex|fred|george|james|oliver|arthur|eric|guy|mark|tom|google uk english male|matthew|brian|russell/i;
   const qualityHints = /natural|enhanced|premium|neural|google/i;
-  const hints = wantsFemale ? femaleHints : maleHints;
+  // boss and narr both lean on deeper/male-leaning voices; mom leans
+  // female — the API gives no real gender field, only names to guess from
+  const hints = role==='mom' ? femaleHints : maleHints;
   const pool = VoiceCache.list.filter(v=>hints.test(v.name));
   if(!pool.length) return null;
-  // prefer the better-sounding engine when more than one match exists
   pool.sort((a,b)=> (qualityHints.test(b.name)?1:0) - (qualityHints.test(a.name)?1:0));
+  if(role==='narr' && pool.length>1){
+    // the commentator shouldn't sound identical to the villain when the
+    // device happens to have more than one deep-leaning voice available
+    return pool.find(v=>v!==pool[0]) || pool[0];
+  }
   return pool[0];
 }
 // faster pacing across every cutscene, voice or not — applied to every
@@ -3599,13 +3718,26 @@ function speakLine(line){
     // mood/shake, not just who's speaking, so a frightened line and a
     // joyful line from the same character actually sound different
     if(line.cls==='mom'){
-      u.pitch = line.mood==='joy' ? 1.32 : 1.5; u.rate = line.mood==='joy' ? 1.06 : 1.22;
-      try{ const v = pickVoiceFor(true); if(v) u.voice = v; }catch(e){}
+      // pained and shaking when she's frightened, warm when she's not —
+      // pushed harder than a calm/urgent split, closer to two different
+      // emotional states than two speeds of the same voice
+      const pained = line.mood==='captive' || line.mood==='scared';
+      u.pitch = line.mood==='joy' ? 1.3 : pained ? 1.58 : 1.42;
+      u.rate = line.mood==='joy' ? 1.04 : pained ? 1.3 : 1.15;
+      try{ const v = pickVoiceFor('mom'); if(v) u.voice = v; }catch(e){}
     } else if(line.cls==='boss'){
-      u.pitch = line.shake ? .26 : .38; u.rate = line.shake ? .88 : .97;
-      try{ const v = pickVoiceFor(false); if(v) u.voice = v; }catch(e){}
+      // slow and low when he's being deliberately cruel, still low but
+      // a touch quicker when he's merely talking — never anything close
+      // to friendly
+      u.pitch = line.shake ? .22 : .34; u.rate = line.shake ? .8 : .92;
+      try{ const v = pickVoiceFor('boss'); if(v) u.voice = v; }catch(e){}
     } else if(line.cls==='you'){ u.pitch=1.05; u.rate = line.shake ? 1.24 : 1.1; }
-    else { u.pitch=.88; u.rate = line.fast ? 1.15 : 1.0; }
+    else {
+      // the commentator: deliberately deep, deliberately slow — a
+      // documentary-narrator register, distinct from every character
+      u.pitch=.7; u.rate = line.fast ? 1.05 : .88;
+      try{ const v = pickVoiceFor('narr'); if(v) u.voice = v; }catch(e){}
+    }
     u.volume=1;
     speechSynthesis.speak(u);
     return u;
@@ -3903,7 +4035,7 @@ function triggerFinalBattle(){
     const e = spawnAt('titan', ax+a.dx, ay+a.dy, 2.4, true);
     e.c = a.c; e.finalAlly = true; return e;
   });
-  announce('⚠ THE HOLLOW KING ⚠', kind.c); Snd.big(); shake(24);
+  announce('⚠ THE HOLLOW KING ⚠', kind.c); Snd.big(); Snd.finalGateSting(); shake(24);
   $('bosswrap').style.opacity=1; $('bossname').textContent='THE HOLLOW KING';
   Snd.setIntensity(1,true,false); zoomKick(1.18); G.wash=.9; G.washC=kind.c;
 }
@@ -3914,6 +4046,7 @@ function onFinalBossOrAllyKilled(e){
   if(!G.finalBossRef && alliesLeft===0 && G.finalBattleActive && !G.motherRescued){
     G.motherRescued = true;
     save.motherFreed = 1; persist();
+    Snd.joySting();
     setTimeout(()=>{
       G.state='CUTSCENE'; Ads.gameplayStop();
       Cutscene.play(STORY.ending, false, ()=>{
@@ -3955,7 +4088,11 @@ function _beginRunNow(){
   setTheme(arena.theme,false); theme.bg=THEMES[arena.theme].bg.slice(); theme.g=THEMES[arena.theme].g.slice();
   Snd.setIntensity(0,false,false);
   Snd.M.story = isStoryMode() ? 1 : 0;
-  Snd.master && (Snd.master.gain.value = isStoryMode() ? .82 : .5); // her theme deserves to actually be heard — loud, unmistakable
+  Snd.master && (Snd.master.gain.value = isStoryMode() ? .92 : .5); // her theme deserves to actually be heard — loud, unmistakable
+  if(Snd.musGain){
+    if(isStoryMode()) Snd.swellInMusic();
+    else Snd.musGain.gain.value = save.opt.mus ? .32 : 0;
+  }
   spawnHazards();
   G.freeRevives = G.mode==='hardcore' ? 0 : G.mode==='easy' ? 1 : save.meta.rev;
   $('bosswrap').style.opacity=0; $('dmgflash').style.opacity=0; $('bosstele').classList.remove('on'); $('bosswrap').classList.remove('enraged');
@@ -4052,6 +4189,7 @@ function finishRun(){
   if(isStoryMode() && !G.motherRescued && P && !G._badEndingShown){
     G._badEndingShown = true;
     G.state='CUTSCENE'; Ads.gameplayStop();
+    Snd.griefSting();
     Cutscene.play(STORY.badEnding, true, ()=>_finishRunNow());
     return;
   }
@@ -4355,31 +4493,31 @@ $('freeCoinBtn').onclick = ()=> Ads.rewarded('+300 shards', ok=>{
 });
 
 /* ---------------- 31b. MODE / ARENA SELECT ---------------- */
+const PRESET_COLORS = { STORY:'#ff3b5c', GENTLE:'#7fd6ff', ARCADE:'#ffb020', SPRINT:'#8b5cff', 'NO MERCY':'#ff2040' };
 function renderModeScreen(){
-  const mh = $('modeChips'); mh.innerHTML='';
-  MODES.forEach(m=>{
+  const mh = $('modeList'); mh.innerHTML='';
+  PRESETS.forEach(pr=>{
+    const on = G.selectedPreset===pr.id;
     const el = document.createElement('div');
-    el.className = 'pickchip' + (G.mode===m.id?' on':'');
-    el.innerHTML = `<span class="ic">${m.i}</span><div class="nm">${m.n}</div><div class="ds">${m.d}</div>`;
-    el.onclick = ()=>{ Snd.click(); G.mode = m.id; renderModeScreen(); };
+    el.className = 'modecard' + (on?' on':'');
+    el.style.setProperty('--mc', PRESET_COLORS[pr.tag]||'#26f0ff');
+    const stars = '★'.repeat(pr.stars) + '☆'.repeat(5-pr.stars);
+    el.innerHTML = `<div class="ic">${pr.i}</div><div class="gr"><div class="hd"><span class="nm">${pr.n}</span><span class="tag">${pr.tag}</span></div><div class="ds">${pr.d}</div><div class="stars">${stars}</div></div>`;
+    el.onclick = ()=>{ Snd.click(); G.selectedPreset = pr.id; renderModeScreen(); };
     mh.appendChild(el);
   });
-  const ah = $('arenaChips'); ah.innerHTML='';
-  ARENAS.forEach((a,i)=>{
-    const el = document.createElement('div');
-    el.className = 'pickchip' + (G.arenaI===i?' on':'');
-    el.innerHTML = `<span class="ic">${a.i}</span><div class="nm">${a.n}</div><div class="ds">${a.d}</div>`;
-    el.onclick = ()=>{ Snd.click(); G.arenaI = i; renderModeScreen(); };
-    ah.appendChild(el);
-  });
 }
-$('modeStartBtn').onclick = ()=>{ Snd.click(); startRun(); };
+$('modeStartBtn').onclick = ()=>{
+  const pr = PRESETS.find(p=>p.id===G.selectedPreset) || PRESETS[0];
+  Snd.click();
+  G.mode = pr.mode; G.arenaI = Math.max(0, ARENAS.findIndex(a=>a.id===pr.arena));
+  startRun();
+};
 $('modeBack').onclick = ()=>{ Snd.click(); goMenu(); };
 
 /* ---------------- 32. BOOT ---------------- */
 $('playBtn').onclick = ()=>{ Snd.click(); G.mode='classic'; G.arenaI=0; startRun(); };
-$('easyPlayBtn').onclick = ()=>{ Snd.click(); G.mode='easy'; G.arenaI=0; startRun(); };
-$('otherModesBtn').onclick = ()=>{ Snd.click(); hideAll(); show('modeScreen'); renderModeScreen(); };
+$('modesBtn').onclick = ()=>{ Snd.click(); if(!G.selectedPreset) G.selectedPreset='save'; hideAll(); show('modeScreen'); renderModeScreen(); };
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden && G.state==='PLAY') pauseGame(); });
 addEventListener('blur', ()=>{ if(G.state==='PLAY') pauseGame(); });
 
