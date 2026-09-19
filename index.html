@@ -745,7 +745,12 @@ const Snd = {
     // rest of the score, so it feels like part of the same piece rather than
     // an unrelated jingle. Recurs through the whole Save Her run, not just
     // the cutscenes, so the soundtrack has one clear emotional throughline.
-    momTheme:[440,523.25,659.25,587.33,523.25,493.88,440]
+    momTheme:[440,523.25,659.25,587.33,523.25,493.88,440],
+    // the menu's own permanent theme — warmer, simpler, major-leaning,
+    // deliberately NOT her theme, so the title screen has its own
+    // identity instead of sounding like a quiet version of a match
+    menuTheme:[329.63,392,440,392,349.23,329.63,293.66],
+    menuIdx:0
   },
   schedule(){
     if(!this.ready || this.muted) return;
@@ -757,6 +762,7 @@ const Snd = {
     // run, on top of (not instead of) combat intensity, so it's always
     // audibly racing toward the ending rather than just looping in place
     M.progress = (M.story && P) ? clamp(P.level/100, 0, 1) : 0;
+    M.menu = G.state==='MENU';
     M.bpm = 118 + heat*26 + (M.frenzy?10:0) + M.progress*34;
     const spb = 60/M.bpm/4;                       // one 16th note
     while(M.next < c.currentTime + .18){
@@ -808,6 +814,15 @@ const Snd = {
         this.at(f/2, spb*13, 'sine', .12+M.progress*.06, t);
         this.at(f*2, spb*13, 'sine', .06+M.progress*.03, t);
         if(M.progress>.5) this.at(f*1.5, spb*13, 'sine', .05+M.progress*.04, t, null, 5);
+      }
+
+      // --- menu theme: its own permanent melody, only while sitting at
+      // the title screen — never plays over a match, story or otherwise
+      if(M.menu && !M.story && s===0){
+        M.menuIdx = (M.menuIdx===undefined) ? 0 : (M.menuIdx+1) % M.menuTheme.length;
+        const f = M.menuTheme[M.menuIdx];
+        this.at(f, spb*13, 'triangle', .2, t, null, 2);
+        this.at(f/2, spb*13, 'sine', .1, t);
       }
 
       M.next += spb; M.step++;
@@ -2555,6 +2570,13 @@ function update(dt){
   // ---- hazard zones (arena modifiers)
   if(!spectating) tickHazards(dt);
 
+  // ---- ambient in-match voice lines (story mode only): the son keeps
+  // talking to himself between fights, all the way to level 100
+  if(!spectating && isStoryMode() && !Cutscene.playing){
+    G.ambientT = (G.ambientT===undefined ? rnd(18,30) : G.ambientT) - dt;
+    if(G.ambientT<=0){ G.ambientT = rnd(42,70); playerAmbientLine(); }
+  }
+
   if(!spectating){
     if(!(Party.active && !Party.isLeader)) spawnWave(dt);
     fireWeapons(dt);
@@ -3476,16 +3498,18 @@ function drawMotherArt(c,x,y,s,t,mood){
   c.save(); c.translate(-8,-25); c.scale(1,blink); c.beginPath(); c.arc(0,0,3,0,TAU); c.fill(); c.restore();
   c.save(); c.translate(8,-25); c.scale(1,blink); c.beginPath(); c.arc(0,0,3,0,TAU); c.fill(); c.restore();
   c.strokeStyle='#a5563b'; c.lineWidth=2.2; c.beginPath();
-  if(mood==='joy') c.arc(0,-16,6.5,.15*Math.PI,.85*Math.PI);
+  if(mood==='joy'||mood==='crying') c.arc(0,-16,6.5,.15*Math.PI,.85*Math.PI);
   else c.arc(0,-13,6.5,1.15*Math.PI,1.85*Math.PI);
   c.stroke();
-  if(mood==='captive'||mood==='scared'){
+  // 'crying' — happy tears: the same smile as joy, but tears fall too.
+  // reserved for the one moment in the whole game that's earned it.
+  if(mood==='captive'||mood==='scared'||mood==='crying'){
     const d1=(t*1.7)%1, d2=((t*1.7)+.5)%1;
     c.fillStyle='rgba(120,200,255,.85)';
     c.beginPath(); c.ellipse(-8,-16+d1*28,1.8,3.2,0,0,TAU); c.fill();
     c.beginPath(); c.ellipse(8,-18+d2*28,1.8,3.2,0,0,TAU); c.fill();
   }
-  if(mood==='joy'){
+  if(mood==='joy'||mood==='crying'){
     for(let i=0;i<6;i++){ const a=t*1.5+i/6*TAU, rr=48+Math.sin(t*3+i)*6;
       c.fillStyle='rgba(255,210,60,.8)'; c.beginPath(); c.arc(Math.cos(a)*rr,-20+Math.sin(a)*rr,2,0,TAU); c.fill(); }
   }
@@ -3599,6 +3623,40 @@ function drawStormArt(c,W,H,t){
   }
   c.restore();
 }
+/* ambient in-match voice lines: the son talking to himself between
+   fights, not in a cutscene, so a story run never goes quiet on the
+   emotional throughline just because nothing is currently happening.
+   tone deliberately escalates — determined early, openly desperate by
+   the time level 100 is close — same painful-voice pitch/rate curve
+   the cutscenes use, since it goes through the same speakLine(). */
+const PLAYER_AMBIENT = {
+  early: [
+    'I will do everything to meet my mom again.',
+    'No matter what happens, I will see my mother’s face again.',
+    'Just a little further. I promised her I’d come.',
+    'Hold on, Mom. I’m already on my way.'
+  ],
+  mid: [
+    'I can feel it getting closer. I can’t stop now, not now.',
+    'Hold on. I’m not as far away as it feels.',
+    'Every one of these is one less between us.',
+    'I haven’t forgotten why I’m doing this. Not for one second.'
+  ],
+  late: [
+    'Almost there. Please, just let me be enough.',
+    'I can’t lose her. Not after everything. Not now.',
+    'I’m coming, Mom. I’m so close. Please still be there.',
+    'Just a little more. Just a little more and I see her again.'
+  ]
+};
+function playerAmbientLine(){
+  if(!P || !isStoryMode() || G.state!=='PLAY') return;
+  const prog = clamp(P.level/100, 0, 1);
+  const pool = prog>.66 ? PLAYER_AMBIENT.late : prog>.33 ? PLAYER_AMBIENT.mid : PLAYER_AMBIENT.early;
+  const text = pick(pool);
+  speakLine({ speaker:'YOU', cls:'you', text, mood: prog>.66?'scared':null, shake: prog>.66?1:0 });
+  toast('YOU', text, 'linear-gradient(135deg,#26f0ff,#8b5cff)');
+}
 const STORY = {
   intro: [
     // --- ORIGIN: birth, childhood, and the night it was taken from him ---
@@ -3623,7 +3681,8 @@ const STORY = {
     { speaker:'', cls:'narr', text:'He is not alone. He never needs to be.', dark:1, art:'both', hold:1300 },
     { speaker:'', cls:'narr', text:'One path remains. Fifty of his own standing between you and her, and a hundred trials besides. Most who try do not finish it.', dark:1, art:'wide', hold:2200 },
     { speaker:'YOU', cls:'you', text:'I’m coming, Mom. He cannot harm you. He cannot touch you. Not while I still have breath left.', dark:1, art:'mom', mood:'captive', hold:2400 },
-    { speaker:'', cls:'you', text:'SAVE HER.', dark:1, art:'title', hold:1600 }
+    { speaker:'', cls:'you', text:'SAVE HER.', dark:1, art:'title', hold:1600 },
+    { speaker:'', cls:'you', text:'REACH LEVEL 100!', dark:1, art:'title', hold:1500, fast:1 }
   ],
   finalConfront: [
     { speaker:'', cls:'narr', text:'Something enormous turns to face you at last. It has been waiting.', dark:1, art:'boss', hold:1900 },
@@ -3646,8 +3705,9 @@ const STORY = {
     { speaker:'MOTHER', cls:'mom', text:'Your father would be so proud of you. I hope, wherever he is, he can see this too.', dark:0, art:'embrace', mood:'joy', hold:2600 },
     { speaker:'', cls:'narr', text:'You were the boy in that doorway once, small and helpless, watching the dark take everything. You are not that boy anymore.', dark:0, art:'both', mood:'joy', hold:2800 },
     { speaker:'MOTHER', cls:'mom', text:'Whatever you carried to reach me — I hope you never have to carry alone again.', dark:0, art:'mom', mood:'joy', hold:2400 },
-    { speaker:'YOU', cls:'you', text:'I was so afraid, Mom. The whole way here. I never told anyone that. Not once.', dark:0, art:'embrace', hold:2400 },
-    { speaker:'MOTHER', cls:'mom', text:'Being afraid and coming anyway — that is the only kind of brave that has ever mattered.', dark:0, art:'embrace', mood:'joy', hold:2600 },
+    { speaker:'YOU', cls:'you', text:'I was so afraid, Mom. The whole way here. I never told anyone that. Not once.', dark:0, art:'embrace', mood:'crying', hold:2400 },
+    { speaker:'', cls:'narr', text:'You are both crying now — not from fear this time. Neither of you cares who sees it.', dark:0, art:'embrace', mood:'crying', hold:2600 },
+    { speaker:'MOTHER', cls:'mom', text:'Being afraid and coming anyway — that is the only kind of brave that has ever mattered.', dark:0, art:'embrace', mood:'crying', hold:2600 },
     { speaker:'YOU', cls:'you', text:'I told you I was coming. I meant every word of it.', dark:0, art:'embrace', mood:'joy', hold:1900 },
     { speaker:'YOU', cls:'you', text:'I’m here, Mom. I’m not going anywhere.', dark:0, art:'embrace', mood:'joy', hold:1800 },
     { speaker:'', cls:'narr', text:'This was never really about the hundred levels, or the boss, or the score.', dark:0, art:'wide', hold:2200 },
@@ -3705,7 +3765,7 @@ function pickVoiceFor(role){
 // faster pacing across every cutscene, voice or not — applied to every
 // line's own authored hold time rather than overriding it outright, so
 // relative pacing between a quick beat and a lingering one is preserved
-const HOLD_SCALE = .7;
+const HOLD_SCALE = .6;
 function holdMs(line){ return Math.max(450, (line.hold||1400)*HOLD_SCALE); }
 function speakLine(line){
   if(!window.speechSynthesis || !save.opt.voice || !line || !line.text) return null;
@@ -3722,8 +3782,8 @@ function speakLine(line){
       // pushed harder than a calm/urgent split, closer to two different
       // emotional states than two speeds of the same voice
       const pained = line.mood==='captive' || line.mood==='scared';
-      u.pitch = line.mood==='joy' ? 1.3 : pained ? 1.58 : 1.42;
-      u.rate = line.mood==='joy' ? 1.04 : pained ? 1.3 : 1.15;
+      u.pitch = line.mood==='joy' ? 1.3 : line.mood==='crying' ? 1.36 : pained ? 1.58 : 1.42;
+      u.rate = line.mood==='joy' ? 1.04 : line.mood==='crying' ? .88 : pained ? 1.3 : 1.15;
       try{ const v = pickVoiceFor('mom'); if(v) u.voice = v; }catch(e){}
     } else if(line.cls==='boss'){
       // slow and low when he's being deliberately cruel, still low but
@@ -3731,7 +3791,7 @@ function speakLine(line){
       // to friendly
       u.pitch = line.shake ? .22 : .34; u.rate = line.shake ? .8 : .92;
       try{ const v = pickVoiceFor('boss'); if(v) u.voice = v; }catch(e){}
-    } else if(line.cls==='you'){ u.pitch=1.05; u.rate = line.shake ? 1.24 : 1.1; }
+    } else if(line.cls==='you'){ u.pitch = line.mood==='crying' ? 1.1 : 1.05; u.rate = line.mood==='crying' ? .86 : line.shake ? 1.24 : 1.1; }
     else {
       // the commentator: deliberately deep, deliberately slow — a
       // documentary-narrator register, distinct from every character
@@ -3742,6 +3802,16 @@ function speakLine(line){
     speechSynthesis.speak(u);
     return u;
   }catch(e){ return null; }
+}
+/* small sound-effect stings for specific cutscene beats, layered on top
+   of the score/voice — a thunder crack for the abduction, a soft chime
+   for the birth, a low pulse whenever the boss is actively threatening */
+function playLineSfx(line){
+  if(!save.opt.sfx) return;
+  if(line.art==='abduction'){ Snd.noise(.55,.4,700); setTimeout(()=>Snd.tone(70,.5,'sine',.22,40),80); }
+  else if(line.art==='devour'){ Snd.tone(180,.6,'sawtooth',.18,60); Snd.noise(.35,.2,400); }
+  else if(line.art==='birth'){ Snd.tone(880,.4,'sine',.12,1400); }
+  else if(line.shake && line.cls==='boss'){ Snd.noise(.3,.22,300); }
 }
 const Cutscene = {
   cv:null, c2:null, playing:false, script:null, idx:-1, onDone:null, t0:0, curLine:null,
@@ -3772,6 +3842,7 @@ const Cutscene = {
     $('csVignette').className = (line.dark?'dark':'') + (line.shake?' rage':'');
     if(line.shake) shake(10);
     if(line.art==='title') Snd.swell(line.dark);
+    playLineSfx(line);
     $('csSpeaker').textContent = line.speaker||''; $('csSpeaker').className = line.cls||'';
     const el = $('csText'); el.innerHTML='';
     const chars = Array.from(line.text);
@@ -3793,7 +3864,7 @@ const Cutscene = {
       // measured speed of THIS voice on THIS device (elapsed time so far
       // / characters spoken so far) — self-calibrating instead of guessing
       const words = Math.max(1, line.text.trim().split(/\s+/).length);
-      const estMs = Math.max(450, (words/(3.1*utter.rate))*1000);
+      const estMs = Math.max(400, (words/(3.4*utter.rate))*1000);
       let stepMs = clamp(estMs/chars.length, 14, 85);
       let i=0;
       const runInterval = ()=>{
@@ -3832,7 +3903,7 @@ const Cutscene = {
         clearTimeout(this._voiceFallbackT);
         clearInterval(this._typeIV);
         for(const sp of el.children) sp.classList.add('on');
-        this._waitT = setTimeout(()=>this._advance(), 200);
+        this._waitT = setTimeout(()=>this._advance(), 150);
       };
       utter.onerror = ()=>{
         if(!this.playing || gen!==this._speakGen) return;
@@ -3850,7 +3921,7 @@ const Cutscene = {
         el.children[i].classList.add('on');
         if(chars[i]!==' ' && (i%2===0)) Snd.blip();
         i++;
-      }, line.fast ? 8 : line.art==='title' ? 40 : 18);
+      }, line.fast ? 6 : line.art==='title' ? 32 : 14);
     }
   },
   skip(){ this._end(); },
@@ -3888,7 +3959,7 @@ const Cutscene = {
       const glow=c.createRadialGradient(cx,cy,10,cx,cy,150*sc);
       glow.addColorStop(0,'rgba(255,210,140,.35)'); glow.addColorStop(1,'rgba(0,0,0,0)');
       c.fillStyle=glow; c.beginPath(); c.arc(cx,cy,150*sc,0,TAU); c.fill();
-      drawMotherArt(c, cx+14*sc, cy, sc*1.4, t, 'joy');
+      drawMotherArt(c, cx+14*sc, cy, sc*1.4, t, line.mood||'joy');
       // you — a small warm silhouette leaning into her, not a detailed figure on purpose
       c.save(); c.translate(cx-34*sc, cy+16*sc); c.scale(sc*1.4,sc*1.4); c.rotate(-.18);
       c.fillStyle='#ffe9c9'; c.beginPath(); c.ellipse(0,10,16,22,0,0,TAU); c.fill();
@@ -4083,7 +4154,7 @@ function _beginRunNow(){
   G.frenzy=false; G.frzCharge=0; G.frzT=0; G.lastMin=0; G.nearCd=0; G.wash=0; G.camZ=1; G.slowT=0; G.musT=0;
   G.ultCd=4; G.ultFx=null;
   G.finalArmed=false; G.finalBattleActive=false; G.finalAllies=[]; G.finalBossRef=null; G.motherRescued=false; G._lastMilestone=0; G._badEndingShown=false;
-  G.postRescue=false; G.rescueLevel=0; G.storyBossKills=0; G.dmgLog=[]; G.lastBossHp=0;
+  G.postRescue=false; G.rescueLevel=0; G.storyBossKills=0; G.dmgLog=[]; G.lastBossHp=0; G.ambientT=rnd(24,40);
   const arena = ARENAS[G.arenaI]||ARENAS[0];
   setTheme(arena.theme,false); theme.bg=THEMES[arena.theme].bg.slice(); theme.g=THEMES[arena.theme].g.slice();
   Snd.setIntensity(0,false,false);
@@ -4101,7 +4172,17 @@ function _beginRunNow(){
   renderWepRow(); renderUltBtn();
   G.state='PLAY'; last=0; acc=0;
   Ads.gameplayStart();
-  announce(isStoryMode() ? 'SAVE HER' : (MODES.find(m=>m.id===G.mode)?.n || 'SURVIVE'), '#26f0ff');
+  // a real entrance for story mode — timed right alongside the music's
+  // own fade-in, so stepping out of the cutscene into the fight actually
+  // feels like a single continuous moment instead of a hard cut
+  if(isStoryMode()){
+    zoomKick(1.4); shake(16); G.wash=1; G.washC='#ff9fd6'; G.flash=.5;
+    burst(P.x, P.y, 46, '#ff9fd6', 320, 1.1, 4.5);
+    burst(P.x, P.y, 22, '#fff', 220, .8, 2.5);
+    announce('YOUR JOURNEY BEGINS', '#ff9fd6');
+  } else {
+    announce(MODES.find(m=>m.id===G.mode)?.n || 'SURVIVE', '#26f0ff');
+  }
   // quest run-scoped progress reset
   qRunReset();
 }
