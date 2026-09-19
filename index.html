@@ -358,7 +358,6 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
       <button class="btn ghost" id="achBtn">★ GOALS</button>
       <button class="btn ghost" id="statsBtn">⚙ MORE</button>
     </div>
-    <button class="btn ghost" id="evoBtn">⚛ EVOLUTION CODEX</button>
     <button class="btn ad" id="freeCoinBtn">▶ FREE 300 ◈ <small id="freeLeft"></small></button>
     <button class="btn ghost" id="globalBtn">🌐 GLOBAL — LEADERBOARD &amp; CHAT</button>
     <button class="btn ghost" id="partyBtn">🤝 PLAY WITH FRIENDS</button>
@@ -542,13 +541,6 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   <div class="panel"><div class="list" id="achList" style="max-height:60vh"></div></div>
 </div>
 
-<!-- EVOLUTION CODEX -->
-<div class="screen hidden" id="evoScreen">
-  <div class="backb" id="evoBack">‹ BACK</div>
-  <h2 class="tt" style="margin-top:56px">EVOLUTION CODEX</h2>
-  <div class="sub">MAX A WEAPON (LV8) + ITS PAIRED PASSIVE (LV5) IN ONE RUN</div>
-  <div class="panel"><div class="list" id="evoList" style="max-height:64vh"></div></div>
-</div>
 
 <!-- STATS -->
 <div class="screen hidden" id="statsScreen">
@@ -566,6 +558,7 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
     <button class="btn ghost" id="shakeBtn">☲ SCREEN SHAKE: ON</button>
     <button class="btn ghost" id="qualityBtn">◨ GRAPHICS: AUTO</button>
     <div class="hintrow" style="margin:2px 0 0">AUTO watches your device's speed and turns down effects on its own if things start to chug — pick a fixed level if you'd rather choose yourself.</div>
+    <button class="btn ghost" id="otherModesBtn">🎮 OTHER MODES &amp; ARENAS</button>
     <button class="btn ghost hidden" id="rewatchIntroBtn">🎬 REWATCH: THE BEGINNING</button>
     <button class="btn ghost hidden" id="rewatchEndBtn">🎬 REWATCH: SHE'S FREE</button>
     <button class="btn ghost" id="wipeBtn" style="color:var(--rd)">⌫ RESET ALL DATA</button>
@@ -2279,7 +2272,7 @@ function update(dt){
   if(!spectating) tickHazards(dt);
 
   // ---- the final battle: reachable once level 1000 opens the path
-  if(!spectating && G.mode==='classic' && G.finalArmed && !G.finalBattleActive
+  if(!spectating && isStoryMode() && G.finalArmed && !G.finalBattleActive
      && dist2(P,FINAL_ARENA) < FINAL_ARENA.r*FINAL_ARENA.r){
     triggerFinalBattle();
   }
@@ -2568,7 +2561,7 @@ function hurtPlayer(amt){
 function gainXP(v){
   if(G.mode==='easy') v *= 1.15;
   P.xp += v;
-  const story = G.mode==='classic';
+  const story = isStoryMode();
   while(P.xp >= P.xpNext){
     P.xp -= P.xpNext; P.level++; P.xpNext = story ? xpForStory(P.level) : xpFor(P.level);
     G.pendingLevels++;
@@ -2934,7 +2927,7 @@ function renderMinimap(){
     mmCtx.beginPath(); mmCtx.arc(bx,by,pulse,0,TAU); mmCtx.fill();
   }
   // her beacon — once the path opens, always visible, always pointing home
-  if(G.mode==='classic' && G.finalArmed && !G.motherRescued){
+  if(isStoryMode() && G.finalArmed && !G.motherRescued){
     const [fx,fy] = plot(FINAL_ARENA.x, FINAL_ARENA.y);
     const pulse = 3+Math.sin(gt*5)*1.4;
     mmCtx.strokeStyle='#ff9fd6'; mmCtx.lineWidth=1.5;
@@ -3146,7 +3139,7 @@ $('chestOk').onclick = ()=>{ Snd.click(); hide('chestScreen');
 /* ---------------- 23. SCREEN HELPERS ---------------- */
 function show(id){ $(id).classList.remove('hidden'); }
 function hide(id){ $(id).classList.add('hidden'); }
-const SCREENS = ['menuScreen','modeScreen','dailyScreen','lvlScreen','chestScreen','pauseScreen','overScreen','reviveScreen','shopScreen','heroScreen','achScreen','evoScreen','statsScreen'];
+const SCREENS = ['menuScreen','modeScreen','dailyScreen','lvlScreen','chestScreen','pauseScreen','overScreen','reviveScreen','shopScreen','heroScreen','achScreen','statsScreen'];
 function hideAll(){ SCREENS.forEach(hide); }
 
 /* ---------------- 23b. STORY: "SAVE HER" ----------------
@@ -3156,6 +3149,7 @@ function hideAll(){ SCREENS.forEach(hide); }
    voice — see the chat reply for why), the hand-drawn mother/boss
    art, the two scripts, and the level-1000 trigger/win condition. */
 const FINAL_ARENA = { x: 4200, y: -3400, r: 640 };
+function isStoryMode(){ return G.mode==='classic' || G.mode==='easy'; }
 function drawFlowerArt(c,x,y,r,petal,core){
   c.save(); c.translate(x,y);
   c.fillStyle=petal;
@@ -3265,13 +3259,21 @@ const STORY = {
     { speaker:'', cls:'narr', text:'The chains break before his last breath even leaves him.', dark:0, art:'mom', mood:'joy', hold:1600 },
     { speaker:'MOTHER', cls:'mom', text:'...is it you? Is it really you?', dark:0, art:'mom', mood:'joy', hold:1700 },
     { speaker:'', cls:'narr', text:'A thousand trials. Every one of them, for this second.', dark:0, art:'both', mood:'joy', hold:1800 },
-    { speaker:'MOTHER', cls:'mom', text:'I never once stopped believing you’d come. Not for one single day.', dark:0, art:'mom', mood:'joy', hold:2200 },
+    { speaker:'', cls:'narr', text:'You run to her. She is already reaching for you.', dark:0, art:'embrace', hold:2000 },
+    { speaker:'MOTHER', cls:'mom', text:'I never once stopped believing you’d come. Not for one single day.', dark:0, art:'embrace', mood:'joy', hold:2200 },
+    { speaker:'MOTHER', cls:'mom', text:'Your father would be so proud of you. I hope, wherever he is, he can see this too.', dark:0, art:'embrace', mood:'joy', hold:2600 },
     { speaker:'MOTHER', cls:'mom', text:'Whatever you carried to reach me — I hope you never have to carry alone again.', dark:0, art:'mom', mood:'joy', hold:2400 },
-    { speaker:'YOU', cls:'you', text:'I’m here, Mom. I’m not going anywhere.', dark:0, art:'mom', mood:'joy', hold:1800 },
+    { speaker:'YOU', cls:'you', text:'I’m here, Mom. I’m not going anywhere.', dark:0, art:'embrace', mood:'joy', hold:1800 },
     { speaker:'', cls:'narr', text:'This was never really about the thousand levels, or the boss, or the score.', dark:0, art:'wide', hold:2200 },
-    { speaker:'', cls:'narr', text:'It was about the people worth all of it. Yours is waiting somewhere too.', dark:0, art:'wide', hold:2400 },
+    { speaker:'', cls:'narr', text:'It was about the people worth all of it. Yours is waiting somewhere too — mother, father, whoever it is.', dark:0, art:'wide', hold:2600 },
     { speaker:'', cls:'narr', text:'Whatever you’re fighting for — don’t stop. Not today. Not ever.', dark:0, art:'wide', hold:2600 },
-    { speaker:'', cls:'you', text:'MOTHER FREED.', dark:0, art:'title', hold:2000 }
+    { speaker:'', cls:'you', text:'MOTHER FREED.', dark:0, art:'title', hold:2200 }
+  ],
+  badEnding: [
+    { speaker:'THE HOLLOW KING', cls:'boss', text:'You were never going to be enough.', dark:1, art:'boss', shake:1, hold:1400 },
+    { speaker:'', cls:'narr', text:'He laughs. Somewhere far away, the light behind her eyes goes out.', dark:1, art:'lost', hold:1700, fast:1 },
+    { speaker:'MOTHER', cls:'mom', text:'...I waited. I’m sorry. I waited as long as I could...', dark:1, art:'lost', mood:'captive', hold:1900, fast:1 },
+    { speaker:'', cls:'you', text:'SHE IS STILL WAITING. TRY AGAIN.', dark:1, art:'title', hold:1500, fast:1 }
   ]
 };
 const Cutscene = {
@@ -3314,7 +3316,7 @@ const Cutscene = {
       el.children[i].classList.add('on');
       if(chars[i]!==' ' && (i%2===0)) Snd.blip();
       i++;
-    }, line.art==='title' ? 55 : 26);
+    }, line.fast ? 12 : line.art==='title' ? 55 : 26);
   },
   skip(){ this._end(); },
   _end(){
@@ -3345,6 +3347,24 @@ const Cutscene = {
     } else if(line.art==='both'){
       drawMotherArt(c, cx-90*sc, cy+20*sc, sc*1.1, t, line.mood||'captive');
       drawFinalBossArt(c, cx+110*sc, cy-10*sc, sc*1.15, t);
+    } else if(line.art==='embrace'){
+      const glow=c.createRadialGradient(cx,cy,10,cx,cy,150*sc);
+      glow.addColorStop(0,'rgba(255,210,140,.35)'); glow.addColorStop(1,'rgba(0,0,0,0)');
+      c.fillStyle=glow; c.beginPath(); c.arc(cx,cy,150*sc,0,TAU); c.fill();
+      drawMotherArt(c, cx+14*sc, cy, sc*1.4, t, 'joy');
+      // you — a small warm silhouette leaning into her, not a detailed figure on purpose
+      c.save(); c.translate(cx-34*sc, cy+16*sc); c.scale(sc*1.4,sc*1.4); c.rotate(-.18);
+      c.fillStyle='#ffe9c9'; c.beginPath(); c.ellipse(0,10,16,22,0,0,TAU); c.fill();
+      c.beginPath(); c.arc(0,-16,13,0,TAU); c.fill();
+      c.restore();
+      for(let i=0;i<10;i++){ const a=t*1.2+i/10*TAU, rr=70*sc+Math.sin(t*2+i)*10*sc;
+        c.fillStyle='rgba(255,220,150,.9)'; c.beginPath(); c.arc(cx+Math.cos(a)*rr, cy+Math.sin(a)*rr*.7, 2,0,TAU); c.fill(); }
+    } else if(line.art==='lost'){
+      drawMotherArt(c, cx, cy, sc*1.5, t, 'captive');
+      const shroud = c.createRadialGradient(cx,cy,40*sc,cx,cy,220*sc);
+      const p = .4+.3*Math.sin(t*2);
+      shroud.addColorStop(0,'rgba(0,0,0,0)'); shroud.addColorStop(1,'rgba(0,0,0,'+p+')');
+      c.fillStyle=shroud; c.fillRect(0,0,W,H);
     } else if(line.art==='title'){
       const glow = c.createRadialGradient(cx,cy,10,cx,cy,180*sc);
       glow.addColorStop(0, line.dark?'rgba(255,59,92,.35)':'rgba(182,255,60,.3)');
@@ -3361,7 +3381,7 @@ function xpForStory(l){
   return Math.floor(3500 + (l-60)*9.5);
 }
 function checkStoryMilestones(){
-  if(G.mode!=='classic') return;
+  if(!isStoryMode()) return;
   if(P.level>(save.maxStoryLevel||0)) save.maxStoryLevel = P.level;
   if(P.level%100===0 && P.level>0 && P.level!==G._lastMilestone){
     G._lastMilestone = P.level;
@@ -3412,7 +3432,7 @@ function onFinalBossOrAllyKilled(e){
 /* ---------------- 24. RUN FLOW ---------------- */
 function startRun(){
   Snd.init(); Snd.resume();
-  if(G.mode==='classic' && !save.introSeen){
+  if(isStoryMode() && !save.introSeen){
     hideAll(); $('hud').classList.add('hidden');
     save.introSeen = 1; persist();
     G.state='CUTSCENE'; Ads.gameplayStop();
@@ -3429,7 +3449,7 @@ function _beginRunNow(){
   G.bossRef=null; G.pendingLevels=0; G.rerolls=1; G.usedRevive=0; G.chestQ=0; G.streakKill=0; G.dead=false;
   G.frenzy=false; G.frzCharge=0; G.frzT=0; G.lastMin=0; G.nearCd=0; G.wash=0; G.camZ=1; G.slowT=0; G.musT=0;
   G.ultCd=4; G.ultFx=null;
-  G.finalArmed=false; G.finalBattleActive=false; G.finalAllies=[]; G.finalBossRef=null; G.motherRescued=false; G._lastMilestone=0;
+  G.finalArmed=false; G.finalBattleActive=false; G.finalAllies=[]; G.finalBossRef=null; G.motherRescued=false; G._lastMilestone=0; G._badEndingShown=false;
   const arena = ARENAS[G.arenaI]||ARENAS[0];
   setTheme(arena.theme,false); theme.bg=THEMES[arena.theme].bg.slice(); theme.g=THEMES[arena.theme].g.slice();
   Snd.setIntensity(0,false,false);
@@ -3441,7 +3461,7 @@ function _beginRunNow(){
   renderWepRow(); renderUltBtn();
   G.state='PLAY'; last=0; acc=0;
   Ads.gameplayStart();
-  announce(G.mode==='classic' ? 'SAVE HER' : (MODES.find(m=>m.id===G.mode)?.n || 'SURVIVE'), '#26f0ff');
+  announce(isStoryMode() ? 'SAVE HER' : (MODES.find(m=>m.id===G.mode)?.n || 'SURVIVE'), '#26f0ff');
   // quest run-scoped progress reset
   qRunReset();
 }
@@ -3522,6 +3542,15 @@ $('revNoBtn').onclick = declineRevive;
 
 let lastEarned = 0, doubled = false;
 function finishRun(){
+  if(isStoryMode() && !G.motherRescued && P && !G._badEndingShown){
+    G._badEndingShown = true;
+    G.state='CUTSCENE'; Ads.gameplayStop();
+    Cutscene.play(STORY.badEnding, true, ()=>_finishRunNow());
+    return;
+  }
+  _finishRunNow();
+}
+function _finishRunNow(){
   G.state='OVER'; G.dead=true;
   const earned = Math.floor((G.runCoins + G.score/300 + G.t/4) * (P?P.coinMul:1) * (G.mode==='hardcore'?1.4:1));
   lastEarned = Math.max(5, earned); doubled=false;
@@ -3549,6 +3578,9 @@ function finishRun(){
   if(G.motherRescued){
     $('overTitle').textContent = '🏆 YOU SAVED HER';
     $('overTitle').style.color = 'var(--li)';
+  } else if(isStoryMode()){
+    $('overTitle').textContent = 'SHE’S STILL WAITING...';
+    $('overTitle').style.color = 'var(--rd)';
   }
   show('overScreen');
   checkAch();
@@ -3685,24 +3717,6 @@ function renderAch(){
 }
 $('achBtn').onclick = ()=>{ Snd.click(); hideAll(); show('achScreen'); renderAch(); };
 $('achBack').onclick = ()=>{ Snd.click(); goMenu(); };
-
-function renderEvoCodex(){
-  const h=$('evoList'); h.innerHTML='';
-  WKEYS.forEach(wk=>{
-    const ev = EVOLUTIONS[wk]; if(!ev) return;
-    const W = WEAPONS[wk], Pz = PASSIVES[ev.passive];
-    const seen = !!((save.evosSeen||{})[wk]);
-    const el = document.createElement('div');
-    el.className = 'item ach ' + (seen?'done':'');
-    el.innerHTML = `<div class="ic" style="color:${seen?'#ffd23c':'var(--dim)'}">${seen?ev.i:'?'}</div>
-      <div class="gr"><div class="nm">${seen?ev.n:'???'}</div>
-      <div class="ds">${W.i} ${W.n} Lv${WMAX} + ${Pz.i} ${Pz.n} Lv${PMAX}</div></div>
-      <div style="font:900 18px/1 var(--f1);color:${seen?'var(--li)':'var(--dim)'}">${seen?'★':'☆'}</div>`;
-    h.appendChild(el);
-  });
-}
-$('evoBtn').onclick = ()=>{ Snd.click(); hideAll(); show('evoScreen'); renderEvoCodex(); };
-$('evoBack').onclick = ()=>{ Snd.click(); goMenu(); };
 
 /* ---------------- 28. STATS ---------------- */
 function renderStats(){
@@ -3851,8 +3865,9 @@ $('modeStartBtn').onclick = ()=>{ Snd.click(); startRun(); };
 $('modeBack').onclick = ()=>{ Snd.click(); goMenu(); };
 
 /* ---------------- 32. BOOT ---------------- */
-$('playBtn').onclick = ()=>{ Snd.click(); hideAll(); show('modeScreen'); renderModeScreen(); };
+$('playBtn').onclick = ()=>{ Snd.click(); G.mode='classic'; G.arenaI=0; startRun(); };
 $('easyPlayBtn').onclick = ()=>{ Snd.click(); G.mode='easy'; G.arenaI=0; startRun(); };
+$('otherModesBtn').onclick = ()=>{ Snd.click(); hideAll(); show('modeScreen'); renderModeScreen(); };
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden && G.state==='PLAY') pauseGame(); });
 addEventListener('blur', ()=>{ if(G.state==='PLAY') pauseGame(); });
 
