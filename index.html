@@ -2014,7 +2014,12 @@ function tickHazards(dt){
     h.pulse += dt;
     const d2 = dist2(h,P);
     if(d2 < h.r*h.r){
-      if(h.kind==='lava'){ if(Math.random()<dt*3.2) hurtPlayer(6+G.t*.02); }
+      // every other damage source in the game (contact, bullets, laser)
+      // already respects P.invul — hazards didn't, which meant a fresh
+      // revive's invulnerability window was no protection at all if you
+      // respawned in or near one, making it look like the game killed
+      // you again "immediately" right after paying to come back
+      if(h.kind==='lava'){ if(P.invul<=0 && Math.random()<dt*3.2) hurtPlayer(6+G.t*.02); }
       else if(h.kind==='ice'){ P.vx *= .965; P.vy *= .965; }
       else if(h.kind==='gravity'){
         const dx=h.x-P.x, dy=h.y-P.y, d=Math.sqrt(d2)||1;
@@ -2022,7 +2027,7 @@ function tickHazards(dt){
       }
       else if(h.kind==='poison'){
         P.poisonT = Math.max(P.poisonT||0, 2.5);
-        if(Math.random()<dt*2.4) hurtPlayer(3+G.t*.01);
+        if(P.invul<=0 && Math.random()<dt*2.4) hurtPlayer(3+G.t*.01);
       }
     }
     if(h.kind==='lava'){
@@ -2035,13 +2040,13 @@ function tickHazards(dt){
         const a = Math.random()*TAU, d = Math.random()*h.r*.8;
         const sx = h.x+Math.cos(a)*d, sy = h.y+Math.sin(a)*d;
         shock(sx,sy,60,'#fff',5); burst(sx,sy,16,'#c8f0ff',260,.4,3.5); Snd.tone(1600,.12,'sawtooth',.1,300); shake(3);
-        if(dist2({x:sx,y:sy},P) < 70*70) hurtPlayer(14+G.t*.03);
+        if(P.invul<=0 && dist2({x:sx,y:sy},P) < 70*70) hurtPlayer(14+G.t*.03);
         for(const e of enemies){ if(dist2({x:sx,y:sy},e) < 70*70) e.hp -= 40; }
       }
     }
   }
   // poison lingers briefly after leaving a bog, like a stacking debuff
-  if(P.poisonT>0){ P.poisonT -= dt; if(Math.random()<dt*1.6) hurtPlayer(2); }
+  if(P.poisonT>0){ P.poisonT -= dt; if(P.invul<=0 && Math.random()<dt*1.6) hurtPlayer(2); }
 }
 
 /* ---------------- 13. FX HELPERS ---------------- */
