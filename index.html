@@ -778,38 +778,11 @@ const Snd = {
     M.bpm = 118 + heat*26 + (M.frenzy?10:0) + M.progress*46;
     const spb = 60/M.bpm/4;                       // one 16th note
     while(M.next < c.currentTime + .18){
-      const t = M.next, s = M.step % 16, bar = (M.step>>4) % 4;
-      const root = M.root[bar] * (M.boss? .5 : 1);
-      const ch = M.chord[bar];
-      const combatLay = M.intensity < .25 ? 0 : M.intensity < .55 ? 1 : M.intensity < .85 ? 2 : 3;
-      // story progress alone gradually thickens the arrangement too, so
-      // the climb to level 100 keeps building fullness even between fights
-      const progressLay = M.progress>.8 ? 3 : M.progress>.5 ? 2 : M.progress>.2 ? 1 : 0;
-      const lay = M.boss? 3 : Math.max(combatLay, progressLay);
+      const t = M.next, s = M.step % 16;
 
-      // --- drums
-      if(s===0||s===6||s===10) this.drum(t,'kick',.55);
-      if(lay>=1 && (s===4||s===12)) this.drum(t,'snare',.2);
-      if(lay>=1 && s%4===2) this.drum(t,'hat',.1);
-      if(lay>=2 && s%2===0)  this.drum(t,'hat',.07);
-      if(lay>=3 && s%1===0 && s%2===1) this.drum(t,'hat',.045);
-
-      // --- bass: driving 8ths, detuned saw
-      if(s%2===0){
-        this.at(root, spb*1.7, 'sawtooth', .16, t, root*.985, -6);
-        if(lay>=2) this.at(root*2, spb*.8, 'square', .05, t);
-      }
-      // --- arp: 16th pentatonic runs
-      if(lay>=2){
-        const n = ch[(M.step + (s>>2)) % ch.length] * (s%8>=4 ? 2 : 1);
-        this.at(n, spb*1.3, 'triangle', .045, t);
-      }
-      // --- lead stabs on the downbeat of each bar
-      if(lay>=3 && s===0){
-        ch.forEach((f,i)=> this.at(f*2, spb*6, 'sawtooth', .032, t, null, i*7-7));
-      }
-      // --- boss drone
-      if(M.boss && s===0) this.at(root*.5, spb*15, 'sawtooth', .07, t, null, 11);
+      // drums, bass, arp and the boss drone are gone — the score is now
+      // just her theme (and, at the menu, its own separate theme), so
+      // there's nothing else competing with it
 
       // --- her theme: a PERMANENT melodic through-line for the entire
       // story run, not an occasional callback — one note of the phrase
@@ -2615,12 +2588,13 @@ function update(dt){
     if(G.ambientT<=0){ G.ambientT = rnd(42,70); playerAmbientLine(); }
   }
 
-  // ---- milestone quotes (story mode only): no longer tied to leveling up
-  // at all — they just keep playing on their own timer for the whole match,
-  // independent of level, so they never stop coming
+  // ---- milestone quotes (story mode only): constant, back-to-back
+  // playback for the entire match, not a periodic timer — this call is
+  // a no-op while one is already speaking (triggerMilestoneQuote()'s own
+  // G._voiceBusy guard), so in practice the instant one finishes, the
+  // very next update() tick starts the next one immediately, with no gap
   if(!spectating && isStoryMode() && !Cutscene.playing){
-    G.mqT = (G.mqT===undefined ? rnd(10,18) : G.mqT) - dt;
-    if(G.mqT<=0){ G.mqT = rnd(20,32); triggerMilestoneQuote(); }
+    triggerMilestoneQuote();
   }
 
   if(!spectating){
@@ -3673,9 +3647,10 @@ function drawStormArt(c,W,H,t){
    performance (the Web Speech API has no voice-cloning capability even
    if that were fine to do), so these are written for this game, in this
    game's own voice, carrying a similar weight instead. */
-/* one flat pool, deliberately not tied to level anymore — a timer in
-   update() (G.mqT) fires these throughout the whole match on its own,
-   so they just keep coming regardless of what level you're at. ~500
+/* one flat pool, deliberately not tied to level anymore — update() just
+   keeps calling triggerMilestoneQuote() every frame in story mode, which
+   is a no-op while one is already speaking, so in practice these play
+   constantly, back-to-back, with no gap for the whole match. ~500
    originals across every angle of the story: determination, fear and
    courage, identity, revenge vs. love, family/home, resilience, growth,
    and the cost of power. */
@@ -4808,7 +4783,7 @@ function _beginRunNow(){
   G.ultCd=4; G.ultFx=null;
   G.finalArmed=false; G.finalBattleActive=false; G.finalAllies=[]; G.finalBossRef=null; G.motherRescued=false; G._lastMilestone=0; G._badEndingShown=false;
   G.postRescue=false; G.rescueLevel=0; G.storyBossKills=0; G.dmgLog=[]; G.lastBossHp=0; G.ambientT=rnd(24,40);
-  G.milestoneQueue=[]; G._voiceBusy=false; G._mqQueued=false; G.mqT=rnd(10,18);
+  G.milestoneQueue=[]; G._voiceBusy=false; G._mqQueued=false;
   const arena = ARENAS[G.arenaI]||ARENAS[0];
   setTheme(arena.theme,false); theme.bg=THEMES[arena.theme].bg.slice(); theme.g=THEMES[arena.theme].g.slice();
   Snd.setIntensity(0,false,false);
