@@ -1719,7 +1719,7 @@ const ACHS = [
   { k:'asc1',  n:'ASCENDED',      d:'Ascend for the first time',   r:1000, t:s=>(s.ascension||0)>=1 },
   { k:'asc5',  n:'BEYOND MORTAL', d:'Ascend 5 times',              r:5000, t:s=>(s.ascension||0)>=5 },
   { k:'mom500',n:'HALFWAY HOME',  d:'Reach level 50 in Save Her',  r:1500, t:s=>(s.maxStoryLevel||0)>=50 },
-  { k:'momfree',n:'SHE’S FREE',d:'Defeat the Hollow King and save her', r:10000, t:s=>!!s.motherFreed }
+  { k:'momfree',n:'REUNITED',d:'Complete the story and bring them home', r:10000, t:s=>!!s.motherFreed }
 ];
 
 /* ---------------- 9. CONTENT: DAILY QUESTS ---------------- */
@@ -1925,13 +1925,14 @@ const ARENAS = [
   { id:'swamp', n:'TOXIC SWAMP',    i:'☣', theme:4, hazard:'poison',  d:'Poison bogs sap HP the longer you linger.' },
   { id:'storm', n:'STORM ZONE',     i:'⚡', theme:6, hazard:'storm',   d:'Lightning strikes telegraphed danger zones.' }
 ];
-/* 20 curated deployments — every one is a real, distinct mode+arena
-   combination already backed by working rules (not 20 separate
-   simulations bolted on top): the base ruleset (story pacing, boss
-   cadence, revive rules, score bonus) genuinely differs by MODES id,
-   and the arena genuinely changes the hazard you're fighting through
-   and the visual theme, so each card plays and looks different, not
-   just reads different. */
+/* 21 curated deployments — every one is a real, distinct mode+arena
+   combination already backed by working rules (not bolted-on
+   simulations): the base ruleset (story pacing, boss cadence, revive
+   rules, score bonus) genuinely differs by MODES id, the arena
+   genuinely changes the hazard you're fighting through and the visual
+   theme, and — for save_dad — the whole story, cast, villain, cutscenes
+   and quote pool are their own, never reused from Save Her (relation
+   defaults to 'mom' when a preset doesn't set one). */
 const PRESETS = [
   { id:'save', n:'SAVE HER', i:'💔', mode:'classic', arena:'grid', tag:'STORY', stars:3,
     d:'Where it all began. The full story, exactly as it was meant to be told.' },
@@ -1945,6 +1946,8 @@ const PRESETS = [
     d:'The same climb to level 100, poisoned at every turn.' },
   { id:'save_storm', n:'SAVE HER: STORM ZONE', i:'💔', mode:'classic', arena:'storm', tag:'STORY', stars:5,
     d:'The night he lost her, replaying under a sky that never stops striking.' },
+  { id:'save_dad', n:'SAVE DAD', i:'🛠', mode:'classic', arena:'grid', tag:'STORY', relation:'dad', stars:3,
+    d:'A different family, a different villain, a different story. He owed a debt he never should have owed — you\'re here to settle it.' },
   { id:'first', n:'FIRST LIGHT', i:'🌈', mode:'easy', arena:'grid', tag:'GENTLE', stars:1,
     d:'A gentler Save Her. Built for a first try, or a young player on your lap.' },
   { id:'first_ice', n:'FIRST LIGHT: CALM ICE', i:'🌈', mode:'easy', arena:'ice', tag:'GENTLE', stars:1,
@@ -2639,7 +2642,7 @@ function update(dt){
       if(e.finalBoss && e.kindCycle){
         e.tauntT = (e.tauntT===undefined ? rnd(14,20) : e.tauntT) - dt;
         if(e.tauntT<=0){ e.tauntT = rnd(20,30);
-          announce(pick(FINAL_TAUNTS), '#ff3b5c'); Snd.big();
+          announce(pick(curTaunts()), '#ff3b5c'); Snd.big();
           [660,520,400,300].forEach((f,i)=>setTimeout(()=>Snd.tone(f,.2,'sawtooth',.09,f*.6), i*90));
         }
       }
@@ -3527,6 +3530,57 @@ function drawMotherArt(c,x,y,s,t,mood){
   }
   c.restore();
 }
+/* the father — broader, boxier build, short hair and stubble instead of
+   long hair and a flower, no dress silhouette on the body. Same blink/
+   tears/joy-sparkle mechanics as drawMotherArt so moods read identically,
+   but unmistakably a different person, not a recolor. */
+function drawFatherArt(c,x,y,s,t,mood){
+  c.save(); c.translate(x,y); c.scale(s,s);
+  const bob = Math.sin(t*2)*2.4; c.translate(0,bob);
+  if(mood==='captive'){
+    c.strokeStyle='rgba(130,130,150,.85)'; c.lineWidth=3;
+    for(let i=-1;i<=1;i+=2){ c.beginPath(); c.moveTo(i*26,-2); c.lineTo(i*76,-58); c.stroke();
+      c.beginPath(); c.arc(i*76,-58,4,0,TAU); c.fillStyle='rgba(130,130,150,.85)'; c.fill(); }
+  }
+  const bodyGrad = c.createRadialGradient(0,14,4,0,14,46);
+  bodyGrad.addColorStop(0,'#e8dcc8'); bodyGrad.addColorStop(1,'#9a7f5c');
+  c.fillStyle=bodyGrad;
+  // boxier torso — wider shoulders, less taper, than the mother's ellipse
+  c.beginPath(); c.moveTo(-40,-4); c.quadraticCurveTo(-42,44,0,50); c.quadraticCurveTo(42,44,40,-4);
+  c.quadraticCurveTo(30,-14,0,-12); c.quadraticCurveTo(-30,-14,-40,-4); c.closePath(); c.fill();
+  c.fillStyle='#ffe3cf'; c.beginPath(); c.arc(0,-26,24,0,TAU); c.fill();
+  // short, close-cropped hair — a cap shape, not a curtain of long hair
+  c.fillStyle='#4a3626'; c.beginPath(); c.arc(0,-32,25,Math.PI*1.08,Math.PI*1.92); c.fill();
+  c.beginPath(); c.ellipse(0,-36,25,10,0,0,TAU); c.fill();
+  // stubble/jaw shading
+  c.fillStyle='rgba(74,54,38,.35)'; c.beginPath(); c.ellipse(0,-13,17,9,0,0,Math.PI); c.fill();
+  const blink = Math.sin(t*1.3+.6)>0.985 ? .15 : 1;
+  c.fillStyle='#2a1a10';
+  c.save(); c.translate(-8,-26); c.scale(1,blink); c.beginPath(); c.arc(0,0,3,0,TAU); c.fill(); c.restore();
+  c.save(); c.translate(8,-26); c.scale(1,blink); c.beginPath(); c.arc(0,0,3,0,TAU); c.fill(); c.restore();
+  c.strokeStyle='#8a5a3b'; c.lineWidth=2.4; c.beginPath();
+  if(mood==='joy'||mood==='crying') c.arc(0,-16,6,.15*Math.PI,.85*Math.PI);
+  else c.arc(0,-13,6,1.15*Math.PI,1.85*Math.PI);
+  c.stroke();
+  if(mood==='captive'||mood==='scared'||mood==='crying'){
+    const d1=(t*1.7)%1, d2=((t*1.7)+.5)%1;
+    c.fillStyle='rgba(120,200,255,.85)';
+    c.beginPath(); c.ellipse(-8,-17+d1*28,1.8,3.2,0,0,TAU); c.fill();
+    c.beginPath(); c.ellipse(8,-19+d2*28,1.8,3.2,0,0,TAU); c.fill();
+  }
+  if(mood==='joy'||mood==='crying'){
+    for(let i=0;i<6;i++){ const a=t*1.5+i/6*TAU, rr=50+Math.sin(t*3+i)*6;
+      c.fillStyle='rgba(120,200,255,.8)'; c.beginPath(); c.arc(Math.cos(a)*rr,-20+Math.sin(a)*rr,2,0,TAU); c.fill(); }
+  }
+  c.restore();
+}
+/* dispatches to whichever parent art fits the run's relation, so every
+   scene in the cutscene draw switch below only has to call this once
+   instead of branching itself */
+function drawParentArt(c,x,y,s,t,mood){
+  if(G.relation==='dad') drawFatherArt(c,x,y,s,t,mood);
+  else drawMotherArt(c,x,y,s,t,mood);
+}
 function drawFinalBossArt(c,x,y,s,t){
   c.save(); c.translate(x,y); c.scale(s,s);
   const pulse=.5+.5*Math.sin(t*3);
@@ -4150,6 +4204,117 @@ const MILESTONE_QUOTES = [
   'You don’t need power to feel like enough. You need it to make sure everyone around you is safe enough to feel that way too.',
   'Strength is only ever as good as what it’s protecting.'
 ];
+/* the father's quote pool — a completely different throughline from the
+   mother's (craftsmanship, debt, and "finish what you start" instead of
+   childhood and nostalgia), written fresh rather than find-and-replaced,
+   so nothing here repeats a single line from MILESTONE_QUOTES. Picked by
+   G.relation in triggerMilestoneQuote(), same timer, same voice lock. */
+const MILESTONE_QUOTES_DAD = [
+  'He used to say strength was just finishing what you start. You’re about to prove he was right.',
+  'Every tool he ever handed you was really just a smaller version of this fight.',
+  'You don’t fix what’s broken by being gentle with it. You fix it by refusing to put it down.',
+  'A debt like this was never going to be paid in money. It was always going to be paid in you.',
+  'He built things with his hands his whole life. You’re about to build the thing that gets him back.',
+  'You don’t inherit strength. You inherit the habit of showing up until you have some.',
+  'Some men teach you how to throw a punch. Yours taught you how to keep going after a bad one.',
+  'The workshop is quiet now. That’s exactly why you can’t be.',
+  'He never once said it out loud, but you always knew: unfinished was the only failure that actually counted.',
+  'You’re not chasing revenge. You’re chasing the sound of the garage door in the morning.',
+  'Whatever you owe him, it was never a debt. It was a promise, and promises get paid differently.',
+  'He spent his whole life fixing things that weren’t his to fix. Let this be the one time you return the favor.',
+  'A reckoning cuts both ways. Make sure this one cuts toward home.',
+  'You learned patience from a man who never once raised his voice, even when the world gave him every reason to.',
+  'The last thing he taught you before they took him was how to finish a job right. Finish this one right.',
+  'You don’t need to be louder than the men who took him. You need to be steadier.',
+  'He collected debts in men and machines. You’re about to collect on a father.',
+  'Every scar on his hands had a story. You’re about to earn a few of your own.',
+  'The Reckoner measures worth in what he can take. Your father measured it in what he could build. Only one of those men was ever right.',
+  'You were raised by a man who believed things could always be repaired. Believe that about this too.',
+  'He never asked you to be fearless. He asked you to be useful, one honest hour at a time.',
+  'Strength that doesn’t build anything is just noise with muscle — his words, not just a slogan.',
+  'You don’t need his permission to finish what he started. You just need to actually finish it.',
+  'A workshop teaches you one thing above all else: broken is a stage, not a verdict.',
+  'He carried a whole family on hands that were never soft. Yours don’t have to be soft either.',
+  'The debt collector wants you to believe some things can’t be undone. Your father raised you to believe otherwise.',
+  'You keep hearing his voice in the noise of every fight: "measure twice." So measure. Then swing.',
+  'Nobody hands you the tools for this. You forge them, one level at a time.',
+  'A man who fixes things for a living doesn’t raise a child who quits on people.',
+  'He is not a debt to be paid. He is a person to be brought home. Keep that order straight.',
+  'The Reckoner thinks a father is just leverage. You’re about to teach him otherwise.',
+  'Every unfinished project in that workshop is still waiting for him to come back and finish it. So are you.',
+  'You don’t swing like someone who was taught to fight. You swing like someone who was taught to finish.',
+  'His hands built a life out of nothing but effort. Yours are about to build it back.',
+  'A porch light left on for years isn’t hope. It’s a promise nobody broke yet.',
+  'He never once let a job sit half-done. Don’t let this be the first.',
+  'You were raised on "measure twice, cut once." This is the one cut that finally matters.',
+  'Whatever the collectors took that night, they didn’t take what he taught you. That part stayed.',
+  'A debt only feels unpayable until someone actually shows up to pay it.',
+  'You don’t need to out-muscle the men who took him. You need to outlast them.',
+  'He built things that outlived the men who broke them. Be one of the things that outlasts this.',
+  'The strongest thing in that workshop was never the machinery. It was the man running it.',
+  'You keep swinging like someone whose hands remember exactly whose hands taught them.',
+  'A father who teaches you patience is quietly also teaching you how to survive a war.',
+  'He never bragged about what he could build. He just built it and let it speak. Let this speak the same way.',
+  'The Reckoner deals in fear because he’s never once had to build something that lasts. You have.',
+  'You don’t owe him anger. You owe him a finished job.',
+  'Every callus on those hands was proof he never once looked for an easy way through anything.',
+  'A man who fixes what’s broken for a living raises a child who refuses to believe anything is unfixable — including this.',
+  'You were taught that quitting halfway through was the only real waste. Remember that at level ninety-nine.',
+  'He is somewhere right now, still working with whatever they give him, because that’s the only way he knows how to survive. Be that stubborn too.',
+  'The debt was never yours to inherit. You’re paying it anyway, because that’s what family does.',
+  'You don’t need a blueprint for this fight. You need the same stubbornness that fixed everything else in that house.',
+  'A man who never once gave up on a broken engine did not raise a son who gives up on him.',
+  'He taught you that real strength doesn’t announce itself. It just keeps showing up to the same workbench, day after day.',
+  'You are not fighting a war. You are finishing a job that got interrupted.',
+  'Somewhere down there, he is still telling himself you’re living your life instead of coming for him. Prove him wrong.',
+  'His whole life was proof that ordinary hands can still do extraordinary things. Yours are about to prove it again.',
+  'You don’t need to be as strong as the men who took him. You need to be more stubborn than all of them combined.',
+  'A debt paid in violence is still a debt. A debt paid by bringing him home is the only kind that actually settles anything.',
+  'He never once told you he was proud. He’s about to get the chance.',
+  'The last honest lesson he taught you was that finishing something right always takes longer than you want it to. Keep going anyway.',
+  'You inherited more than his name. You inherited his refusal to leave a job half-done.',
+  'A father who spent his life fixing broken things raised a child who refuses to believe a person can’t be un-broken too.',
+  'The Reckoner has never built a single thing in his life. Everything you are was built by someone who has. That’s the real advantage here.',
+  'You keep hearing "finish what you start" in every level, every boss, every fall. Good. Keep listening.',
+  'He gave you a toolbox and a lesson disguised as a chore. Turns out the lesson was the whole plan all along.',
+  'A man who never cut corners raised a child who won’t cut this fight short either.',
+  'You’re not proving you’re strong enough. You’re proving you actually listened all those years.',
+  'The debt collector wants this to be about fear. Your father would want it to be about finishing the job. Pick his version.',
+  'Every ordinary evening in that workshop was quietly building the exact person this fight actually needed.',
+  'He never raised his voice, and somehow that taught you more about strength than shouting ever could have.',
+  'You don’t need vengeance to get through this. You need the same patience he showed a stripped screw at midnight.',
+  'A man who fixes things for strangers for a living does not deserve to be treated like something disposable.',
+  'His hands are probably shaking by now. Yours don’t get to.',
+  'You are not the boy who watched from the doorway anymore. You are the man who finishes what was started in it.',
+  'He built you the same way he built everything else — patiently, honestly, and to actually last.',
+  'The Reckoner collects what people owe. He has no idea what it costs to raise someone who refuses to stop.',
+  'A promise made in a workshop, at midnight, over a half-finished engine, is still a promise.',
+  'You don’t need him to say it. You already know: he would be proud, and that has to be enough to keep moving.',
+  'Every level is just one more turn of the wrench on the same unfinished job.',
+  'He taught you that broken things deserve a second look before anyone gives up on them. Don’t give up on this fight either.',
+  'A father who never once quit on a stalled engine did not raise a quitter.',
+  'You keep swinging with hands that learned everything they know from a man who never once put down a tool halfway through.',
+  'The workshop light is off. Yours doesn’t have to be.',
+  'He is not a debt. He is not collateral. He is your father, and you are going to say that out loud when you find him.',
+  'A man who builds things that last does not deserve to be the thing someone else breaks.',
+  'You don’t need to be fearless to finish this. You need to be the kind of stubborn that never once made sense to anyone but him.',
+  'The last thing he ever told you, without meaning to, was how to survive exactly this.',
+  'Every scar you earn on this climb is one more thing you’ll eventually be able to show him, and he’ll understand it without you explaining a word.',
+  'You are not rebuilding an engine. You are rebuilding a family, one level at a time.',
+  'He never once let you believe something was too broken to fix. Believe that about him now.',
+  'A debt this large was never going to be settled quietly. Good. You were never taught to be quiet about things that mattered.',
+  'You keep hearing him in your own hands now — steady, unhurried, unwilling to quit on the job.',
+  'The Reckoner has spent his whole life taking things apart. Your father spent his whole life putting them back together. You know exactly which side you were raised on.',
+  'A man who taught you patience with a stubborn engine also taught you patience with an impossible fight, without either of you realizing it at the time.',
+  'You don’t need his blessing to keep going. But you’re about to earn it anyway.',
+  'Every unfinished project in that garage has been waiting the same amount of time you have. Go finish all of it at once.',
+  'He measured a life by what he built, not by what he broke. Measure yours the same way, even here.',
+  'You are the last unfinished thing your father ever started. Go get finished.',
+  'A father who never asked for thanks does not need you to thank him. He needs you to come home.',
+  'The debt was never fair. Neither was taking him. Go make something right out of both.',
+  'You don’t just want to win this. You want to walk back into that workshop and mean it when you say it’s over.',
+  'He built you patiently, one ordinary evening at a time, and this — all of this — is what patience like that actually becomes.'
+];
 // the single release point for the shared voice lock — whichever system
 // (milestone quote or ambient VO) was speaking calls this when it's done,
 // so a milestone that got queued behind an *ambient* line (not just
@@ -4165,10 +4330,12 @@ function triggerMilestoneQuote(){
   // current line actually finishes, text and voice both, instead of both
   // fighting over the same speech channel at once
   if(G._voiceBusy){ G._mqQueued = true; return; }
-  // one flat, level-independent pool — fully shuffled and reshuffled
-  // (not reset) only once it runs out, so a single match can burn through
-  // all ~500 without a repeat before it ever cycles back
-  if(!G.milestoneQueue || !G.milestoneQueue.length) G.milestoneQueue = shuffle(MILESTONE_QUOTES.slice());
+  // one flat, level-independent pool per relation — fully shuffled and
+  // reshuffled (not reset) only once it runs out, so a single match can
+  // burn through the whole pool without a repeat before it ever cycles
+  // back. G.relation picks which pool; the two never mix mid-run.
+  const qPool = G.relation==='dad' ? MILESTONE_QUOTES_DAD : MILESTONE_QUOTES;
+  if(!G.milestoneQueue || !G.milestoneQueue.length) G.milestoneQueue = shuffle(qPool.slice());
   const text = G.milestoneQueue.pop();
   const el = $('milestoneQuote'); const t = $('mqText');
   t.textContent = text; el.classList.add('show');
@@ -4230,6 +4397,29 @@ const PLAYER_AMBIENT = {
     'I don’t fight because I hate him. I fight because I love her more than I fear him.'
   ]
 };
+const PLAYER_AMBIENT_DAD = {
+  early: [
+    'I will do everything to see my dad again.',
+    'No matter what happens, I will see my father’s face again.',
+    'Just a little further. I promised him I’d come.',
+    'Hold on, Dad. I’m already on my way.',
+    'I used to think strength meant never losing a fight. I know better now.'
+  ],
+  mid: [
+    'I can feel it getting closer. I can’t stop now, not now.',
+    'Hold on. I’m not as far away as it feels.',
+    'Every one of these is one less between us.',
+    'I haven’t forgotten why I’m doing this. Not for one second.',
+    'None of this is really about beating him. It was only ever about Dad.'
+  ],
+  late: [
+    'Almost there. Please, just let me be enough.',
+    'I can’t lose him. Not after everything. Not now.',
+    'I’m coming, Dad. I’m so close. Please still be there.',
+    'Just a little more. Just a little more and I see him again.',
+    'I don’t fight because I hate him. I fight because I love my father more than I fear him.'
+  ]
+};
 function playerAmbientLine(){
   if(!P || !isStoryMode() || G.state!=='PLAY') return;
   // same shared voice lock as milestone quotes — skip this beat entirely
@@ -4238,7 +4428,8 @@ function playerAmbientLine(){
   // so missing one ambient line here is low-stakes and never noticeable
   if(G._voiceBusy) return;
   const prog = clamp(P.level/100, 0, 1);
-  const pool = prog>.66 ? PLAYER_AMBIENT.late : prog>.33 ? PLAYER_AMBIENT.mid : PLAYER_AMBIENT.early;
+  const ambSet = G.relation==='dad' ? PLAYER_AMBIENT_DAD : PLAYER_AMBIENT;
+  const pool = prog>.66 ? ambSet.late : prog>.33 ? ambSet.mid : ambSet.early;
   const text = pick(pool);
   const gen = (G._ambGen = (G._ambGen||0) + 1);
   const utter = speakLine({ speaker:'YOU', cls:'you', text, mood: prog>.66?'scared':null, shake: prog>.66?1:0 });
@@ -4324,6 +4515,80 @@ const STORY = {
     { speaker:'', cls:'you', text:'TRY AGAIN. DON’T LET IT END LIKE THIS.', dark:1, art:'title', hold:1800, fast:1 }
   ]
 };
+/* the father's story — a completely different circumstance and villain
+   from the mother's (a debt collector, not an abductor; a workshop, not
+   a house full of song), so it reads as its own story, not a reskin.
+   Uses the same art keys as STORY (drawParentArt dispatches to the
+   father's own vector art automatically), but every line of text here
+   is original, never reused from STORY. */
+const STORY_DAD = {
+  intro: [
+    { speaker:'', cls:'narr', text:'Not every story like this one starts with someone remarkable. Most start with someone ordinary, who simply refused to run.', dark:1, art:'wide', hold:1900 },
+    { speaker:'', cls:'narr', text:'Your father ran a small workshop at the edge of town — the kind of place that smelled like grease and sawdust and never quite made enough money to matter to anyone but you.', dark:0, art:'home', hold:2800 },
+    { speaker:'', cls:'narr', text:'He taught you to fix things before he ever taught you to fight for them. "Strength," he’d say, "is just finishing what you start."', dark:0, art:'home', hold:2600 },
+    { speaker:'', cls:'narr', text:'It was a small life. Loud tools, quiet evenings, a porch light that stayed on far too late. You didn’t know yet how much you’d miss all of it.', dark:0, art:'home', hold:2400 },
+    { speaker:'', cls:'narr', text:'Then, one ordinary evening, three men came asking for a debt that was never really about money.', dark:1, art:'wide', hold:1900, fast:1 },
+    { speaker:'', cls:'narr', text:'The Reckoner came for him personally that night. He took your father, and left a workshop full of unfinished projects and a child who didn’t understand yet what "collateral" meant.', dark:1, art:'abduction', shake:1, hold:2900, fast:1 },
+    { speaker:'', cls:'narr', text:'You were far too small to stop it. You have never once forgiven yourself for that.', dark:1, art:'abduction', hold:2200, fast:1 },
+    { speaker:'', cls:'narr', text:'Years became a toolbox you refused to put down. A child’s helplessness became, slowly and deliberately, a young man’s resolve.', dark:1, art:'wide', hold:2400 },
+    { speaker:'', cls:'narr', text:'Somewhere past the last light of the city, in a foundry that isn’t on any map...', dark:1, art:'wide', hold:1600 },
+    { speaker:'FATHER', cls:'dad', text:'...is someone there? I know that sound. I built that sound. Is that— is that you?', dark:1, art:'mom', mood:'captive', hold:1500 },
+    { speaker:'', cls:'narr', text:'He found your father first, all those years ago. He has never once let him go.', dark:1, art:'boss', hold:1600 },
+    { speaker:'THE RECKONER', cls:'boss', text:'No one settles a debt out of love, little builder. Your father learned that the hard way.', dark:1, art:'both', mood:'captive', shake:1, hold:1700 },
+    { speaker:'FATHER', cls:'dad', text:'Don’t come here. Don’t you dare come here for me. Live your life — that was always the whole point—', dark:1, art:'mom', mood:'captive', hold:1800 },
+    { speaker:'', cls:'narr', text:'You remember his hands from a thousand ordinary evenings, guiding yours over something broken until it wasn’t anymore. You never thought you’d need to remember that to survive.', dark:0, art:'memory', hold:2400 },
+    { speaker:'', cls:'narr', text:'The Reckoner is the strongest thing this world has ever made a deal with. And the cruelest.', dark:1, art:'boss', hold:1500 },
+    { speaker:'', cls:'narr', text:'He is not alone. He never needs to be.', dark:1, art:'both', hold:1300 },
+    { speaker:'', cls:'narr', text:'One path remains. Fifty of his own standing between you and your father, and a hundred trials besides. Most who try do not finish it.', dark:1, art:'wide', hold:2200 },
+    { speaker:'YOU', cls:'you', text:'I’m coming, Dad. Whatever he thinks you owe him — I’ll finish paying it myself.', dark:1, art:'mom', mood:'captive', hold:2400 },
+    { speaker:'', cls:'you', text:'SAVE DAD.', dark:1, art:'title', hold:1600 },
+    { speaker:'', cls:'you', text:'REACH LEVEL 100!', dark:1, art:'title', hold:1500, fast:1 }
+  ],
+  finalConfront: [
+    { speaker:'', cls:'narr', text:'Something enormous turns to face you at last. It has been waiting.', dark:1, art:'boss', hold:1900 },
+    { speaker:'THE RECKONER', cls:'boss', text:'Ah. There you are. I wondered how many of my collectors it would take to slow down a boy with a toolbox.', dark:1, art:'boss', shake:1, hold:2400 },
+    { speaker:'THE RECKONER', cls:'boss', text:'Your father stopped asking for mercy in the first year. Do you want to know what he asks for now?', dark:1, art:'both', mood:'captive', shake:1, hold:2800 },
+    { speaker:'THE RECKONER', cls:'boss', text:'Nothing. He just keeps building things for me. Useful, obedient, and utterly certain you’d never come.', dark:1, art:'boss', shake:1, hold:2400 },
+    { speaker:'', cls:'narr', text:'He laughs — low, delighted, utterly certain you will fail like every single one before you.', dark:1, art:'boss', shake:1, hold:2100 },
+    { speaker:'YOU', cls:'you', text:'Then let’s settle this debt.', dark:1, art:'title', hold:1800 }
+  ],
+  ending: [
+    { speaker:'', cls:'narr', text:'He falls.', dark:1, art:'boss', hold:1300 },
+    { speaker:'', cls:'narr', text:'The chains break before his last breath even leaves him.', dark:0, art:'mom', mood:'joy', hold:1600 },
+    { speaker:'FATHER', cls:'dad', text:'...is it you? Is it really you, or is this just another thing I’ve imagined down here?', dark:0, art:'mom', mood:'joy', hold:1700 },
+    { speaker:'', cls:'narr', text:'Up close, he sees everything the fight cost you. None of it frightens him. Not for a second.', dark:0, art:'embrace', mood:'joy', hold:2400 },
+    { speaker:'FATHER', cls:'dad', text:'Oh — look at you. Look what you carried to get here. Come here. Come here right now.', dark:0, art:'embrace', mood:'joy', hold:2400 },
+    { speaker:'', cls:'narr', text:'A hundred trials. Every single one of them, for this exact second.', dark:0, art:'both', mood:'joy', hold:1800 },
+    { speaker:'', cls:'narr', text:'You run to him. He is already reaching for you.', dark:0, art:'embrace', hold:2000 },
+    { speaker:'', cls:'narr', text:'For one long moment, neither of you says anything at all. You don’t need to.', dark:0, art:'embrace', mood:'joy', hold:2600 },
+    { speaker:'FATHER', cls:'dad', text:'I never once stopped believing you’d come. Not for one single day down here.', dark:0, art:'embrace', mood:'joy', hold:2200 },
+    { speaker:'FATHER', cls:'dad', text:'You finished it. Everything I started, everything I couldn’t — you actually finished it.', dark:0, art:'embrace', mood:'joy', hold:2600 },
+    { speaker:'', cls:'narr', text:'You were the boy in that workshop once, small and helpless, watching the dark take everything. You are not that boy anymore.', dark:0, art:'both', mood:'joy', hold:2800 },
+    { speaker:'FATHER', cls:'dad', text:'Whatever you had to become to reach me — I hope you never have to be that person again.', dark:0, art:'mom', mood:'joy', hold:2400 },
+    { speaker:'YOU', cls:'you', text:'I was so afraid, Dad. The whole way here. I never told anyone that. Not once.', dark:0, art:'embrace', mood:'crying', hold:2400 },
+    { speaker:'', cls:'narr', text:'You are both crying now — not from fear this time. Neither of you cares who sees it.', dark:0, art:'embrace', mood:'crying', hold:2600 },
+    { speaker:'FATHER', cls:'dad', text:'Being afraid and coming anyway — that’s the only kind of strength I ever actually meant to teach you.', dark:0, art:'embrace', mood:'crying', hold:2600 },
+    { speaker:'YOU', cls:'you', text:'I told you I was coming. I meant every word of it.', dark:0, art:'embrace', mood:'joy', hold:1900 },
+    { speaker:'YOU', cls:'you', text:'I’m here, Dad. I’m not going anywhere.', dark:0, art:'embrace', mood:'joy', hold:1800 },
+    { speaker:'', cls:'narr', text:'This was never really about the hundred levels, or the boss, or the score.', dark:0, art:'wide', hold:2200 },
+    { speaker:'', cls:'narr', text:'It was about the people worth all of it. Yours is waiting somewhere too — father, mother, whoever it is.', dark:0, art:'wide', hold:2600 },
+    { speaker:'', cls:'narr', text:'Whatever you’re fighting for — don’t stop. Not today. Not ever.', dark:0, art:'wide', hold:2600 },
+    { speaker:'', cls:'you', text:'FATHER FREED.', dark:0, art:'title', hold:2200 },
+    { speaker:'', cls:'narr', text:'You walk him home yourself, every step of it — back to the same small workshop, the lights finally back on.', dark:0, art:'home', hold:2800 },
+    { speaker:'', cls:'narr', text:'But he was never the only thing out here — and now, whatever remains knows exactly who you are.', dark:1, art:'wide', hold:2600 }
+  ],
+  badEnding: [
+    { speaker:'THE RECKONER', cls:'boss', text:'You were never going to be enough to cover this.', dark:1, art:'boss', shake:1, hold:1400 },
+    { speaker:'FATHER', cls:'dad', text:'No — NO! Please, don’t touch him! Take it out on me, not him—!', dark:1, art:'devour', mood:'scared', shake:1, hold:1900, fast:1 },
+    { speaker:'', cls:'narr', text:'He is still shouting your name when the dark closes over him.', dark:1, art:'devour', mood:'scared', shake:1, hold:2100, fast:1 },
+    { speaker:'', cls:'narr', text:'He never got to see you again. Not once. Not even to say goodbye.', dark:1, art:'lost', hold:2000, fast:1 },
+    { speaker:'THE RECKONER', cls:'boss', text:'He kept calling your name right until the end. They always do.', dark:1, art:'boss', shake:1, hold:2000, fast:1 },
+    { speaker:'', cls:'narr', text:'Somewhere, a porch light that waited for you every single night simply goes out.', dark:1, art:'lost', hold:2200, fast:1 },
+    { speaker:'', cls:'you', text:'HE IS GONE. YOU WERE TOO SLOW.', dark:1, art:'title', hold:1800, fast:1 },
+    { speaker:'', cls:'narr', text:'Somewhere, in some other try, you were just a little stronger — and you made it in time.', dark:1, art:'wide', hold:2200, fast:1 },
+    { speaker:'', cls:'you', text:'TRY AGAIN. DON’T LET IT END LIKE THIS.', dark:1, art:'title', hold:1800, fast:1 }
+  ]
+};
 /* The closest this can get to voice acting: the device's own built-in
    text-to-speech, when the browser has one (window.speechSynthesis).
    It's a real synthetic voice reading the line, not a recording and
@@ -4344,15 +4609,16 @@ function pickVoiceFor(role){
   const femaleHints = /female|zira|samantha|victoria|susan|karen|moira|tessa|fiona|kate|serena|allison|ava|emma|joanna|salli|kimberly|amy|siri|google us english$/i;
   const maleHints = /male|david|daniel|alex|fred|george|james|oliver|arthur|eric|guy|mark|tom|google uk english male|matthew|brian|russell/i;
   const qualityHints = /natural|enhanced|premium|neural|google/i;
-  // boss and narr both lean on deeper/male-leaning voices; mom leans
+  // boss, narr and dad all lean on deeper/male-leaning voices; mom leans
   // female — the API gives no real gender field, only names to guess from
   const hints = role==='mom' ? femaleHints : maleHints;
   const pool = VoiceCache.list.filter(v=>hints.test(v.name));
   if(!pool.length) return null;
   pool.sort((a,b)=> (qualityHints.test(b.name)?1:0) - (qualityHints.test(a.name)?1:0));
-  if(role==='narr' && pool.length>1){
-    // the commentator shouldn't sound identical to the villain when the
-    // device happens to have more than one deep-leaning voice available
+  if((role==='narr' || role==='dad') && pool.length>1){
+    // the commentator (and the father) shouldn't sound identical to the
+    // villain when the device happens to have more than one deep-leaning
+    // voice available
     return pool.find(v=>v!==pool[0]) || pool[0];
   }
   return pool[0];
@@ -4380,6 +4646,14 @@ function speakLine(line){
       u.pitch = line.mood==='joy' ? 1.3 : line.mood==='crying' ? 1.36 : pained ? 1.58 : 1.42;
       u.rate = line.mood==='joy' ? 1.12 : line.mood==='crying' ? .95 : pained ? 1.4 : 1.24;
       try{ const v = pickVoiceFor('mom'); if(v) u.voice = v; }catch(e){}
+    } else if(line.cls==='dad'){
+      // warm and male but distinct from both the villain (pitch ~0, a
+      // monster) and the narrator (pitch .7, documentary-flat) — a real
+      // father's register, pained when captive/scared, steady otherwise
+      const pained = line.mood==='captive' || line.mood==='scared';
+      u.pitch = line.mood==='joy' ? .58 : line.mood==='crying' ? .62 : pained ? .8 : .5;
+      u.rate = line.mood==='joy' ? 1.05 : line.mood==='crying' ? .9 : pained ? 1.3 : 1.1;
+      try{ const v = pickVoiceFor('dad'); if(v) u.voice = v; }catch(e){}
     } else if(line.cls==='boss'){
       // pushed to the literal floor of what the Web Speech API allows —
       // pitch 0 is as low/guttural as this can go, slow and dragging so
@@ -4564,19 +4838,19 @@ const Cutscene = {
     c.globalAlpha=1;
     const line = this.curLine; if(!line) return;
     const cx=W/2, cy=H*.42, sc=Math.min(W,H)/420;
-    if(line.art==='mom'){ drawMotherArt(c, cx, cy, sc*1.6, t, line.mood||'captive'); }
+    if(line.art==='mom'){ drawParentArt(c, cx, cy, sc*1.6, t, line.mood||'captive'); }
     else if(line.art==='boss'){
       drawFinalBossArt(c, cx, cy, sc*1.5, t);
       drawAllyArt(c, cx-140*sc, cy+40*sc, sc*.9, t, '#8b5cff');
       drawAllyArt(c, cx+140*sc, cy+40*sc, sc*.9, t+1, '#ff8a3c');
     } else if(line.art==='both'){
-      drawMotherArt(c, cx-90*sc, cy+20*sc, sc*1.1, t, line.mood||'captive');
+      drawParentArt(c, cx-90*sc, cy+20*sc, sc*1.1, t, line.mood||'captive');
       drawFinalBossArt(c, cx+110*sc, cy-10*sc, sc*1.15, t);
     } else if(line.art==='embrace'){
       const glow=c.createRadialGradient(cx,cy,10,cx,cy,150*sc);
       glow.addColorStop(0,'rgba(255,210,140,.35)'); glow.addColorStop(1,'rgba(0,0,0,0)');
       c.fillStyle=glow; c.beginPath(); c.arc(cx,cy,150*sc,0,TAU); c.fill();
-      drawMotherArt(c, cx+14*sc, cy, sc*1.4, t, line.mood||'joy');
+      drawParentArt(c, cx+14*sc, cy, sc*1.4, t, line.mood||'joy');
       // you — a small warm silhouette leaning into her, not a detailed figure on purpose
       c.save(); c.translate(cx-34*sc, cy+16*sc); c.scale(sc*1.4,sc*1.4); c.rotate(-.18);
       c.fillStyle='#ffe9c9'; c.beginPath(); c.ellipse(0,10,16,22,0,0,TAU); c.fill();
@@ -4585,19 +4859,19 @@ const Cutscene = {
       for(let i=0;i<10;i++){ const a=t*1.2+i/10*TAU, rr=70*sc+Math.sin(t*2+i)*10*sc;
         c.fillStyle='rgba(255,220,150,.9)'; c.beginPath(); c.arc(cx+Math.cos(a)*rr, cy+Math.sin(a)*rr*.7, 2,0,TAU); c.fill(); }
     } else if(line.art==='lost'){
-      drawMotherArt(c, cx, cy, sc*1.5, t, 'captive');
+      drawParentArt(c, cx, cy, sc*1.5, t, 'captive');
       const shroud = c.createRadialGradient(cx,cy,40*sc,cx,cy,220*sc);
       const p = .4+.3*Math.sin(t*2);
       shroud.addColorStop(0,'rgba(0,0,0,0)'); shroud.addColorStop(1,'rgba(0,0,0,'+p+')');
       c.fillStyle=shroud; c.fillRect(0,0,W,H);
     } else if(line.art==='memory'){
-      // a warm flashback, not the present: mother standing, unharmed, a
-      // small silhouette of the child she raised beside her — dimmed and
+      // a warm flashback, not the present: the parent standing, unharmed, a
+      // small silhouette of the child they raised beside them — dimmed and
       // desaturated at the edges so it unmistakably reads as "the past"
       const glow=c.createRadialGradient(cx,cy,10,cx,cy,150*sc);
       glow.addColorStop(0,'rgba(255,222,170,.28)'); glow.addColorStop(1,'rgba(0,0,0,0)');
       c.fillStyle=glow; c.beginPath(); c.arc(cx,cy,150*sc,0,TAU); c.fill();
-      drawMotherArt(c, cx+18*sc, cy, sc*1.25, t, 'joy');
+      drawParentArt(c, cx+18*sc, cy, sc*1.25, t, 'joy');
       c.save(); c.translate(cx-42*sc, cy+24*sc); c.scale(sc*.8,sc*.8);
       c.fillStyle='rgba(255,233,201,.92)';
       c.beginPath(); c.ellipse(0,10,13,18,0,0,TAU); c.fill();
@@ -4605,13 +4879,13 @@ const Cutscene = {
       c.restore();
       c.fillStyle='rgba(5,6,13,.42)'; c.fillRect(0,0,W,H);
     } else if(line.art==='devour'){
-      // stylized, not graphic: he looms, she shrinks and is pulled into
-      // shadow. no gore, just the unmistakable shape of her being taken.
+      // stylized, not graphic: he looms, they shrink and are pulled into
+      // shadow. no gore, just the unmistakable shape of them being taken.
       const lt = Math.max(0, gt - this._lineT0);
       drawFinalBossArt(c, cx, cy, sc*1.9, t);
       const shrink = clamp(1 - lt*.22, .1, 1);
       c.globalAlpha = shrink;
-      drawMotherArt(c, cx, cy+14*sc, sc*1.2*shrink, t, 'scared');
+      drawParentArt(c, cx, cy+14*sc, sc*1.2*shrink, t, 'scared');
       c.globalAlpha = 1;
       const swallow = c.createRadialGradient(cx,cy,8*sc,cx,cy,210*sc);
       const p = clamp(.22+lt*.32, 0, .94);
@@ -4621,10 +4895,10 @@ const Cutscene = {
       const glow=c.createRadialGradient(cx,cy,10,cx,cy,170*sc);
       glow.addColorStop(0,'rgba(255,230,190,.4)'); glow.addColorStop(1,'rgba(0,0,0,0)');
       c.fillStyle=glow; c.beginPath(); c.arc(cx,cy,170*sc,0,TAU); c.fill();
-      drawMotherArt(c, cx, cy, sc*1.35, t, 'joy');
-      // a newborn bundle, held out and forward — clear of her own body
-      // silhouette (which shares its cream/peach palette) and lit with
-      // its own small glow so it reads as its own distinct shape
+      drawParentArt(c, cx, cy, sc*1.35, t, 'joy');
+      // a newborn bundle, held out and forward — clear of the parent's own
+      // body silhouette (which shares its cream/peach palette) and lit
+      // with its own small glow so it reads as its own distinct shape
       c.save(); c.translate(cx+34*sc, cy+52*sc); c.scale(sc*1.05,sc*1.05);
       const bg = c.createRadialGradient(0,0,2,0,0,22);
       bg.addColorStop(0,'rgba(255,248,238,.55)'); bg.addColorStop(1,'rgba(255,248,238,0)');
@@ -4640,14 +4914,14 @@ const Cutscene = {
       // like a backdrop, instead of trying to align to their feet —
       // simpler and reads correctly at every viewport size
       drawHouseArt(c, cx, H*.66, sc*1.0, t, true);
-      drawMotherArt(c, cx-30*sc, cy, sc*1.0, t, 'joy');
+      drawParentArt(c, cx-30*sc, cy, sc*1.0, t, 'joy');
       drawChildArt(c, cx+24*sc, cy+16*sc, sc*.62);
     } else if(line.art==='abduction'){
       drawStormArt(c, W, H, t);
       drawHouseArt(c, cx, H*.72, sc*.92, t, false);
       drawFinalBossArt(c, cx+34*sc, cy-46*sc, sc*2.15, t);
       c.save(); c.globalAlpha=.92;
-      drawMotherArt(c, cx-52*sc, cy+26*sc, sc*.82, t, 'scared');
+      drawParentArt(c, cx-52*sc, cy+26*sc, sc*.82, t, 'scared');
       c.restore();
       drawChildArt(c, cx-10*sc, H*.68, sc*.55);
       drawStormArt(c, W, H, t+37);
@@ -4656,7 +4930,7 @@ const Cutscene = {
       glow.addColorStop(0, line.dark?'rgba(255,59,92,.35)':'rgba(182,255,60,.3)');
       glow.addColorStop(1,'rgba(0,0,0,0)');
       c.fillStyle=glow; c.beginPath(); c.arc(cx,cy,180*sc,0,TAU); c.fill();
-      drawMotherArt(c, cx, cy+10*sc, sc*1.3, t, line.dark?'captive':'joy');
+      drawParentArt(c, cx, cy+10*sc, sc*1.3, t, line.dark?'captive':'joy');
     }
     // 'wide' art: just the starfield + vignette, no character
   }
@@ -4679,17 +4953,28 @@ const FINAL_TAUNTS = [
   'She begged, at first. They always beg.',
   'Fifty of mine, and you are still standing. How disappointing for both of us.'
 ];
+const FINAL_TAUNTS_DAD = [
+  'Still fighting? He is still calling your name, you know.',
+  'I can still hear him. Can you?',
+  'Every second you waste here is a second I still have with him.',
+  'You should have been faster. He is paying for that, right now.',
+  'Ha. HA. You think this changes anything for him?',
+  'He begged, at first. They always beg.',
+  'Fifty of my collectors, and you are still standing. How disappointing for both of us.'
+];
+function curTaunts(){ return G.relation==='dad' ? FINAL_TAUNTS_DAD : FINAL_TAUNTS; }
+function curStory(){ return G.relation==='dad' ? STORY_DAD : STORY; }
 function checkStoryMilestones(){
   if(!isStoryMode()) return;
   if(P.level>(save.maxStoryLevel||0)) save.maxStoryLevel = P.level;
   if(P.level%20===0 && P.level>0 && P.level!==G._lastMilestone){
     G._lastMilestone = P.level;
-    if(P.level<100) announce('LEVEL '+P.level+' — SHE’S STILL WAITING', '#ff9fd6');
+    if(P.level<100) announce('LEVEL '+P.level+' — '+(G.relation==='dad'?'HE’S STILL WAITING':'SHE’S STILL WAITING'), '#ff9fd6');
   }
   if(P.level>=100 && (G.storyBossKills||0)>=50 && !G.finalArmed && !G.finalBattleActive){
     G.finalArmed = true;
     G.state='CUTSCENE'; Ads.gameplayStop();
-    Cutscene.play(STORY.finalConfront, true, ()=>{
+    Cutscene.play(curStory().finalConfront, true, ()=>{
       G.state='PLAY'; last=0; acc=0; Ads.gameplayStart();
       triggerFinalBattle();
     });
@@ -4743,18 +5028,19 @@ function onFinalBossOrAllyKilled(e){
   const alliesLeft = (G.finalAllies||[]).length;
   if(!G.finalBossRef && alliesLeft===0 && G.finalBattleActive && !G.motherRescued){
     G.motherRescued = true;
-    save.motherFreed = 1; persist();
+    save.motherFreed = 1; save.lastRelation = G.relation; persist();
     Snd.joySting();
     setTimeout(()=>{
       G.state='CUTSCENE'; Ads.gameplayStop();
-      Cutscene.play(STORY.ending, false, ()=>{
-        // she's home now — the run doesn't end here. what's left of his
-        // forces knows exactly who you are, and comes for you 1000x
+      Cutscene.play(curStory().ending, false, ()=>{
+        // he/she is home now — the run doesn't end here. what's left of
+        // his forces knows exactly who you are, and comes for you 1000x
         // harder: postRescueMul() ramps so fast that surviving even 5
         // more levels past the rescue is meant to be nearly impossible.
         G.postRescue = true; G.rescueLevel = P.level;
         G.state='PLAY'; last=0; acc=0; Ads.gameplayStart();
-        announce('DEADLY WAVE — SHE\'S HOME. NOW SURVIVE.', '#ff3b5c');
+        const home = G.relation==='dad' ? 'HE\'S HOME. NOW SURVIVE.' : 'SHE\'S HOME. NOW SURVIVE.';
+        announce('DEADLY WAVE — '+home, '#ff3b5c');
         toast('DEADLY WAVE', 'Death is real again. This is the only fight you can actually lose.', 'linear-gradient(135deg,#ff3b5c,#7a0f22)');
       });
     }, 900);
@@ -4768,7 +5054,7 @@ function startRun(){
     hideAll(); $('hud').classList.add('hidden');
     save.introSeen = 1; persist();
     G.state='CUTSCENE'; Ads.gameplayStop();
-    Cutscene.play(STORY.intro, true, ()=>_beginRunNow());
+    Cutscene.play(curStory().intro, true, ()=>_beginRunNow());
     return;
   }
   _beginRunNow();
@@ -4900,7 +5186,7 @@ function finishRun(){
     G._badEndingShown = true;
     G.state='CUTSCENE'; Ads.gameplayStop();
     Snd.griefSting();
-    Cutscene.play(STORY.badEnding, true, ()=>_finishRunNow());
+    Cutscene.play(curStory().badEnding, true, ()=>_finishRunNow());
     return;
   }
   _finishRunNow();
@@ -4931,10 +5217,10 @@ function _finishRunNow(){
   $('fCoins').textContent = lastEarned;
   $('dblBtn').disabled = false; $('dblBtn').textContent = '▶ DOUBLE SHARDS ×2';
   if(G.motherRescued){
-    $('overTitle').textContent = '🏆 YOU SAVED HER';
+    $('overTitle').textContent = G.relation==='dad' ? '🏆 YOU SAVED HIM' : '🏆 YOU SAVED HER';
     $('overTitle').style.color = 'var(--li)';
   } else if(isStoryMode()){
-    $('overTitle').textContent = 'SHE’S STILL WAITING...';
+    $('overTitle').textContent = G.relation==='dad' ? 'HE’S STILL WAITING...' : 'SHE’S STILL WAITING...';
     $('overTitle').style.color = 'var(--rd)';
   }
   show('overScreen');
@@ -5094,6 +5380,7 @@ function renderStats(){
   }
   $('rewatchIntroBtn').classList.toggle('hidden', !save.introSeen);
   $('rewatchEndBtn').classList.toggle('hidden', !save.motherFreed);
+  $('rewatchEndBtn').textContent = save.lastRelation==='dad' ? '🎬 REWATCH: HE\'S FREE' : '🎬 REWATCH: SHE\'S FREE';
   const metaMax = META.reduce((a,m)=>a+m.max,0);
   const metaCur = Object.values(save.meta).reduce((a,b)=>a+b,0);
   const canAscend = metaCur>=metaMax;
@@ -5115,8 +5402,8 @@ $('qualityBtn').onclick = ()=>{
   persist(); renderStats(); resize();
 };
 $('wipeBtn').onclick = ()=>{ if(confirm('Erase ALL progress permanently?')){ save=defaultSave(); writeSave(); location.reload(); } };
-$('rewatchIntroBtn').onclick = ()=>{ Snd.click(); hideAll(); Snd.init(); Snd.resume(); Cutscene.play(STORY.intro, true, ()=>goMenu()); };
-$('rewatchEndBtn').onclick = ()=>{ Snd.click(); hideAll(); Snd.init(); Snd.resume(); Cutscene.play(STORY.ending, false, ()=>goMenu()); };
+$('rewatchIntroBtn').onclick = ()=>{ Snd.click(); hideAll(); Snd.init(); Snd.resume(); G.relation = save.lastRelation||'mom'; Cutscene.play(curStory().intro, true, ()=>goMenu()); };
+$('rewatchEndBtn').onclick = ()=>{ Snd.click(); hideAll(); Snd.init(); Snd.resume(); G.relation = save.lastRelation||'mom'; Cutscene.play(curStory().ending, false, ()=>goMenu()); };
 $('ascendBtn').onclick = ()=>{
   const metaMax = META.reduce((a,m)=>a+m.max,0);
   if(Object.values(save.meta).reduce((a,b)=>a+b,0) < metaMax) return;
@@ -5221,12 +5508,13 @@ $('modeStartBtn').onclick = ()=>{
   const pr = PRESETS.find(p=>p.id===G.selectedPreset) || PRESETS[0];
   Snd.click();
   G.mode = pr.mode; G.arenaI = Math.max(0, ARENAS.findIndex(a=>a.id===pr.arena));
+  G.relation = pr.relation || 'mom';
   startRun();
 };
 $('modeBack').onclick = ()=>{ Snd.click(); goMenu(); };
 
 /* ---------------- 32. BOOT ---------------- */
-$('playBtn').onclick = ()=>{ Snd.click(); G.mode='classic'; G.arenaI=0; startRun(); };
+$('playBtn').onclick = ()=>{ Snd.click(); G.mode='classic'; G.arenaI=0; G.relation='mom'; startRun(); };
 $('modesBtn').onclick = ()=>{ Snd.click(); if(!G.selectedPreset) G.selectedPreset='save'; hideAll(); show('modeScreen'); renderModeScreen(); };
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden && G.state==='PLAY') pauseGame(); });
 addEventListener('blur', ()=>{ if(G.state==='PLAY') pauseGame(); });
