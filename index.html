@@ -734,12 +734,17 @@ const Snd = {
     this.musTimer = setInterval(()=>this.schedule(), 25);
   },
   M: {
-    step:0, next:0, bpm:124, intensity:0, boss:0, frenzy:0, stinger:0,
+    step:0, next:0, bpm:124, intensity:0, boss:0, frenzy:0, stinger:0, story:0,
     // Am - F - C - G   (drives forward, resolves, repeats: the classic loop-forever progression)
     root:[55, 43.65, 65.41, 49],
     chord:[[220,261.63,329.63],[174.61,220,261.63],[196,261.63,329.63],[196,246.94,293.66]],
     // A minor pentatonic ladder, used by both the arp and the kill-streak pitch ladder
-    pent:[0,3,5,7,10,12,15,17,19,22,24,27,29,31]
+    pent:[0,3,5,7,10,12,15,17,19,22,24,27,29,31],
+    // "her theme" — a simple, wistful 7-note phrase in the same key as the
+    // rest of the score, so it feels like part of the same piece rather than
+    // an unrelated jingle. Recurs through the whole Save Her run, not just
+    // the cutscenes, so the soundtrack has one clear emotional throughline.
+    momTheme:[440,523.25,659.25,587.33,523.25,493.88,440]
   },
   schedule(){
     if(!this.ready || this.muted) return;
@@ -778,6 +783,16 @@ const Snd = {
       // --- boss drone
       if(M.boss && s===0) this.at(root*.5, spb*15, 'sawtooth', .07, t, null, 11);
 
+      // --- her theme: a recurring, prominent melodic line unique to the
+      // story run, so a long attempt has something to hold onto besides
+      // the combat layers underneath it
+      if(M.story && M.step % 64 === 0){
+        M.momTheme.forEach((f,i)=>{
+          this.at(f, spb*4.4, 'triangle', M.boss? .1 : .085, t + i*spb*4, null, -3);
+          this.at(f/2, spb*4.4, 'sine', .04, t + i*spb*4);
+        });
+      }
+
       M.next += spb; M.step++;
     }
   },
@@ -801,7 +816,7 @@ const Snd = {
     this.muted = !!on;
     if(!this.ready) return;
     try{
-      if(this.master) this.master.gain.value = on ? 0 : .5;
+      if(this.master) this.master.gain.value = on ? 0 : (this.M.story ? .62 : .5);
       if(on) this.ctx.suspend(); else this.ctx.resume();
     }catch(e){}
   },
@@ -1608,7 +1623,7 @@ const ACHS = [
   { k:'evo8',  n:'PERFECT ARSENAL',d:'Evolve 8 weapons total',     r:2500, t:s=>(s.weaponsEvolved||0)>=8 },
   { k:'asc1',  n:'ASCENDED',      d:'Ascend for the first time',   r:1000, t:s=>(s.ascension||0)>=1 },
   { k:'asc5',  n:'BEYOND MORTAL', d:'Ascend 5 times',              r:5000, t:s=>(s.ascension||0)>=5 },
-  { k:'mom500',n:'HALFWAY HOME',  d:'Reach level 500 in Save Her', r:1500, t:s=>(s.maxStoryLevel||0)>=500 },
+  { k:'mom500',n:'HALFWAY HOME',  d:'Reach level 50 in Save Her',  r:1500, t:s=>(s.maxStoryLevel||0)>=50 },
   { k:'momfree',n:'SHE’S FREE',d:'Defeat the Hollow King and save her', r:10000, t:s=>!!s.motherFreed }
 ];
 
@@ -2271,7 +2286,7 @@ function update(dt){
   // ---- hazard zones (arena modifiers)
   if(!spectating) tickHazards(dt);
 
-  // ---- the final battle: reachable once level 1000 opens the path
+  // ---- the final battle: reachable once level 100 opens the path
   if(!spectating && isStoryMode() && G.finalArmed && !G.finalBattleActive
      && dist2(P,FINAL_ARENA) < FINAL_ARENA.r*FINAL_ARENA.r){
     triggerFinalBattle();
@@ -3143,11 +3158,11 @@ const SCREENS = ['menuScreen','modeScreen','dailyScreen','lvlScreen','chestScree
 function hideAll(){ SCREENS.forEach(hide); }
 
 /* ---------------- 23b. STORY: "SAVE HER" ----------------
-   Classic mode is the story mode. Somewhere at level 1000 waits a
-   fixed arena, a final boss, his lieutenants, and your mother. This
-   section holds: the cutscene playback engine (typed subtitles, no
-   voice — see the chat reply for why), the hand-drawn mother/boss
-   art, the two scripts, and the level-1000 trigger/win condition. */
+   Classic and Easy mode are the story mode. Somewhere at level 100
+   waits a fixed arena, a final boss, his lieutenants, and your mother.
+   This section holds: the cutscene playback engine (typed subtitles,
+   no voice — see the chat reply for why), the hand-drawn mother/boss
+   art, the scripts, and the level-100 trigger/win condition. */
 const FINAL_ARENA = { x: 4200, y: -3400, r: 640 };
 function isStoryMode(){ return G.mode==='classic' || G.mode==='easy'; }
 function drawFlowerArt(c,x,y,r,petal,core){
@@ -3249,22 +3264,25 @@ const STORY = {
     { speaker:'', cls:'narr', text:'He found her first.', dark:1, art:'boss', hold:1200 },
     { speaker:'THE HOLLOW KING', cls:'boss', text:'No one is coming for you, little flower. No one ever does.', dark:1, art:'both', mood:'captive', shake:1, hold:1700 },
     { speaker:'MOTHER', cls:'mom', text:'My child... if you can hear me... don’t let him win. Don’t give up...', dark:1, art:'mom', mood:'captive', hold:1800 },
+    { speaker:'', cls:'narr', text:'You remember her voice from a thousand ordinary mornings. You never thought you’d need to remember it to survive.', dark:1, art:'mom', mood:'captive', hold:2000 },
     { speaker:'', cls:'narr', text:'He is the strongest thing this world has ever made. And the cruelest.', dark:1, art:'boss', hold:1500 },
     { speaker:'', cls:'narr', text:'He is not alone. He never needs to be.', dark:1, art:'both', hold:1300 },
-    { speaker:'', cls:'narr', text:'One path remains. A thousand trials between you and her. Almost no one finishes it.', dark:1, art:'wide', hold:1900 },
+    { speaker:'', cls:'narr', text:'One path remains. A hundred trials between you and her. Most who try do not finish it.', dark:1, art:'wide', hold:1900 },
+    { speaker:'YOU', cls:'you', text:'I’m coming, Mom. He cannot harm you. He cannot touch you. Not while I still have breath left.', dark:1, art:'mom', mood:'captive', hold:2400 },
     { speaker:'', cls:'you', text:'SAVE HER.', dark:1, art:'title', hold:1600 }
   ],
   ending: [
     { speaker:'', cls:'narr', text:'He falls.', dark:1, art:'boss', hold:1300 },
     { speaker:'', cls:'narr', text:'The chains break before his last breath even leaves him.', dark:0, art:'mom', mood:'joy', hold:1600 },
     { speaker:'MOTHER', cls:'mom', text:'...is it you? Is it really you?', dark:0, art:'mom', mood:'joy', hold:1700 },
-    { speaker:'', cls:'narr', text:'A thousand trials. Every one of them, for this second.', dark:0, art:'both', mood:'joy', hold:1800 },
+    { speaker:'', cls:'narr', text:'A hundred trials. Every one of them, for this second.', dark:0, art:'both', mood:'joy', hold:1800 },
     { speaker:'', cls:'narr', text:'You run to her. She is already reaching for you.', dark:0, art:'embrace', hold:2000 },
     { speaker:'MOTHER', cls:'mom', text:'I never once stopped believing you’d come. Not for one single day.', dark:0, art:'embrace', mood:'joy', hold:2200 },
     { speaker:'MOTHER', cls:'mom', text:'Your father would be so proud of you. I hope, wherever he is, he can see this too.', dark:0, art:'embrace', mood:'joy', hold:2600 },
     { speaker:'MOTHER', cls:'mom', text:'Whatever you carried to reach me — I hope you never have to carry alone again.', dark:0, art:'mom', mood:'joy', hold:2400 },
+    { speaker:'YOU', cls:'you', text:'I told you I was coming. I meant every word of it.', dark:0, art:'embrace', mood:'joy', hold:1900 },
     { speaker:'YOU', cls:'you', text:'I’m here, Mom. I’m not going anywhere.', dark:0, art:'embrace', mood:'joy', hold:1800 },
-    { speaker:'', cls:'narr', text:'This was never really about the thousand levels, or the boss, or the score.', dark:0, art:'wide', hold:2200 },
+    { speaker:'', cls:'narr', text:'This was never really about the hundred levels, or the boss, or the score.', dark:0, art:'wide', hold:2200 },
     { speaker:'', cls:'narr', text:'It was about the people worth all of it. Yours is waiting somewhere too — mother, father, whoever it is.', dark:0, art:'wide', hold:2600 },
     { speaker:'', cls:'narr', text:'Whatever you’re fighting for — don’t stop. Not today. Not ever.', dark:0, art:'wide', hold:2600 },
     { speaker:'', cls:'you', text:'MOTHER FREED.', dark:0, art:'title', hold:2200 }
@@ -3376,18 +3394,23 @@ const Cutscene = {
   }
 };
 $('csSkip').onclick = ()=>{ Snd.click(); Cutscene.skip(); };
+/* Calibrated so a merely-average player, not just an expert, can reach
+   level 100 in roughly 10 minutes: familiar pace through level 25 (so the
+   early build-crafting still feels like the rest of the game), then a
+   fast, flat climb the rest of the way so the ending is actually within
+   reach for most people who commit to a real attempt, not a lucky few. */
 function xpForStory(l){
-  if(l<=60) return xpFor(l);
-  return Math.floor(3500 + (l-60)*9.5);
+  if(l<=25) return xpFor(l);
+  return Math.floor(150 + (l-25)*7);
 }
 function checkStoryMilestones(){
   if(!isStoryMode()) return;
   if(P.level>(save.maxStoryLevel||0)) save.maxStoryLevel = P.level;
-  if(P.level%100===0 && P.level>0 && P.level!==G._lastMilestone){
+  if(P.level%20===0 && P.level>0 && P.level!==G._lastMilestone){
     G._lastMilestone = P.level;
-    if(P.level<1000) announce('LEVEL '+P.level+' — SHE’S STILL WAITING', '#ff9fd6');
+    if(P.level<100) announce('LEVEL '+P.level+' — SHE’S STILL WAITING', '#ff9fd6');
   }
-  if(P.level>=1000 && !G.finalArmed){
+  if(P.level>=100 && !G.finalArmed){
     G.finalArmed = true;
     announce('THE FINAL PATH HAS OPENED', '#ff3b5c'); Snd.sweep(true); shake(14);
     toast('MINIMAP', 'A beacon now marks her location');
@@ -3453,6 +3476,8 @@ function _beginRunNow(){
   const arena = ARENAS[G.arenaI]||ARENAS[0];
   setTheme(arena.theme,false); theme.bg=THEMES[arena.theme].bg.slice(); theme.g=THEMES[arena.theme].g.slice();
   Snd.setIntensity(0,false,false);
+  Snd.M.story = isStoryMode() ? 1 : 0;
+  Snd.master && (Snd.master.gain.value = isStoryMode() ? .62 : .5); // her theme deserves to actually be heard
   spawnHazards();
   G.freeRevives = G.mode==='hardcore' ? 0 : G.mode==='easy' ? 1 : save.meta.rev;
   $('bosswrap').style.opacity=0; $('dmgflash').style.opacity=0; $('bosstele').classList.remove('on'); $('bosswrap').classList.remove('enraged');
@@ -3606,7 +3631,7 @@ $('shareBtn').onclick = async ()=>{
     toast('COPIED','Score copied to clipboard');
   }catch(e){ toast('SCORE', fmtN(G.score)); }
 };
-function goMenu(){ setTheme(0,false); Snd.setIntensity(.2,false,false); hideAll(); $('hud').classList.add('hidden'); G.state='MENU'; show('menuScreen'); refreshCoins(); renderQuests(); }
+function goMenu(){ setTheme(0,false); Snd.setIntensity(.2,false,false); Snd.M.story=0; if(Snd.master) Snd.master.gain.value=.5; hideAll(); $('hud').classList.add('hidden'); G.state='MENU'; show('menuScreen'); refreshCoins(); renderQuests(); }
 
 /* ---------------- 25. META SHOP ---------------- */
 function refreshCoins(){ ['coinV','coinV2','coinV3'].forEach(id=>{ const e=$(id); if(e) e.textContent = fmtN(save.coins); }); }
