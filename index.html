@@ -367,8 +367,9 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   <div class="logo">NEON<br>REAPER</div>
   <div class="tag">SURVIVE · STACK · BREAK THE SCORE</div>
   <div class="col">
-    <button class="btn play" id="playBtn">▶ PLAY</button>
-    <button class="btn easy" id="modesBtn">🎬 MODES <small>20 ways to play — pick your arena, pick your rules</small></button>
+    <div class="sub" style="margin:2px 0 2px">WHO ARE YOU PLAYING FOR?</div>
+    <div class="grid2" id="relGrid" style="margin:0 0 10px"></div>
+    <button class="btn ghost" id="modesBtn">🎬 MORE MODES <small>Arcade, hardcore, time attack &amp; arena variants</small></button>
     <div class="row">
       <button class="btn ghost" id="shopBtn">⚡ UPGRADES</button>
       <button class="btn ghost" id="heroBtn">☗ REAPERS</button>
@@ -5811,7 +5812,39 @@ $('modeStartBtn').onclick = ()=>{
 $('modeBack').onclick = ()=>{ Snd.click(); goMenu(); };
 
 /* ---------------- 32. BOOT ---------------- */
-$('playBtn').onclick = ()=>{ Snd.click(); G.mode='classic'; G.arenaI=0; G.relation='mom'; startRun(); };
+const RELATION_MENU = [
+  { relation:'mom',      label:'PLAY MOTHER',  icon:'💔', presetId:'save' },
+  { relation:'dad',      label:'PLAY FATHER',  icon:'🛠', presetId:'save_dad' },
+  { relation:'sister',   label:'PLAY SISTER',  icon:'🎻', presetId:'save_sister' },
+  { relation:'brother',  label:'PLAY BROTHER', icon:'🥊', presetId:'save_brother' },
+  { relation:'son',      label:'PLAY SON',     icon:'🧒' },
+  { relation:'daughter', label:'PLAY DAUGHTER',icon:'👧' },
+  { relation:'friend',   label:'PLAY FRIEND',  icon:'🤝' },
+  { relation:'wife',     label:'PLAY WIFE',    icon:'💍' },
+  { relation:'husband',  label:'PLAY HUSBAND', icon:'🤵' },
+  { relation:'lost',     label:'A LOST LOVED ONE', icon:'🕯' },
+];
+function renderRelGrid(){
+  const el = $('relGrid'); if(!el) return;
+  el.innerHTML = '';
+  RELATION_MENU.forEach(r=>{
+    const pr = r.presetId ? PRESETS.find(p=>p.id===r.presetId) : null;
+    const btn = document.createElement('button');
+    btn.className = 'btn ghost';
+    btn.disabled = !pr;
+    btn.innerHTML = pr ? r.icon+' '+r.label : r.icon+' '+r.label+' <small>SOON</small>';
+    if(pr){
+      btn.onclick = ()=>{
+        Snd.click();
+        G.mode = pr.mode; G.arenaI = Math.max(0, ARENAS.findIndex(a=>a.id===pr.arena));
+        G.relation = pr.relation || 'mom';
+        G.selectedPreset = pr.id;
+        startRun();
+      };
+    }
+    el.appendChild(btn);
+  });
+}
 $('modesBtn').onclick = ()=>{ Snd.click(); if(!G.selectedPreset) G.selectedPreset='save'; hideAll(); show('modeScreen'); renderModeScreen(); };
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden && G.state==='PLAY') pauseGame(); });
 addEventListener('blur', ()=>{ if(G.state==='PLAY') pauseGame(); });
@@ -5839,6 +5872,7 @@ function watchChatSetting(){
   const netP = Net.init();   // kept as a promise so invite/instant-multiplayer paths can await it below
   save.seen = (save.seen||0)+1;
   refreshCoins(); refreshFreeAd(); renderQuests(); checkAch();
+  renderRelGrid();
   watchChatSetting();
   if(!ONLINE_ENABLED){
     // single-player build: don't surface online entry points at all
