@@ -568,6 +568,8 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
     <div class="hintrow" style="margin:2px 0 0">AUTO watches your device's speed and turns down effects on its own if things start to chug — pick a fixed level if you'd rather choose yourself.</div>
     <button class="btn ghost hidden" id="voiceBtn">🔊 CUTSCENE VOICE: ON</button>
     <div class="hintrow hidden" id="voiceHint" style="margin:2px 0 0">Your device's own built-in narrator reads the cutscene lines out loud, timed to the on-screen text, with a lighter voice for her and a deep one for him where your device has one installed — a real synthetic voice, not a recording, so it won't sound like a professional actor.</div>
+    <button class="btn ghost hidden" id="voiceTestBtn">▶ TEST VOICE — TAP TO HEAR IT NOW</button>
+    <div class="hintrow hidden" id="voiceDiag" style="margin:2px 0 0"></div>
     <button class="btn ghost hidden" id="rewatchIntroBtn">🎬 REWATCH: THE BEGINNING</button>
     <button class="btn ghost hidden" id="rewatchEndBtn">🎬 REWATCH: SHE'S FREE</button>
     <button class="btn ghost" id="wipeBtn" style="color:var(--rd)">⌫ RESET ALL DATA</button>
@@ -6740,24 +6742,30 @@ if(window.speechSynthesis){ refreshVoices(); speechSynthesis.onvoiceschanged = r
    don't:
    1) iOS silently drops speak() calls made outside a direct user-gesture
       handler unless the engine was already "warmed up" by one earlier —
-      unlockSpeech() below fires a near-silent utterance on the player's
-      very first tap, alongside the existing audio unlock.
+      unlockSpeech() below fires an audible-but-silent utterance on the
+      player's very first tap, alongside the existing audio unlock.
    2) iOS also has a race where calling speak() in the same tick as a
-      preceding cancel() can silently drop the new utterance — every
-      speak() in this game goes through speakLine(), which now defers
-      the actual speechSynthesis.speak() call by one tick so cancel()
-      has already resolved first.
+      preceding cancel() can silently drop the new utterance — speakLine()
+      only defers the actual speak() call, by a real gap rather than a
+      single tick, when something was genuinely already speaking; the
+      crucial first line of a run still speaks synchronously inside the
+      tap that started it, since iOS ties "was this a real user gesture"
+      to how directly the call followed the tap.
    3) Chrome on Android (and ChromeOS) has a long-standing bug where an
       utterance goes silent after ~15s unless something keeps nudging
       the engine — a low-cost pause()+resume() poke every few seconds
       while anything is actually speaking works around it everywhere,
-      and is a no-op when nothing is speaking. */
-let _speechUnlocked = false;
+      and is a no-op when nothing is speaking.
+   4) Voice lists load asynchronously and inconsistently on mobile —
+      getVoices() can return empty on the first several calls even after
+      onvoiceschanged has already fired once. refreshVoices() below is
+      retried on a schedule instead of trusting a single event. */
+let _speechUnlocked = false, _speechActive = false;
 function unlockSpeech(){
   if(_speechUnlocked || !window.speechSynthesis) return;
   _speechUnlocked = true;
   try{
-    const u = new SpeechSynthesisUtterance(' ');
+    const u = new SpeechSynthesisUtterance('.');
     u.volume = 0; u.rate = 10;
     speechSynthesis.speak(u);
   }catch(e){}
@@ -6766,6 +6774,13 @@ if(window.speechSynthesis){
   setInterval(()=>{
     try{ if(speechSynthesis.speaking){ speechSynthesis.pause(); speechSynthesis.resume(); } }catch(e){}
   }, 4000);
+  // several retries over the first few seconds, tapering off — cheap,
+  // and the only reliable way to catch a voice list that shows up late
+  // (or not via onvoiceschanged at all) on some mobile browsers
+  [300, 800, 1500, 3000, 6000].forEach(ms => setTimeout(()=>{
+    refreshVoices();
+    if(typeof updateVoiceDiag==='function') updateVoiceDiag();
+  }, ms));
 }
 /* best-effort only: the Web Speech API exposes a voice name and language,
    never an actual gender field, so this is a name-pattern heuristic —
@@ -6800,7 +6815,12 @@ function holdMs(line){ return Math.max(450, (line.hold||1400)*HOLD_SCALE); }
 function speakLine(line){
   if(!window.speechSynthesis || !save.opt.voice || !line || !line.text) return null;
   try{
+    // only true when there's an actual utterance in flight to cancel —
+    // tracked ourselves rather than trusting speechSynthesis.speaking,
+    // which some mobile engines report unreliably (stuck true/false)
+    const wasSpeaking = !!_speechActive;
     speechSynthesis.cancel();
+    _speechActive = false;
     const u = new SpeechSynthesisUtterance(line.text);
     // pushed to the edges of what pitch/rate can do — pitch 0-2, rate
     // 0.1-10 is the entire range the Web Speech API exposes, there's no
@@ -6912,12 +6932,18 @@ function speakLine(line){
       try{ const v = pickVoiceFor('narr'); if(v) u.voice = v; }catch(e){}
     }
     u.volume=1;
-    // deferred one tick past the cancel() above — see the mobile-fixes
-    // comment near VoiceCache for why this matters on iOS specifically.
-    // every onend/onboundary/onerror handler is attached by the caller
-    // to the returned utterance object before this actually fires, so
-    // nothing here changes what desktop already did correctly.
-    setTimeout(()=>{ try{ speechSynthesis.speak(u); }catch(e){} }, 0);
+    _speechActive = true;
+    u.addEventListener('end', ()=>{ _speechActive = false; });
+    u.addEventListener('error', ()=>{ _speechActive = false; });
+    // only deferred when there was actually something to race against —
+    // the very first utterance in a run starts from directly inside a
+    // user tap (a relation button's onclick), and iOS is stricter about
+    // treating a speak() call as tied to that gesture the more indirection
+    // sits between the tap and the call, so that one stays fully
+    // synchronous. Only a cancel()-that-actually-interrupted-something
+    // needs the one-tick gap that dodges iOS's cancel/speak race.
+    if(wasSpeaking) setTimeout(()=>{ try{ speechSynthesis.speak(u); }catch(e){} }, 50);
+    else{ try{ speechSynthesis.speak(u); }catch(e){} }
     return u;
   }catch(e){ return null; }
 }
@@ -7788,6 +7814,8 @@ function renderStats(){
   if(window.speechSynthesis){
     $('voiceBtn').classList.remove('hidden'); $('voiceHint').classList.remove('hidden');
     $('voiceBtn').textContent = '🔊 CUTSCENE VOICE: '+(save.opt.voice?'ON':'OFF');
+    $('voiceTestBtn').classList.remove('hidden'); $('voiceDiag').classList.remove('hidden');
+    updateVoiceDiag();
   }
   $('rewatchIntroBtn').classList.toggle('hidden', !save.introSeen);
   $('rewatchEndBtn').classList.toggle('hidden', !save.motherFreed);
@@ -7806,6 +7834,34 @@ $('sfxBtn2').onclick = ()=>{ Snd.setSfx(!save.opt.sfx); renderStats(); };
 $('musBtn').onclick = ()=>{ Snd.setMus(!save.opt.mus); renderStats(); };
 $('shakeBtn').onclick = ()=>{ save.opt.shake = save.opt.shake?0:1; persist(); renderStats(); };
 $('voiceBtn').onclick = ()=>{ save.opt.voice = save.opt.voice?0:1; persist(); renderStats(); if(!save.opt.voice && window.speechSynthesis) speechSynthesis.cancel(); };
+// a direct, isolated diagnostic: this button's own tap is the purest
+// possible user gesture available anywhere in the game (no game logic,
+// no queued lines, nothing between the tap and speak()) — if this stays
+// silent on a phone, the cause is outside what this page's code can
+// influence: no working speech engine in this browser/app, or the
+// device's own audio output is muted
+function updateVoiceDiag(){
+  const el = $('voiceDiag'); if(!el || el.classList.contains('hidden')) return;
+  const n = VoiceCache.list.length;
+  el.textContent = n>0
+    ? 'Voices detected on this device: '+n+'. If "Test Voice" below is silent anyway, check your phone isn\'t on silent/mute — iOS mutes spoken text the same as any other sound, separately from in-app volume.'
+    : 'No voices detected yet on this device. Tap "Test Voice" below anyway — if it stays silent, this browser (or in-app browser, e.g. one opened from inside another app) most likely has no on-device speech engine available to it, and no setting in this game can add one.';
+}
+$('voiceTestBtn').onclick = ()=>{
+  Snd.click();
+  if(!window.speechSynthesis){ toast('NO SPEECH ENGINE', 'This browser has no window.speechSynthesis at all.'); return; }
+  try{
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance('This is a test of the cutscene voice. If you can hear this, voice will work in the game.');
+    u.pitch = 1; u.rate = 1; u.volume = 1;
+    const v = pickVoiceFor('narr'); if(v) u.voice = v;
+    let heardStart = false;
+    u.onstart = ()=>{ heardStart = true; toast('SPEAKING NOW', v ? ('Voice: '+v.name) : 'Using device default voice'); };
+    u.onerror = (ev)=>{ toast('SPEECH ERROR', String(ev.error||'unknown error')); };
+    speechSynthesis.speak(u);
+    setTimeout(()=>{ if(!heardStart) toast('NO onstart EVENT', 'The browser accepted the request but never reported starting to speak — likely no audio output or a silenced device.'); }, 1200);
+  }catch(e){ toast('SPEECH THREW', String(e.message||e)); }
+};
 const QUALITY_CYCLE = ['auto','high','medium','low'];
 $('qualityBtn').onclick = ()=>{
   const i = QUALITY_CYCLE.indexOf(save.opt.quality);
@@ -7997,7 +8053,7 @@ function watchChatSetting(){
   checkDaily();
   setInterval(()=>{ if(G.state==='MENU') renderQuests(); }, 30000);
   Ads.loadingStop();
-  addEventListener('pointerdown', function once(){ Snd.init(); Snd.resume(); unlockSpeech(); removeEventListener('pointerdown', once); });
+  addEventListener('pointerdown', function once(){ unlockSpeech(); Snd.init(); Snd.resume(); removeEventListener('pointerdown', once); });
 
   // ---- CrazyGames Instant Multiplayer + invite-link entry points ----
   try{
