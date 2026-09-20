@@ -1939,16 +1939,16 @@ const ARENAS = [
   { id:'swamp', n:'TOXIC SWAMP',    i:'☣', theme:4, hazard:'poison',  d:'Poison bogs sap HP the longer you linger.' },
   { id:'storm', n:'STORM ZONE',     i:'⚡', theme:6, hazard:'storm',   d:'Lightning strikes telegraphed danger zones.' }
 ];
-/* 28 curated deployments — every one is a real, distinct mode+arena
+/* 29 curated deployments — every one is a real, distinct mode+arena
    combination already backed by working rules (not bolted-on
    simulations): the base ruleset (story pacing, boss cadence, revive
    rules, score bonus) genuinely differs by MODES id, the arena
    genuinely changes the hazard you're fighting through and the visual
    theme, and — for save_dad / save_sister / save_brother / save_son /
-   save_daughter / save_friend / save_wife / save_husband — the whole
-   story, cast, villain, cutscenes and quote pool are their own, never
-   reused from Save Her or each other (relation defaults to 'mom' when
-   a preset doesn't set one). */
+   save_daughter / save_friend / save_wife / save_husband / save_lost —
+   the whole story, cast, villain, cutscenes and quote pool are their
+   own, never reused from Save Her or each other (relation defaults to
+   'mom' when a preset doesn't set one). */
 const PRESETS = [
   { id:'save', n:'SAVE HER', i:'💔', mode:'classic', arena:'grid', tag:'STORY', stars:3,
     d:'Where it all began. The full story, exactly as it was meant to be told.' },
@@ -1978,6 +1978,8 @@ const PRESETS = [
     d:'A vow he believes secretly belongs to him. An eighth story, an eighth villain — go remind him whose promise that actually was.' },
   { id:'save_husband', n:'SAVE HUSBAND', i:'🤵', mode:'classic', arena:'grid', tag:'STORY', relation:'husband', stars:3,
     d:'A bond a self-appointed judge decided he never earned. A ninth story, a ninth villain — go overrule him yourself.' },
+  { id:'save_lost', n:'BRING THEM HOME', i:'🕯', mode:'classic', arena:'grid', tag:'STORY', relation:'lost', stars:3,
+    d:'They were never taken. They were lost. A tenth story, a tenth villain — death doesn\'t get to keep this one.' },
   { id:'first', n:'FIRST LIGHT', i:'🌈', mode:'easy', arena:'grid', tag:'GENTLE', stars:1,
     d:'A gentler Save Her. Built for a first try, or a young player on your lap.' },
   { id:'first_ice', n:'FIRST LIGHT: CALM ICE', i:'🌈', mode:'easy', arena:'ice', tag:'GENTLE', stars:1,
@@ -3943,6 +3945,60 @@ function drawHusbandArt(c,x,y,s,t,mood){
   }
   c.restore();
 }
+/* the lost loved one — deliberately gender-neutral like the friend
+   (a beanie-free, hairstyle-neutral silhouette), but softer-lit than
+   any other relation, with a small candle flame as the visual
+   signature instead of a held object — the one thing kept burning
+   for them the whole time they were gone. */
+function drawLostArt(c,x,y,s,t,mood){
+  c.save(); c.translate(x,y); c.scale(s,s);
+  const bob = Math.sin(t*2)*3; c.translate(0,bob);
+  if(mood==='captive'){
+    c.strokeStyle='rgba(130,130,150,.85)'; c.lineWidth=3;
+    for(let i=-1;i<=1;i+=2){ c.beginPath(); c.moveTo(i*23,-6); c.lineTo(i*72,-61); c.stroke();
+      c.beginPath(); c.arc(i*72,-61,4,0,TAU); c.fillStyle='rgba(130,130,150,.85)'; c.fill(); }
+  }
+  // softer, warmer glow than any other relation — this one is only
+  // ever seen half-lit, between one place and another
+  const g = c.createRadialGradient(0,0,10,0,0,120);
+  g.addColorStop(0,'rgba(255,225,170,.22)'); g.addColorStop(1,'rgba(0,0,0,0)');
+  c.fillStyle=g; c.beginPath(); c.arc(0,0,120,0,TAU); c.fill();
+  const bodyGrad = c.createRadialGradient(0,12,4,0,12,38);
+  bodyGrad.addColorStop(0,'#fff2e8'); bodyGrad.addColorStop(1,'#ffc9a8');
+  c.fillStyle=bodyGrad;
+  c.beginPath(); c.ellipse(0,16,28,35,0,0,TAU); c.fill();
+  c.fillStyle='#ffe3cf'; c.beginPath(); c.arc(0,-26,24.5,0,TAU); c.fill();
+  // plain, close, unstyled hair — no gendered silhouette, same
+  // deliberate neutrality as the friend's beanie
+  c.fillStyle='#4a3d38'; c.beginPath(); c.arc(0,-30,25.5,Math.PI*1.05,Math.PI*1.95); c.fill();
+  const blink = Math.sin(t*1.3+.5)>0.985 ? .15 : 1;
+  c.fillStyle='#3a2418';
+  c.save(); c.translate(-7.5,-25); c.scale(1,blink); c.beginPath(); c.arc(0,0,2.9,0,TAU); c.fill(); c.restore();
+  c.save(); c.translate(7.5,-25); c.scale(1,blink); c.beginPath(); c.arc(0,0,2.9,0,TAU); c.fill(); c.restore();
+  c.strokeStyle='#a5563b'; c.lineWidth=2.2; c.beginPath();
+  if(mood==='joy'||mood==='crying') c.arc(0,-16,6.3,.15*Math.PI,.85*Math.PI);
+  else c.arc(0,-13,6.3,1.15*Math.PI,1.85*Math.PI);
+  c.stroke();
+  // a small candle flame, held close — their constant, present in
+  // every mood, kept lit the entire time they were gone
+  c.save(); c.translate(20,14);
+  c.fillStyle='#8a5a3b'; c.fillRect(-2.5,0,5,14);
+  const flick = .6+.4*Math.sin(t*9);
+  c.fillStyle=`rgba(255,${180+Math.floor(flick*40)},${80+Math.floor(flick*60)},.95)`;
+  c.beginPath(); c.moveTo(0,-2); c.quadraticCurveTo(5,-8-flick*4,0,-16-flick*3); c.quadraticCurveTo(-5,-8-flick*4,0,-2); c.fill();
+  c.restore();
+  if(mood==='captive'||mood==='scared'||mood==='crying'){
+    const d1=(t*1.7)%1, d2=((t*1.7)+.5)%1;
+    c.fillStyle='rgba(120,200,255,.85)';
+    c.beginPath(); c.ellipse(-7.5,-16+d1*28,1.7,3,0,0,TAU); c.fill();
+    c.beginPath(); c.ellipse(7.5,-18+d2*28,1.7,3,0,0,TAU); c.fill();
+  }
+  if(mood==='joy'||mood==='crying'){
+    for(let i=0;i<6;i++){ const a=t*1.6+i/6*TAU, rr=44+Math.sin(t*3+i)*6;
+      c.fillStyle='rgba(255,200,120,.85)'; c.beginPath(); c.arc(Math.cos(a)*rr,-18+Math.sin(a)*rr,2,0,TAU); c.fill(); }
+  }
+  c.restore();
+}
 /* dispatches to whichever parent art fits the run's relation, so every
    scene in the cutscene draw switch below only has to call this once
    instead of branching itself */
@@ -3950,6 +4006,7 @@ function drawParentArt(c,x,y,s,t,mood){
   if(G.relation==='dad') drawFatherArt(c,x,y,s,t,mood);
   else if(G.relation==='brother') drawBrotherArt(c,x,y,s,t,mood);
   else if(G.relation==='son') drawSonArt(c,x,y,s,t,mood);
+  else if(G.relation==='lost') drawLostArt(c,x,y,s,t,mood);
   else if(G.relation==='wife') drawWifeArt(c,x,y,s,t,mood);
   else if(G.relation==='husband') drawHusbandArt(c,x,y,s,t,mood);
   else if(G.relation==='friend') drawFriendArt(c,x,y,s,t,mood);
@@ -5493,6 +5550,115 @@ const MILESTONE_QUOTES_HUSBAND = [
   'You don’t just want to win this fight. You want to walk back into that kitchen and mean it, completely, when you finally say you’re both home.',
   'You built this entire marriage patiently, one unremarkable morning at a time, and this — every bit of it — is what that kind of patience eventually becomes.'
 ];
+const MILESTONE_QUOTES_LOST = [
+  'Some people accept a goodbye. You never once did, and that refusal is the whole reason you’re still climbing.',
+  'The Ferryman thinks a crossing is final. Love was never obligated to agree with him.',
+  'You kept a candle lit for them through every single night they were gone. Go carry that same flame the rest of the way.',
+  'Grief said this was over. You said not yet. You were right to say it.',
+  'You don’t need the Ferryman’s permission to want them back. You never needed anyone’s.',
+  'They used to say some goodbyes aren’t really goodbyes — just a pause neither of you had agreed to yet. Prove them right.',
+  'A crossing only feels permanent because nobody’s ever loved someone hard enough to argue with it. Argue with it now.',
+  'You don’t owe the world an explanation for refusing to let go. You owe them the same thing they always got from you: not giving up.',
+  'The Ferryman collects the finished and the forgotten. They were never either of those things to you.',
+  'You keep hearing their voice in your own head before every hard level. Good. Keep listening.',
+  'A love this stubborn doesn’t end just because a body did.',
+  'They gave you everything, ordinary and extraordinary, without ever once asking for a guarantee. Go give them one now.',
+  'You don’t need to be fearless for them. You need to be exactly as stubborn as you’ve been every single day since you lost them.',
+  'The Ferryman thinks a soul is cargo. You know it was a whole person, and you’re not finished with them yet.',
+  'They never let you see them scared of the end. You’re allowed to be scared of this. Just don’t let it stop your feet either.',
+  'You were the reason they believed in tomorrow, right up until there wasn’t one. Be the reason there’s one again.',
+  'Love like this doesn’t announce itself. It just keeps showing up, year after year, long after everyone else stopped expecting it to.',
+  'They taught you that losing someone and forgetting them were never the same thing. Remember the difference here too.',
+  'You don’t need a body to keep them close. You just need to keep refusing, level after level.',
+  'The last thing they ever told you was something so ordinary neither of you knew it would be the last thing. This is what answering it looks like.',
+  'They were never trying to leave you. Leaving was never a choice either of you got to make.',
+  'You inherited their stubbornness about unfinished things whether you meant to or not. Spend it here.',
+  'A love doesn’t stop being one just because the distance became impossible.',
+  'You spent every day since losing them refusing to let the house go quiet. Go finish refusing.',
+  'You don’t remember every single thing they ever told you. Your hands do. Trust them.',
+  'The Ferryman thinks the dead are settled business. Yours was never settled. Yours was interrupted.',
+  'They used to say the scariest thing was always the goodbye you hadn’t said yet. You never got to say it properly. Go say it now.',
+  'You were the one who sat with them through every ordinary hard thing life handed you both. Sit with this one too.',
+  'Grief’s bravery is the quiet kind — a candle relit every single night, not a single dramatic gesture.',
+  'They caught you falling apart more times than either of you kept count of. Catch them falling out of the dark now.',
+  'You don’t need them cheering you on to know they still would be.',
+  'The love never left you. It’s been running under every single day since the one you lost them.',
+  'They never once made loving them feel like a debt. Don’t make getting them back feel like one either — just finish it.',
+  'You were smaller than this loss once, the exact size of a person who didn’t yet know how to carry it. You’re not anymore.',
+  'Someone who taught you patience also taught you, without meaning to, exactly how to survive a fight nobody should ever have to fight.',
+  'They gave you a place at every table that ever mattered. Go get them a place at this one.',
+  'You don’t need to have loved them perfectly. You never did. You just need to finish what neither of you chose to end.',
+  'The Ferryman thinks he gets to decide who stays gone. He was never entitled to that decision.',
+  'They held you through every ordinary disaster life ever threw at either of you, without you ever once noticing the cost of it.',
+  'You keep hearing their laugh right before every hard level starts. Don’t let it go quiet now.',
+  'A love doesn’t need a perfect ending to matter. It needs someone who refuses to accept the one it was given. That’s always been you.',
+  'You don’t forgive yourself for the moment you couldn’t stop it by staying frozen in this one either.',
+  'They never let one terrible day define the whole relationship. Don’t let one bad level define the whole climb.',
+  'The strongest thing they ever taught you wasn’t about death. It was that showing up quietly, every single ordinary day, outlasts anything dramatic.',
+  'You were the reason they believed in being loved without conditions. Be the reason that belief gets to keep existing.',
+  'A bond built on nothing more than an ordinary shared life doesn’t end just because the ending arrived early.',
+  'They spent their whole life making room for you at every table, every hard day, every quiet ordinary evening. Make room for them now.',
+  'You don’t need the whole world to believe this is possible. You need the same refusal that’s kept that candle burning every single night since.',
+  'The Ferryman collects souls like they’re interchangeable. He never once understood what it costs to love one enough to come looking.',
+  'They taught you that a frightened person and a brave person can be the exact same person, five minutes apart.',
+  'You were their whole audience for every ordinary, unremarkable day they were ever given. Be present for this one too.',
+  'Love’s job never really ends. It just waits for the other half of it to be ready to come home.',
+  'They never asked you to be fearless. They just quietly gave you a whole life, one ordinary day at a time, for as long as they had.',
+  'You keep moving with the same stubbornness they used to fight through their worst days, a hundred times, before either of you called it hopeless.',
+  'The love they gave you wasn’t a gift you got to keep once and lose forever. It was a lifeline, and lifelines don’t just end.',
+  'They never once let you feel like an afterthought in your own life together. Don’t let this fight convince you that you’ve become one.',
+  'You don’t need permission to keep going. But you’re about to earn something anyway.',
+  'This kind of love shows up in a thousand small ordinary days before it ever needs to show up in a fight like this one.',
+  'They were betting on you being brave someday, even on the days you privately weren’t sure you had it in you. Today is that someday.',
+  'The Ferryman has never once loved anyone enough to come looking. You have. That’s the real advantage here.',
+  'You were shaped by someone who turned every scary thing into something the two of you faced side by side. Face this side by side too, even from here.',
+  'Someone who taught you to love them daily also taught you, without either of you realizing it, exactly how to survive a fight like this.',
+  'They gave you their mornings, their patience, their whole unfinished life, freely, for as long as they had it. This is where you finally spend everything you have on them.',
+  'You don’t need to feel fearless to finish this. You need the same stubbornness that’s kept you from ever once truly saying goodbye.',
+  'The last honest thing they ever told you, without meaning it as a lesson, was exactly how to survive losing them.',
+  'You inherited nothing for this fight except a love built entirely on showing up, even now, even like this. Show up now.',
+  'Someone loved this completely does not simply disappear. Go prove it.',
+  'The Ferryman has never once had to earn a bond from nothing. What you two had was built, piece by piece, by two people who did exactly that.',
+  'You keep hearing them in every level, every boss, every fall. Good. Keep listening.',
+  'They gave you a life and a lesson disguised as an ordinary day. Turns out the lesson was the whole plan all along.',
+  'Someone who never once quit on you through the worst of it raised the kind of love that won’t quit on them either.',
+  'You’re not proving you can win. You’re proving every single day you loved them actually meant something.',
+  'The Ferryman wants this reduced to a crossing. They would want it understood as coming home. Choose their version of the story.',
+  'Every ordinary day you spent loving them was quietly building the exact person this fight actually needed.',
+  'They never raised their voice through the hardest years, and somehow that taught you more about loyalty than shouting ever could have.',
+  'You don’t need vengeance to carry you through this. You need the same patience they showed you on your worst day.',
+  'A person who loved someone with their whole heart, freely, for nothing in return, does not deserve to be taken away.',
+  'Your hands are probably trembling by now, wherever this fight has carried you. They don’t get that luxury.',
+  'You are no longer the person frozen the moment it happened. You are the one who finally closed the distance.',
+  'You built this fight the same way you built your whole life with them — patiently, honestly, and meant to actually last.',
+  'The Ferryman collects only what he can carry across. He has no idea what it costs to love someone enough to carry them back.',
+  'A promise made without ever once being spoken out loud, over years of ordinary days, is still a promise.',
+  'You don’t need them to say it. You already know exactly what they’d tell you, and that certainty has to carry you the rest of the way.',
+  'Every level is just one more day you refuse to stop loving them.',
+  'They taught you that a bad day deserves a second try before anyone gives up on an entire life together. Don’t give up on this fight either.',
+  'Someone who never once quit through the worst of it did not raise the kind of love that quits now.',
+  'You keep moving with hands that learned everything they know from loving someone back, every single ordinary day, without fail.',
+  'The candle is still lit. Keep it that way.',
+  'They are not cargo. They are not a soul filed away and forgotten. They are the person you loved, and you are going to say that out loud when you find them.',
+  'A person who filled a whole life with small, unglamorous kindnesses does not deserve to become a ferry crossing.',
+  'You don’t need to feel fearless to finish this. You need the specific brand of stubborn that never made sense to anyone except them.',
+  'The last thing they ever told you, without meaning it as a lesson, was exactly how to survive losing someone and refusing to let it be the end.',
+  'Every scar this climb leaves on you is one more thing you’ll eventually get to show them, and they’ll understand it without a single word of explanation.',
+  'You are not rebuilding a funeral. You are rebuilding a whole life, one level at a time.',
+  'They never once let you believe something between you was too broken, too gone, too far to fix. Believe that about this now.',
+  'A crossing like this was never going to be accepted quietly. Good. They never taught you to be quiet about the things that mattered either.',
+  'You keep hearing them in your own hands now — steady, unhurried, unwilling to accept the ending they were given.',
+  'The Ferryman has spent his whole existence collecting endings. What you two had was never an ending. It was interrupted.',
+  'Someone who showed patience through the worst of everything also showed you patience for an impossible fight, without either of you realizing it at the time.',
+  'You don’t need permission to keep going. You’re going to earn it the same way you always have — by simply refusing to stop.',
+  'Every unfinished conversation you two never got to have has been waiting exactly as long as you have. Go finish it.',
+  'They measured a life by who showed up, never by how much time was left. Measure this fight by the same standard.',
+  'You are the last unfinished thing they are still waiting on. Go get it finished, once and for all.',
+  'Someone who never once asked to be thanked does not need thanking now. They need you to come get them.',
+  'That crossing was never fair to begin with. Neither was losing them. Go make something right out of both wrongs at once.',
+  'You don’t just want to win this fight. You want to walk back into that ordinary life and mean it, completely, when you finally say they’re home.',
+  'You built this entire love patiently, one ordinary day at a time, and this — every bit of it — is what that kind of patience eventually becomes.'
+];
 // the single release point for the shared voice lock — whichever system
 // (milestone quote or ambient VO) was speaking calls this when it's done,
 // so a milestone that got queued behind an *ambient* line (not just
@@ -5512,7 +5678,7 @@ function triggerMilestoneQuote(){
   // reshuffled (not reset) only once it runs out, so a single match can
   // burn through the whole pool without a repeat before it ever cycles
   // back. G.relation picks which pool; the two never mix mid-run.
-  const qPool = G.relation==='dad' ? MILESTONE_QUOTES_DAD : G.relation==='sister' ? MILESTONE_QUOTES_SISTER : G.relation==='brother' ? MILESTONE_QUOTES_BROTHER : G.relation==='son' ? MILESTONE_QUOTES_SON : G.relation==='daughter' ? MILESTONE_QUOTES_DAUGHTER : G.relation==='friend' ? MILESTONE_QUOTES_FRIEND : G.relation==='wife' ? MILESTONE_QUOTES_WIFE : G.relation==='husband' ? MILESTONE_QUOTES_HUSBAND : MILESTONE_QUOTES;
+  const qPool = G.relation==='dad' ? MILESTONE_QUOTES_DAD : G.relation==='sister' ? MILESTONE_QUOTES_SISTER : G.relation==='brother' ? MILESTONE_QUOTES_BROTHER : G.relation==='son' ? MILESTONE_QUOTES_SON : G.relation==='daughter' ? MILESTONE_QUOTES_DAUGHTER : G.relation==='friend' ? MILESTONE_QUOTES_FRIEND : G.relation==='wife' ? MILESTONE_QUOTES_WIFE : G.relation==='husband' ? MILESTONE_QUOTES_HUSBAND : G.relation==='lost' ? MILESTONE_QUOTES_LOST : MILESTONE_QUOTES;
   if(!G.milestoneQueue || !G.milestoneQueue.length) G.milestoneQueue = shuffle(qPool.slice());
   const text = G.milestoneQueue.pop();
   const el = $('milestoneQuote'); const t = $('mqText');
@@ -5761,6 +5927,29 @@ const PLAYER_AMBIENT_HUSBAND = {
     'I don’t fight because I hate him. I fight because I love my husband more than I fear him.'
   ]
 };
+const PLAYER_AMBIENT_LOST = {
+  early: [
+    'I will do everything to see them again.',
+    'No matter what happens, I will see their face again.',
+    'Just a little further. I promised them I’d come.',
+    'Hold on. I’m already on my way.',
+    'I used to think strength meant never losing a fight. I know better now.'
+  ],
+  mid: [
+    'I can feel it getting closer. I can’t stop now, not now.',
+    'Hold on. I’m not as far away as it feels.',
+    'Every one of these is one less between us.',
+    'I haven’t forgotten why I’m doing this. Not for one second.',
+    'None of this is really about beating him. It was only ever about them.'
+  ],
+  late: [
+    'Almost there. Please, just let me be enough.',
+    'I can’t lose them. Not after everything. Not now.',
+    'I’m coming. I’m so close. Please still be there.',
+    'Just a little more. Just a little more and I see them again.',
+    'I don’t fight because I hate him. I fight because I love them more than I fear him.'
+  ]
+};
 function playerAmbientLine(){
   if(!P || !isStoryMode() || G.state!=='PLAY') return;
   // same shared voice lock as milestone quotes — skip this beat entirely
@@ -5769,7 +5958,7 @@ function playerAmbientLine(){
   // so missing one ambient line here is low-stakes and never noticeable
   if(G._voiceBusy) return;
   const prog = clamp(P.level/100, 0, 1);
-  const ambSet = G.relation==='dad' ? PLAYER_AMBIENT_DAD : G.relation==='sister' ? PLAYER_AMBIENT_SISTER : G.relation==='brother' ? PLAYER_AMBIENT_BROTHER : G.relation==='son' ? PLAYER_AMBIENT_SON : G.relation==='daughter' ? PLAYER_AMBIENT_DAUGHTER : G.relation==='friend' ? PLAYER_AMBIENT_FRIEND : G.relation==='wife' ? PLAYER_AMBIENT_WIFE : G.relation==='husband' ? PLAYER_AMBIENT_HUSBAND : PLAYER_AMBIENT;
+  const ambSet = G.relation==='dad' ? PLAYER_AMBIENT_DAD : G.relation==='sister' ? PLAYER_AMBIENT_SISTER : G.relation==='brother' ? PLAYER_AMBIENT_BROTHER : G.relation==='son' ? PLAYER_AMBIENT_SON : G.relation==='daughter' ? PLAYER_AMBIENT_DAUGHTER : G.relation==='friend' ? PLAYER_AMBIENT_FRIEND : G.relation==='wife' ? PLAYER_AMBIENT_WIFE : G.relation==='husband' ? PLAYER_AMBIENT_HUSBAND : G.relation==='lost' ? PLAYER_AMBIENT_LOST : PLAYER_AMBIENT;
   const pool = prog>.66 ? ambSet.late : prog>.33 ? ambSet.mid : ambSet.early;
   const text = pick(pool);
   const gen = (G._ambGen = (G._ambGen||0) + 1);
@@ -6444,6 +6633,84 @@ const STORY_HUSBAND = {
     { speaker:'', cls:'you', text:'TRY AGAIN. DON’T LET IT END LIKE THIS.', dark:1, art:'title', hold:1800, fast:1 }
   ]
 };
+/* the tenth and final relation, and the only one where the person is
+   already gone rather than taken alive: a lost loved one, deliberately
+   unspecified — parent, partner, sibling, child, friend, whoever the
+   player is carrying. The villain is a new mythic figure (a ferryman
+   who claims a crossing is final) rather than a literal kidnapper, and
+   the ending is played straight as the fantasy this genre allows: the
+   climb doesn't earn a goodbye, it earns them back, alive, the same
+   homecoming every other relation gets. Deliberately pronoun-neutral
+   throughout, like the friend's story, via relVerbFor()/relObjFor().
+   Every line here is original. */
+const STORY_LOST = {
+  intro: [
+    { speaker:'', cls:'narr', text:'Some stories don’t start with someone being taken. They start with someone being lost, which is a crueler kind of taking.', dark:1, art:'wide', hold:1900 },
+    { speaker:'', cls:'narr', text:'You built an entire life around someone so ordinary, so constantly present, that you never once thought to count the days you had left with them.', dark:0, art:'home', hold:2800 },
+    { speaker:'', cls:'narr', text:'A phrase they always said. A way they left a room. A whole life made almost entirely out of them, without you ever once noticing it happening.', dark:0, art:'home', hold:2800 },
+    { speaker:'', cls:'narr', text:'It was, for a while, an entirely ordinary life. That, it turns out, was the best part.', dark:0, art:'home', hold:2200 },
+    { speaker:'', cls:'narr', text:'Then, on an ordinary day that gave no warning at all, that life ended.', dark:1, art:'wide', hold:1900, fast:1 },
+    { speaker:'', cls:'narr', text:'The Ferryman came for them that day. He carried them across, and told you — as he tells everyone — that a crossing, once made, is final.', dark:1, art:'abduction', shake:1, hold:2900, fast:1 },
+    { speaker:'', cls:'narr', text:'You were right there. You have never once forgiven yourself for that.', dark:1, art:'abduction', hold:2200, fast:1 },
+    { speaker:'', cls:'narr', text:'Years became a refusal. A grieving person’s helplessness became, slowly and deliberately, something far more dangerous.', dark:1, art:'wide', hold:2400 },
+    { speaker:'', cls:'narr', text:'Somewhere past the last light of the living, in a crossing that isn’t on any map...', dark:1, art:'wide', hold:1600 },
+    { speaker:'LOVED ONE', cls:'lost', text:'...is someone there? Please don’t let him hear you. Please tell me it isn’t you.', dark:1, art:'mom', mood:'captive', hold:1500 },
+    { speaker:'', cls:'narr', text:'He found them first, on the day it happened. He has never once let them go.', dark:1, art:'boss', hold:1600 },
+    { speaker:'THE FERRYMAN', cls:'boss', text:'A crossing doesn’t reverse itself, little mourner. It simply waits for you to accept it.', dark:1, art:'both', mood:'captive', shake:1, hold:1700 },
+    { speaker:'LOVED ONE', cls:'lost', text:'Don’t come here. Don’t you dare come here for me. You were the whole reason any of it was worth living — go keep living it.', dark:1, art:'mom', mood:'captive', hold:1800 },
+    { speaker:'', cls:'narr', text:'You remember their voice from a thousand ordinary days, saying nothing important at all. You never thought you’d need to remember it to survive.', dark:0, art:'memory', hold:2400 },
+    { speaker:'', cls:'narr', text:'The Ferryman is the strongest thing this world has ever mistaken for inevitable. And the cruelest.', dark:1, art:'boss', hold:1500 },
+    { speaker:'', cls:'narr', text:'He is not alone. He never needs to be.', dark:1, art:'both', hold:1300 },
+    { speaker:'', cls:'narr', text:'One path remains. Fifty of his own standing between you and the person you lost, and a hundred trials besides. Most who try do not finish it.', dark:1, art:'wide', hold:2200 },
+    { speaker:'YOU', cls:'you', text:'I’m coming. Whatever he thinks he’s allowed to keep — I’m taking it back.', dark:1, art:'mom', mood:'captive', hold:2400 },
+    { speaker:'', cls:'you', text:'SAVE THEM. DEATH DOESN’T GET TO KEEP THIS ONE.', dark:1, art:'title', hold:1900 },
+    { speaker:'', cls:'you', text:'REACH LEVEL 100!', dark:1, art:'title', hold:1500, fast:1 }
+  ],
+  finalConfront: [
+    { speaker:'', cls:'narr', text:'Something enormous turns to face you at last. It has been waiting.', dark:1, art:'boss', hold:1900 },
+    { speaker:'THE FERRYMAN', cls:'boss', text:'Ah. There you are. I wondered how many crossings it would take to convince one stubborn mourner to accept an ending.', dark:1, art:'boss', shake:1, hold:2400 },
+    { speaker:'THE FERRYMAN', cls:'boss', text:'They stopped asking to go back in the first season. Do you want to know what they ask for now?', dark:1, art:'both', mood:'captive', shake:1, hold:2800 },
+    { speaker:'THE FERRYMAN', cls:'boss', text:'Nothing. Peace, of a kind. Utterly certain you would never actually come for them.', dark:1, art:'boss', shake:1, hold:2400 },
+    { speaker:'', cls:'narr', text:'He laughs — low, delighted, utterly certain you will fail like every single one before you.', dark:1, art:'boss', shake:1, hold:2100 },
+    { speaker:'YOU', cls:'you', text:'Then let’s see an ending actually argue back.', dark:1, art:'title', hold:1800 }
+  ],
+  ending: [
+    { speaker:'', cls:'narr', text:'He falls.', dark:1, art:'boss', hold:1300 },
+    { speaker:'', cls:'narr', text:'The chains break before his last breath even leaves him.', dark:0, art:'mom', mood:'joy', hold:1600 },
+    { speaker:'LOVED ONE', cls:'lost', text:'...is it you? Is it actually you, or is this just another crossing my head made up down here?', dark:0, art:'mom', mood:'joy', hold:1700 },
+    { speaker:'', cls:'narr', text:'Up close, they see everything the fight cost you. None of it frightens them. Not for a second.', dark:0, art:'embrace', mood:'joy', hold:2400 },
+    { speaker:'LOVED ONE', cls:'lost', text:'Oh — look at you. Look what you carried to get here. Come here. Come here right now.', dark:0, art:'embrace', mood:'joy', hold:2400 },
+    { speaker:'', cls:'narr', text:'A hundred trials. Every single one of them, for this exact second.', dark:0, art:'both', mood:'joy', hold:1800 },
+    { speaker:'', cls:'narr', text:'You run to them. They are already reaching for you.', dark:0, art:'embrace', hold:2000 },
+    { speaker:'', cls:'narr', text:'For one long moment, neither of you says anything at all. You don’t need to.', dark:0, art:'embrace', mood:'joy', hold:2600 },
+    { speaker:'LOVED ONE', cls:'lost', text:'I never once stopped believing you’d come. Not for one single day down here.', dark:0, art:'embrace', mood:'joy', hold:2200 },
+    { speaker:'LOVED ONE', cls:'lost', text:'You did the one thing nobody down here thought was possible. You didn’t let it be final.', dark:0, art:'embrace', mood:'joy', hold:2600 },
+    { speaker:'', cls:'narr', text:'And then, impossibly, gently, the crossing lets go of them. Their heart remembers how to beat again. This is not a dream, and it is not a trick. It is simply the one thing love was apparently always stubborn enough to undo.', dark:0, art:'both', mood:'joy', hold:3000 },
+    { speaker:'LOVED ONE', cls:'lost', text:'Whatever you had to become to reach me — I hope you never have to be that person again.', dark:0, art:'mom', mood:'joy', hold:2400 },
+    { speaker:'YOU', cls:'you', text:'I was so afraid I’d be too late. The whole way here. I never told anyone that. Not once.', dark:0, art:'embrace', mood:'crying', hold:2400 },
+    { speaker:'', cls:'narr', text:'You are both crying now — not from grief this time. Neither of you cares who sees it.', dark:0, art:'embrace', mood:'crying', hold:2600 },
+    { speaker:'LOVED ONE', cls:'lost', text:'Being afraid and coming anyway — that’s the only kind of brave that was ever actually going to be enough.', dark:0, art:'embrace', mood:'crying', hold:2600 },
+    { speaker:'YOU', cls:'you', text:'I told you I was coming. I meant every word of it.', dark:0, art:'embrace', mood:'joy', hold:1900 },
+    { speaker:'YOU', cls:'you', text:'I’m here. I’m not going anywhere.', dark:0, art:'embrace', mood:'joy', hold:1800 },
+    { speaker:'', cls:'narr', text:'This was never really about the hundred levels, or the boss, or the score.', dark:0, art:'wide', hold:2200 },
+    { speaker:'', cls:'narr', text:'It was about the people worth all of it. Yours is waiting somewhere too — living or lost, whoever it is.', dark:0, art:'wide', hold:2600 },
+    { speaker:'', cls:'narr', text:'Whatever you’re fighting for — don’t stop. Not today. Not ever.', dark:0, art:'wide', hold:2600 },
+    { speaker:'', cls:'you', text:'THEY’RE HOME.', dark:0, art:'title', hold:2200 },
+    { speaker:'', cls:'narr', text:'You walk them home yourself, every step of it — back to the same ordinary life, the candle finally, finally allowed to go out.', dark:0, art:'home', hold:2800 },
+    { speaker:'', cls:'narr', text:'But he was never the only thing out here — and now, whatever remains knows exactly who you are.', dark:1, art:'wide', hold:2600 }
+  ],
+  badEnding: [
+    { speaker:'THE FERRYMAN', cls:'boss', text:'You were never going to argue your way across.', dark:1, art:'boss', shake:1, hold:1400 },
+    { speaker:'LOVED ONE', cls:'lost', text:'No — NO! Please, don’t touch them! Take me instead, not them—!', dark:1, art:'devour', mood:'scared', shake:1, hold:1900, fast:1 },
+    { speaker:'', cls:'narr', text:'They are still calling your name when the dark closes over them.', dark:1, art:'devour', mood:'scared', shake:1, hold:2100, fast:1 },
+    { speaker:'', cls:'narr', text:'They never got to see you again. Not once. Not even to say goodbye.', dark:1, art:'lost', hold:2000, fast:1 },
+    { speaker:'THE FERRYMAN', cls:'boss', text:'They kept calling your name right until the end. They always do.', dark:1, art:'boss', shake:1, hold:2000, fast:1 },
+    { speaker:'', cls:'narr', text:'Somewhere, a candle that burned for someone every single night simply, finally, goes out.', dark:1, art:'lost', hold:2200, fast:1 },
+    { speaker:'', cls:'you', text:'THEY ARE GONE. YOU WERE TOO SLOW.', dark:1, art:'title', hold:1800, fast:1 },
+    { speaker:'', cls:'narr', text:'Somewhere, in some other try, you were just a little stronger — and you made it in time.', dark:1, art:'wide', hold:2200, fast:1 },
+    { speaker:'', cls:'you', text:'TRY AGAIN. DON’T LET IT END LIKE THIS.', dark:1, art:'title', hold:1800, fast:1 }
+  ]
+};
 /* The closest this can get to voice acting: the device's own built-in
    text-to-speech, when the browser has one (window.speechSynthesis).
    It's a real synthetic voice reading the line, not a recording and
@@ -6471,7 +6738,7 @@ function pickVoiceFor(role){
   const pool = VoiceCache.list.filter(v=>hints.test(v.name));
   if(!pool.length) return null;
   pool.sort((a,b)=> (qualityHints.test(b.name)?1:0) - (qualityHints.test(a.name)?1:0));
-  if((role==='narr' || role==='dad' || role==='sister' || role==='brother' || role==='son' || role==='daughter' || role==='friend' || role==='wife' || role==='husband') && pool.length>1){
+  if((role==='narr' || role==='dad' || role==='sister' || role==='brother' || role==='son' || role==='daughter' || role==='friend' || role==='wife' || role==='husband' || role==='lost') && pool.length>1){
     // the commentator (and every relation but mom) shouldn't sound
     // identical to the villain/mother when the device happens to have
     // more than one matching voice available
@@ -6570,6 +6837,14 @@ function speakLine(line){
       u.pitch = line.mood==='joy' ? .54 : line.mood==='crying' ? .6 : pained ? .84 : .46;
       u.rate = line.mood==='joy' ? 1.08 : line.mood==='crying' ? .93 : pained ? 1.34 : 1.14;
       try{ const v = pickVoiceFor('husband'); if(v) u.voice = v; }catch(e){}
+    } else if(line.cls==='lost'){
+      // androgynous like friend's, on the same male-leaning voice pool,
+      // but a distinct pitch/rate curve so the two never sound
+      // interchangeable — softer and slightly higher than friend's
+      const pained = line.mood==='captive' || line.mood==='scared';
+      u.pitch = line.mood==='joy' ? 1.08 : line.mood==='crying' ? 1.16 : pained ? 1.34 : 1.0;
+      u.rate = line.mood==='joy' ? 1.06 : line.mood==='crying' ? .9 : pained ? 1.3 : 1.1;
+      try{ const v = pickVoiceFor('lost'); if(v) u.voice = v; }catch(e){}
     } else if(line.cls==='boss'){
       // pushed to the literal floor of what the Web Speech API allows —
       // pitch 0 is as low/guttural as this can go, slow and dragging so
@@ -6941,8 +7216,17 @@ const FINAL_TAUNTS_HUSBAND = [
   'He begged, at first. They always beg.',
   'Fifty of my rulings, and you are still standing. How disappointing for both of us.'
 ];
-function curTaunts(){ return G.relation==='dad' ? FINAL_TAUNTS_DAD : G.relation==='sister' ? FINAL_TAUNTS_SISTER : G.relation==='brother' ? FINAL_TAUNTS_BROTHER : G.relation==='son' ? FINAL_TAUNTS_SON : G.relation==='daughter' ? FINAL_TAUNTS_DAUGHTER : G.relation==='friend' ? FINAL_TAUNTS_FRIEND : G.relation==='wife' ? FINAL_TAUNTS_WIFE : G.relation==='husband' ? FINAL_TAUNTS_HUSBAND : FINAL_TAUNTS; }
-function curStory(){ return G.relation==='dad' ? STORY_DAD : G.relation==='sister' ? STORY_SISTER : G.relation==='brother' ? STORY_BROTHER : G.relation==='son' ? STORY_SON : G.relation==='daughter' ? STORY_DAUGHTER : G.relation==='friend' ? STORY_FRIEND : G.relation==='wife' ? STORY_WIFE : G.relation==='husband' ? STORY_HUSBAND : STORY; }
+const FINAL_TAUNTS_LOST = [
+  'Still fighting? They are still calling your name, you know.',
+  'I can still hear them. Can you?',
+  'Every second you waste here is a moment I still get to keep them.',
+  'You should have been faster. They are paying for that, right now.',
+  'Ha. HA. You think this changes anything for them?',
+  'They begged, at first. They always beg.',
+  'Fifty of my crossings, and you are still standing. How disappointing for both of us.'
+];
+function curTaunts(){ return G.relation==='dad' ? FINAL_TAUNTS_DAD : G.relation==='sister' ? FINAL_TAUNTS_SISTER : G.relation==='brother' ? FINAL_TAUNTS_BROTHER : G.relation==='son' ? FINAL_TAUNTS_SON : G.relation==='daughter' ? FINAL_TAUNTS_DAUGHTER : G.relation==='friend' ? FINAL_TAUNTS_FRIEND : G.relation==='wife' ? FINAL_TAUNTS_WIFE : G.relation==='husband' ? FINAL_TAUNTS_HUSBAND : G.relation==='lost' ? FINAL_TAUNTS_LOST : FINAL_TAUNTS; }
+function curStory(){ return G.relation==='dad' ? STORY_DAD : G.relation==='sister' ? STORY_SISTER : G.relation==='brother' ? STORY_BROTHER : G.relation==='son' ? STORY_SON : G.relation==='daughter' ? STORY_DAUGHTER : G.relation==='friend' ? STORY_FRIEND : G.relation==='wife' ? STORY_WIFE : G.relation==='husband' ? STORY_HUSBAND : G.relation==='lost' ? STORY_LOST : STORY; }
 /* a small pronoun helper, added once the relation set grew past a clean
    HE/SHE binary (a best friend isn't inherently either) — every HUD
    string that used to hardcode "he/she" now goes through this instead,
@@ -6950,12 +7234,12 @@ function curStory(){ return G.relation==='dad' ? STORY_DAD : G.relation==='siste
    rather than a hunt through every announce()/overTitle call site. */
 function relVerbFor(rel){ // "HE'S" / "SHE'S" / "THEY'RE"
   if(rel==='dad'||rel==='brother'||rel==='son'||rel==='husband') return 'HE’S';
-  if(rel==='friend') return 'THEY’RE';
+  if(rel==='friend'||rel==='lost') return 'THEY’RE';
   return 'SHE’S';
 }
 function relObjFor(rel){ // "HIM" / "HER" / "THEM"
   if(rel==='dad'||rel==='brother'||rel==='son'||rel==='husband') return 'HIM';
-  if(rel==='friend') return 'THEM';
+  if(rel==='friend'||rel==='lost') return 'THEM';
   return 'HER';
 }
 function checkStoryMilestones(){
@@ -7518,7 +7802,7 @@ const RELATION_MENU = [
   { relation:'friend',   label:'PLAY FRIEND',  icon:'🤝', presetId:'save_friend' },
   { relation:'wife',     label:'PLAY WIFE',    icon:'💍', presetId:'save_wife' },
   { relation:'husband',  label:'PLAY HUSBAND', icon:'🤵', presetId:'save_husband' },
-  { relation:'lost',     label:'A LOST LOVED ONE', icon:'🕯' },
+  { relation:'lost',     label:'A LOST LOVED ONE', icon:'🕯', presetId:'save_lost' },
 ];
 function renderRelGrid(){
   const el = $('relGrid'); if(!el) return;
