@@ -1939,15 +1939,15 @@ const ARENAS = [
   { id:'swamp', n:'TOXIC SWAMP',    i:'☣', theme:4, hazard:'poison',  d:'Poison bogs sap HP the longer you linger.' },
   { id:'storm', n:'STORM ZONE',     i:'⚡', theme:6, hazard:'storm',   d:'Lightning strikes telegraphed danger zones.' }
 ];
-/* 22 curated deployments — every one is a real, distinct mode+arena
+/* 23 curated deployments — every one is a real, distinct mode+arena
    combination already backed by working rules (not bolted-on
    simulations): the base ruleset (story pacing, boss cadence, revive
    rules, score bonus) genuinely differs by MODES id, the arena
    genuinely changes the hazard you're fighting through and the visual
-   theme, and — for save_dad / save_sister — the whole story, cast,
-   villain, cutscenes and quote pool are their own, never reused from
-   Save Her or each other (relation defaults to 'mom' when a preset
-   doesn't set one). */
+   theme, and — for save_dad / save_sister / save_brother — the whole
+   story, cast, villain, cutscenes and quote pool are their own, never
+   reused from Save Her or each other (relation defaults to 'mom' when
+   a preset doesn't set one). */
 const PRESETS = [
   { id:'save', n:'SAVE HER', i:'💔', mode:'classic', arena:'grid', tag:'STORY', stars:3,
     d:'Where it all began. The full story, exactly as it was meant to be told.' },
@@ -1965,6 +1965,8 @@ const PRESETS = [
     d:'A different family, a different villain, a different story. He owed a debt he never should have owed — you\'re here to settle it.' },
   { id:'save_sister', n:'SAVE SISTER', i:'🎻', mode:'classic', arena:'grid', tag:'STORY', relation:'sister', stars:3,
     d:'She spent your whole childhood catching you. A third story, a third villain — this time, you catch her back.' },
+  { id:'save_brother', n:'SAVE BROTHER', i:'🥊', mode:'classic', arena:'grid', tag:'STORY', relation:'brother', stars:3,
+    d:'He knocked you down a thousand times just to teach you how to get back up. A fourth story, a fourth villain — go get him out of the cage.' },
   { id:'first', n:'FIRST LIGHT', i:'🌈', mode:'easy', arena:'grid', tag:'GENTLE', stars:1,
     d:'A gentler Save Her. Built for a first try, or a young player on your lap.' },
   { id:'first_ice', n:'FIRST LIGHT: CALM ICE', i:'🌈', mode:'easy', arena:'ice', tag:'GENTLE', stars:1,
@@ -3635,11 +3637,60 @@ function drawSisterArt(c,x,y,s,t,mood){
   }
   c.restore();
 }
+/* the brother — a rangy, athletic build like the sister's but broader
+   through the shoulders, short cropped hair like the father's but a
+   different shape/color, and hand-wrap tape at the wrists (the sibling
+   version of the flower/hair-tie accent) instead of either. Same blink/
+   tear/joy-sparkle mechanics as the other three so moods read identically. */
+function drawBrotherArt(c,x,y,s,t,mood){
+  c.save(); c.translate(x,y); c.scale(s,s);
+  const bob = Math.sin(t*2)*2.8; c.translate(0,bob);
+  if(mood==='captive'){
+    c.strokeStyle='rgba(130,130,150,.85)'; c.lineWidth=3;
+    for(let i=-1;i<=1;i+=2){ c.beginPath(); c.moveTo(i*24,-4); c.lineTo(i*74,-60); c.stroke();
+      c.beginPath(); c.arc(i*74,-60,4,0,TAU); c.fillStyle='rgba(130,130,150,.85)'; c.fill(); }
+  }
+  const bodyGrad = c.createRadialGradient(0,12,4,0,12,44);
+  bodyGrad.addColorStop(0,'#f0ddc8'); bodyGrad.addColorStop(1,'#b8875a');
+  c.fillStyle=bodyGrad;
+  // broad-shouldered but tapered torso — between the father's boxy build
+  // and the sister's lean ellipse
+  c.beginPath(); c.moveTo(-37,-6); c.quadraticCurveTo(-38,42,0,48); c.quadraticCurveTo(38,42,37,-6);
+  c.quadraticCurveTo(26,-15,0,-13); c.quadraticCurveTo(-26,-15,-37,-6); c.closePath(); c.fill();
+  c.fillStyle='#ffe3cf'; c.beginPath(); c.arc(0,-26,24,0,TAU); c.fill();
+  // short, tousled hair — rounder and messier than the father's cap-like crop
+  c.fillStyle='#3a2a1c'; c.beginPath(); c.arc(0,-32,25,Math.PI*1.05,Math.PI*1.95); c.fill();
+  for(let i=-2;i<=2;i++){ c.save(); c.translate(i*7,-46); c.rotate(i*.12);
+    c.beginPath(); c.moveTo(0,0); c.lineTo(-2,-7); c.lineTo(2,-7); c.closePath(); c.fill(); c.restore(); }
+  // hand-wrap tape accent — a thin band across the brow instead of a
+  // flower or hair-tie, the sibling's own visual signature
+  c.strokeStyle='#ff9a3c'; c.lineWidth=3.4; c.beginPath(); c.arc(0,-32,25,Math.PI*1.12,Math.PI*1.4); c.stroke();
+  const blink = Math.sin(t*1.3+.9)>0.985 ? .15 : 1;
+  c.fillStyle='#2a1a10';
+  c.save(); c.translate(-7.5,-25); c.scale(1,blink); c.beginPath(); c.arc(0,0,2.9,0,TAU); c.fill(); c.restore();
+  c.save(); c.translate(7.5,-25); c.scale(1,blink); c.beginPath(); c.arc(0,0,2.9,0,TAU); c.fill(); c.restore();
+  c.strokeStyle='#8a5a3b'; c.lineWidth=2.3; c.beginPath();
+  if(mood==='joy'||mood==='crying') c.arc(0,-16,6.2,.15*Math.PI,.85*Math.PI);
+  else c.arc(0,-13,6.2,1.15*Math.PI,1.85*Math.PI);
+  c.stroke();
+  if(mood==='captive'||mood==='scared'||mood==='crying'){
+    const d1=(t*1.7)%1, d2=((t*1.7)+.5)%1;
+    c.fillStyle='rgba(120,200,255,.85)';
+    c.beginPath(); c.ellipse(-7.5,-16+d1*28,1.8,3.1,0,0,TAU); c.fill();
+    c.beginPath(); c.ellipse(7.5,-18+d2*28,1.8,3.1,0,0,TAU); c.fill();
+  }
+  if(mood==='joy'||mood==='crying'){
+    for(let i=0;i<6;i++){ const a=t*1.5+i/6*TAU, rr=49+Math.sin(t*3+i)*6;
+      c.fillStyle='rgba(255,154,60,.8)'; c.beginPath(); c.arc(Math.cos(a)*rr,-20+Math.sin(a)*rr,2,0,TAU); c.fill(); }
+  }
+  c.restore();
+}
 /* dispatches to whichever parent art fits the run's relation, so every
    scene in the cutscene draw switch below only has to call this once
    instead of branching itself */
 function drawParentArt(c,x,y,s,t,mood){
   if(G.relation==='dad') drawFatherArt(c,x,y,s,t,mood);
+  else if(G.relation==='brother') drawBrotherArt(c,x,y,s,t,mood);
   else if(G.relation==='sister') drawSisterArt(c,x,y,s,t,mood);
   else drawMotherArt(c,x,y,s,t,mood);
 }
@@ -4497,6 +4548,120 @@ const MILESTONE_QUOTES_SISTER = [
   'You don’t just want to win this. You want to walk back to that street corner and mean it when you say it’s over.',
   'She built you patiently, one ordinary evening at a time, and this — all of this — is what patience like that actually becomes.'
 ];
+const MILESTONE_QUOTES_BROTHER = [
+  'He spent his whole childhood knocking you down just to teach you how to get back up. This is the one time you get to return the favor.',
+  'You learned to keep your guard up before you learned to ride a bike. Keep it up now.',
+  'He said the ring was the only place the world ever made sense. Make some sense of this one.',
+  'Every older sibling keeps score of the times they picked you back up off the mat. He never once mentioned the number. Match it anyway.',
+  'You don’t need his permission to throw the first punch this time.',
+  'He taught you footwork before he taught you anything else. Keep moving. It’s carried you this far.',
+  'The little brother doesn’t stay little forever. This is where that ends.',
+  'He never once let you feel like you were slowing him down. Don’t you dare feel like a burden now, either.',
+  'You spent years copying his stance without meaning to. Turns out you were paying closer attention than either of you knew.',
+  'A big brother’s whole job is making the scary things smaller. It’s your turn to return the favor.',
+  'He counted you down from ten until you learned to get up before he finished. Count this fight the same way.',
+  'You don’t owe him a rescue. You owe him the same thing he always gave you: someone who shows up to the gym anyway.',
+  'The count he taught you was never really about boxing. It was about not staying down when everything else did.',
+  'He was the first person who ever made you feel like you could take a hit and be fine. Be that for him now.',
+  'You keep hearing his old count-ins in your head before every hard level. Good. Keep counting.',
+  'A sibling bond doesn’t come with an expiration date, even from behind a locked cage door.',
+  'He gave you his gloves, his time, his patience, without ever once asking for credit. Go get him back without asking for any either.',
+  'You don’t need to be as fearless as he always looked. You need to be as stubborn as he actually was.',
+  'The Promoter thinks talent is something you own. Your brother taught you it’s something you give away, freely, in every sparring session.',
+  'He never let you see him scared. You’re allowed to be scared. Just don’t let it stop your feet either.',
+  'You were the reason he learned patience long before patience was a virtue anyone else noticed in him.',
+  'A big brother’s love doesn’t announce itself. It just keeps showing up to the ring, round after round, until it’s the only explanation left.',
+  'He taught you that getting knocked down and losing were never the same word. Remember the difference here too.',
+  'You don’t need a bell to keep his rhythm alive. You just need to keep your hands up, level after level.',
+  'The last thing he ever told you was to go live your life. This is what living it looks like now.',
+  'He was never trying to make you fearless. He was just steady enough for both of you until you could catch up.',
+  'You inherited his stubbornness whether you wanted it or not. Use it.',
+  'A corner man doesn’t stop working just because the roles switched. Neither should you.',
+  'He spent years older than you pretending that wasn’t a full-time job. It was. Thank him by finishing this one.',
+  'You don’t remember every drill he ran you through. Your hands do. Trust them.',
+  'The Promoter collects fighters like trophies. Your brother spent his career making you feel like you belonged in the gym at all. That’s the real difference here.',
+  'He used to say the scariest round was always the one you hadn’t trained for yet. Train for this one anyway.',
+  'You were the kid holding pads for every session he ever ran, whether he meant it as training or not. Hold your ground for this one too.',
+  'A big brother’s bravery is the quiet kind — the kind that shows up to every early practice, not just the title fights.',
+  'He caught you falling off a bike, off a ladder, off a bad decision. Catch him falling out of a cage.',
+  'You don’t need him cheering from the corner to know he still would be.',
+  'The footwork never left you. It’s been running under every fight since the day he was taken.',
+  'He never once made being the older one feel like a competition that mattered. Don’t make this one either — just finish it.',
+  'You were smaller than this fight once, the same way you were smaller than him once. You’re not anymore, either way.',
+  'A sibling who taught you to block also taught you, without meaning to, exactly when to stop blocking and swing.',
+  'He gave you a spot in every gym that mattered. Go get him a spot at this one.',
+  'You don’t need to fight it perfectly. He never did either. You just need to go the distance.',
+  'The Promoter thinks he owns his talent. He forgot talent like his was always meant to come home.',
+  'He held the ropes open behind him for you your whole childhood, without you ever once noticing the effort it took.',
+  'You keep hearing his old count-ins — one, two, up you get — right before every level starts. Stay up.',
+  'A big brother doesn’t need a title belt to matter. He just needs someone worth showing up for. That was always you.',
+  'You don’t make up for being too small back then by playing it small now.',
+  'He never let one bad round decide the whole fight. Don’t let one bad level decide the whole climb.',
+  'The strongest thing he ever taught you wasn’t boxing. It was that showing up quietly, every single morning, is its own kind of loud.',
+  'You were the reason he learned to be steady first. Be the reason he gets to stop having to be, for once.',
+  'A sibling bond built on being picked back up doesn’t break just because the hands doing the lifting changed.',
+  'He spent years making room for you at every gym, every ring, every hard conversation. Make room for him now.',
+  'You don’t need the whole gym behind you. You just need to keep the guard he taught you up.',
+  'The Promoter collects fighters like trophies. He never once understood what it costs to actually raise one who loves you back.',
+  'He taught you that a scared kid and a brave kid can be the exact same person, one round apart.',
+  'You were his sparring partner once. Be worth fighting this one for.',
+  'A corner man’s job never really ends. It just waits for the fighter he raised to be ready to return it.',
+  'He never asked you to hit as hard as him. He just quietly built you into someone who eventually could.',
+  'You keep swinging with the same stubbornness he used to run the same drill a hundred times before he’d trust it in a real fight.',
+  'The count he gave you wasn’t a gift. It was a lifeline, disguised as a number, for exactly a moment like this.',
+  'He never let you believe you were too small to matter. Don’t let this fight convince you otherwise either.',
+  'You don’t need his validation to keep going. But you’re about to earn it anyway.',
+  'A big brother’s love is the kind that shows up in a thousand small ordinary rescues before it ever needs to show up in a big one.',
+  'He counted on you being brave someday, even on the days you weren’t sure you would be. Today is someday.',
+  'The Promoter has never once built a fighter. Your brother built you out of nothing but patience and roadwork. That’s the real advantage here.',
+  'You were raised by someone who turned every scary thing into something you could drill your way through. Drill this.',
+  'A sibling who taught you footwork also taught you, without either of you realizing it, how to survive exactly this kind of fight.',
+  'He gave you his gloves, his time, his courage, on loan, for years. This is where you finally pay it back in full.',
+  'You don’t need to be fearless to finish this. You need to be the same kind of stubborn he always was about an unfinished round.',
+  'The last honest thing he ever told you was to go live your life. Living it means finishing this.',
+  'You inherited more than his stubbornness. You inherited his refusal to leave anyone behind, including yourself.',
+  'A brother who spent his whole childhood picking you up off the mat did not raise someone who lets him stay down.',
+  'The Promoter has never once had to build someone up from nothing. Everything you are was built by someone who has.',
+  'You keep hearing "up, and—" in every level, every boss, every fall. Good. Keep listening.',
+  'He gave you a count and a lesson disguised as a drill. Turns out the lesson was the whole plan all along.',
+  'A person who never once quit on a hard round raised a sibling who won’t quit on him either.',
+  'You’re not proving you can win. You’re proving every early morning he spent training you actually took.',
+  'The Promoter wants this to be about talent. Your brother would want it to be about going the distance. Pick his version.',
+  'Every ordinary morning spent running drills with him was quietly building the exact person this fight actually needed.',
+  'He never raised his voice in the corner, and somehow that taught you more about courage than shouting ever could have.',
+  'You don’t need vengeance to get through this. You need the same patience he showed a stubborn drill at dawn.',
+  'A person who trains strangers for free with his whole heart does not deserve to be treated like something disposable.',
+  'His legs are probably giving out by now. Yours don’t get to.',
+  'You are not the kid holding pads behind him anymore. You are the one who finally learned to lead.',
+  'He built you the same way he built every fighter he ever trained — patiently, honestly, and to actually last.',
+  'The Promoter collects what people can perform. He has no idea what it costs to raise someone who refuses to stop.',
+  'A promise made in a gym, at dawn, over a half-finished drill, is still a promise.',
+  'You don’t need him to say the words out loud. You already know he’s proud, and that has to carry you the rest of the way.',
+  'Every level is just one more round in the same unfinished fight.',
+  'He taught you that a missed shot deserves a second try before anyone gives up on the whole round. Don’t give up on this fight either.',
+  'A brother who never once quit on a hard round did not raise a quitter.',
+  'You keep swinging with hands that learned everything they know from someone who never once dropped his guard halfway through a fight.',
+  'The ring lights are off. Yours don’t have to be.',
+  'He is not a trophy. He is not a roster spot. He is your brother, and you are going to say that out loud when you find him.',
+  'A person who fights for something bigger than the applause does not deserve to be the thing someone else silences.',
+  'You don’t need to be the better fighter to finish this. You need to be the kind of stubborn that never once made sense to anyone but him.',
+  'The last thing he ever taught you in that gym, without meaning to, was exactly how to survive this.',
+  'Every bruise you earn on this climb is one more thing you’ll eventually be able to show him, and he’ll understand it without you explaining a word.',
+  'You are not rebuilding a title shot. You are rebuilding a family, one round at a time.',
+  'He never once let you believe a bad round meant a lost fight. Believe that about him now.',
+  'A cage like this was never going to open quietly. Good. He never taught you to go quiet in a fight either.',
+  'You keep hearing him in your own hands now — steady, unhurried, unwilling to quit on the round.',
+  'The Promoter has spent his whole life taking fighters apart. Your brother spent his building people up. You know exactly which corner raised you.',
+  'A brother who taught you patience with a stubborn drill also taught you patience with an impossible fight, without either of you realizing it at the time.',
+  'You don’t need his nod of approval to keep going. But you’re about to earn it anyway.',
+  'Every unfinished drill in that gym bag has been waiting the same amount of time you have. Go finish all of it at once.',
+  'He measured a life by who he showed up for, not by how loud the crowd got. Measure yours the same way, even here.',
+  'You are the last unfinished thing your brother ever started training. Go get finished.',
+  'A brother who never asked for thanks does not need you to thank him. He needs you to come home.',
+  'The contract was never fair. Neither was signing him without asking. Go make something right out of both.',
+  'You don’t just want to win this. You want to walk back to that old backyard ring and mean it when you say it’s over.',
+  'He built you patiently, one early morning at a time, and this — all of this — is what patience like that actually becomes.'
+];
 // the single release point for the shared voice lock — whichever system
 // (milestone quote or ambient VO) was speaking calls this when it's done,
 // so a milestone that got queued behind an *ambient* line (not just
@@ -4516,7 +4681,7 @@ function triggerMilestoneQuote(){
   // reshuffled (not reset) only once it runs out, so a single match can
   // burn through the whole pool without a repeat before it ever cycles
   // back. G.relation picks which pool; the two never mix mid-run.
-  const qPool = G.relation==='dad' ? MILESTONE_QUOTES_DAD : G.relation==='sister' ? MILESTONE_QUOTES_SISTER : MILESTONE_QUOTES;
+  const qPool = G.relation==='dad' ? MILESTONE_QUOTES_DAD : G.relation==='sister' ? MILESTONE_QUOTES_SISTER : G.relation==='brother' ? MILESTONE_QUOTES_BROTHER : MILESTONE_QUOTES;
   if(!G.milestoneQueue || !G.milestoneQueue.length) G.milestoneQueue = shuffle(qPool.slice());
   const text = G.milestoneQueue.pop();
   const el = $('milestoneQuote'); const t = $('mqText');
@@ -4627,6 +4792,29 @@ const PLAYER_AMBIENT_SISTER = {
     'I don’t fight because I hate him. I fight because I love my sister more than I fear him.'
   ]
 };
+const PLAYER_AMBIENT_BROTHER = {
+  early: [
+    'I will do everything to see my brother again.',
+    'No matter what happens, I will see his face again.',
+    'Just a little further. I promised him I’d come.',
+    'Hold on, bro. I’m already on my way.',
+    'I used to think strength meant never losing a fight. I know better now.'
+  ],
+  mid: [
+    'I can feel it getting closer. I can’t stop now, not now.',
+    'Hold on. I’m not as far away as it feels.',
+    'Every one of these is one less between us.',
+    'I haven’t forgotten why I’m doing this. Not for one second.',
+    'None of this is really about beating him. It was only ever about my brother.'
+  ],
+  late: [
+    'Almost there. Please, just let me be enough.',
+    'I can’t lose him. Not after everything. Not now.',
+    'I’m coming, bro. I’m so close. Please still be there.',
+    'Just a little more. Just a little more and I see him again.',
+    'I don’t fight because I hate him. I fight because I love my brother more than I fear him.'
+  ]
+};
 function playerAmbientLine(){
   if(!P || !isStoryMode() || G.state!=='PLAY') return;
   // same shared voice lock as milestone quotes — skip this beat entirely
@@ -4635,7 +4823,7 @@ function playerAmbientLine(){
   // so missing one ambient line here is low-stakes and never noticeable
   if(G._voiceBusy) return;
   const prog = clamp(P.level/100, 0, 1);
-  const ambSet = G.relation==='dad' ? PLAYER_AMBIENT_DAD : G.relation==='sister' ? PLAYER_AMBIENT_SISTER : PLAYER_AMBIENT;
+  const ambSet = G.relation==='dad' ? PLAYER_AMBIENT_DAD : G.relation==='sister' ? PLAYER_AMBIENT_SISTER : G.relation==='brother' ? PLAYER_AMBIENT_BROTHER : PLAYER_AMBIENT;
   const pool = prog>.66 ? ambSet.late : prog>.33 ? ambSet.mid : ambSet.early;
   const text = pick(pool);
   const gen = (G._ambGen = (G._ambGen||0) + 1);
@@ -4869,6 +5057,74 @@ const STORY_SISTER = {
     { speaker:'', cls:'you', text:'TRY AGAIN. DON’T LET IT END LIKE THIS.', dark:1, art:'title', hold:1800, fast:1 }
   ]
 };
+const STORY_BROTHER = {
+  intro: [
+    { speaker:'', cls:'narr', text:'Some stories start with a rivalry. This one starts with someone who never once let you win — until the day it actually mattered.', dark:1, art:'wide', hold:1900 },
+    { speaker:'', cls:'narr', text:'Your brother was three years older and spent your entire childhood turning ordinary afternoons into a competition neither of you asked for.', dark:0, art:'home', hold:2800 },
+    { speaker:'', cls:'narr', text:'He trained at the gym on the corner — not for the trophies, though the trophies helped, but because he said the ring was the only place the world ever made complete sense.', dark:0, art:'home', hold:2800 },
+    { speaker:'', cls:'narr', text:'He taught you to keep your hands up before you even understood what you were protecting. That instinct saved you more than once.', dark:0, art:'home', hold:2400 },
+    { speaker:'', cls:'narr', text:'Then, the night of his biggest amateur bout, a man in a very expensive suit stayed behind after the final bell.', dark:1, art:'wide', hold:1900, fast:1 },
+    { speaker:'', cls:'narr', text:'The Promoter came for him personally that night. Talent like his, he said, belonged under lights only he controlled. He signed him, and left an empty corner that never got filled again.', dark:1, art:'abduction', shake:1, hold:2900, fast:1 },
+    { speaker:'', cls:'narr', text:'You were far too small to stop it. You have never once forgiven yourself for that.', dark:1, art:'abduction', hold:2200, fast:1 },
+    { speaker:'', cls:'narr', text:'Years became training. A child’s helplessness became, slowly and deliberately, a young man’s resolve.', dark:1, art:'wide', hold:2400 },
+    { speaker:'', cls:'narr', text:'Somewhere past the last light of the city, in a hall that isn’t on any map...', dark:1, art:'wide', hold:1600 },
+    { speaker:'BROTHER', cls:'brother', text:'...is someone there? Don’t — don’t let him hear you. Please tell me it isn’t you.', dark:1, art:'mom', mood:'captive', hold:1500 },
+    { speaker:'', cls:'narr', text:'He found him first, all those years ago. He has never once let him go.', dark:1, art:'boss', hold:1600 },
+    { speaker:'THE PROMOTER', cls:'boss', text:'Talent like his doesn’t retire, little challenger. It just gets traded to a bigger card.', dark:1, art:'both', mood:'captive', shake:1, hold:1700 },
+    { speaker:'BROTHER', cls:'brother', text:'Don’t come here. Don’t you dare climb in this ring for me. You were the one thing I got right — go live it.', dark:1, art:'mom', mood:'captive', hold:1800 },
+    { speaker:'', cls:'narr', text:'You remember his voice from a thousand backyard matches, counting you down from ten until you learned to get back up before he finished. You never thought you’d need that count to survive.', dark:0, art:'memory', hold:2400 },
+    { speaker:'', cls:'narr', text:'The Promoter is the strongest thing this world has ever paid to watch. And the cruelest.', dark:1, art:'boss', hold:1500 },
+    { speaker:'', cls:'narr', text:'He is not alone. He never needs to be.', dark:1, art:'both', hold:1300 },
+    { speaker:'', cls:'narr', text:'One path remains. Fifty of his own fighters standing between you and your brother, and a hundred rounds besides. Most who step in do not last.', dark:1, art:'wide', hold:2200 },
+    { speaker:'YOU', cls:'you', text:'I’m coming, bro. Whatever he thinks he owns — I’m taking it back.', dark:1, art:'mom', mood:'captive', hold:2400 },
+    { speaker:'', cls:'you', text:'SAVE HIM. HE TAUGHT YOU HOW TO GET BACK UP.', dark:1, art:'title', hold:1900 },
+    { speaker:'', cls:'you', text:'REACH LEVEL 100!', dark:1, art:'title', hold:1500, fast:1 }
+  ],
+  finalConfront: [
+    { speaker:'', cls:'narr', text:'Something enormous turns to face you at last. It has been waiting.', dark:1, art:'boss', hold:1900 },
+    { speaker:'THE PROMOTER', cls:'boss', text:'Ah. There you are. I wondered how many of my roster it would take to keep one challenger occupied.', dark:1, art:'boss', shake:1, hold:2400 },
+    { speaker:'THE PROMOTER', cls:'boss', text:'He stopped fighting the decision in the first year. Do you want to know what he fights for now?', dark:1, art:'both', mood:'captive', shake:1, hold:2800 },
+    { speaker:'THE PROMOTER', cls:'boss', text:'Whatever the card demands. Beautifully. Utterly certain you’d never climb in for a rematch.', dark:1, art:'boss', shake:1, hold:2400 },
+    { speaker:'', cls:'narr', text:'He laughs — low, delighted, utterly certain you will fail like every single one before you.', dark:1, art:'boss', shake:1, hold:2100 },
+    { speaker:'YOU', cls:'you', text:'Then let’s go one more round.', dark:1, art:'title', hold:1800 }
+  ],
+  ending: [
+    { speaker:'', cls:'narr', text:'He falls.', dark:1, art:'boss', hold:1300 },
+    { speaker:'', cls:'narr', text:'The chains break before his last breath even leaves him.', dark:0, art:'mom', mood:'joy', hold:1600 },
+    { speaker:'BROTHER', cls:'brother', text:'...is it you? Is it actually you, or is this just another round my head made up down here?', dark:0, art:'mom', mood:'joy', hold:1700 },
+    { speaker:'', cls:'narr', text:'Up close, he sees everything the fight cost you. None of it frightens him. Not for a second.', dark:0, art:'embrace', mood:'joy', hold:2400 },
+    { speaker:'BROTHER', cls:'brother', text:'Oh — look at you. Look what you carried to get here. Come here. Come here right now.', dark:0, art:'embrace', mood:'joy', hold:2400 },
+    { speaker:'', cls:'narr', text:'A hundred rounds. Every single one of them, for this exact second.', dark:0, art:'both', mood:'joy', hold:1800 },
+    { speaker:'', cls:'narr', text:'You run to him. He is already reaching for you.', dark:0, art:'embrace', hold:2000 },
+    { speaker:'', cls:'narr', text:'For one long moment, neither of you says anything at all. You don’t need to.', dark:0, art:'embrace', mood:'joy', hold:2600 },
+    { speaker:'BROTHER', cls:'brother', text:'I never once stopped believing you’d come. Not for one single day down here.', dark:0, art:'embrace', mood:'joy', hold:2200 },
+    { speaker:'BROTHER', cls:'brother', text:'Look who finally learned to throw the first punch instead of needing someone else to.', dark:0, art:'embrace', mood:'joy', hold:2600 },
+    { speaker:'', cls:'narr', text:'You were the kid holding pads behind him once, small and helpless, watching the dark take everything. You are not that kid anymore.', dark:0, art:'both', mood:'joy', hold:2800 },
+    { speaker:'BROTHER', cls:'brother', text:'Whatever you had to become to reach me — I hope you never have to be that person again.', dark:0, art:'mom', mood:'joy', hold:2400 },
+    { speaker:'YOU', cls:'you', text:'I was so afraid, bro. The whole way here. I never told anyone that. Not once.', dark:0, art:'embrace', mood:'crying', hold:2400 },
+    { speaker:'', cls:'narr', text:'You are both crying now — not from fear this time. Neither of you cares who sees it.', dark:0, art:'embrace', mood:'crying', hold:2600 },
+    { speaker:'BROTHER', cls:'brother', text:'Being afraid and stepping into the ring anyway — that’s the only kind of brave I was ever actually trying to teach you.', dark:0, art:'embrace', mood:'crying', hold:2600 },
+    { speaker:'YOU', cls:'you', text:'I told you I was coming. I meant every word of it.', dark:0, art:'embrace', mood:'joy', hold:1900 },
+    { speaker:'YOU', cls:'you', text:'I’m here. I’m not going anywhere.', dark:0, art:'embrace', mood:'joy', hold:1800 },
+    { speaker:'', cls:'narr', text:'This was never really about the hundred levels, or the boss, or the score.', dark:0, art:'wide', hold:2200 },
+    { speaker:'', cls:'narr', text:'It was about the people worth all of it. Yours is waiting somewhere too — sister, brother, whoever it is.', dark:0, art:'wide', hold:2600 },
+    { speaker:'', cls:'narr', text:'Whatever you’re fighting for — don’t stop. Not today. Not ever.', dark:0, art:'wide', hold:2600 },
+    { speaker:'', cls:'you', text:'BROTHER FREED.', dark:0, art:'title', hold:2200 },
+    { speaker:'', cls:'narr', text:'You walk him home yourself, every step of it — back to the same backyard ring, his old gloves waiting exactly where he left them.', dark:0, art:'home', hold:2800 },
+    { speaker:'', cls:'narr', text:'But he was never the only thing out here — and now, whatever remains knows exactly who you are.', dark:1, art:'wide', hold:2600 }
+  ],
+  badEnding: [
+    { speaker:'THE PROMOTER', cls:'boss', text:'You were never going to make it to the main card.', dark:1, art:'boss', shake:1, hold:1400 },
+    { speaker:'BROTHER', cls:'brother', text:'No — NO! Please, don’t touch him! Take me instead, not him—!', dark:1, art:'devour', mood:'scared', shake:1, hold:1900, fast:1 },
+    { speaker:'', cls:'narr', text:'He is still shouting your name when the dark closes over him.', dark:1, art:'devour', mood:'scared', shake:1, hold:2100, fast:1 },
+    { speaker:'', cls:'narr', text:'He never got to see you again. Not once. Not even to say goodbye.', dark:1, art:'lost', hold:2000, fast:1 },
+    { speaker:'THE PROMOTER', cls:'boss', text:'He kept fighting for your name right until the end. They always do.', dark:1, art:'boss', shake:1, hold:2000, fast:1 },
+    { speaker:'', cls:'narr', text:'Somewhere, a pair of gloves that waited for you every single night simply goes still.', dark:1, art:'lost', hold:2200, fast:1 },
+    { speaker:'', cls:'you', text:'HE IS GONE. YOU WERE TOO SLOW.', dark:1, art:'title', hold:1800, fast:1 },
+    { speaker:'', cls:'narr', text:'Somewhere, in some other try, you were just a little stronger — and you made it in time.', dark:1, art:'wide', hold:2200, fast:1 },
+    { speaker:'', cls:'you', text:'TRY AGAIN. DON’T LET IT END LIKE THIS.', dark:1, art:'title', hold:1800, fast:1 }
+  ]
+};
 /* The closest this can get to voice acting: the device's own built-in
    text-to-speech, when the browser has one (window.speechSynthesis).
    It's a real synthetic voice reading the line, not a recording and
@@ -4896,8 +5152,8 @@ function pickVoiceFor(role){
   const pool = VoiceCache.list.filter(v=>hints.test(v.name));
   if(!pool.length) return null;
   pool.sort((a,b)=> (qualityHints.test(b.name)?1:0) - (qualityHints.test(a.name)?1:0));
-  if((role==='narr' || role==='dad' || role==='sister') && pool.length>1){
-    // the commentator (and the father, and the sister) shouldn't sound
+  if((role==='narr' || role==='dad' || role==='sister' || role==='brother') && pool.length>1){
+    // the commentator (and the father, sister, and brother) shouldn't sound
     // identical to the villain/mother when the device happens to have
     // more than one matching voice available
     return pool.find(v=>v!==pool[0]) || pool[0];
@@ -4943,6 +5199,14 @@ function speakLine(line){
       u.pitch = line.mood==='joy' ? 1.18 : line.mood==='crying' ? 1.24 : pained ? 1.46 : 1.3;
       u.rate = line.mood==='joy' ? 1.2 : line.mood==='crying' ? 1.0 : pained ? 1.48 : 1.34;
       try{ const v = pickVoiceFor('sister'); if(v) u.voice = v; }catch(e){}
+    } else if(line.cls==='brother'){
+      // male-leaning like dad, but distinctly higher/quicker — an
+      // energetic, athletic register instead of dad's steadier warmth, so
+      // the two male relation voices never sound interchangeable
+      const pained = line.mood==='captive' || line.mood==='scared';
+      u.pitch = line.mood==='joy' ? .66 : line.mood==='crying' ? .7 : pained ? .92 : .6;
+      u.rate = line.mood==='joy' ? 1.15 : line.mood==='crying' ? .98 : pained ? 1.42 : 1.22;
+      try{ const v = pickVoiceFor('brother'); if(v) u.voice = v; }catch(e){}
     } else if(line.cls==='boss'){
       // pushed to the literal floor of what the Web Speech API allows —
       // pitch 0 is as low/guttural as this can go, slow and dragging so
@@ -5260,14 +5524,23 @@ const FINAL_TAUNTS_SISTER = [
   'She begged, at first. They always beg.',
   'Fifty of my ensemble, and you are still standing. How disappointing for both of us.'
 ];
-function curTaunts(){ return G.relation==='dad' ? FINAL_TAUNTS_DAD : G.relation==='sister' ? FINAL_TAUNTS_SISTER : FINAL_TAUNTS; }
-function curStory(){ return G.relation==='dad' ? STORY_DAD : G.relation==='sister' ? STORY_SISTER : STORY; }
+const FINAL_TAUNTS_BROTHER = [
+  'Still fighting? He is still waiting for the bell, you know.',
+  'I can still hear him counting. Can you?',
+  'Every second you waste here is a round I still get to run him through.',
+  'You should have been faster. He is paying for that, right now.',
+  'Ha. HA. You think this changes anything for him?',
+  'He begged, at first. They always beg.',
+  'Fifty of my roster, and you are still standing. How disappointing for both of us.'
+];
+function curTaunts(){ return G.relation==='dad' ? FINAL_TAUNTS_DAD : G.relation==='sister' ? FINAL_TAUNTS_SISTER : G.relation==='brother' ? FINAL_TAUNTS_BROTHER : FINAL_TAUNTS; }
+function curStory(){ return G.relation==='dad' ? STORY_DAD : G.relation==='sister' ? STORY_SISTER : G.relation==='brother' ? STORY_BROTHER : STORY; }
 function checkStoryMilestones(){
   if(!isStoryMode()) return;
   if(P.level>(save.maxStoryLevel||0)) save.maxStoryLevel = P.level;
   if(P.level%20===0 && P.level>0 && P.level!==G._lastMilestone){
     G._lastMilestone = P.level;
-    if(P.level<100) announce('LEVEL '+P.level+' — '+(G.relation==='dad'?'HE’S STILL WAITING':'SHE’S STILL WAITING'), '#ff9fd6');
+    if(P.level<100) announce('LEVEL '+P.level+' — '+((G.relation==='dad'||G.relation==='brother')?'HE’S STILL WAITING':'SHE’S STILL WAITING'), '#ff9fd6');
   }
   if(P.level>=100 && (G.storyBossKills||0)>=50 && !G.finalArmed && !G.finalBattleActive){
     G.finalArmed = true;
@@ -5337,7 +5610,7 @@ function onFinalBossOrAllyKilled(e){
         // more levels past the rescue is meant to be nearly impossible.
         G.postRescue = true; G.rescueLevel = P.level;
         G.state='PLAY'; last=0; acc=0; Ads.gameplayStart();
-        const home = G.relation==='dad' ? 'HE\'S HOME. NOW SURVIVE.' : 'SHE\'S HOME. NOW SURVIVE.';
+        const home = (G.relation==='dad'||G.relation==='brother') ? 'HE\'S HOME. NOW SURVIVE.' : 'SHE\'S HOME. NOW SURVIVE.';
         announce('DEADLY WAVE — '+home, '#ff3b5c');
         toast('DEADLY WAVE', 'Death is real again. This is the only fight you can actually lose.', 'linear-gradient(135deg,#ff3b5c,#7a0f22)');
       });
@@ -5515,10 +5788,10 @@ function _finishRunNow(){
   $('fCoins').textContent = lastEarned;
   $('dblBtn').disabled = false; $('dblBtn').textContent = '▶ DOUBLE SHARDS ×2';
   if(G.motherRescued){
-    $('overTitle').textContent = G.relation==='dad' ? '🏆 YOU SAVED HIM' : '🏆 YOU SAVED HER';
+    $('overTitle').textContent = (G.relation==='dad'||G.relation==='brother') ? '🏆 YOU SAVED HIM' : '🏆 YOU SAVED HER';
     $('overTitle').style.color = 'var(--li)';
   } else if(isStoryMode()){
-    $('overTitle').textContent = G.relation==='dad' ? 'HE’S STILL WAITING...' : 'SHE’S STILL WAITING...';
+    $('overTitle').textContent = (G.relation==='dad'||G.relation==='brother') ? 'HE’S STILL WAITING...' : 'SHE’S STILL WAITING...';
     $('overTitle').style.color = 'var(--rd)';
   }
   show('overScreen');
@@ -5678,7 +5951,7 @@ function renderStats(){
   }
   $('rewatchIntroBtn').classList.toggle('hidden', !save.introSeen);
   $('rewatchEndBtn').classList.toggle('hidden', !save.motherFreed);
-  $('rewatchEndBtn').textContent = save.lastRelation==='dad' ? '🎬 REWATCH: HE\'S FREE' : '🎬 REWATCH: SHE\'S FREE';
+  $('rewatchEndBtn').textContent = (save.lastRelation==='dad'||save.lastRelation==='brother') ? '🎬 REWATCH: HE\'S FREE' : '🎬 REWATCH: SHE\'S FREE';
   const metaMax = META.reduce((a,m)=>a+m.max,0);
   const metaCur = Object.values(save.meta).reduce((a,b)=>a+b,0);
   const canAscend = metaCur>=metaMax;
