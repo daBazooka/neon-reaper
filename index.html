@@ -2393,6 +2393,7 @@ function killEnemy(e){
   const i = enemies.indexOf(e); if(i<0) return;
   enemies.splice(i,1); e.dead = true;
   if(e.finalBoss || e.finalAlly) onFinalBossOrAllyKilled(e);
+  else if(e.arcadeFinalBoss) onArcadeFinalBossKilled();
   P.kills++; G.kills++;
   G.combo++; G.comboT = 2.6; if(G.combo>G.maxCombo) G.maxCombo=G.combo;
   G.streakKill++; G.streakT = 1.1;
@@ -2568,7 +2569,12 @@ const FIRE = {
 function update(dt){
   G.t += dt; save.playtime += dt;
   const spectating = G.state === 'SPECTATE';
-  if(G.mode==='timeattack' && G.t>=TIMEATTACK_LIMIT && G.state==='PLAY'){ endTimeAttack(); return; }
+  // the 3-minute cap holds for the entire sprint except the one moment
+  // it would cut a level-99 final boss fight off mid-swing — reaching
+  // that fight within 180s is already the real challenge; once it's
+  // underway the timer waits for it to resolve instead of ending the
+  // run out from under the player
+  if(G.mode==='timeattack' && G.t>=TIMEATTACK_LIMIT && G.state==='PLAY' && !G.arcadeFinalBattleActive){ endTimeAttack(); return; }
   // ---- player move
   if(!spectating){
     let ix=0, iy=0;
@@ -2938,13 +2944,19 @@ function gainXP(v){
   const story = isStoryMode();
   let leveled = false;
   while(P.xp >= P.xpNext){
-    P.xp -= P.xpNext; P.level++; P.xpNext = story ? xpForStory(P.level) : xpFor(P.level);
+    // xpForStory's flatter post-25 curve now applies to every mode, not
+    // just story runs — level 100 (and the final-boss climax gated
+    // behind it) needs to be a realistic destination in Boss Rush,
+    // Hardcore and Time Attack too, not just an arithmetic wall nobody
+    // outside a tuned story pace could ever actually reach
+    P.xp -= P.xpNext; P.level++; P.xpNext = xpForStory(P.level);
     G.pendingLevels++; leveled = true;
     P.hp += 10; // matches the +10 max HP recalc() grants per level, so leveling up heals too
     if(P.level > (save.maxLevel||0)){ save.maxLevel = P.level; }
   }
   if(leveled) recalc(P); // max HP scales with level — keep it (and the HP bar) in sync the instant you level up
   if(story) checkStoryMilestones();
+  else checkArcadeFinalBoss();
   if(G.pendingLevels>0 && G.state==='PLAY') autoLevelUp();
 }
 function announce(txt,color){
@@ -6721,6 +6733,40 @@ const STORY_LOST = {
 const VoiceCache = { list: [], ready:false };
 function refreshVoices(){ if(window.speechSynthesis){ VoiceCache.list = speechSynthesis.getVoices()||[]; VoiceCache.ready = VoiceCache.list.length>0; } }
 if(window.speechSynthesis){ refreshVoices(); speechSynthesis.onvoiceschanged = refreshVoices; }
+/* mobile-specific speech fixes. Desktop Chrome/Edge/Firefox never needed
+   any of this, which is why voice worked fine on laptop and not on a
+   phone: mobile TTS engines (iOS Safari/WebKit in particular, but also
+   Android Chrome) have real, well-documented quirks the desktop engines
+   don't:
+   1) iOS silently drops speak() calls made outside a direct user-gesture
+      handler unless the engine was already "warmed up" by one earlier —
+      unlockSpeech() below fires a near-silent utterance on the player's
+      very first tap, alongside the existing audio unlock.
+   2) iOS also has a race where calling speak() in the same tick as a
+      preceding cancel() can silently drop the new utterance — every
+      speak() in this game goes through speakLine(), which now defers
+      the actual speechSynthesis.speak() call by one tick so cancel()
+      has already resolved first.
+   3) Chrome on Android (and ChromeOS) has a long-standing bug where an
+      utterance goes silent after ~15s unless something keeps nudging
+      the engine — a low-cost pause()+resume() poke every few seconds
+      while anything is actually speaking works around it everywhere,
+      and is a no-op when nothing is speaking. */
+let _speechUnlocked = false;
+function unlockSpeech(){
+  if(_speechUnlocked || !window.speechSynthesis) return;
+  _speechUnlocked = true;
+  try{
+    const u = new SpeechSynthesisUtterance(' ');
+    u.volume = 0; u.rate = 10;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+if(window.speechSynthesis){
+  setInterval(()=>{
+    try{ if(speechSynthesis.speaking){ speechSynthesis.pause(); speechSynthesis.resume(); } }catch(e){}
+  }, 4000);
+}
 /* best-effort only: the Web Speech API exposes a voice name and language,
    never an actual gender field, so this is a name-pattern heuristic —
    it finds a plausibly female/male-sounding voice where one exists, but
@@ -6866,7 +6912,12 @@ function speakLine(line){
       try{ const v = pickVoiceFor('narr'); if(v) u.voice = v; }catch(e){}
     }
     u.volume=1;
-    speechSynthesis.speak(u);
+    // deferred one tick past the cancel() above — see the mobile-fixes
+    // comment near VoiceCache for why this matters on iOS specifically.
+    // every onend/onboundary/onerror handler is attached by the caller
+    // to the returned utterance object before this actually fires, so
+    // nothing here changes what desktop already did correctly.
+    setTimeout(()=>{ try{ speechSynthesis.speak(u); }catch(e){} }, 0);
     return u;
   }catch(e){ return null; }
 }
@@ -7325,6 +7376,87 @@ function onFinalBossOrAllyKilled(e){
   }
 }
 
+/* ---------------- 23c. ARCADE-MODE LEVEL 100 CLIMAX ----------------
+   Boss Rush, Hardcore and Time Attack never had a level-100 finale —
+   only the story campaign did. This gives every mode the same shape of
+   climax (a genuinely stronger boss gates level 99, clearing it plays
+   an ending animation at 100) without borrowing the story's rescue
+   narrative, since these modes are explicitly "no story" by design —
+   Boss Rush's own preset text says exactly that. No cutscene, no
+   captive character: just a harder fight and a real payoff for it. */
+const ARCADE_FINAL_NAMES = { bossrush:'THE GAUNTLET\'S END', hardcore:'THE LAST MERCY', timeattack:'THE FINAL SECOND' };
+function checkArcadeFinalBoss(){
+  if(isStoryMode()) return;
+  if(Party.active && !Party.isLeader) return; // followers never simulate enemies, host does
+  if(P.level>=99 && !G.arcadeFinalArmed && !G.arcadeFinalBattleActive && !G.arcadeLevel100Done){
+    G.arcadeFinalArmed = true;
+    announce('LEVEL 99 — SOMETHING FINAL IS COMING', '#ff3b5c');
+    Snd.sweep(true); shake(10);
+    setTimeout(()=>{ if(G.state==='PLAY') spawnArcadeFinalBoss(); }, 1400);
+  }
+}
+function spawnArcadeFinalBoss(){
+  if(!P || G.state!=='PLAY') return;
+  G.arcadeFinalBattleActive = true;
+  const kindCycle = BOSSKINDS.map(k=>k.pattern);
+  // same "huge but not actually harder than a regular boss" philosophy
+  // as the story final boss — the spectacle is the size and the name,
+  // not a damage spike that could one-shot a run out of nowhere
+  const kind = { pattern:kindCycle[0], c:'#ff2040', sizeMul:2.8, hpMul:1, dmgMul:1 };
+  const dps = Math.max(70, recentDps());
+  const baseHp = G.lastBossHp ? G.lastBossHp * 1.6 : dps * 42;
+  const ax = P.x, ay = P.y - 260;
+  const name = ARCADE_FINAL_NAMES[G.mode] || 'THE APEX PREDATOR';
+  const b = {
+    type:'boss', x:ax, y:ay, vx:0, vy:0,
+    hp:baseHp, maxHp:baseHp, r:115*kind.sizeMul, spd:42, dmg:20*kind.dmgMul, sides:6,
+    c:kind.c, _baseColor:kind.c, score:50000, rot:0, slowT:0, hitT:0, elite:false, boss:true, shootT:2, phase:0, chargeT:5,
+    name, kind:kind.pattern, kindCycle, kindIdx:0, spiralA:0, telegraph:0, ageT:0, enraged:false,
+    shieldT:0, reflectT:0, pullT:0, tauntT:rnd(10,16),
+    kb:0, kbx:0, kby:0, arcadeFinalBoss:true
+  };
+  enemies.push(b); G.bossRef=b; G.arcadeFinalBossRef=b;
+  announce('⚠ '+name+' ⚠', kind.c); Snd.big(); Snd.finalGateSting(); shake(24);
+  $('bosswrap').style.opacity=1; $('bossname').textContent=name;
+  Snd.setIntensity(1,true,false); zoomKick(1.18); G.wash=.9; G.washC=kind.c;
+}
+function onArcadeFinalBossKilled(){
+  if(G.arcadeLevel100Done) return;
+  G.arcadeLevel100Done = true;
+  G.arcadeFinalBattleActive = false;
+  G.arcadeFinalBossRef = null;
+  Snd.joySting();
+  // the run keeps going after this exactly like story mode's post-rescue
+  // wave does — the same postRescueMul() ramp, just without a captive
+  // character to have rescued. Level 100 in any mode is now genuinely
+  // the hardest thing left to survive, not a number that quietly passes.
+  G.postRescue = true; G.rescueLevel = P.level;
+  playArcadeVictoryAnim();
+}
+/* the "animation as an ending" for every non-story mode: no new screen,
+   just every celebratory primitive the game already has (shockwave
+   rings, particle bursts, slow-mo, a golden screen wash, the same
+   fanfare stinger the story ending uses) layered together into one
+   deliberate flourish instead of the usual single-beat "BOSS DOWN!" */
+function playArcadeVictoryAnim(){
+  zoomKick(1.35); shake(26); G.flash=.8; G.wash=1; G.washC='#ffd23c'; G.slowT=1.6;
+  burst(P.x,P.y,60,'#fff',260,1.2,3.5);
+  for(let i=0;i<5;i++) setTimeout(()=>{
+    if(!P) return;
+    shock(P.x,P.y,260+i*140,'#ffd23c',6);
+    burst(P.x,P.y,26,'#ffd23c',300,.9,4);
+  }, i*140);
+  // deferred, not immediate: killEnemy()'s own generic "BOSS DOWN!"
+  // announce() still fires synchronously right after this function
+  // returns (this boss is a real e.boss:true kill too) and would
+  // otherwise stomp this text in the same tick — this lands just after
+  // that flash has already faded, as its own deliberate second beat
+  setTimeout(()=>{ announce('LEVEL 100 — CONQUERED', '#ffd23c'); }, 700);
+  setTimeout(()=>{
+    toast('SURVIVAL MODE', 'What comes next hits far harder. This is the only fight left worth bragging about.', 'linear-gradient(135deg,#ff3b5c,#7a0f22)');
+  }, 1500);
+}
+
 /* ---------------- 24. RUN FLOW ---------------- */
 function startRun(){
   Snd.init(); Snd.resume();
@@ -7346,6 +7478,7 @@ function _beginRunNow(){
   G.frenzy=false; G.frzCharge=0; G.frzT=0; G.lastMin=0; G.nearCd=0; G.wash=0; G.camZ=1; G.slowT=0; G.musT=0;
   G.ultCd=4; G.ultFx=null;
   G.finalArmed=false; G.finalBattleActive=false; G.finalAllies=[]; G.finalBossRef=null; G.motherRescued=false; G._lastMilestone=0; G._badEndingShown=false;
+  G.arcadeFinalArmed=false; G.arcadeFinalBattleActive=false; G.arcadeFinalBossRef=null; G.arcadeLevel100Done=false;
   G.postRescue=false; G.rescueLevel=0; G.storyBossKills=0; G.dmgLog=[]; G.lastBossHp=0; G.ambientT=rnd(24,40);
   G.milestoneQueue=[]; G._voiceBusy=false; G._mqQueued=false;
   const arena = ARENAS[G.arenaI]||ARENAS[0];
@@ -7864,7 +7997,7 @@ function watchChatSetting(){
   checkDaily();
   setInterval(()=>{ if(G.state==='MENU') renderQuests(); }, 30000);
   Ads.loadingStop();
-  addEventListener('pointerdown', function once(){ Snd.init(); Snd.resume(); removeEventListener('pointerdown', once); });
+  addEventListener('pointerdown', function once(){ Snd.init(); Snd.resume(); unlockSpeech(); removeEventListener('pointerdown', once); });
 
   // ---- CrazyGames Instant Multiplayer + invite-link entry points ----
   try{
