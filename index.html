@@ -1939,15 +1939,16 @@ const ARENAS = [
   { id:'swamp', n:'TOXIC SWAMP',    i:'☣', theme:4, hazard:'poison',  d:'Poison bogs sap HP the longer you linger.' },
   { id:'storm', n:'STORM ZONE',     i:'⚡', theme:6, hazard:'storm',   d:'Lightning strikes telegraphed danger zones.' }
 ];
-/* 25 curated deployments — every one is a real, distinct mode+arena
+/* 26 curated deployments — every one is a real, distinct mode+arena
    combination already backed by working rules (not bolted-on
    simulations): the base ruleset (story pacing, boss cadence, revive
    rules, score bonus) genuinely differs by MODES id, the arena
    genuinely changes the hazard you're fighting through and the visual
    theme, and — for save_dad / save_sister / save_brother / save_son /
-   save_daughter — the whole story, cast, villain, cutscenes and quote
-   pool are their own, never reused from Save Her or each other
-   (relation defaults to 'mom' when a preset doesn't set one). */
+   save_daughter / save_friend — the whole story, cast, villain,
+   cutscenes and quote pool are their own, never reused from Save Her
+   or each other (relation defaults to 'mom' when a preset doesn't set
+   one). */
 const PRESETS = [
   { id:'save', n:'SAVE HER', i:'💔', mode:'classic', arena:'grid', tag:'STORY', stars:3,
     d:'Where it all began. The full story, exactly as it was meant to be told.' },
@@ -1971,6 +1972,8 @@ const PRESETS = [
     d:'You were right down the hall. A fifth story, a fifth villain — this time you\'re the parent, and nothing has ever been more dangerous than that.' },
   { id:'save_daughter', n:'SAVE DAUGHTER', i:'🌻', mode:'classic', arena:'grid', tag:'STORY', relation:'daughter', stars:3,
     d:'She planted a garden before she could spell the word. A sixth story, a sixth villain — go dig up every last thing he grew around her.' },
+  { id:'save_friend', n:'SAVE FRIEND', i:'🤝', mode:'classic', arena:'grid', tag:'STORY', relation:'friend', stars:3,
+    d:'Two kids who had nothing in common except every afternoon after school. A seventh story, a seventh villain — the house doesn\'t get to keep this hand.' },
   { id:'first', n:'FIRST LIGHT', i:'🌈', mode:'easy', arena:'grid', tag:'GENTLE', stars:1,
     d:'A gentler Save Her. Built for a first try, or a young player on your lap.' },
   { id:'first_ice', n:'FIRST LIGHT: CALM ICE', i:'🌈', mode:'easy', arena:'ice', tag:'GENTLE', stars:1,
@@ -3794,6 +3797,58 @@ function drawDaughterArt(c,x,y,s,t,mood){
   }
   c.restore();
 }
+/* the friend — an adult-proportioned peer like the sister/brother, but
+   deliberately gender-neutral: a beanie instead of any styled hair (no
+   hairstyle to read as masculine or feminine), and a small fan of
+   playing cards tucked at the hip as the visual signature instead of a
+   flower/tape/hair-tie. Same blink/tear/joy-sparkle mechanics as every
+   other relation. */
+function drawFriendArt(c,x,y,s,t,mood){
+  c.save(); c.translate(x,y); c.scale(s,s);
+  const bob = Math.sin(t*2)*3; c.translate(0,bob);
+  if(mood==='captive'){
+    c.strokeStyle='rgba(130,130,150,.85)'; c.lineWidth=3;
+    for(let i=-1;i<=1;i+=2){ c.beginPath(); c.moveTo(i*23,-7); c.lineTo(i*72,-61); c.stroke();
+      c.beginPath(); c.arc(i*72,-61,4,0,TAU); c.fillStyle='rgba(130,130,150,.85)'; c.fill(); }
+  }
+  const bodyGrad = c.createRadialGradient(0,12,4,0,12,38);
+  bodyGrad.addColorStop(0,'#fff2e8'); bodyGrad.addColorStop(1,'#ffc9a8');
+  c.fillStyle=bodyGrad;
+  c.beginPath(); c.ellipse(0,16,28,35,0,0,TAU); c.fill();
+  c.fillStyle='#ffe3cf'; c.beginPath(); c.arc(0,-26,24.5,0,TAU); c.fill();
+  // a beanie, pulled low — no hairstyle underneath to read as gendered,
+  // the single deliberate choice this design makes
+  c.fillStyle='#3c4a5c'; c.beginPath(); c.arc(0,-30,25.5,Math.PI*1.02,Math.PI*1.98); c.fill();
+  c.fillRect(-25.5,-34,51,7);
+  c.fillStyle='#26f0ff'; c.beginPath(); c.arc(0,-53,4,0,TAU); c.fill();
+  const blink = Math.sin(t*1.3+.4)>0.985 ? .15 : 1;
+  c.fillStyle='#3a2418';
+  c.save(); c.translate(-7.5,-25); c.scale(1,blink); c.beginPath(); c.arc(0,0,2.9,0,TAU); c.fill(); c.restore();
+  c.save(); c.translate(7.5,-25); c.scale(1,blink); c.beginPath(); c.arc(0,0,2.9,0,TAU); c.fill(); c.restore();
+  c.strokeStyle='#a5563b'; c.lineWidth=2.2; c.beginPath();
+  if(mood==='joy'||mood==='crying') c.arc(0,-16,6.3,.15*Math.PI,.85*Math.PI);
+  else c.arc(0,-13,6.3,1.15*Math.PI,1.85*Math.PI);
+  c.stroke();
+  // a small fan of playing cards, tucked at the hip — his/her/their
+  // constant, present in every mood
+  c.save(); c.translate(22,10); c.rotate(-.25+Math.sin(t*1.5)*.05);
+  for(let i=-1;i<=1;i++){ c.save(); c.rotate(i*.22);
+    c.fillStyle='#f2f2f2'; c.strokeStyle='rgba(0,0,0,.3)'; c.lineWidth=1;
+    c.fillRect(-5,-16,10,20); c.strokeRect(-5,-16,10,20);
+    c.fillStyle='#ff3b5c'; c.beginPath(); c.arc(0,-10,2,0,TAU); c.fill(); c.restore(); }
+  c.restore();
+  if(mood==='captive'||mood==='scared'||mood==='crying'){
+    const d1=(t*1.7)%1, d2=((t*1.7)+.5)%1;
+    c.fillStyle='rgba(120,200,255,.85)';
+    c.beginPath(); c.ellipse(-7.5,-16+d1*28,1.7,3,0,0,TAU); c.fill();
+    c.beginPath(); c.ellipse(7.5,-18+d2*28,1.7,3,0,0,TAU); c.fill();
+  }
+  if(mood==='joy'||mood==='crying'){
+    for(let i=0;i<6;i++){ const a=t*1.6+i/6*TAU, rr=46+Math.sin(t*3+i)*6;
+      c.fillStyle='rgba(38,240,255,.8)'; c.beginPath(); c.arc(Math.cos(a)*rr,-20+Math.sin(a)*rr,2,0,TAU); c.fill(); }
+  }
+  c.restore();
+}
 /* dispatches to whichever parent art fits the run's relation, so every
    scene in the cutscene draw switch below only has to call this once
    instead of branching itself */
@@ -3801,6 +3856,7 @@ function drawParentArt(c,x,y,s,t,mood){
   if(G.relation==='dad') drawFatherArt(c,x,y,s,t,mood);
   else if(G.relation==='brother') drawBrotherArt(c,x,y,s,t,mood);
   else if(G.relation==='son') drawSonArt(c,x,y,s,t,mood);
+  else if(G.relation==='friend') drawFriendArt(c,x,y,s,t,mood);
   else if(G.relation==='daughter') drawDaughterArt(c,x,y,s,t,mood);
   else if(G.relation==='sister') drawSisterArt(c,x,y,s,t,mood);
   else drawMotherArt(c,x,y,s,t,mood);
@@ -5017,6 +5073,114 @@ const MILESTONE_QUOTES_DAUGHTER = [
   'You don’t just want to win this. You want to walk back into that garden and mean it when you say it’s finally, actually finished.',
   'You built her patiently, one ordinary season at a time, and this — all of this — is what patience like that actually becomes.'
 ];
+const MILESTONE_QUOTES_FRIEND = [
+  'The house doesn’t get to keep this hand. Go take it back.',
+  'You two had nothing in common except every single afternoon after school. Some bonds don’t need a reason.',
+  'They said a good hand was the only proof patience ever paid off. Prove it again right now.',
+  'You don’t need the Dealer’s permission to go all in on someone who’s always gone all in on you.',
+  'Every friendship worth having has a rule: you don’t fold on people. Don’t start now.',
+  'They taught you when to hold and when to walk away. This is neither. This is when you stay.',
+  'You don’t owe them a rescue. You owe them the same thing they always gave you: someone who shows up to the table.',
+  'The Dealer thinks people are stakes. Your friend taught you people are the whole point of playing at all.',
+  'You keep hearing their laugh over a terrible hand in your own head before every level. Good. Keep laughing.',
+  'A friendship built over a card table doesn’t fold just because the stakes got real.',
+  'They gave you their time, their patience, their last good hand, without ever once asking for credit. Go get them back without asking for any either.',
+  'You don’t need to bluff your way through this. You need to be exactly as stubborn as they always were about a bad beat.',
+  'The Dealer collects people like chips. Your friend spent theirs making sure you never once felt like you were playing alone.',
+  'They never let you see them scared of losing. You’re allowed to be scared of this. Just don’t fold either.',
+  'You were the reason they kept playing fair in a room built entirely on cheating. Be that for them now.',
+  'A friendship doesn’t announce itself. It just keeps showing up to the same table, hand after hand, until it’s the only explanation left.',
+  'They taught you that a bad hand and a lost game were never the same thing. Remember the difference here too.',
+  'You don’t need a deck to keep them close. You just need to keep showing up, level after level.',
+  'The last thing they ever told you was to walk away and not look back. This is what not looking back actually looks like.',
+  'They were never trying to make you lucky. They were just steady enough for both of you until the odds caught up.',
+  'You inherited their stubbornness about walking away from a bad table whether you wanted it or not. Use it here — by refusing to.',
+  'A friend doesn’t stop being one just because the roles switched.',
+  'They spent years pretending showing up wasn’t a full-time job. It was. Thank them by finishing this one.',
+  'You don’t remember every hand they ever dealt you. Your hands do. Trust them.',
+  'The Dealer collects players like trophies. Your friend spent their whole life making you feel like you belonged at the table at all.',
+  'They used to say the scariest hand was always the one you hadn’t played yet. Play this one anyway.',
+  'You were the one who watched every game they ever ran, whether they meant it as a lesson or not. Watch this one through too.',
+  'A friend’s bravery is the quiet kind — the kind that shows up to every ordinary Tuesday, not just the big scores.',
+  'They caught you cheating at cards once and taught you the game instead of turning you in. Catch them now.',
+  'You don’t need them cheering from the rail to know they still would be.',
+  'The patience never left you. It’s been running under every fight since the night they were taken.',
+  'They never once made friendship feel like a competition. Don’t make this one either — just finish it.',
+  'You were smaller than this fight once, the same way you were smaller than everything once. That never stopped you before.',
+  'A friend who taught you to read a table also taught you, without meaning to, exactly when to stop reading and just move.',
+  'They gave you a seat at every table that mattered. Go get them a seat at this one.',
+  'You don’t need to play it perfectly. They never did either. You just need to see the hand through.',
+  'The Dealer thinks he owns what he deals. He forgot a friend like this was always meant to come home.',
+  'They held the door open at every game that mattered, without you ever once noticing the effort it took.',
+  'You keep hearing their old table-talk — "ante up, don’t flinch" — right before every level starts. Don’t flinch.',
+  'A friend doesn’t need a jackpot to matter. They just need someone worth showing up for. That was always you.',
+  'You don’t forgive yourself for folding too early back then by folding on this now.',
+  'They never let one bad hand ruin the whole night. Don’t let one bad level ruin the whole climb.',
+  'The strongest thing they ever taught you wasn’t cards. It was that showing up quietly, every single week, is its own kind of loud.',
+  'You were the reason they learned to play it straight first. Be the reason they get to stop having to be careful, for once.',
+  'A friendship built on showing up doesn’t break just because the table changed.',
+  'They spent years making room for you at every table, every game, every hard conversation. Make room for them now.',
+  'You don’t need the whole deck behind you. You just need the nerve they taught you.',
+  'The Dealer collects people like they’re interchangeable. He never once understood what it costs to actually earn one who’d go all in for you.',
+  'They taught you that a scared friend and a brave friend can be the exact same person, one hand apart.',
+  'You were their whole audience for every ridiculous bluff they ever tried. Be present for this one too.',
+  'A friend’s job never really ends. It just waits for the other one to be ready to return it.',
+  'They never asked you to be as lucky as them. They just quietly built you into someone who eventually could hold their own.',
+  'You keep playing with the same stubbornness they used to run the same bluff a hundred times before it finally worked.',
+  'The patience they gave you wasn’t a gift. It was a lifeline, disguised as a card game, for exactly a moment like this.',
+  'They never let you believe you were too small to matter. Don’t let this fight convince you otherwise either.',
+  'You don’t need their blessing to keep going. But you’re about to earn it anyway.',
+  'A friend’s love is the kind that shows up in a thousand small ordinary games before it ever needs to show up in a big one.',
+  'They counted on you being brave someday, even on the days you weren’t sure you would be. Today is someday.',
+  'The Dealer has never once built anything real. Your friend built a whole friendship out of nothing but patience and bad card nights. That’s the real advantage here.',
+  'You were raised, in part, by someone who turned every scary thing into something you could bet on together. Bet on this.',
+  'A friend who taught you to read a table also taught you, without either of you realizing it, how to survive exactly this kind of fight.',
+  'They gave you their seat, their time, their courage, on loan, for years. This is where you finally pay it back in full.',
+  'You don’t need to be fearless to finish this. You need to be the same kind of stubborn they always were about an unfinished game.',
+  'The last honest thing they ever told you was to walk away and live your life. Living it means finishing this.',
+  'You inherited more than their stubbornness. You inherited their refusal to leave the table while someone still needed them there.',
+  'A friend who spent their whole life showing up did not raise — didn’t need to raise, just chose — someone who lets them fold alone.',
+  'The Dealer has never once had to earn loyalty from nothing. Everything you are, at this table, was built by someone who has.',
+  'You keep hearing "ante up" in every level, every boss, every fall. Good. Keep listening.',
+  'They gave you a deck and a lesson disguised as a game. Turns out the lesson was the whole plan all along.',
+  'A person who never once quit on a losing streak raised the kind of loyalty that won’t quit on them either.',
+  'You’re not proving you can win. You’re proving every night they spent teaching you actually took.',
+  'The Dealer wants this to be about stakes. Your friend would want it to be about finishing the game. Pick their version.',
+  'Every ordinary Tuesday spent losing money you didn’t have together was quietly building the exact person this fight actually needed.',
+  'They never raised their voice over a bad beat, and somehow that taught you more about composure than shouting ever could have.',
+  'You don’t need vengeance to get through this. You need the same patience they showed a terrible hand at 2 a.m.',
+  'A person who deals people back into a game for free does not deserve to be the thing someone else cashes in.',
+  'Their hands are probably shaking by now. Yours don’t get to.',
+  'You are not the kid watching from the rail anymore. You are the one who finally learned to sit at the table.',
+  'They built this friendship the same way they played every hand — patiently, honestly, and to actually last.',
+  'The Dealer collects what he can deal. He has no idea what it costs to earn someone who refuses to fold on you.',
+  'A promise made over a card table, at midnight, on a losing streak, is still a promise.',
+  'You don’t need them to say it. You already know: they’d be proud, and that has to be enough to keep moving.',
+  'Every level is just one more hand in the same unfinished game.',
+  'They taught you that a bad round deserves a second try before anyone walks away from the whole table. Don’t walk away from this fight either.',
+  'A friend who never once quit on a bad night did not raise the kind of loyalty that quits.',
+  'You keep playing with hands that learned everything they know from someone who never once folded on a friend mid-hand.',
+  'The table light is off. Yours doesn’t have to be.',
+  'They are not a chip. They are not a stake. They are your friend, and you are going to say that out loud when you find them.',
+  'A person who deals people a fair hand for free does not deserve to be the thing someone else cashes out.',
+  'You don’t need to be fearless to finish this. You need to be the kind of stubborn that never once made sense to anyone but them.',
+  'The last thing they ever told you, without meaning to, was exactly how to survive a losing streak.',
+  'Every scar you earn on this climb is one more thing you’ll eventually be able to show them, and they’ll understand it without you explaining a word.',
+  'You are not rebuilding a card game. You are rebuilding a friendship, one level at a time.',
+  'They never once let you believe something was too far gone to fix. Believe that about them now.',
+  'A debt like this was never going to be settled quietly. Good. They never taught you to be quiet about things that mattered either.',
+  'You keep hearing them in your own hands now — steady, unhurried, unwilling to quit on the hand.',
+  'The Dealer has spent his whole life taking people apart. Your friend spent theirs building people up. You know exactly which side of the table raised you.',
+  'A friend who taught you patience with a stubborn game also taught you patience with an impossible fight, without either of you realizing it at the time.',
+  'You don’t need permission to go all in on this. You’re about to earn their respect for it anyway.',
+  'Every unfinished game in that back room has been waiting the same amount of time you have. Go finish all of it at once.',
+  'They measured a friendship by who showed up, not by how big the pot got. Measure yours the same way, even here.',
+  'You are the last unfinished thing your friend ever started teaching you. Go get finished.',
+  'A friend who never asked for thanks does not need you to thank them. They need you to come get them.',
+  'The debt was never fair. Neither was taking them. Go make something right out of both.',
+  'You don’t just want to win this. You want to walk back into that back room and mean it when you say it’s over.',
+  'They built this friendship patiently, one ordinary losing night at a time, and this — all of this — is what patience like that actually becomes.'
+];
 // the single release point for the shared voice lock — whichever system
 // (milestone quote or ambient VO) was speaking calls this when it's done,
 // so a milestone that got queued behind an *ambient* line (not just
@@ -5036,7 +5200,7 @@ function triggerMilestoneQuote(){
   // reshuffled (not reset) only once it runs out, so a single match can
   // burn through the whole pool without a repeat before it ever cycles
   // back. G.relation picks which pool; the two never mix mid-run.
-  const qPool = G.relation==='dad' ? MILESTONE_QUOTES_DAD : G.relation==='sister' ? MILESTONE_QUOTES_SISTER : G.relation==='brother' ? MILESTONE_QUOTES_BROTHER : G.relation==='son' ? MILESTONE_QUOTES_SON : G.relation==='daughter' ? MILESTONE_QUOTES_DAUGHTER : MILESTONE_QUOTES;
+  const qPool = G.relation==='dad' ? MILESTONE_QUOTES_DAD : G.relation==='sister' ? MILESTONE_QUOTES_SISTER : G.relation==='brother' ? MILESTONE_QUOTES_BROTHER : G.relation==='son' ? MILESTONE_QUOTES_SON : G.relation==='daughter' ? MILESTONE_QUOTES_DAUGHTER : G.relation==='friend' ? MILESTONE_QUOTES_FRIEND : MILESTONE_QUOTES;
   if(!G.milestoneQueue || !G.milestoneQueue.length) G.milestoneQueue = shuffle(qPool.slice());
   const text = G.milestoneQueue.pop();
   const el = $('milestoneQuote'); const t = $('mqText');
@@ -5216,6 +5380,29 @@ const PLAYER_AMBIENT_DAUGHTER = {
     'I don’t fight because I hate him. I fight because I love my daughter more than I fear him.'
   ]
 };
+const PLAYER_AMBIENT_FRIEND = {
+  early: [
+    'I will do everything to see my friend again.',
+    'No matter what happens, I will see their face again.',
+    'Just a little further. I promised them I’d come.',
+    'Hold on. I’m already on my way.',
+    'I used to think strength meant never losing a fight. I know better now.'
+  ],
+  mid: [
+    'I can feel it getting closer. I can’t stop now, not now.',
+    'Hold on. I’m not as far away as it feels.',
+    'Every one of these is one less between us.',
+    'I haven’t forgotten why I’m doing this. Not for one second.',
+    'None of this is really about beating him. It was only ever about my friend.'
+  ],
+  late: [
+    'Almost there. Please, just let me be enough.',
+    'I can’t lose them. Not after everything. Not now.',
+    'I’m coming. I’m so close. Please still be there.',
+    'Just a little more. Just a little more and I see them again.',
+    'I don’t fight because I hate him. I fight because I love my friend more than I fear him.'
+  ]
+};
 function playerAmbientLine(){
   if(!P || !isStoryMode() || G.state!=='PLAY') return;
   // same shared voice lock as milestone quotes — skip this beat entirely
@@ -5224,7 +5411,7 @@ function playerAmbientLine(){
   // so missing one ambient line here is low-stakes and never noticeable
   if(G._voiceBusy) return;
   const prog = clamp(P.level/100, 0, 1);
-  const ambSet = G.relation==='dad' ? PLAYER_AMBIENT_DAD : G.relation==='sister' ? PLAYER_AMBIENT_SISTER : G.relation==='brother' ? PLAYER_AMBIENT_BROTHER : G.relation==='son' ? PLAYER_AMBIENT_SON : G.relation==='daughter' ? PLAYER_AMBIENT_DAUGHTER : PLAYER_AMBIENT;
+  const ambSet = G.relation==='dad' ? PLAYER_AMBIENT_DAD : G.relation==='sister' ? PLAYER_AMBIENT_SISTER : G.relation==='brother' ? PLAYER_AMBIENT_BROTHER : G.relation==='son' ? PLAYER_AMBIENT_SON : G.relation==='daughter' ? PLAYER_AMBIENT_DAUGHTER : G.relation==='friend' ? PLAYER_AMBIENT_FRIEND : PLAYER_AMBIENT;
   const pool = prog>.66 ? ambSet.late : prog>.33 ? ambSet.mid : ambSet.early;
   const text = pick(pool);
   const gen = (G._ambGen = (G._ambGen||0) + 1);
@@ -5675,6 +5862,82 @@ const STORY_DAUGHTER = {
     { speaker:'', cls:'you', text:'TRY AGAIN. DON’T LET IT END LIKE THIS.', dark:1, art:'title', hold:1800, fast:1 }
   ]
 };
+/* the friend's story — the direction returns to peer-to-peer (as with
+   sister/brother), but nothing here reuses their circumstances: a
+   childhood built around a card table instead of a gym or a recital
+   hall, and a villain who runs underground high-stakes games rather
+   than collecting debts or prodigies. Deliberately written without a
+   gendered pronoun for the friend themselves — the new relVerbFor()/
+   relObjFor() helpers give this story its own "THEY'RE"/"THEM" HUD
+   text instead of defaulting to either binary. Every line original. */
+const STORY_FRIEND = {
+  intro: [
+    { speaker:'', cls:'narr', text:'Some stories start with two kids who had nothing in common except every single afternoon after school.', dark:1, art:'wide', hold:1900 },
+    { speaker:'', cls:'narr', text:'Your friend ran the card table behind the corner store — not for the money, though the money helped, but because they said a good hand was the only proof this life ever gave that patience could pay off.', dark:0, art:'home', hold:2800 },
+    { speaker:'', cls:'narr', text:'They taught you when to hold and when to walk away before you even understood what either one cost. That instinct saved you more than once.', dark:0, art:'home', hold:2600 },
+    { speaker:'', cls:'narr', text:'It was, for a while, an entirely ordinary friendship. That, it turns out, was the best part.', dark:0, art:'home', hold:2200 },
+    { speaker:'', cls:'narr', text:'Then, the night of their biggest score, three men in very nice suits stayed at the table after everyone else cashed out.', dark:1, art:'wide', hold:1900, fast:1 },
+    { speaker:'', cls:'narr', text:'The Dealer came for them personally that night. A hand like theirs, he said, doesn’t retire — it just changes tables. He took them, and left an empty seat that never got filled again.', dark:1, art:'abduction', shake:1, hold:2900, fast:1 },
+    { speaker:'', cls:'narr', text:'You were far too small to stop it. You have never once forgiven yourself for that.', dark:1, art:'abduction', hold:2200, fast:1 },
+    { speaker:'', cls:'narr', text:'Years became a long game. A child’s helplessness became, slowly and deliberately, a young man’s resolve.', dark:1, art:'wide', hold:2400 },
+    { speaker:'', cls:'narr', text:'Somewhere past the last light of the city, in a back room that isn’t on any map...', dark:1, art:'wide', hold:1600 },
+    { speaker:'FRIEND', cls:'friend', text:'...is someone there? Don’t — don’t let him hear you. Please tell me it isn’t you.', dark:1, art:'mom', mood:'captive', hold:1500 },
+    { speaker:'', cls:'narr', text:'He found them first, all those years ago. He has never once let them go.', dark:1, art:'boss', hold:1600 },
+    { speaker:'THE DEALER', cls:'boss', text:'A hand like theirs doesn’t retire, little player. It simply changes ownership.', dark:1, art:'both', mood:'captive', shake:1, hold:1700 },
+    { speaker:'FRIEND', cls:'friend', text:'Don’t come here. Don’t you dare come here for me. You were the one bet I ever actually won — go live it.', dark:1, art:'mom', mood:'captive', hold:1800 },
+    { speaker:'', cls:'narr', text:'You remember their laugh over a terrible hand from a thousand ordinary afternoons, the one that meant they’d already lost and didn’t care. You never thought you’d need to remember it to survive.', dark:0, art:'memory', hold:2400 },
+    { speaker:'', cls:'narr', text:'The Dealer is the strongest thing this world has ever bet against. And the cruelest.', dark:1, art:'boss', hold:1500 },
+    { speaker:'', cls:'narr', text:'He is not alone. He never needs to be.', dark:1, art:'both', hold:1300 },
+    { speaker:'', cls:'narr', text:'One path remains. Fifty of his own standing between you and your friend, and a hundred trials besides. Most who try do not finish it.', dark:1, art:'wide', hold:2200 },
+    { speaker:'YOU', cls:'you', text:'I’m coming. Whatever he thinks he owns — I’m taking it back.', dark:1, art:'mom', mood:'captive', hold:2400 },
+    { speaker:'', cls:'you', text:'SAVE THEM. THE HOUSE DOESN’T GET TO KEEP THIS HAND.', dark:1, art:'title', hold:1900 },
+    { speaker:'', cls:'you', text:'REACH LEVEL 100!', dark:1, art:'title', hold:1500, fast:1 }
+  ],
+  finalConfront: [
+    { speaker:'', cls:'narr', text:'Something enormous turns to face you at last. It has been waiting.', dark:1, art:'boss', hold:1900 },
+    { speaker:'THE DEALER', cls:'boss', text:'Ah. There you are. I wondered how many of my dealers it would take to keep one stubborn player occupied.', dark:1, art:'boss', shake:1, hold:2400 },
+    { speaker:'THE DEALER', cls:'boss', text:'They stopped counting cards in the first year. Do you want to know what they play for now?', dark:1, art:'both', mood:'captive', shake:1, hold:2800 },
+    { speaker:'THE DEALER', cls:'boss', text:'Whatever I deal them. Beautifully. Utterly certain you’d never come to cash them out.', dark:1, art:'boss', shake:1, hold:2400 },
+    { speaker:'', cls:'narr', text:'He laughs — low, delighted, utterly certain you will fail like every single one before you.', dark:1, art:'boss', shake:1, hold:2100 },
+    { speaker:'YOU', cls:'you', text:'Then let’s see the house lose for once.', dark:1, art:'title', hold:1800 }
+  ],
+  ending: [
+    { speaker:'', cls:'narr', text:'He falls.', dark:1, art:'boss', hold:1300 },
+    { speaker:'', cls:'narr', text:'The chains break before his last breath even leaves him.', dark:0, art:'mom', mood:'joy', hold:1600 },
+    { speaker:'FRIEND', cls:'friend', text:'...is it you? Is it actually you, or is this just another bad beat my head made up down here?', dark:0, art:'mom', mood:'joy', hold:1700 },
+    { speaker:'', cls:'narr', text:'Up close, they see everything the fight cost you. None of it frightens them. Not for a second.', dark:0, art:'embrace', mood:'joy', hold:2400 },
+    { speaker:'FRIEND', cls:'friend', text:'Oh — look at you. Look what you carried to get here. Come here. Come here right now.', dark:0, art:'embrace', mood:'joy', hold:2400 },
+    { speaker:'', cls:'narr', text:'A hundred trials. Every single one of them, for this exact second.', dark:0, art:'both', mood:'joy', hold:1800 },
+    { speaker:'', cls:'narr', text:'You run to them. They are already reaching for you.', dark:0, art:'embrace', hold:2000 },
+    { speaker:'', cls:'narr', text:'For one long moment, neither of you says anything at all. You don’t need to.', dark:0, art:'embrace', mood:'joy', hold:2600 },
+    { speaker:'FRIEND', cls:'friend', text:'I never once stopped believing you’d come. Not for one single day down here.', dark:0, art:'embrace', mood:'joy', hold:2200 },
+    { speaker:'FRIEND', cls:'friend', text:'Look who finally learned to deal instead of always getting dealt to.', dark:0, art:'embrace', mood:'joy', hold:2600 },
+    { speaker:'', cls:'narr', text:'You were the kid watching from the rail once, small and helpless, watching the dark take everything. You are not that kid anymore.', dark:0, art:'both', mood:'joy', hold:2800 },
+    { speaker:'FRIEND', cls:'friend', text:'Whatever you had to become to reach me — I hope you never have to be that person again.', dark:0, art:'mom', mood:'joy', hold:2400 },
+    { speaker:'YOU', cls:'you', text:'I was so afraid. The whole way here. I never told anyone that. Not once.', dark:0, art:'embrace', mood:'crying', hold:2400 },
+    { speaker:'', cls:'narr', text:'You are both crying now — not from fear this time. Neither of you cares who sees it.', dark:0, art:'embrace', mood:'crying', hold:2600 },
+    { speaker:'FRIEND', cls:'friend', text:'Being afraid and coming anyway — that’s the only kind of brave I was ever actually trying to teach you.', dark:0, art:'embrace', mood:'crying', hold:2600 },
+    { speaker:'YOU', cls:'you', text:'I told you I was coming. I meant every word of it.', dark:0, art:'embrace', mood:'joy', hold:1900 },
+    { speaker:'YOU', cls:'you', text:'I’m here. I’m not going anywhere.', dark:0, art:'embrace', mood:'joy', hold:1800 },
+    { speaker:'', cls:'narr', text:'This was never really about the hundred levels, or the boss, or the score.', dark:0, art:'wide', hold:2200 },
+    { speaker:'', cls:'narr', text:'It was about the people worth all of it. Yours is waiting somewhere too — a friend, a family member, whoever it is.', dark:0, art:'wide', hold:2600 },
+    { speaker:'', cls:'narr', text:'Whatever you’re fighting for — don’t stop. Not today. Not ever.', dark:0, art:'wide', hold:2600 },
+    { speaker:'', cls:'you', text:'FRIEND FREED.', dark:0, art:'title', hold:2200 },
+    { speaker:'', cls:'narr', text:'You walk them home yourself, every step of it — back to the same corner store, the same table, a fresh deck waiting exactly where they left it.', dark:0, art:'home', hold:2800 },
+    { speaker:'', cls:'narr', text:'But he was never the only thing out here — and now, whatever remains knows exactly who you are.', dark:1, art:'wide', hold:2600 }
+  ],
+  badEnding: [
+    { speaker:'THE DEALER', cls:'boss', text:'You were never going to make it to the final table.', dark:1, art:'boss', shake:1, hold:1400 },
+    { speaker:'FRIEND', cls:'friend', text:'No — NO! Please, don’t touch them! Take me instead, not them—!', dark:1, art:'devour', mood:'scared', shake:1, hold:1900, fast:1 },
+    { speaker:'', cls:'narr', text:'They are still shouting your name when the dark closes over them.', dark:1, art:'devour', mood:'scared', shake:1, hold:2100, fast:1 },
+    { speaker:'', cls:'narr', text:'They never got to see you again. Not once. Not even to say goodbye.', dark:1, art:'lost', hold:2000, fast:1 },
+    { speaker:'THE DEALER', cls:'boss', text:'They kept calling your name right until the end. They always do.', dark:1, art:'boss', shake:1, hold:2000, fast:1 },
+    { speaker:'', cls:'narr', text:'Somewhere, a deck of cards that waited for you every single night simply goes still.', dark:1, art:'lost', hold:2200, fast:1 },
+    { speaker:'', cls:'you', text:'THEY ARE GONE. YOU WERE TOO SLOW.', dark:1, art:'title', hold:1800, fast:1 },
+    { speaker:'', cls:'narr', text:'Somewhere, in some other try, you were just a little stronger — and you made it in time.', dark:1, art:'wide', hold:2200, fast:1 },
+    { speaker:'', cls:'you', text:'TRY AGAIN. DON’T LET IT END LIKE THIS.', dark:1, art:'title', hold:1800, fast:1 }
+  ]
+};
 /* The closest this can get to voice acting: the device's own built-in
    text-to-speech, when the browser has one (window.speechSynthesis).
    It's a real synthetic voice reading the line, not a recording and
@@ -5702,10 +5965,10 @@ function pickVoiceFor(role){
   const pool = VoiceCache.list.filter(v=>hints.test(v.name));
   if(!pool.length) return null;
   pool.sort((a,b)=> (qualityHints.test(b.name)?1:0) - (qualityHints.test(a.name)?1:0));
-  if((role==='narr' || role==='dad' || role==='sister' || role==='brother' || role==='son' || role==='daughter') && pool.length>1){
-    // the commentator (and the father, sister, brother, son, and
-    // daughter) shouldn't sound identical to the villain/mother when the
-    // device happens to have more than one matching voice available
+  if((role==='narr' || role==='dad' || role==='sister' || role==='brother' || role==='son' || role==='daughter' || role==='friend') && pool.length>1){
+    // the commentator (and every relation but mom) shouldn't sound
+    // identical to the villain/mother when the device happens to have
+    // more than one matching voice available
     return pool.find(v=>v!==pool[0]) || pool[0];
   }
   return pool[0];
@@ -5776,6 +6039,15 @@ function speakLine(line){
       u.pitch = line.mood==='joy' ? 1.78 : line.mood==='crying' ? 1.85 : pained ? 1.96 : 1.7;
       u.rate = line.mood==='joy' ? 1.22 : line.mood==='crying' ? 1.05 : pained ? 1.54 : 1.32;
       try{ const v = pickVoiceFor('daughter'); if(v) u.voice = v; }catch(e){}
+    } else if(line.cls==='friend'){
+      // deliberately near the middle of the pitch range — neither as
+      // deep as dad's register nor as high as mom's, an intentionally
+      // androgynous voice to match the gender-neutral art design, on
+      // the same voice pool as dad/brother/son/narr
+      const pained = line.mood==='captive' || line.mood==='scared';
+      u.pitch = line.mood==='joy' ? .96 : line.mood==='crying' ? 1.02 : pained ? 1.22 : .9;
+      u.rate = line.mood==='joy' ? 1.14 : line.mood==='crying' ? .96 : pained ? 1.4 : 1.18;
+      try{ const v = pickVoiceFor('friend'); if(v) u.voice = v; }catch(e){}
     } else if(line.cls==='boss'){
       // pushed to the literal floor of what the Web Speech API allows —
       // pitch 0 is as low/guttural as this can go, slow and dragging so
@@ -6120,14 +6392,38 @@ const FINAL_TAUNTS_DAUGHTER = [
   'She begged, at first. They always beg.',
   'Fifty of my hothouse, and you are still standing. How disappointing for both of us.'
 ];
-function curTaunts(){ return G.relation==='dad' ? FINAL_TAUNTS_DAD : G.relation==='sister' ? FINAL_TAUNTS_SISTER : G.relation==='brother' ? FINAL_TAUNTS_BROTHER : G.relation==='son' ? FINAL_TAUNTS_SON : G.relation==='daughter' ? FINAL_TAUNTS_DAUGHTER : FINAL_TAUNTS; }
-function curStory(){ return G.relation==='dad' ? STORY_DAD : G.relation==='sister' ? STORY_SISTER : G.relation==='brother' ? STORY_BROTHER : G.relation==='son' ? STORY_SON : G.relation==='daughter' ? STORY_DAUGHTER : STORY; }
+const FINAL_TAUNTS_FRIEND = [
+  'Still fighting? They are still calling your name, you know.',
+  'I can still hear them. Can you?',
+  'Every second you waste here is a hand I still get to deal them.',
+  'You should have been faster. They are paying for that, right now.',
+  'Ha. HA. You think this changes anything for them?',
+  'They begged, at first. They always beg.',
+  'Fifty of my dealers, and you are still standing. How disappointing for both of us.'
+];
+function curTaunts(){ return G.relation==='dad' ? FINAL_TAUNTS_DAD : G.relation==='sister' ? FINAL_TAUNTS_SISTER : G.relation==='brother' ? FINAL_TAUNTS_BROTHER : G.relation==='son' ? FINAL_TAUNTS_SON : G.relation==='daughter' ? FINAL_TAUNTS_DAUGHTER : G.relation==='friend' ? FINAL_TAUNTS_FRIEND : FINAL_TAUNTS; }
+function curStory(){ return G.relation==='dad' ? STORY_DAD : G.relation==='sister' ? STORY_SISTER : G.relation==='brother' ? STORY_BROTHER : G.relation==='son' ? STORY_SON : G.relation==='daughter' ? STORY_DAUGHTER : G.relation==='friend' ? STORY_FRIEND : STORY; }
+/* a small pronoun helper, added once the relation set grew past a clean
+   HE/SHE binary (a best friend isn't inherently either) — every HUD
+   string that used to hardcode "he/she" now goes through this instead,
+   so adding a pronoun-ambiguous relation is a one-line change here
+   rather than a hunt through every announce()/overTitle call site. */
+function relVerbFor(rel){ // "HE'S" / "SHE'S" / "THEY'RE"
+  if(rel==='dad'||rel==='brother'||rel==='son') return 'HE’S';
+  if(rel==='friend') return 'THEY’RE';
+  return 'SHE’S';
+}
+function relObjFor(rel){ // "HIM" / "HER" / "THEM"
+  if(rel==='dad'||rel==='brother'||rel==='son') return 'HIM';
+  if(rel==='friend') return 'THEM';
+  return 'HER';
+}
 function checkStoryMilestones(){
   if(!isStoryMode()) return;
   if(P.level>(save.maxStoryLevel||0)) save.maxStoryLevel = P.level;
   if(P.level%20===0 && P.level>0 && P.level!==G._lastMilestone){
     G._lastMilestone = P.level;
-    if(P.level<100) announce('LEVEL '+P.level+' — '+((G.relation==='dad'||G.relation==='brother'||G.relation==='son')?'HE’S STILL WAITING':'SHE’S STILL WAITING'), '#ff9fd6');
+    if(P.level<100) announce('LEVEL '+P.level+' — '+relVerbFor(G.relation)+' STILL WAITING', '#ff9fd6');
   }
   if(P.level>=100 && (G.storyBossKills||0)>=50 && !G.finalArmed && !G.finalBattleActive){
     G.finalArmed = true;
@@ -6197,7 +6493,7 @@ function onFinalBossOrAllyKilled(e){
         // more levels past the rescue is meant to be nearly impossible.
         G.postRescue = true; G.rescueLevel = P.level;
         G.state='PLAY'; last=0; acc=0; Ads.gameplayStart();
-        const home = (G.relation==='dad'||G.relation==='brother'||G.relation==='son') ? 'HE\'S HOME. NOW SURVIVE.' : 'SHE\'S HOME. NOW SURVIVE.';
+        const home = relVerbFor(G.relation)+' HOME. NOW SURVIVE.';
         announce('DEADLY WAVE — '+home, '#ff3b5c');
         toast('DEADLY WAVE', 'Death is real again. This is the only fight you can actually lose.', 'linear-gradient(135deg,#ff3b5c,#7a0f22)');
       });
@@ -6375,10 +6671,10 @@ function _finishRunNow(){
   $('fCoins').textContent = lastEarned;
   $('dblBtn').disabled = false; $('dblBtn').textContent = '▶ DOUBLE SHARDS ×2';
   if(G.motherRescued){
-    $('overTitle').textContent = (G.relation==='dad'||G.relation==='brother'||G.relation==='son') ? '🏆 YOU SAVED HIM' : '🏆 YOU SAVED HER';
+    $('overTitle').textContent = '🏆 YOU SAVED '+relObjFor(G.relation);
     $('overTitle').style.color = 'var(--li)';
   } else if(isStoryMode()){
-    $('overTitle').textContent = (G.relation==='dad'||G.relation==='brother'||G.relation==='son') ? 'HE’S STILL WAITING...' : 'SHE’S STILL WAITING...';
+    $('overTitle').textContent = relVerbFor(G.relation)+' STILL WAITING...';
     $('overTitle').style.color = 'var(--rd)';
   }
   show('overScreen');
@@ -6538,7 +6834,7 @@ function renderStats(){
   }
   $('rewatchIntroBtn').classList.toggle('hidden', !save.introSeen);
   $('rewatchEndBtn').classList.toggle('hidden', !save.motherFreed);
-  $('rewatchEndBtn').textContent = (save.lastRelation==='dad'||save.lastRelation==='brother'||save.lastRelation==='son') ? '🎬 REWATCH: HE\'S FREE' : '🎬 REWATCH: SHE\'S FREE';
+  $('rewatchEndBtn').textContent = '🎬 REWATCH: '+relVerbFor(save.lastRelation)+' FREE';
   const metaMax = META.reduce((a,m)=>a+m.max,0);
   const metaCur = Object.values(save.meta).reduce((a,b)=>a+b,0);
   const canAscend = metaCur>=metaMax;
@@ -6679,7 +6975,7 @@ const RELATION_MENU = [
   { relation:'brother',  label:'PLAY BROTHER', icon:'🥊', presetId:'save_brother' },
   { relation:'son',      label:'PLAY SON',     icon:'🧸', presetId:'save_son' },
   { relation:'daughter', label:'PLAY DAUGHTER',icon:'🌻', presetId:'save_daughter' },
-  { relation:'friend',   label:'PLAY FRIEND',  icon:'🤝' },
+  { relation:'friend',   label:'PLAY FRIEND',  icon:'🤝', presetId:'save_friend' },
   { relation:'wife',     label:'PLAY WIFE',    icon:'💍' },
   { relation:'husband',  label:'PLAY HUSBAND', icon:'🤵' },
   { relation:'lost',     label:'A LOST LOVED ONE', icon:'🕯' },
