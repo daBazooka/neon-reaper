@@ -283,6 +283,10 @@ h2.tt{font:900 20px/1 var(--f1);letter-spacing:2px;margin-bottom:12px;text-align
 @keyframes bob{50%{transform:translateY(-4px)}}
 .day em{font-size:16px;font-style:normal}
 .hintrow{font:600 10.5px/1.5 var(--f2);color:var(--dim);text-align:center;max-width:400px;margin-top:12px}
+/* the portal's banner ad slot — main menu only, never during a
+   cutscene or active run. Reserves the exact footprint of a standard
+   mobile banner so nothing jumps when the real ad fills in */
+#cgBanner{width:320px;max-width:92vw;height:50px;margin:14px auto 0;border-radius:8px;overflow:hidden}
 kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5px;padding:2px 6px;font:700 10px var(--f1)}
 #charStrip{display:flex;gap:9px;overflow-x:auto;width:100%;max-width:520px;padding:4px 0 10px}
 .chr{pointer-events:auto;cursor:pointer;flex:0 0 118px;border-radius:14px;padding:11px;background:rgba(255,255,255,.04);border:1px solid var(--line);text-align:center;transition:.15s}
@@ -472,6 +476,7 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
     <div id="qList"></div>
   </div>
   <div class="hintrow">It's simple: drag or <kbd>WASD</kbd> to move — your weapons fire themselves. <kbd>SPACE</kbd> = your power. <kbd>ENTER</kbd> = confirm / skip. <kbd>P</kbd> = pause.</div>
+  <div id="cgBanner"></div>
 </div>
 
 <!-- MODES: 20 curated presets, each its own rules + arena -->
@@ -1245,6 +1250,45 @@ const Ads = {
     else if(this.provider==='poki') PokiSDK.gameplayStop();
   }catch(e){} },
   happy(){ try{ if(this.provider==='crazygames') CG().game.happytime(); }catch(e){} },
+
+  /* user module: best-effort only, and entirely optional — a player who
+     is logged into the portal gets their portal username as their
+     leaderboard/chat handle automatically instead of the random
+     "Reaper###" default, but ONLY if they've never set one themselves
+     (an existing custom handle is never overwritten). Every step is
+     feature-detected and wrapped, since the exact surface here varies
+     by SDK version and this must never be able to break boot.  */
+  async fetchPortalUser(){
+    if(this.provider!=='crazygames' || save.handle) return;
+    try{
+      const sdk = CG(); if(!sdk || !sdk.user || typeof sdk.user.getUser!=='function') return;
+      const u = await sdk.user.getUser();
+      if(u && u.username && !save.handle){
+        save.handle = cleanText(u.username, 16) || null;
+        persist();
+      }
+    }catch(e){}
+  },
+  // a small, non-intrusive banner slot on the main menu only — never
+  // during a cutscene or active gameplay, and cleared whenever the menu
+  // is hidden for any other screen (shop, heroes, an actual run…), so the
+  // portal's own ad-slot bookkeeping always matches what's really on
+  // screen instead of drifting out of sync with a stale request
+  requestBanner(){
+    try{
+      if(this.provider!=='crazygames') return;
+      const sdk = CG(); if(!sdk || !sdk.banner || typeof sdk.banner.requestBanner!=='function') return;
+      sdk.banner.requestBanner({ id:'cgBanner', width:320, height:50 }).catch(()=>{});
+    }catch(e){}
+  },
+  clearBanner(){
+    try{
+      if(this.provider!=='crazygames') return;
+      const sdk = CG(); if(!sdk || !sdk.banner) return;
+      if(typeof sdk.banner.clearBanner==='function') sdk.banner.clearBanner('cgBanner');
+      else if(typeof sdk.banner.clearAllBanners==='function') sdk.banner.clearAllBanners();
+    }catch(e){}
+  },
 
   /* rewarded ad. cb(true) on reward, cb(false) otherwise.
      Audio is fully suspended for the duration (portal requirement). */
@@ -4099,7 +4143,7 @@ $('chestScreen').addEventListener('click', e=>{ if(e.target.id!=='chestOk') $('c
 function show(id){ $(id).classList.remove('hidden'); }
 function hide(id){ $(id).classList.add('hidden'); }
 const SCREENS = ['menuScreen','modeScreen','dailyScreen','chestScreen','pauseScreen','overScreen','reviveScreen','shopScreen','heroScreen','achScreen','statsScreen'];
-function hideAll(){ SCREENS.forEach(hide); }
+function hideAll(){ SCREENS.forEach(hide); Ads.clearBanner(); }
 
 /* ---------------- 23b. STORY: "SAVE HER" ----------------
    Classic and Easy mode are the story mode. The instant you hit level
@@ -8509,7 +8553,7 @@ $('shareBtn').onclick = async ()=>{
     toast('COPIED','Score copied to clipboard');
   }catch(e){ toast('SCORE', fmtN(G.score)); }
 };
-function goMenu(){ setTheme(0,false); Snd.setIntensity(.2,false,false); Snd.M.story=0; if(Snd.master) Snd.master.gain.value=.5; hideAll(); $('hud').classList.add('hidden'); G.state='MENU'; show('menuScreen'); refreshCoins(); renderQuests(); }
+function goMenu(){ setTheme(0,false); Snd.setIntensity(.2,false,false); Snd.M.story=0; if(Snd.master) Snd.master.gain.value=.5; hideAll(); $('hud').classList.add('hidden'); G.state='MENU'; show('menuScreen'); refreshCoins(); renderQuests(); Ads.requestBanner(); }
 
 /* ---------------- 25. META SHOP ---------------- */
 function refreshCoins(){ ['coinV','coinV2','coinV3'].forEach(id=>{ const e=$(id); if(e) e.textContent = fmtN(save.coins); }); }
@@ -8774,7 +8818,7 @@ $('claimBtn').onclick = ()=>{
   if(!pendingStreak) return;
   const r = DAILY_REW[pendingStreak-1];
   save.daily.streak = pendingStreak; save.coins += r; save.daily.last = today(); persist();
-  Snd.ach(); hide('dailyScreen'); show('menuScreen'); refreshCoins(); checkAch();
+  Snd.ach(); hide('dailyScreen'); show('menuScreen'); Ads.requestBanner(); refreshCoins(); checkAch();
   toast('DAY '+pendingStreak, '+'+r+' ◈ shards'); pendingStreak = 0;
 };
 
@@ -8910,6 +8954,7 @@ function watchChatSetting(){
   try{ if(window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.game) window.CrazyGames.SDK.game.loadingStart(); }catch(e){}
   await Ads.init();          // must finish before we read the save (SDK data module)
   loadSave(); rollQuests();
+  Ads.fetchPortalUser();     // best-effort, never blocks boot — see Ads.fetchPortalUser
   const netP = Net.init();   // kept as a promise so invite/instant-multiplayer paths can await it below
   save.seen = (save.seen||0)+1;
   refreshCoins(); refreshFreeAd(); renderQuests(); checkAch();
@@ -8921,7 +8966,7 @@ function watchChatSetting(){
     if(gb) gb.classList.add('hidden');
     if(pb) pb.classList.add('hidden');
   }
-  hideAll(); show('menuScreen');
+  hideAll(); show('menuScreen'); Ads.requestBanner();
   checkDaily();
   setInterval(()=>{ if(G.state==='MENU') renderQuests(); }, 30000);
   Ads.loadingStop();
