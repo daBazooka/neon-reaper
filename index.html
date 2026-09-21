@@ -85,6 +85,26 @@ canvas{display:block;position:absolute;inset:0;width:100%;height:100%}
   100%{opacity:0;transform:scale(.92) translateY(-14px)}
 }
 #announce.playing{animation:announcePop 900ms cubic-bezier(.16,.9,.2,1) forwards}
+/* the run's actual objective, stated plainly for a full 3 seconds right as
+   control is handed to the player — every mode converges on the same
+   level-99/100 final-boss trigger (see checkArcadeFinalBoss/spawnArcadeFinalBoss),
+   but only story mode ever said so out loud, buried in the last line of its
+   own intro cutscene. Arcade/hardcore/time-attack/boss-rush players got
+   dropped straight into combat with no stated goal at all. A dedicated,
+   fixed-duration banner (not the shared announce() queue, which is tuned
+   for quick 900ms event flashes) fixes both: consistent across every mode,
+   and long enough to actually register before the fight is already loud */
+#goalBanner{position:absolute;top:54%;left:0;right:0;text-align:center;font:900 26px/1.2 var(--f1);letter-spacing:2px;color:#fff;
+  text-shadow:0 0 20px var(--li),0 0 40px var(--vi);opacity:0;pointer-events:none;padding:0 22px;z-index:9}
+@keyframes goalBannerShow{
+  0%{opacity:0;transform:scale(.82) translateY(12px)}
+  10%{opacity:1;transform:scale(1.08) translateY(0)}
+  18%{transform:scale(1)}
+  84%{opacity:1;transform:scale(1)}
+  100%{opacity:0;transform:scale(.95) translateY(-10px)}
+}
+#goalBanner.show{animation:goalBannerShow 3s cubic-bezier(.16,.9,.2,1) forwards}
+@media (max-width:560px){ #goalBanner{font-size:20px;top:56%} }
 #milestoneQuote{position:absolute;left:0;right:0;bottom:24%;text-align:center;padding:0 22px;opacity:0;pointer-events:none;transition:opacity .7s ease;z-index:11}
 #milestoneQuote.show{opacity:1}
 #milestoneQuote.show .mq-text{animation:mqRise .6s cubic-bezier(.16,.9,.2,1) backwards}
@@ -414,6 +434,7 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   <div id="frzwrap"><div id="frzlbl">FRENZY</div><div id="frzbar"><i></i></div></div>
   <div id="bosswrap"><div id="bossname">BOSS</div><div id="bosshpwrap"><div id="bosshp"></div></div></div>
   <div id="announce"></div>
+  <div id="goalBanner"></div>
   <div id="milestoneQuote"><div class="mq-text" id="mqText"></div></div>
   <div id="fpsCounter" class="hidden">60 FPS</div>
   <div id="escapeWrap"><div id="escapeLbl">FIND THE EXIT</div><div id="escapeBarWrap"><div id="escapeBar"></div></div></div>
@@ -3251,6 +3272,15 @@ function _pumpAnnounce(){
   // then re-add it
   a.classList.remove('playing'); void a.offsetWidth; a.classList.add('playing');
   setTimeout(_pumpAnnounce, ANNOUNCE_HOLD);
+}
+// a fixed, plainly-stated 3s goal reminder — deliberately its own element
+// and timer, not routed through announce()'s 900ms-tuned queue, since this
+// needs to actually hold long enough to read while the entrance flourish
+// above it is still settling
+function showGoalBanner(text){
+  const b = $('goalBanner'); if(!b) return;
+  b.textContent = text;
+  b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
 }
 
 /* ---------------- 18. RENDER ---------------- */
@@ -8204,6 +8234,12 @@ function _beginRunNow(){
       setTimeout(()=>{ toast(preset.tag||(modeInfo&&modeInfo.n)||'DEPLOYED', preset.d, `linear-gradient(135deg,${modeColor},rgba(255,255,255,.15))`); }, 550);
     }
   }
+  // the actual objective, stated plainly, every mode, every time — see the
+  // #goalBanner CSS comment for why this isn't just another announce() call.
+  // Staggered a beat after the entrance flourish above (YOUR JOURNEY BEGINS /
+  // the mode name) so the two read as one continuous beat instead of
+  // colliding on screen
+  setTimeout(()=>showGoalBanner('REACH LEVEL 100'), 1100);
   // quest run-scoped progress reset
   qRunReset();
 }
