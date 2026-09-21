@@ -2954,12 +2954,29 @@ function gainXP(v){
   else checkArcadeFinalBoss();
   if(G.pendingLevels>0 && G.state==='PLAY') autoLevelUp();
 }
+// queued rather than fired straight at the DOM: two game events landing in
+// the same frame (a boss dying right as a level milestone hits, say) used to
+// have the second announce() instantly stomp the first mid-fade — nothing
+// ever actually got to be read. Now every call takes its own turn on the
+// single #announce element, back to back, so nothing gets silently
+// overwritten — the common case (one announce with nothing else queued)
+// still shows the instant it's called, with zero added delay.
+let _announceQ = [], _announceBusy = false;
+const ANNOUNCE_HOLD = 900;
 function announce(txt,color){
-  const a = $('announce'); a.textContent = txt; a.style.color = color||'#fff';
-  a.style.textShadow = '0 0 26px ' + (color||'#fff');
+  _announceQ.push({ txt, color });
+  if(!_announceBusy) _pumpAnnounce();
+}
+function _pumpAnnounce(){
+  const next = _announceQ.shift();
+  if(!next){ _announceBusy = false; return; }
+  _announceBusy = true;
+  const a = $('announce'); a.textContent = next.txt; a.style.color = next.color||'#fff';
+  a.style.textShadow = '0 0 26px ' + (next.color||'#fff');
   a.style.transition='none'; a.style.opacity=1; a.style.transform='scale(1.18)';
   requestAnimationFrame(()=>{ a.style.transition='opacity .8s ease-out, transform .8s cubic-bezier(.1,.9,.3,1)';
     a.style.opacity=0; a.style.transform='scale(.9)'; });
+  setTimeout(_pumpAnnounce, ANNOUNCE_HOLD);
 }
 
 /* ---------------- 18. RENDER ---------------- */
@@ -3454,8 +3471,11 @@ function applyOffer(o){
     if(o.id==='vitality') P.hp += 22;
   } else { P.hp = Math.min(P.maxHp, P.hp + P.maxHp*.45); }
   recalc(P); checkEvolutions(); renderWepRow(); persist();
-  // proof the power actually landed — not just a card disappearing
-  toast(d.nm, d.lv, `linear-gradient(135deg,${d.col},rgba(255,255,255,.15))`);
+  // proof the power actually landed — not just a card disappearing. Used
+  // to also pop a colored toast per pickup (FIELD REPAIR in green, every
+  // passive in blue) but with auto-level-up firing this on literally every
+  // level, those toasts piled up and fought with every other on-screen
+  // announcement for attention. The floating number alone is enough.
   dnum(P.x, P.y-P.r-30, 0, false, d.col, '+ '+d.nm);
 }
 /* No choice screen — a power is just added the instant you level up, no
@@ -7500,6 +7520,7 @@ function _beginRunNow(){
   G.arcadeFinalArmed=false; G.arcadeFinalBattleActive=false; G.arcadeFinalBossRef=null; G.arcadeLevel100Done=false;
   G.postRescue=false; G.rescueLevel=0; G.dmgLog=[]; G.lastBossHp=0; G.ambientT=rnd(24,40);
   G.milestoneQueue=[]; G._voiceBusy=false; G._mqQueued=false;
+  _announceQ.length = 0; _announceBusy = false; // no stale banner text bleeding into a fresh run
   const arena = ARENAS[G.arenaI]||ARENAS[0];
   setTheme(arena.theme,false); theme.bg=THEMES[arena.theme].bg.slice(); theme.g=THEMES[arena.theme].g.slice();
   Snd.setIntensity(0,false,false);
