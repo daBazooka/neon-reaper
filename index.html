@@ -1895,7 +1895,10 @@ function setTheme(i, wash){
   if(wash) G.wash = 1;
   try{ $('xpbar').style.boxShadow = '0 0 18px ' + t.a; }catch(e){}
 }
-function zoomKick(v){ G.camZ = v || 1.1; }
+// dampened at this single choke point (rather than at each of the ~20 call
+// sites) so every kick in the game gets proportionally gentler at once —
+// still scales with how big the moment is, just never yanks the camera
+function zoomKick(v){ G.camZ = 1 + ((v||1.1)-1)*.55; }
 /* Adaptive performance: 'auto' watches the real frame rate and steps the
    render/sim budget down (fewer particles, simpler glows, less frequent
    minimap redraws, a lower device pixel ratio) so the game stays playable
@@ -2103,8 +2106,10 @@ function dnum(x,y,v,crit,color,txt){
   dnums.push(d); return d;
 }
 function shock(x,y,r,color,w){ shocks.push({x,y,r:6,max:r,life:.34,c:color,w:w||3}); }
-function shake(v){ if(save.opt.shake) G.shake = Math.min(26, G.shake + v); }
-function hitstop(v){ G.hitstop = Math.max(G.hitstop, v); }
+// dampened input + a lower cap — every shake in the game (hit, boss kill,
+// final battle) scales down together instead of needing per-call tuning
+function shake(v){ if(save.opt.shake) G.shake = Math.min(16, G.shake + v*.6); }
+function hitstop(v){ G.hitstop = Math.max(G.hitstop, v*.6); }
 
 /* ---------------- 14. ENEMY SPAWNING ---------------- */
 const ETYPES = {
@@ -2843,15 +2848,15 @@ function update(dt){
   for(let i=shocks.length-1;i>=0;i--){ const s=shocks[i]; s.life-=dt; if(s.life<=0){shocks.splice(i,1);continue;}
     s.r = lerp(s.r, s.max, 1-Math.pow(.004,dt)); }
   for(let i=beams.length-1;i>=0;i--){ beams[i].life-=dt; if(beams[i].life<=0) beams.splice(i,1); }
-  if(G.shake>0) G.shake = Math.max(0, G.shake - dt*46);
-  if(G.flash>0) G.flash = Math.max(0, G.flash - dt*2.4);
+  if(G.shake>0) G.shake = Math.max(0, G.shake - dt*64); // settles faster now — a quick rattle, not a lingering wobble
+  if(G.flash>0) G.flash = Math.max(0, G.flash - dt*3.2);
 
   // ---- palette drifts toward the current theme
   const TT = THEMES[G.themeI];
   const k = 1-Math.pow(.02, dt);
   for(let i=0;i<3;i++){ theme.bg[i] = lerp(theme.bg[i], TT.bg[i], k); theme.g[i] = lerp(theme.g[i], TT.g[i], k); }
   theme.a = TT.a;
-  if(G.wash>0) G.wash = Math.max(0, G.wash - dt*1.7);
+  if(G.wash>0) G.wash = Math.max(0, G.wash - dt*2.2);
   if(G.nearCd>0) G.nearCd -= dt;
 
   // ---- FRENZY: kills charge a meter; filling it buys 7 seconds of overdrive
@@ -3305,7 +3310,7 @@ function render(){
   ctx.restore();
   if(G.wash>0){
     ctx.globalCompositeOperation='lighter';
-    ctx.globalAlpha = G.wash*.3;
+    ctx.globalAlpha = G.wash*.18;
     ctx.fillStyle = G.washC; ctx.fillRect(0,0,CW,CH);
     ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
   }
@@ -3315,7 +3320,7 @@ function render(){
     g2.addColorStop(1,'hsla('+((gt*220)%360)+',100%,55%,.3)');
     ctx.fillStyle=g2; ctx.fillRect(0,0,CW,CH);
   }
-  if(G.flash>0){ ctx.fillStyle='rgba(255,255,255,'+(G.flash*.5)+')'; ctx.fillRect(0,0,CW,CH); }
+  if(G.flash>0){ ctx.fillStyle='rgba(255,255,255,'+(G.flash*.3)+')'; ctx.fillRect(0,0,CW,CH); }
   // minimap redraws less often at lower quality tiers — it's a slow-changing
   // readout, so skipping frames here is free smoothness with no visible cost
   const mmEvery = qNum(1,2,4);
@@ -3386,7 +3391,7 @@ function loop(ts){
   if(G.state==='PLAY'){
     if(G.slowT>0) G.slowT -= raw;
     if(G.hitstop>0){ G.hitstop -= raw; }
-    else { acc += raw * (G.slowT>0 ? .35 : 1); let n=0;
+    else { acc += raw * (G.slowT>0 ? .55 : 1); let n=0; // a softer dip than the old .35 — reads as weighty, not a stutter
       while(acc>=STEP && n<5){ update(STEP); acc-=STEP; n++; } if(acc>STEP*6) acc=0; }
     updateHUD();
   }
