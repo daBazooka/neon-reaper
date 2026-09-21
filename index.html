@@ -3364,11 +3364,23 @@ function render(){
     }
     ctx.save(); ctx.translate(e.x,e.y); ctx.rotate(e.rot);
     const flash = e.hitT>0;
-    ctx.fillStyle = flash? '#ffffff' : e.c;
-    ctx.strokeStyle = flash? '#ffffff' : e.c;
     const eShape = e.shape || e.sides || 6;
-    if(!fxLow){ ctx.globalAlpha = .22; drawShape(0,0,e.r*1.45,eShape,0); ctx.fill(); ctx.globalAlpha=1; }
+    if(!fxLow){ ctx.globalAlpha = .22; ctx.fillStyle=e.c; drawShape(0,0,e.r*1.45,eShape,0); ctx.fill(); ctx.globalAlpha=1; }
+    // a boss under sustained fire from several weapons at once gets hit
+    // far more often than the ~90ms hit-flash decays, so a plain flip to
+    // solid white erased its own color/silhouette for the entire fight —
+    // it always renders its real color first, with white layered as a
+    // translucent flash on top, so it stays readable at any fire rate.
+    // Regular enemies die fast enough that the old full-white pop is
+    // still the punchier, more legible choice for them.
+    ctx.fillStyle = e.c; ctx.strokeStyle = e.c;
     drawShape(0,0,e.r,eShape,0); ctx.fill();
+    if(flash){
+      ctx.globalAlpha = e.boss ? .5 : 1;
+      ctx.fillStyle = '#ffffff';
+      drawShape(0,0,e.r,eShape,0); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
     ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.55)'; drawShape(0,0,e.r,eShape,0); ctx.stroke();
     if(e.elite && !e.boss){ ctx.strokeStyle='#ffd23c'; ctx.lineWidth=3; drawShape(0,0,e.r*1.28,eShape,.4); ctx.stroke(); }
     if(e.boss){
@@ -3648,6 +3660,12 @@ function toast(title, body, color){
   const t = document.createElement('div'); t.className='toast';
   if(color) t.style.background = color;
   t.innerHTML = `<b>${title}</b>${body}`;
+  // the toast stack sits just under the in-game HUD's topbar by default —
+  // correct during a run, but with the HUD hidden (menu, daily-claim,
+  // any non-gameplay screen) that same position lands squarely on top of
+  // the big logo/tagline instead, which is exactly what a first-run
+  // "DAY 1 +150 shards" claim toast used to stomp on
+  $('toasts').style.top = $('hud').classList.contains('hidden') ? '195px' : '120px';
   $('toasts').appendChild(t);
   setTimeout(()=>{ t.style.transition='opacity .4s,transform .4s'; t.style.opacity=0; t.style.transform='translateY(-14px)'; setTimeout(()=>t.remove(),420); }, 2600);
 }
