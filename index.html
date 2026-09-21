@@ -1996,6 +1996,15 @@ const rgbs = (c,m) => 'rgb('+Math.round(c[0]*(m||1))+','+Math.round(c[1]*(m||1))
 // like the arena's ambient dust motes — same input always gives the same
 // output, so a huge world stays stable without keeping an array of it
 function hash2(x,y){ let h = (x*374761393 + y*668265263)|0; h = (h^(h>>>13))*1274126177; h ^= h>>>16; return (h>>>0) / 4294967295; }
+// lighten (positive pct) or darken (negative pct) a #rrggbb color — used
+// to build a real hull gradient for the player ship instead of a flat fill
+function shade(hex, pct){
+  const n = parseInt(hex.slice(1),16);
+  const r = clamp(Math.round(((n>>16)&255) + (pct/100)*255), 0, 255);
+  const g = clamp(Math.round(((n>>8)&255) + (pct/100)*255), 0, 255);
+  const b = clamp(Math.round((n&255) + (pct/100)*255), 0, 255);
+  return 'rgb('+r+','+g+','+b+')';
+}
 function setTheme(i, wash){
   G.themeI = ((i % THEMES.length) + THEMES.length) % THEMES.length;
   const t = THEMES[G.themeI];
@@ -3390,6 +3399,23 @@ function render(){
     if(e.boss){
       ctx.strokeStyle=e.c; ctx.lineWidth=4; poly(0,0,e.r*1.3,e.sides,-gt*.6); ctx.stroke();
       ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.globalAlpha=.7; poly(0,0,e.r*1.5,e.sides+2,gt*.4); ctx.stroke(); ctx.globalAlpha=1;
+      // a pair of glowing, slit-pupil eyes — the single cheapest way to
+      // read "something alive and watching you" instead of just an
+      // abstract glowing shape. Rides the same rotation as the body, so
+      // it reads as an ever-searching gaze rather than a static sticker
+      if(!fxLow){
+        const eyeThrob = .6+.4*Math.sin(gt*3.2);
+        ctx.globalCompositeOperation='lighter';
+        for(const sx of [-1,1]){
+          ctx.fillStyle = '#ff1030'; ctx.globalAlpha = .5+eyeThrob*.4;
+          ctx.beginPath(); ctx.ellipse(sx*e.r*.32, -e.r*.1, e.r*.11, e.r*.17, 0, 0, TAU); ctx.fill();
+        }
+        ctx.globalAlpha = 1; ctx.globalCompositeOperation='source-over';
+        for(const sx of [-1,1]){
+          ctx.fillStyle = '#1a0004';
+          ctx.beginPath(); ctx.ellipse(sx*e.r*.32, -e.r*.1, e.r*.035, e.r*.15, 0, 0, TAU); ctx.fill();
+        }
+      }
     }
     ctx.restore();
     if(e.elite && !e.boss){
@@ -3423,7 +3449,14 @@ function render(){
   }
   ctx.globalCompositeOperation='source-over';
 
-  // player — each Reaper flies its own silhouette + accent color
+  // player — each Reaper flies its own silhouette + accent color. The
+  // hull used to be a flat near-white fill (#eaffff) no matter which of
+  // the 17 Reapers you flew — only the thin outline stroke ever carried
+  // the character's own color, so the one thing on screen 100% of the
+  // time read as colorless. It now gets a real two-tone gradient (a
+  // darkened shade of the ship's own color at the tail, brightening
+  // toward a white "canopy" highlight at the nose), plus a small
+  // flickering thruster glow trailing behind it.
   const shipShape = P.char.ship || 3, shipColor = P.char.sc || '#26f0ff';
   ctx.save(); ctx.translate(P.x,P.y);
   const inv = P.invul>0 && Math.floor(G.t*22)%2===0;
@@ -3433,8 +3466,24 @@ function render(){
   ctx.globalAlpha = inv? .4 : 1;
   ctx.globalCompositeOperation='source-over';
   ctx.rotate(P.angle);
-  ctx.fillStyle = P.hitT>0? '#fff' : '#eaffff';
+  if(!fxLow){
+    const speed = Math.hypot(P.vx||0,P.vy||0);
+    const flicker = .6+.4*Math.sin(gt*26);
+    const trailLen = P.r*(1.6+Math.min(speed/220,1)*1.4)*flicker;
+    ctx.globalCompositeOperation='lighter';
+    const tg = ctx.createLinearGradient(-trailLen,0,-P.r*.6,0);
+    tg.addColorStop(0,'rgba(0,0,0,0)'); tg.addColorStop(1, shipColor);
+    ctx.fillStyle = tg; ctx.globalAlpha = .55*(inv?.4:1);
+    ctx.beginPath(); ctx.moveTo(-P.r*.6,-P.r*.32); ctx.lineTo(-trailLen,0); ctx.lineTo(-P.r*.6,P.r*.32); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = inv? .4 : 1; ctx.globalCompositeOperation='source-over';
+  }
+  const hullGrad = ctx.createLinearGradient(-P.r,0,P.r*1.3,0);
+  hullGrad.addColorStop(0, shade(shipColor,-45));
+  hullGrad.addColorStop(.55, shipColor);
+  hullGrad.addColorStop(1, '#ffffff');
+  ctx.fillStyle = hullGrad;
   drawShape(0,0,P.r,shipShape,0); ctx.fill();
+  if(P.hitT>0){ ctx.globalAlpha = .6*(inv?.4:1); ctx.fillStyle='#fff'; drawShape(0,0,P.r,shipShape,0); ctx.fill(); ctx.globalAlpha = inv?.4:1; }
   ctx.strokeStyle=shipColor; ctx.lineWidth=2.5; drawShape(0,0,P.r+3,shipShape,0); ctx.stroke();
   ctx.restore(); ctx.globalAlpha=1;
   // magnet ring
@@ -7331,9 +7380,13 @@ function speakLine(line){
       try{ const v = pickVoiceFor('narr'); if(v) u.voice = v; }catch(e){}
     }
     else {
-      // the commentator: deliberately deep, deliberately slow — a
-      // documentary-narrator register, distinct from every character
-      u.pitch=.7; u.rate = line.fast ? 1.12 : .95;
+      // the narrator carries the bulk of every intro — it's the voice a
+      // first-time player hears the most, so it got pushed noticeably
+      // deeper and more deliberate than before (was .7/.95): a graver,
+      // more commanding "old master telling you something that
+      // matters" register, still comfortably inside the safe pitch
+      // margin established above, not the literal edge
+      u.pitch=.56; u.rate = line.fast ? 1.05 : .86;
       try{ const v = pickVoiceFor('narr'); if(v) u.voice = v; }catch(e){}
     }
     // belt-and-suspenders: whatever branch above ran, never hand the
@@ -7503,7 +7556,16 @@ const Cutscene = {
     for(let i=0;i<40;i++){ const rx=(i*97)%W, ry=(i*53+((t*4)%H))%H; c.globalAlpha=.15+.15*Math.sin(i+t); c.fillRect(rx,ry,1.6,1.6); }
     c.globalAlpha=1;
     const line = this.curLine; if(!line) return;
-    const cx=W/2, cy=H*.42, sc=Math.min(W,H)/420;
+    // a slow camera drift, unique per line (seeded off this.idx so it's
+    // stable frame to frame, not re-randomized) — a still procedural
+    // scene reads as a static illustration; a scene the "camera" is
+    // slowly pushing into and panning across reads as a shot. Capped
+    // small enough it never pulls the art awkwardly off-frame even on
+    // this game's longest-held lines
+    const shotSeed = hash2(this.idx+1, 7);
+    const driftAng = shotSeed*TAU;
+    const zoom = 1 + Math.min(t*.012, .07) + shotSeed*.015;
+    const cx=W/2 + Math.cos(driftAng)*t*3, cy=H*.42 + Math.sin(driftAng)*t*1.7, sc=Math.min(W,H)/420*zoom;
     if(line.art==='mom'){ drawParentArt(c, cx, cy, sc*1.6, t, line.mood||'captive'); }
     else if(line.art==='boss'){
       drawFinalBossArt(c, cx, cy, sc*1.5, t);
