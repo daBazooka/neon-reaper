@@ -7255,22 +7255,27 @@ function speakLine(line){
       u.rate = line.mood==='joy' ? 1.15 : line.mood==='crying' ? .98 : pained ? 1.42 : 1.22;
       try{ const v = pickVoiceFor('brother'); if(v) u.voice = v; }catch(e){}
     } else if(line.cls==='son'){
-      // pushed toward the ceiling of what pitch allows — a child's
-      // register, distinctly higher and lighter than every adult voice
-      // in the game, mom's included, so he never reads as just "another
-      // female-leaning line"
+      // a child's register, distinctly higher and lighter than every
+      // adult voice in the game, mom's included, so he never reads as
+      // just "another female-leaning line" — pulled back from the
+      // absolute pitch ceiling (was as high as 1.9 of the 0-2 spec
+      // range): several real mobile TTS engines silently drop an
+      // utterance whose pitch sits right at the edge of their own
+      // (narrower than spec) accepted range — no error, no onstart,
+      // just dead air, which is exactly what "no voice" looks like.
+      // This kept a full ~0.3 clear of the ceiling instead of ~0.1.
       const pained = line.mood==='captive' || line.mood==='scared';
-      u.pitch = line.mood==='joy' ? 1.7 : line.mood==='crying' ? 1.78 : pained ? 1.9 : 1.62;
+      u.pitch = line.mood==='joy' ? 1.55 : line.mood==='crying' ? 1.62 : pained ? 1.7 : 1.48;
       u.rate = line.mood==='joy' ? 1.18 : line.mood==='crying' ? 1.02 : pained ? 1.5 : 1.28;
       try{ const v = pickVoiceFor('son'); if(v) u.voice = v; }catch(e){}
     } else if(line.cls==='daughter'){
       // the same child register as the son, on the female-leaning voice
-      // pool instead of the male one — pushed to the ceiling of what
-      // pitch allows, a hair brighter than his so the two children never
-      // sound interchangeable even on a device with only one child-
-      // plausible voice per pool
+      // pool instead of the male one, a hair brighter than his so the
+      // two children never sound interchangeable — same pull-back from
+      // the pitch ceiling as son, for the same real-engine-silent-drop
+      // reason (this one was worse: up to 1.96, only 0.04 from the cap)
       const pained = line.mood==='captive' || line.mood==='scared';
-      u.pitch = line.mood==='joy' ? 1.78 : line.mood==='crying' ? 1.85 : pained ? 1.96 : 1.7;
+      u.pitch = line.mood==='joy' ? 1.62 : line.mood==='crying' ? 1.68 : pained ? 1.78 : 1.56;
       u.rate = line.mood==='joy' ? 1.22 : line.mood==='crying' ? 1.05 : pained ? 1.54 : 1.32;
       try{ const v = pickVoiceFor('daughter'); if(v) u.voice = v; }catch(e){}
     } else if(line.cls==='friend'){
@@ -7307,10 +7312,15 @@ function speakLine(line){
       u.rate = line.mood==='joy' ? 1.06 : line.mood==='crying' ? .9 : pained ? 1.3 : 1.1;
       try{ const v = pickVoiceFor('lost'); if(v) u.voice = v; }catch(e){}
     } else if(line.cls==='boss'){
-      // pushed to the literal floor of what the Web Speech API allows —
-      // pitch 0 is as low/guttural as this can go, slow and dragging so
-      // it reads as something inhuman rather than just a deep-voiced man
-      u.pitch = line.shake ? 0 : .08; u.rate = line.shake ? .74 : .82;
+      // as low/guttural as this can safely go, slow and dragging so it
+      // reads as something inhuman rather than just a deep-voiced man —
+      // NOT the literal floor of 0: that's the single riskiest value in
+      // the whole spec range for real mobile TTS engines to silently
+      // reject outright (no error, just dead air), and the boss speaks
+      // in every relation's climactic confrontation, so a hard-silent
+      // pitch:0 there would read as "the game has no voice" far beyond
+      // just this one character
+      u.pitch = line.shake ? .06 : .12; u.rate = line.shake ? .74 : .82;
       try{ const v = pickVoiceFor('boss'); if(v) u.voice = v; }catch(e){}
     } else if(line.cls==='you'){ u.pitch = line.mood==='crying' ? 1.1 : 1.05; u.rate = line.mood==='crying' ? .92 : line.shake ? 1.32 : 1.18; }
     else if(line.cls==='god'){
@@ -7326,6 +7336,11 @@ function speakLine(line){
       u.pitch=.7; u.rate = line.fast ? 1.12 : .95;
       try{ const v = pickVoiceFor('narr'); if(v) u.voice = v; }catch(e){}
     }
+    // belt-and-suspenders: whatever branch above ran, never hand the
+    // engine a pitch sitting right at the literal 0-2 spec boundary —
+    // real mobile engines silently drop those (no error, just no sound)
+    // far more often than a mid-range value, spec-legal or not
+    u.pitch = clamp(u.pitch, .06, 1.94);
     u.volume=1;
     _speechActive = true;
     u.addEventListener('end', ()=>{ _speechActive = false; });
