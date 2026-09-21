@@ -92,8 +92,20 @@ canvas{display:block;position:absolute;inset:0;width:100%;height:100%}
 #levelUpPickHost .card .ds{font-size:10px;display:none}
 #levelUpPickHost .card .lv{font-size:9px}
 #announce{position:absolute;top:42%;left:0;right:0;text-align:center;font:900 44px/1 var(--f1);letter-spacing:4px;opacity:0;pointer-events:none}
+/* a proper multi-stage entrance — punch in past full size, settle, hold,
+   then fade with a slight upward drift — instead of a single flat fade */
+@keyframes announcePop{
+  0%{opacity:0;transform:scale(.45) translateY(12px)}
+  14%{opacity:1;transform:scale(1.22) translateY(0)}
+  26%{transform:scale(1)}
+  80%{opacity:1;transform:scale(1)}
+  100%{opacity:0;transform:scale(.92) translateY(-14px)}
+}
+#announce.playing{animation:announcePop 900ms cubic-bezier(.16,.9,.2,1) forwards}
 #milestoneQuote{position:absolute;left:0;right:0;bottom:24%;text-align:center;padding:0 22px;opacity:0;pointer-events:none;transition:opacity .7s ease;z-index:11}
 #milestoneQuote.show{opacity:1}
+#milestoneQuote.show .mq-text{animation:mqRise .6s cubic-bezier(.16,.9,.2,1) backwards}
+@keyframes mqRise{from{transform:translateY(16px) scale(.96);filter:blur(3px)}}
 #milestoneQuote .mq-text{display:inline-block;font:700 15px/1.5 var(--f2);font-style:italic;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.9);max-width:380px;background:rgba(5,6,13,.5);padding:11px 18px;border-radius:14px;border:1px solid rgba(255,159,214,.3);box-shadow:0 0 30px -6px rgba(255,159,214,.45)}
 #milestoneQuote .mq-who{display:block;font:800 8.5px/1 var(--f1);letter-spacing:2.5px;color:var(--dim);margin-top:7px}
 @media (max-width:560px){ #milestoneQuote{bottom:21%} #milestoneQuote .mq-text{font-size:13px;max-width:88vw} }
@@ -837,7 +849,15 @@ const Snd = {
     // everything else in the score: square/sawtooth instead of the calm
     // theme's triangle/sine, a driving kick under it, no resolution.
     finalTheme:[130.81,155.56,146.83,174.61,164.81,196,185,220],
-    finalIdx:0, finalBoss:0
+    finalIdx:0, finalBoss:0,
+    // arcade modes had no music at all outside the final boss fight —
+    // dead silent (SFX only) for the entire rest of every Boss Rush,
+    // Hardcore or Time Attack run. A brighter, more energetic 8-note
+    // phrase than her theme's wistful one, in the same Am-F-C-G key so it
+    // never clashes if a run somehow straddles both (it can't, but the
+    // key stays consistent with the rest of the score regardless).
+    arcadeTheme:[293.66,349.23,440,392,349.23,293.66,261.63,329.63],
+    arcadeIdx:0
   },
   schedule(){
     if(!this.ready || this.muted) return;
@@ -897,6 +917,18 @@ const Snd = {
           this.at(f/2, spb*7, 'square', .16, t);
           this.at(f*2, spb*3.4, 'sawtooth', .07, t, null, 10);
         }
+      }
+
+      // --- arcade theme: the same "one note every bar, forever" shape as
+      // her theme, just for every non-story mode's regular gameplay —
+      // Boss Rush, Hardcore and Time Attack used to have zero music
+      // outside their own final boss fight, going completely silent
+      // (combat SFX only) for the entire rest of the run.
+      if(!M.story && !M.menu && !M.finalBoss && s===0){
+        M.arcadeIdx = (M.arcadeIdx===undefined) ? 0 : (M.arcadeIdx+1) % M.arcadeTheme.length;
+        const f = M.arcadeTheme[M.arcadeIdx];
+        this.at(f, spb*13, 'triangle', .22+heat*.08, t, null, -3);
+        this.at(f/2, spb*13, 'sine', .12, t);
       }
 
       // --- menu theme: its own permanent melody, only while sitting at
@@ -3096,9 +3128,10 @@ function _pumpAnnounce(){
   _announceBusy = true;
   const a = $('announce'); a.textContent = next.txt; a.style.color = next.color||'#fff';
   a.style.textShadow = '0 0 26px ' + (next.color||'#fff');
-  a.style.transition='none'; a.style.opacity=1; a.style.transform='scale(1.18)';
-  requestAnimationFrame(()=>{ a.style.transition='opacity .8s ease-out, transform .8s cubic-bezier(.1,.9,.3,1)';
-    a.style.opacity=0; a.style.transform='scale(.9)'; });
+  // restart the CSS animation from frame zero every time, even for the
+  // same text/color twice in a row — remove the class, force a reflow,
+  // then re-add it
+  a.classList.remove('playing'); void a.offsetWidth; a.classList.add('playing');
   setTimeout(_pumpAnnounce, ANNOUNCE_HOLD);
 }
 
@@ -7931,7 +7964,7 @@ function pauseGame(){ if(G.state!=='PLAY') return; G.state='PAUSE'; Ads.gameplay
   Object.keys(P.pas).forEach(k=>{ const Pz=PASSIVES[k];
     bl.insertAdjacentHTML('beforeend', `<div class="item"><div class="ic">${Pz.i}</div><div class="gr"><div class="nm">${Pz.n}</div><div class="ds">${Pz.d(P.pas[k])}</div><div class="pips">${Array.from({length:PMAX},(_,i)=>`<i class="${i<P.pas[k]?'on':''}"></i>`).join('')}</div></div></div>`); });
   show('pauseScreen'); }
-function resumeGame(){ hide('pauseScreen'); G.state='PLAY'; last=0; acc=0; Ads.gameplayStart(); }
+function resumeGame(){ hide('pauseScreen'); G.state='PLAY'; last=0; acc=0; Ads.gameplayStart(); resumeAudioAfterBackground(); }
 $('pausebtn').onclick = pauseGame;
 $('resumeBtn').onclick = ()=>{ Snd.click(); resumeGame(); };
 $('sfxBtn').onclick = ()=>{ Snd.setSfx(!save.opt.sfx); $('sfxBtn').textContent='♪ SOUND: '+(save.opt.sfx?'ON':'OFF'); };
@@ -8405,8 +8438,26 @@ function renderRelGrid(){
   });
 }
 $('modesBtn').onclick = ()=>{ Snd.click(); if(!G.selectedPreset) G.selectedPreset='save'; hideAll(); show('modeScreen'); renderModeScreen(); };
-document.addEventListener('visibilitychange', ()=>{ if(document.hidden && G.state==='PLAY') pauseGame(); });
+// mobile browsers routinely suspend the AudioContext (and can leave the
+// speech engine in a stuck state) the instant a tab is backgrounded —
+// pausing the game on the way out was already handled, but nothing ever
+// un-suspended audio on the way back in, so returning to the tab (even
+// after tapping RESUME) could leave every sound, the score included,
+// silently dead while the game itself kept working perfectly normally.
+// This was almost certainly the actual cause of "sometimes I can't hear
+// the piano or anything" — a backgrounding round mid-run, not a bug that
+// happens on a fixed schedule.
+function resumeAudioAfterBackground(){
+  try{ Snd.resume(); }catch(e){}
+  try{ if(window.speechSynthesis) speechSynthesis.resume(); }catch(e){}
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){ if(G.state==='PLAY') pauseGame(); }
+  else resumeAudioAfterBackground();
+});
 addEventListener('blur', ()=>{ if(G.state==='PLAY') pauseGame(); });
+addEventListener('focus', resumeAudioAfterBackground);
+addEventListener('pageshow', resumeAudioAfterBackground);
 
 /* CrazyGames chat-disable preference: hide the whole chat panel when the
    platform (or a parent/guardian setting, or ?disableChat=true locally)
