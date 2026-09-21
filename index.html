@@ -2656,13 +2656,18 @@ function update(dt){
     if(G.ambientT<=0){ G.ambientT = rnd(42,70); playerAmbientLine(); }
   }
 
-  // ---- milestone quotes (story mode only): constant, back-to-back
-  // playback for the entire match, not a periodic timer — this call is
-  // a no-op while one is already speaking (triggerMilestoneQuote()'s own
-  // G._voiceBusy guard), so in practice the instant one finishes, the
-  // very next update() tick starts the next one immediately, with no gap
+  // ---- milestone quotes (story mode only): used to retrigger the very
+  // next update() tick after each one finished — literally zero gap, for
+  // the entire match. That meant near-constant narration monopolizing the
+  // voice channel (ambient lines almost never got a turn) plus a
+  // slowT/zoomKick/shake accent on every single quote, stacked with
+  // whatever combat FX were already firing — a real source of the
+  // "everything is colliding, nothing feels smooth" problem. Now it has
+  // its own real cooldown, same shape as the ambient line timer below, so
+  // there's actual breathing room between lines.
   if(!spectating && isStoryMode() && !Cutscene.playing){
-    triggerMilestoneQuote();
+    G.mqCooldown = (G.mqCooldown===undefined ? rnd(12,20) : G.mqCooldown) - dt;
+    if(G.mqCooldown<=0) triggerMilestoneQuote();
   }
 
   if(!spectating){
@@ -5739,6 +5744,7 @@ function triggerMilestoneQuote(){
   // current line actually finishes, text and voice both, instead of both
   // fighting over the same speech channel at once
   if(G._voiceBusy){ G._mqQueued = true; return; }
+  if(G.mqCooldown>0) return; // still on cooldown from the last one — real silence between lines now
   // one flat, level-independent pool per relation — fully shuffled and
   // reshuffled (not reset) only once it runs out, so a single match can
   // burn through the whole pool without a repeat before it ever cycles
@@ -5755,6 +5761,7 @@ function triggerMilestoneQuote(){
     if(gen!==G._mqGen) return;
     Snd.duckMusic(false);
     el.classList.remove('show');
+    G.mqCooldown = rnd(16,28); // real gap before the next one — set before releaseVoice() so a queued retry can't skip it
     releaseVoice();
   };
   // a low thunder-crack under the line itself — sells "a god is speaking"
@@ -6866,12 +6873,6 @@ function holdMs(line){ return Math.max(450, (line.hold||1400)*HOLD_SCALE); }
 function speakLine(line){
   if(!window.speechSynthesis || !save.opt.voice || !line || !line.text) return null;
   try{
-    // only true when there's an actual utterance in flight to cancel —
-    // tracked ourselves rather than trusting speechSynthesis.speaking,
-    // which some mobile engines report unreliably (stuck true/false)
-    const wasSpeaking = !!_speechActive;
-    speechSynthesis.cancel();
-    _speechActive = false;
     const u = new SpeechSynthesisUtterance(line.text);
     // pushed to the edges of what pitch/rate can do — pitch 0-2, rate
     // 0.1-10 is the entire range the Web Speech API exposes, there's no
@@ -6986,15 +6987,15 @@ function speakLine(line){
     _speechActive = true;
     u.addEventListener('end', ()=>{ _speechActive = false; });
     u.addEventListener('error', ()=>{ _speechActive = false; });
-    // only deferred when there was actually something to race against —
-    // the very first utterance in a run starts from directly inside a
-    // user tap (a relation button's onclick), and iOS is stricter about
-    // treating a speak() call as tied to that gesture the more indirection
-    // sits between the tap and the call, so that one stays fully
-    // synchronous. Only a cancel()-that-actually-interrupted-something
-    // needs the one-tick gap that dodges iOS's cancel/speak race.
-    if(wasSpeaking) setTimeout(()=>{ try{ speechSynthesis.speak(u); }catch(e){} }, 50);
-    else{ try{ speechSynthesis.speak(u); }catch(e){} }
+    // never cancels whatever's already speaking — every call is simply
+    // handed to the browser's own speech queue, which plays utterances in
+    // the order they were requested and always lets one finish before the
+    // next starts. Three separate systems call this (cutscene lines,
+    // milestone quotes, ambient lines) and used to fight over the same
+    // channel: whichever called last would cancel() and cut off whatever
+    // was still mid-sentence. Now nothing ever gets talked over — a late
+    // arrival just waits its turn instead of interrupting.
+    try{ speechSynthesis.speak(u); }catch(e){}
     return u;
   }catch(e){ return null; }
 }
@@ -7557,7 +7558,7 @@ function _beginRunNow(){
   G.finalArmed=false; G.finalBattleActive=false; G.finalAllies=[]; G.finalBossRef=null; G.motherRescued=false; G._lastMilestone=0; G._badEndingShown=false;
   G.arcadeFinalArmed=false; G.arcadeFinalBattleActive=false; G.arcadeFinalBossRef=null; G.arcadeLevel100Done=false;
   G.postRescue=false; G.rescueLevel=0; G.dmgLog=[]; G.lastBossHp=0; G.ambientT=rnd(24,40);
-  G.milestoneQueue=[]; G._voiceBusy=false; G._mqQueued=false;
+  G.milestoneQueue=[]; G._voiceBusy=false; G._mqQueued=false; G.mqCooldown=rnd(12,20);
   _announceQ.length = 0; _announceBusy = false; // no stale banner text bleeding into a fresh run
   const arena = ARENAS[G.arenaI]||ARENAS[0];
   setTheme(arena.theme,false); theme.bg=THEMES[arena.theme].bg.slice(); theme.g=THEMES[arena.theme].g.slice();
