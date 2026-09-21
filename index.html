@@ -1000,7 +1000,22 @@ const Snd = {
     }catch(e){}
   },
   setSfx(v){ save.opt.sfx = v?1:0; if(this.sfxGain) this.sfxGain.gain.value = v?this._sfxBase:0; persist(); },
-  setMus(v){ save.opt.mus = v?1:0; this._musBase = v?.48:0; if(this.musGain) this.musGain.gain.value = this._musBase; persist(); },
+  setMus(v){
+    save.opt.mus = v?1:0; this._musBase = v?.48:0;
+    if(this.musGain) this.musGain.gain.value = this._musBase;
+    // the cutscene score is the one piece of music driven by its own
+    // one-shot setTimeout chain rather than the continuous scheduler
+    // everything else uses — so toggling music ON while a cutscene that
+    // started muted is still playing used to open the gain but never
+    // actually start scheduling any notes into it (the chain was simply
+    // never begun). Explicitly (re)start or stop it here so the toggle
+    // actually works in that exact situation, not just during gameplay.
+    if(typeof Cutscene!=='undefined' && Cutscene.playing){
+      if(v && !this.csTimer) this.startCutsceneMusic(Cutscene.dark);
+      else if(!v) this.stopCutsceneMusic();
+    }
+    persist();
+  },
   /* the TTS voice plays through the OS audio pipeline, completely
      outside this game's Web Audio graph — our own volume sliders can't
      touch it, so the only way to make it stand out over the score (and
@@ -1085,38 +1100,48 @@ const Snd = {
     });
   },
 
-  /* ---- cutscene score: a slow, sparse minor-key piano+pad cue.
-     Procedural oscillators, not a recording — kept deliberately spare
-     (long notes, silence between phrases) since that reads as more
-     "emotional score" than a busy synth ever could. */
+  /* ---- cutscene score: a slow, sparse piano+pad cue that now shifts
+     through 10 distinct emotional vibes instead of one binary dark/light
+     root — a different harmonic color (root notes, note length, phrase
+     pacing, volume) for tenderness, grief, dread, triumph and so on, each
+     picked to match whatever line is actually on screen. "Her theme" (the
+     melody overlay) still threads through every single one of them
+     unchanged, so it's always unmistakably HER, however the color around
+     it shifts. Procedural oscillators throughout, not a recording. */
   csTimer:null, csStep:0,
   startCutsceneMusic(dark){
     this.init(); this.resume();
     this.stopCutsceneMusic();
     if(!this.ready || !save.opt.mus) return;
-    const root = dark ? [220,196,174.6,164.8] : [261.6,293.6,329.6,220]; // Am-ish / hopeful C-ish
     const theme = this.M.momTheme;
     this.csStep = 0;
     const playPhrase = ()=>{
-      if(!this.ready) return;
+      if(!this.ready || !save.opt.mus) return;
       const t = this.ctx.currentTime;
-      const r = root[this.csStep % root.length];
-      // low pad, long and soft — louder and with a warm fifth underneath
-      // so the cutscene score fills the room instead of just gesturing at it
-      this.at(r/2, 4.2, 'sine', .075, t, null, -4);
-      this.at(r/2, 4.2, 'triangle', .05, t, null, 4);
-      this.at(r/2*1.5, 4.2, 'sine', .03, t, null, 0);
+      // reads the CURRENT cutscene line every phrase (not just once, at
+      // cutscene-start) so the score actually follows the scene instead of
+      // locking into whatever mood the first line happened to be
+      const line = (typeof Cutscene!=='undefined' && Cutscene.playing) ? Cutscene.curLine : null;
+      const vibeName = pickMusicVibe(line, dark);
+      const vibe = MUSIC_VIBES[vibeName];
+      const r = vibe.roots[this.csStep % vibe.roots.length];
+      // low pad, long and soft — a warm fifth underneath so the score
+      // fills the room instead of just gesturing at it
+      this.at(r/2, vibe.noteLen, 'sine', .075*vibe.vol, t, null, -4);
+      this.at(r/2, vibe.noteLen, 'triangle', .05*vibe.vol, t, null, 4);
+      this.at(r/2*1.5, vibe.noteLen, 'sine', .03*vibe.vol, t, null, 0);
       // "her theme" itself, not a generic note — so every cutscene, not
-      // just the ending, is unmistakably her melody
-      const note = theme[this.csStep % theme.length] * (dark ? .5 : 1);
-      this.at(note, 2.0, 'triangle', .075, t+.9, null, -2);
-      this.at(note/2, 2.0, 'sine', .045, t+.9);
+      // just the ending, is unmistakably her melody, whatever vibe the
+      // harmony under it is currently in
+      const note = theme[this.csStep % theme.length] * (vibe.octave || 1);
+      this.at(note, vibe.noteLen*.48, 'triangle', .075*vibe.vol, t+.9, null, -2);
+      this.at(note/2, vibe.noteLen*.48, 'sine', .045*vibe.vol, t+.9);
       this.csStep++;
+      this.csTimer = setTimeout(playPhrase, vibe.phraseLen*1000);
     };
     playPhrase();
-    this.csTimer = setInterval(playPhrase, 3200);
   },
-  stopCutsceneMusic(){ clearInterval(this.csTimer); this.csTimer=null; },
+  stopCutsceneMusic(){ clearTimeout(this.csTimer); this.csTimer=null; },
   blip(){ this.tone(rnd(700,900), .025, 'square', .025, null); },
   swell(dark){
     if(!this.ready || !save.opt.sfx) return;
@@ -1125,6 +1150,43 @@ const Snd = {
     chord.forEach((f,i)=> this.at(f, 3.2, 'triangle', .09, t+i*.05, null, i*3));
   }
 };
+
+/* ---- the cutscene score's 10 emotional vibes ----
+   Each is its own harmonic color: which root notes it draws from, how
+   long a note rings, how long a phrase holds before the next one, and
+   how loud it sits relative to the others. Replaces the old single
+   binary dark/light root pair with something that can actually track a
+   scene's specific emotional beat instead of just "sad" or "not sad". */
+const MUSIC_VIBES = {
+  TENDER:        { roots:[261.6,293.6,349.2,392.0], noteLen:4.6, phraseLen:3.4, vol:1.00, octave:1   }, // warm major — quiet closeness
+  HOPE:          { roots:[293.6,329.6,392.0,440.0], noteLen:4.0, phraseLen:3.0, vol:1.05, octave:1   }, // rising major — hope, not yet won
+  PEACE:         { roots:[261.6,329.6,392.0,523.2], noteLen:5.4, phraseLen:3.8, vol:0.95, octave:1   }, // fully resolved major — reunion, the end
+  NOSTALGIA:     { roots:[293.6,349.2,392.0,466.2], noteLen:4.8, phraseLen:3.5, vol:0.90, octave:1   }, // major 7th — wistful, looking back
+  TRIUMPH:       { roots:[349.2,440.0,523.2,587.3], noteLen:3.2, phraseLen:2.1, vol:1.20, octave:1.5 }, // bold major, faster — earned victory
+  DETERMINATION: { roots:[220.0,246.9,277.2,329.6], noteLen:2.8, phraseLen:1.9, vol:1.12, octave:1   }, // driving minor — "I'm coming"
+  TENSION:       { roots:[233.1,277.2,311.1,349.2], noteLen:2.2, phraseLen:1.5, vol:1.00, octave:1   }, // suspended, faster pulse — danger building
+  DREAD:         { roots:[196.0,207.7,174.6,164.8], noteLen:5.8, phraseLen:4.2, vol:0.88, octave:.5  }, // low, creeping — the villain is near
+  GRIEF:         { roots:[220.0,233.1,196.0,174.6], noteLen:6.2, phraseLen:4.6, vol:0.80, octave:.5  }, // minor, very slow, sparse — pure loss
+  HEARTBREAK:    { roots:[207.7,220.0,246.9,196.0], noteLen:5.6, phraseLen:4.0, vol:0.86, octave:.75 }  // minor, aching — captive, scared, alone
+};
+// derives a vibe from whatever the cutscene line already carries (mood,
+// art, speaker class, shake) — no need to hand-tag hundreds of lines
+// across 10 separate stories; the fields driving the VOICE's own
+// pitch/rate choices (see speakLine) already say enough about the beat
+function pickMusicVibe(line, fallbackDark){
+  if(!line) return fallbackDark ? 'GRIEF' : 'TENDER';
+  if(line.cls==='boss') return 'DREAD';
+  if(line.art==='embrace') return 'PEACE';
+  if(line.art==='memory') return 'NOSTALGIA';
+  if(line.art==='title') return line.dark ? 'DETERMINATION' : 'TRIUMPH';
+  if(line.mood==='joy') return 'HOPE';
+  if(line.mood==='crying') return 'HEARTBREAK';
+  if((line.mood==='captive'||line.mood==='scared') && line.shake) return 'TENSION';
+  if(line.mood==='captive'||line.mood==='scared') return 'GRIEF';
+  if(line.art==='abduction') return 'DREAD';
+  if(line.art==='birth'||line.art==='home') return 'TENDER';
+  return line.dark ? 'GRIEF' : 'TENDER';
+}
 
 /* ---------------- 3. AD MANAGER ----------------
    Auto-detects a host platform SDK (CrazyGames / Poki / GameDistribution /
@@ -7589,7 +7651,7 @@ const Cutscene = {
     // line still finishing — force the channel clear before speaking
     // rather than letting the two race or queue against each other
     stopVoice();
-    this.script=script; this.idx=-1; this.onDone=onDone; this.playing=true; this.t0=gt;
+    this.script=script; this.idx=-1; this.onDone=onDone; this.playing=true; this.t0=gt; this.dark=dark;
     show('cutscene'); this.resize();
     $('csVignette').className = dark ? 'dark' : '';
     Snd.startCutsceneMusic(dark);
