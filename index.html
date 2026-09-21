@@ -51,6 +51,10 @@ canvas{display:block;position:absolute;inset:0;width:100%;height:100%}
 @keyframes rain{50%{filter:hue-rotate(180deg)}}
 @keyframes xpflash{0%{filter:brightness(3.2)}100%{filter:brightness(1)}}
 #xpwrap.pop{animation:xpflash .45s ease-out}
+/* a gentle heartbeat once the bar is nearly full — a real "just one more
+   kill" cue tied to actual progress, not a fake countdown or nag */
+@keyframes xpnear{0%,100%{box-shadow:0 0 16px var(--cy)}50%{box-shadow:0 0 30px var(--li),0 0 10px var(--li)}}
+#xpwrap.near #xpbar{animation:xpnear 1s ease-in-out infinite}
 #combo.frenzy{color:#fff;animation:rain .5s linear infinite}
 #hpwrap{position:absolute;left:50%;transform:translateX(-50%);bottom:14px;width:min(320px,62vw);height:15px;background:rgba(0,0,0,.5);border:1px solid var(--line);border-radius:9px;overflow:hidden}
 #hpbar{height:100%;width:100%;background:linear-gradient(90deg,#ff3b5c,#ff7a3c,#ffd23c);box-shadow:0 0 14px #ff3b5c;transition:width .15s}
@@ -102,11 +106,23 @@ canvas{display:block;position:absolute;inset:0;width:100%;height:100%}
 .list{touch-action:pan-y}
 #charStrip{touch-action:pan-x}
 .screen::-webkit-scrollbar{width:0}
+/* the homepage gets its own lighter wash instead of the near-opaque panel
+   every other screen uses — the animated starfield behind it (renderMenuBG)
+   was almost entirely hidden under the old .93-.985 solid backing, so the
+   menu read as a flat static panel instead of a living title screen */
+#menuScreen{background:radial-gradient(ellipse at 50% 0%,rgba(139,92,255,.32),transparent 62%),
+  linear-gradient(180deg,rgba(5,6,13,.45) 0%,rgba(5,6,13,.68) 38%,rgba(5,6,13,.94) 78%)}
 .logo{font:900 clamp(38px,11vw,78px)/.9 var(--f1);letter-spacing:2px;text-align:center;
   background:linear-gradient(180deg,#fff,var(--cy) 45%,var(--vi) 75%,var(--mg));-webkit-background-clip:text;background-clip:text;color:transparent;
   filter:drop-shadow(0 0 26px rgba(38,240,255,.55));animation:pulse 3.4s ease-in-out infinite}
-@keyframes pulse{50%{filter:drop-shadow(0 0 44px rgba(255,47,185,.6))}}
+@keyframes pulse{0%,100%{filter:drop-shadow(0 0 26px rgba(38,240,255,.55));transform:scale(1)}50%{filter:drop-shadow(0 0 46px rgba(255,47,185,.65));transform:scale(1.015)}}
 .tag{font:600 11px/1 var(--f2);letter-spacing:5px;color:var(--dim);margin:8px 0 22px;text-align:center}
+/* a soft glass frame around the homepage's button column, instead of it
+   floating loose over the starfield now that the panel behind it is see-
+   through — reads as one deliberate console instead of a stack of buttons */
+#menuScreen .col{background:rgba(10,13,28,.4);border:1px solid rgba(120,180,255,.16);
+  border-radius:20px;padding:16px 16px 14px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:0 24px 60px -24px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.05)}
 .btn{pointer-events:auto;cursor:pointer;border:none;border-radius:14px;font-family:var(--f1);font-weight:900;letter-spacing:1.6px;
   padding:15px 26px;font-size:15px;color:#03060f;background:linear-gradient(135deg,var(--cy),var(--vi));
   box-shadow:0 8px 26px rgba(38,240,255,.3),inset 0 1px 0 rgba(255,255,255,.4);transition:transform .1s,box-shadow .18s;width:100%;max-width:340px}
@@ -661,15 +677,21 @@ function persist(){ clearTimeout(saveT); saveT = setTimeout(writeSave, 220); }
 /* ---------------- 2. AUDIO (procedural, zero assets) ---------------- */
 const Snd = {
   ctx:null, master:null, musGain:null, sfxGain:null, ready:false, musTimer:null, step:0,
+  // baseline mix: combat SFX down from the old 1.0, the piano score up
+  // from the old .32 — the music (and any spoken line, ducked further
+  // below it) should always read as the lead over gunfire and impacts
+  _sfxBase:.6, _musBase:.48,
   init(){
     if(this.ready) return;
     try{
       const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
       this.ctx = new AC();
       this.master = this.ctx.createGain(); this.master.gain.value = .5; this.master.connect(this.ctx.destination);
-      this.sfxGain = this.ctx.createGain(); this.sfxGain.gain.value = save.opt.sfx ? 1 : 0; this.sfxGain.connect(this.master);
-      this.musGain = this.ctx.createGain(); this.musGain.gain.value = save.opt.mus ? .32 : 0; this.musGain.connect(this.master);
-      this._musBase = save.opt.mus ? .32 : 0;
+      // combat SFX turned down and the piano turned up from their old
+      // 1.0/0.32 split — the score (and any spoken line, ducked further
+      // still below) should always read as the lead, not the gunfire
+      this.sfxGain = this.ctx.createGain(); this.sfxGain.gain.value = save.opt.sfx ? this._sfxBase : 0; this.sfxGain.connect(this.master);
+      this.musGain = this.ctx.createGain(); this.musGain.gain.value = save.opt.mus ? this._musBase : 0; this.musGain.connect(this.master);
       this.ready = true; this.startMusic();
     }catch(e){}
   },
@@ -842,32 +864,37 @@ const Snd = {
       if(on) this.ctx.suspend(); else this.ctx.resume();
     }catch(e){}
   },
-  setSfx(v){ save.opt.sfx = v?1:0; if(this.sfxGain) this.sfxGain.gain.value = v?1:0; persist(); },
-  setMus(v){ save.opt.mus = v?1:0; this._musBase = v?.32:0; if(this.musGain) this.musGain.gain.value = this._musBase; persist(); },
+  setSfx(v){ save.opt.sfx = v?1:0; if(this.sfxGain) this.sfxGain.gain.value = v?this._sfxBase:0; persist(); },
+  setMus(v){ save.opt.mus = v?1:0; this._musBase = v?.48:0; if(this.musGain) this.musGain.gain.value = this._musBase; persist(); },
   /* the TTS voice plays through the OS audio pipeline, completely
      outside this game's Web Audio graph — our own volume sliders can't
-     touch it, so the only way to make it stand out over the score is to
-     duck the score itself while a line is actually being spoken.
-     Ducks/restores are always relative to _musBase (the last
-     intentionally-set volume), never to the gain node's live value —
-     with quotes now playing back-to-back with ~0 gap, reading the live
-     value here used to be a real bug: a duck-then-immediately-duck-again
-     would capture a value from mid-ramp-back-up (still near the ducked
-     floor) as the new "previous" baseline, compounding lower and lower
-     across dozens of quotes until the music was effectively silent. */
-  _ducked:false, _musBase:.32,
+     touch it, so the only way to make it stand out over the score (and
+     over combat SFX) is to duck BOTH of those while a line is actually
+     being spoken, not just the music — a boss growl or a weapon SFX at
+     full volume could still bury a voice line even with the score ducked
+     under it. Ducks/restores are always relative to _musBase/_sfxBase
+     (the last intentionally-set volume), never to the gain node's live
+     value — with quotes now playing back-to-back with ~0 gap, reading
+     the live value here used to be a real bug: a duck-then-immediately-
+     duck-again would capture a value from mid-ramp-back-up (still near
+     the ducked floor) as the new "previous" baseline, compounding lower
+     and lower across dozens of quotes until the music was effectively
+     silent. */
+  _ducked:false,
   duckMusic(on, depth){
     if(!this.ready || !this.musGain) return;
-    const g = this.musGain.gain, t = this.ctx.currentTime;
+    const g = this.musGain.gain, sg = this.sfxGain ? this.sfxGain.gain : null, t = this.ctx.currentTime;
     try{
       if(on){
         if(this._ducked) return;
         this._ducked = true;
         g.cancelScheduledValues(t); g.setTargetAtTime(this._musBase*(depth!=null?depth:.16), t, .08);
+        if(sg){ sg.cancelScheduledValues(t); sg.setTargetAtTime(this._sfxBase*.22, t, .08); }
       } else {
         if(!this._ducked) return;
         this._ducked = false;
         g.cancelScheduledValues(t); g.setTargetAtTime(this._musBase, t, .3);
+        if(sg){ sg.cancelScheduledValues(t); sg.setTargetAtTime(this._sfxBase, t, .3); }
       }
     }catch(e){}
   },
@@ -879,10 +906,10 @@ const Snd = {
     if(!this.ready || !this.musGain || !save.opt.mus) return;
     try{
       const t = this.ctx.currentTime;
-      this._musBase = .5;
+      this._musBase = .64;
       this.musGain.gain.cancelScheduledValues(t);
       this.musGain.gain.setValueAtTime(.02, t);
-      this.musGain.gain.setTargetAtTime(.5, t, 1.1);
+      this.musGain.gain.setTargetAtTime(.64, t, 1.1);
     }catch(e){}
   },
   /* a real musical "moment" the instant the final battle actually
@@ -3025,12 +3052,17 @@ function drawShape(x,y,r,shape,rot,c){
 }
 const menuDots = [];
 function renderMenuBG(){
-  if(!menuDots.length) for(let i=0;i<70;i++)
-    menuDots.push({x:Math.random(),y:Math.random(),r:rnd(1,3.4),s:rnd(.006,.03),h:rnd(180,320)});
+  // now visible against #menuScreen's lighter panel wash (see CSS) instead
+  // of being buried under a near-opaque overlay — a bigger, twinkling field
+  // reads as a living title screen instead of a static gradient
+  if(!menuDots.length) for(let i=0;i<110;i++)
+    menuDots.push({x:Math.random(),y:Math.random(),r:rnd(1,3.4),s:rnd(.006,.03),h:rnd(180,320),tw:rnd(0,TAU),tws:rnd(.6,1.6)});
   ctx.globalCompositeOperation='lighter';
   for(const d of menuDots){
     d.y -= d.s*.01; if(d.y<-.05) { d.y=1.05; d.x=Math.random(); }
-    ctx.fillStyle = 'hsla('+(d.h + Math.sin(gt*.3+d.x*9)*40)+',95%,62%,.5)';
+    d.tw += .02*d.tws;
+    const a = .28 + .32*(.5+.5*Math.sin(d.tw));
+    ctx.fillStyle = 'hsla('+(d.h + Math.sin(gt*.3+d.x*9)*40)+',95%,62%,'+a+')';
     ctx.beginPath(); ctx.arc(d.x*CW, d.y*CH, d.r, 0, TAU); ctx.fill();
   }
   ctx.globalCompositeOperation='source-over';
@@ -3372,6 +3404,7 @@ function updateHUD(){
   const xf = clamp(P.xp/P.xpNext,0,1)*100;
   $('xpbar').style.width = xf+'%';
   $('xptxt').textContent = 'LV ' + P.level;
+  $('xpwrap').classList.toggle('near', xf>=85);
   const hf = clamp(P.hp/P.maxHp,0,1);
   $('hpbar').style.width = (hf*100)+'%';
   $('hptxt').textContent = Math.ceil(P.hp)+' / '+Math.ceil(P.maxHp);
@@ -7528,7 +7561,7 @@ function _beginRunNow(){
   Snd.master && (Snd.master.gain.value = isStoryMode() ? .92 : .5); // her theme deserves to actually be heard — loud, unmistakable
   if(Snd.musGain){
     if(isStoryMode()) Snd.swellInMusic();
-    else { Snd._musBase = save.opt.mus ? .32 : 0; Snd.musGain.gain.value = Snd._musBase; }
+    else { Snd._musBase = save.opt.mus ? .48 : 0; Snd.musGain.gain.value = Snd._musBase; }
   }
   spawnHazards();
   G.freeRevives = G.mode==='hardcore' ? 0 : G.mode==='easy' ? 1 : save.meta.rev;
