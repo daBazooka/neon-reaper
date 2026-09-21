@@ -1681,7 +1681,9 @@ const CHARS = [
   { id:'eclipse', n:'ECLIPSE', e:'☄', w:'chain', price:110000, d:'Ultimate charges 45% faster.',                hp:0,   dmg:1.1,  spd:1,    cd:1,  extra:{ultCdMul:.55}, ship:12, sc:'#a374ff' },
   { id:'aeon',    n:'AEON',    e:'⏣', w:'blaster',price:130000,d:'Starts with 2 weapons already equipped.',      hp:0,   dmg:.95,  spd:1,    cd:1,  extra:{secondWep:'nova'}, ship:7, sc:'#4dc9ff' },
   { id:'magma',   n:'MAGMA',   e:'♆', w:'hole',  price:150000, d:'+30% area. Devastating, fragile black holes.', hp:-20, dmg:1.4,  spd:.95,  cd:1,  extra:{area:.3}, ship:'star5', sc:'#ff6a1a' },
-  { id:'titan',   n:'TITAN',   e:'⛰', w:'hole',  price:200000, d:'+80 HP, +6 flat armor. A walking fortress.',   hp:80,  dmg:.9,   spd:.8,   cd:1.1,extra:{armorFlat:6}, ship:10, sc:'#8494b8' }
+  { id:'titan',   n:'TITAN',   e:'⛰', w:'hole',  price:200000, d:'+80 HP, +6 flat armor. A walking fortress.',   hp:80,  dmg:.9,   spd:.8,   cd:1.1,extra:{armorFlat:6}, ship:10, sc:'#8494b8' },
+  { id:'shrike',  n:'SHRIKE',  e:'⚔', w:'swarm', price:250000, d:'+20% dodge, +2 extra projectiles. Glass-cannon striker.', hp:-25, dmg:1.15, spd:1.18, cd:.88, extra:{dodge:.2,multi:2}, ship:'diamond', sc:'#ff8c3c' },
+  { id:'oracle',  n:'ORACLE',  e:'❂', w:'hole',  price:320000, d:'+20% luck, +20% XP, +2 rerolls. Always sees the best path.', hp:0, dmg:.95, spd:1, cd:1, extra:{luck:.2,xp:.2,rerolls:2}, ship:9, sc:'#c9ff6a' }
 ];
 const charById = id => CHARS.find(c=>c.id===id) || CHARS[0];
 
@@ -1701,7 +1703,9 @@ const ULTIMATES = {
   eclipse:{ n:'TOTALITY',       i:'☄', c:'#2a1840', cd:12, d:'Blackout nova + chains to everyone' },
   aeon:   { n:'TIME DILATION',  i:'⏣', c:'#7fd6ff', cd:18, d:'All weapons fire again instantly' },
   magma:  { n:'CALDERA',        i:'♆', c:'#ff6a1a', cd:20, d:'Three giant black holes erupt' },
-  titan:  { n:'BULWARK',        i:'⛰', c:'#8494b8', cd:20, d:'Huge shield nova + heal + armor spike' }
+  titan:  { n:'BULWARK',        i:'⛰', c:'#8494b8', cd:20, d:'Huge shield nova + heal + armor spike' },
+  shrike: { n:'BLINK STRIKE',   i:'⚔', c:'#ff8c3c', cd:15, d:'Dash with invulnerability + a spray of shrapnel' },
+  oracle: { n:'TEMPORAL RIFT',  i:'❂', c:'#c9ff6a', cd:20, d:'Freezes every enemy + opens a devouring rift' }
 };
 function fireUltimate(){
   if(!P || G.state!=='PLAY' || G.ultCd>0) return;
@@ -1811,6 +1815,18 @@ function fireUltimate(){
       }
       P.hp = Math.min(P.maxHp, P.hp + P.maxHp*.3);
       P.invul = Math.max(P.invul, 1.6);
+      break;
+    }
+    case 'shrike': {
+      P.invul = Math.max(P.invul, 2);
+      P.vx += P.faceX*420; P.vy += P.faceY*420;
+      for(let i=0;i<14;i++){ const a=Math.random()*TAU; shootBullet(P.x,P.y,a,260,dmg*.5,{ c:'#ff8c3c', pierce:1, r:5*P.area }); }
+      burst(P.x,P.y,16,'#ff8c3c',200,.5,3);
+      break;
+    }
+    case 'oracle': {
+      for(const e of enemies.slice()){ e.slowT = Math.max(e.slowT,2.5); e.slowAmt = .9; }
+      holes.push({ x:P.x, y:P.y, r:300, life:4, dmg:dmg*.45, t:0, ult:1 });
       break;
     }
   }
@@ -7087,7 +7103,7 @@ if(window.speechSynthesis){ refreshVoices(); speechSynthesis.onvoiceschanged = r
       getVoices() can return empty on the first several calls even after
       onvoiceschanged has already fired once. refreshVoices() below is
       retried on a schedule instead of trusting a single event. */
-let _speechUnlocked = false, _speechActive = false;
+let _speechUnlocked = false, _speechActive = false, _justCancelled = false, _justCancelledT = null;
 // a deliberate, clean full stop — the one place actually calling cancel()
 // is still correct: a cutscene about to speak its own first line always
 // wins over whatever ambient/milestone chatter might still be finishing,
@@ -7099,6 +7115,25 @@ function stopVoice(){
   try{ speechSynthesis.cancel(); }catch(e){}
   _speechActive = false;
   G._voiceBusy = false;
+  // iOS silently swallows a speak() call made in the SAME tick as a
+  // preceding cancel() — a real, documented WebKit race, not a timing
+  // choice. Every stopVoice() caller in this game (Cutscene.play(), the
+  // Test Voice button) turns around and speaks again immediately after,
+  // which used to hit that race on iOS and produce exactly "no voice,
+  // just text" on a cutscene's very first line. safeSpeak() below defers
+  // ONLY the next speak() by one real tick to dodge it — everything else
+  // (text reveal, every later line) stays instant, untouched.
+  _justCancelled = true;
+  clearTimeout(_justCancelledT);
+  _justCancelledT = setTimeout(()=>{ _justCancelled = false; }, 200);
+}
+function safeSpeak(u){
+  if(_justCancelled){
+    _justCancelled = false;
+    setTimeout(()=>{ try{ speechSynthesis.speak(u); }catch(e){} }, 40);
+  } else {
+    try{ speechSynthesis.speak(u); }catch(e){}
+  }
 }
 function unlockSpeech(){
   if(_speechUnlocked || !window.speechSynthesis) return;
@@ -7295,7 +7330,7 @@ function speakLine(line){
     // channel: whichever called last would cancel() and cut off whatever
     // was still mid-sentence. Now nothing ever gets talked over — a late
     // arrival just waits its turn instead of interrupting.
-    try{ speechSynthesis.speak(u); }catch(e){}
+    safeSpeak(u);
     return u;
   }catch(e){ return null; }
 }
@@ -8293,7 +8328,7 @@ $('voiceTestBtn').onclick = ()=>{
     let heardStart = false;
     u.onstart = ()=>{ heardStart = true; toast('SPEAKING NOW', v ? ('Voice: '+v.name) : 'Using device default voice'); };
     u.onerror = (ev)=>{ toast('SPEECH ERROR', String(ev.error||'unknown error')); };
-    speechSynthesis.speak(u);
+    safeSpeak(u);
     setTimeout(()=>{ if(!heardStart) toast('NO onstart EVENT', 'The browser accepted the request but never reported starting to speak — likely no audio output or a silenced device.'); }, 1200);
   }catch(e){ toast('SPEECH THREW', String(e.message||e)); }
 };
