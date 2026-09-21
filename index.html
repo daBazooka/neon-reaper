@@ -221,6 +221,18 @@ h2.tt{font:900 20px/1 var(--f1);letter-spacing:2px;margin-bottom:12px;text-align
 @keyframes spin{to{transform:rotate(1turn)}}
 #adTimer{font:700 12px/1 var(--f1);color:var(--dim);letter-spacing:2px}
 
+#wheelOv{position:absolute;inset:0;z-index:60;pointer-events:auto;
+  background:radial-gradient(ellipse at 50% 40%,rgba(139,92,255,.28),transparent 65%),rgba(3,4,10,.96);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+#wheelTitle{font:900 18px/1 var(--f1);letter-spacing:2px;color:#fff;text-shadow:0 0 16px var(--vi);text-align:center;padding:0 20px}
+#wheelWrap{position:relative;width:min(260px,72vw);aspect-ratio:1}
+#wheelSvg{width:100%;height:100%;border-radius:50%;filter:drop-shadow(0 0 26px rgba(139,92,255,.5));transform:rotate(0deg)}
+#wheelPointer{position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:30px;color:#ffd23c;
+  text-shadow:0 0 10px #ffd23c,0 2px 4px rgba(0,0,0,.6);z-index:2;filter:drop-shadow(0 0 4px #000)}
+#wheelResult{min-height:24px;font:900 16px/1 var(--f1);letter-spacing:1px;color:var(--li);text-shadow:0 0 14px var(--li);opacity:0;transition:opacity .3s,transform .3s;transform:scale(.8)}
+#wheelResult.show{opacity:1;transform:scale(1)}
+#wheelSpinBtn{max-width:220px}
+
 /* ---- CUTSCENE ---- */
 #cutscene{position:absolute;inset:0;z-index:70;background:#000;overflow:hidden}
 #csStage{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1}
@@ -430,7 +442,7 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
       <button class="btn ghost" id="achBtn">★ GOALS</button>
       <button class="btn ghost" id="statsBtn">⚙ MORE</button>
     </div>
-    <button class="btn ad" id="freeCoinBtn">▶ FREE 300 ◈ <small id="freeLeft"></small></button>
+    <button class="btn ad" id="freeCoinBtn">✦ SPIN FOR FREE SHARDS <small id="freeLeft"></small></button>
     <button class="btn ghost" id="globalBtn">🌐 GLOBAL — LEADERBOARD &amp; CHAT</button>
     <button class="btn ghost" id="partyBtn">🤝 PLAY WITH FRIENDS</button>
   </div>
@@ -493,7 +505,7 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
     <div class="stat"><span>SHARDS</span><b id="fCoins">0</b></div>
   </div>
   <div class="col">
-    <button class="btn ad" id="dblBtn">▶ DOUBLE SHARDS ×2</button>
+    <button class="btn ad" id="dblBtn">✦ SPIN TO MULTIPLY SHARDS</button>
     <button class="btn play" id="againBtn">↻ RUN IT AGAIN</button>
     <div class="row">
       <button class="btn ghost" id="overShopBtn">⚡ SPEND</button>
@@ -580,7 +592,7 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   <div class="sub">EVERY LEVEL MAKES EVERY FUTURE RUN STRONGER</div>
   <div id="shopFlying"><canvas class="chrShip" id="shopShipCv"></canvas><span id="shopShipNm"></span></div>
   <div class="panel"><div class="list" id="shopList"></div></div>
-  <button class="btn ad" id="shopAdBtn" style="margin-top:12px">▶ WATCH · +300 ◈</button>
+  <button class="btn ad" id="shopAdBtn" style="margin-top:12px">✦ SPIN FOR SHARDS</button>
 </div>
 
 <!-- HEROES -->
@@ -637,6 +649,20 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   </div>
   <div id="adTimer">UNLOCKING REWARD</div>
   <button class="btn ghost hidden" id="adSkip" style="max-width:220px">SKIP</button>
+</div>
+
+<!-- SPIN WHEEL — replaces watching a rewarded ad with an actual mini-game.
+     Every reward this grants is at least as good as the flat amount it
+     replaced, so it's pure upside over the old "watch ad, get 300" — never
+     a worse-disguised-as-fun downgrade. -->
+<div id="wheelOv" class="hidden">
+  <div id="wheelTitle">SPIN FOR REWARD</div>
+  <div id="wheelWrap">
+    <div id="wheelPointer">▼</div>
+    <svg id="wheelSvg" viewBox="0 0 200 200"></svg>
+  </div>
+  <div id="wheelResult"></div>
+  <button class="btn gold" id="wheelSpinBtn">✦ SPIN ✦</button>
 </div>
 
 <!-- CUTSCENE (shared by the intro and the ending) -->
@@ -1175,6 +1201,84 @@ const Ads = {
   }
 };
 $('adSkip').onclick = () => $('adOv').classList.add('hidden');
+
+/* Spin-the-wheel: replaces "watch a rewarded ad" everywhere in the game
+   with an actual mini-game the player controls. Every wheel's segments
+   are built so the WORST possible outcome is still at least as good as
+   the flat reward it replaced — the wheel is strictly upside (sometimes
+   much better, never worse), never a gambled-down version of what was
+   guaranteed before. */
+const Wheel = {
+  el:null, svg:null, spinning:false, segments:null, onDone:null,
+  init(){ this.el=$('wheelOv'); this.svg=$('wheelSvg'); },
+  open(segments, title, onDone){
+    if(!this.svg) this.init();
+    this.segments = segments; this.onDone = onDone;
+    $('wheelTitle').textContent = title || 'SPIN FOR REWARD';
+    const res = $('wheelResult'); res.textContent=''; res.classList.remove('show');
+    this._draw(segments);
+    this.svg.style.transition = 'none';
+    this.svg.style.transform = 'rotate(0deg)';
+    void this.svg.offsetWidth;
+    this.el.classList.remove('hidden');
+    this.spinning = false;
+    const btn = $('wheelSpinBtn');
+    btn.disabled = false; btn.textContent = '✦ SPIN ✦';
+    btn.onclick = () => this._spin();
+  },
+  _draw(segments){
+    const n = segments.length, cx=100, cy=100, r=96;
+    const palette = ['#26f0ff','#8b5cff','#ff2fb9','#b6ff3c','#ffb020','#ff3b5c','#7fd6ff','#ffd23c'];
+    let html = '';
+    for(let i=0;i<n;i++){
+      const a0 = (i/n)*TAU - Math.PI/2, a1 = ((i+1)/n)*TAU - Math.PI/2;
+      const x0 = cx+Math.cos(a0)*r, y0 = cy+Math.sin(a0)*r, x1 = cx+Math.cos(a1)*r, y1 = cy+Math.sin(a1)*r;
+      const large = (a1-a0) > Math.PI ? 1 : 0;
+      const col = palette[i%palette.length];
+      html += `<path d="M${cx},${cy} L${x0.toFixed(2)},${y0.toFixed(2)} A${r},${r} 0 ${large} 1 ${x1.toFixed(2)},${y1.toFixed(2)} Z" fill="${col}" stroke="#05060d" stroke-width="1.5"/>`;
+      const amid = (a0+a1)/2, tr = r*.6, tx = cx+Math.cos(amid)*tr, ty = cy+Math.sin(amid)*tr;
+      const rotDeg = amid*180/Math.PI + 90;
+      html += `<text x="${tx.toFixed(2)}" y="${ty.toFixed(2)}" transform="rotate(${rotDeg.toFixed(2)} ${tx.toFixed(2)} ${ty.toFixed(2)})" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="900" fill="#05060d" font-family="Orbitron,sans-serif">${segments[i].label}</text>`;
+    }
+    html += `<circle cx="${cx}" cy="${cy}" r="15" fill="#05060d" stroke="#fff" stroke-width="2.5"/>`;
+    html += `<text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="16" fill="#fff">✦</text>`;
+    this.svg.innerHTML = html;
+  },
+  _spin(){
+    if(this.spinning) return;
+    this.spinning = true;
+    const btn = $('wheelSpinBtn'); btn.disabled = true; btn.textContent = '...';
+    Snd.click();
+    const segs = this.segments, n = segs.length;
+    const totalW = segs.reduce((a,s)=>a+s.w,0);
+    let roll = Math.random()*totalW, idx = 0;
+    for(let i=0;i<n;i++){ if(roll < segs[i].w){ idx=i; break; } roll -= segs[i].w; idx=i; }
+    const segAngle = 360/n;
+    const targetCenterFromTop = (idx+.5)*segAngle;
+    const extraSpins = 5 + Math.floor(Math.random()*2);
+    const finalMod = (360 - targetCenterFromTop + 360) % 360;
+    const totalRot = extraSpins*360 + finalMod;
+    const DUR = 3800;
+    // an accelerating-gap tick sequence tracks the wheel's own ease-out
+    // deceleration closely enough to sell "physically slowing down"
+    // without needing to read the CSS animation's live position
+    let t=0, gap=65;
+    while(t < DUR-200){ const at=t; setTimeout(()=>{ if(this.spinning) Snd.blip(); }, at); t+=gap; gap*=1.16; }
+    this.svg.style.transition = 'transform '+(DUR/1000)+'s cubic-bezier(.1,.7,.15,1)';
+    requestAnimationFrame(()=>{ this.svg.style.transform = 'rotate('+totalRot+'deg)'; });
+    setTimeout(()=>{
+      this.spinning = false;
+      const seg = segs[idx];
+      const big = seg.w <= totalW*.05;
+      if(big){ Snd.lvl(); Snd.sweep(true); Ads.happy(); shake(6); zoomKick(1.05); }
+      else Snd.coin();
+      const res = $('wheelResult');
+      res.textContent = seg.label + '!'; res.classList.add('show');
+      btn.textContent = '✓ CLAIM'; btn.disabled = false;
+      btn.onclick = () => { this.el.classList.add('hidden'); if(this.onDone) this.onDone(seg); };
+    }, DUR + 150);
+  }
+};
 
 /* ============================================================
    GLOBAL — real worldwide leaderboard, chat, and presence count.
@@ -8202,7 +8306,7 @@ function _finishRunNow(){
   $('fKills').textContent = fmtN(G.kills);
   $('fLevel').textContent = P? P.level : 1;
   $('fCoins').textContent = lastEarned;
-  $('dblBtn').disabled = false; $('dblBtn').textContent = '▶ DOUBLE SHARDS ×2';
+  $('dblBtn').disabled = false; $('dblBtn').textContent = '✦ SPIN TO MULTIPLY SHARDS';
   if(G.escaped){
     $('overTitle').textContent = isStoryMode() ? '🏆 HOME. TOGETHER. FOR GOOD.' : '🏆 YOU MADE IT OUT ALIVE';
     $('overTitle').style.color = 'var(--li)';
@@ -8218,12 +8322,16 @@ function _finishRunNow(){
   refreshCoins();
   if(!Party.active) Ads.interstitial(); // don't interrupt the group heading back to their lobby
 }
-$('dblBtn').onclick = ()=> Ads.rewarded('Double your shards', ok=>{
-  if(!ok || doubled) return; doubled=true;
-  save.coins += lastEarned; $('fCoins').textContent = lastEarned*2;
-  $('dblBtn').disabled=true; $('dblBtn').textContent='✓ DOUBLED';
-  refreshCoins(); persist(); toast('REWARD','+'+lastEarned+' ◈ shards');
-});
+$('dblBtn').onclick = ()=>{
+  if(doubled) return;
+  Wheel.open(WHEEL_DOUBLE, 'SPIN TO MULTIPLY', seg=>{
+    if(doubled) return; doubled=true;
+    const bonus = Math.round(lastEarned*(seg.mult-1));
+    save.coins += bonus; $('fCoins').textContent = fmtN(Math.round(lastEarned*seg.mult));
+    $('dblBtn').disabled=true; $('dblBtn').textContent='✓ '+seg.label;
+    refreshCoins(); persist(); toast('REWARD','+'+fmtN(bonus)+' ◈ shards');
+  });
+};
 $('againBtn').onclick = ()=>{ Snd.click(); startRun(); };
 $('menuBtn').onclick = ()=>{ Snd.click(); goMenu(); };
 $('overShopBtn').onclick = ()=>{ Snd.click(); openShop(); };
@@ -8268,8 +8376,8 @@ function renderShop(){
 }
 $('shopBtn').onclick = ()=>{ Snd.click(); openShop(); };
 $('shopBack').onclick = ()=>{ Snd.click(); goMenu(); };
-$('shopAdBtn').onclick = ()=> Ads.rewarded('+300 shards', ok=>{ if(!ok) return;
-  save.coins+=300; persist(); renderShop(); refreshCoins(); toast('REWARD','+300 ◈ shards'); });
+$('shopAdBtn').onclick = ()=> Wheel.open(WHEEL_COINS, 'SPIN FOR SHARDS', seg=>{
+  save.coins+=seg.amt; persist(); renderShop(); refreshCoins(); toast('REWARD','+'+seg.amt+' ◈ shards'); });
 
 /* ---------------- 26. HEROES ---------------- */
 function renderHeroes(){
@@ -8496,8 +8604,26 @@ $('claimBtn').onclick = ()=>{
   toast('DAY '+pendingStreak, '+'+r+' ◈ shards'); pendingStreak = 0;
 };
 
-/* ---------------- 31. FREE COIN AD ---------------- */
+/* ---------------- 31. FREE COIN WHEEL ---------------- */
 const AD_MAX = 5;
+const WHEEL_COINS = [
+  { label:'300◈',  w:26, amt:300  },
+  { label:'350◈',  w:22, amt:350  },
+  { label:'300◈',  w:20, amt:300  },
+  { label:'400◈',  w:16, amt:400  },
+  { label:'500◈',  w:9,  amt:500  },
+  { label:'750◈',  w:5,  amt:750  },
+  { label:'1000◈', w:2,  amt:1000 }
+];
+const WHEEL_DOUBLE = [
+  { label:'×2',   w:32, mult:2   },
+  { label:'×2.5', w:24, mult:2.5 },
+  { label:'×2',   w:20, mult:2   },
+  { label:'×3',   w:14, mult:3   },
+  { label:'×2.5', w:6,  mult:2.5 },
+  { label:'×4',   w:3,  mult:4   },
+  { label:'×5',   w:1,  mult:5   }
+];
 function refreshFreeAd(){
   const d=today();
   if(save.adCoins.day!==d){ save.adCoins={day:d,used:0}; persist(); }
@@ -8505,10 +8631,9 @@ function refreshFreeAd(){
   $('freeLeft').textContent = '('+left+' left today)';
   $('freeCoinBtn').disabled = left<=0;
 }
-$('freeCoinBtn').onclick = ()=> Ads.rewarded('+300 shards', ok=>{
-  if(!ok) return;
-  save.adCoins.used++; save.coins+=300; persist(); refreshCoins(); refreshFreeAd();
-  toast('REWARD','+300 ◈ shards'); checkAch();
+$('freeCoinBtn').onclick = ()=> Wheel.open(WHEEL_COINS, 'SPIN FOR SHARDS', seg=>{
+  save.adCoins.used++; save.coins+=seg.amt; persist(); refreshCoins(); refreshFreeAd();
+  toast('REWARD','+'+seg.amt+' ◈ shards'); checkAch();
 });
 
 /* ---------------- 31b. MODE / ARENA SELECT ---------------- */
