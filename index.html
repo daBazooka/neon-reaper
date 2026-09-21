@@ -244,6 +244,11 @@ h2.tt{font:900 20px/1 var(--f1);letter-spacing:2px;margin-bottom:12px;text-align
 #csVignette{position:absolute;inset:0;pointer-events:none;z-index:2;box-shadow:inset 0 0 0 0 rgba(255,0,40,0);transition:box-shadow 1.2s ease}
 #csVignette.dark{box-shadow:inset 0 0 180px 40px rgba(0,0,0,.85)}
 #csVignette.rage{box-shadow:inset 0 0 160px 50px rgba(255,10,30,.55);animation:telewarn .5s ease-in-out infinite}
+/* cinematic letterbox bars — a permanent widescreen frame the whole time
+   a cutscene is playing, the simplest possible signal that this is a
+   deliberate "film" moment and not just another game screen */
+#csLetterboxT,#csLetterboxB{position:absolute;left:0;right:0;height:6.5%;background:#000;z-index:2;pointer-events:none}
+#csLetterboxT{top:0} #csLetterboxB{bottom:0}
 #csSkip{position:absolute;top:16px;right:16px;z-index:5;pointer-events:auto;cursor:pointer;background:rgba(255,255,255,.08);border:1px solid var(--line);color:var(--dim);border-radius:10px;padding:8px 14px;font:700 11px/1 var(--f1);letter-spacing:1px}
 #csBox{position:absolute;left:0;right:0;bottom:0;z-index:3;min-height:118px;padding:16px 22px 22px;background:linear-gradient(180deg,rgba(5,6,13,0),rgba(5,6,13,.96) 30%);display:flex;flex-direction:column;justify-content:flex-end;gap:6px}
 #csSpeaker{font:900 12px/1 var(--f1);letter-spacing:3px;opacity:.9}
@@ -660,6 +665,8 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
 <div id="cutscene" class="hidden">
   <div id="csVignette"></div>
   <canvas id="csStage"></canvas>
+  <div id="csLetterboxT"></div>
+  <div id="csLetterboxB"></div>
   <button id="csSkip">SKIP ›</button>
   <div id="csBox">
     <div id="csSpeaker"></div>
@@ -6021,12 +6028,24 @@ function triggerMilestoneQuote(){
     el.classList.remove('show');
     releaseVoice();
   };
-  t.textContent = text; el.classList.add('show');
-  // a low thunder-crack under the line itself — sells "a god is speaking"
-  // rather than just "the music got quieter"
-  if(save.opt.sfx){ Snd.noise(.5,.35,600); setTimeout(()=>Snd.tone(60,.6,'sine',.2,35),60); }
-  Snd.duckMusic(true, .35);
-  G.slowT = Math.max(G.slowT||0, .5); zoomKick(1.06); shake(4);
+  // the visible line — and its "a god is speaking" moment (thunder SFX,
+  // music duck, slowT/zoomKick/shake) — waits for the voice to actually
+  // start before it appears. A cold-start engine delay on this device's
+  // narrator voice used to show the text (and the whole visual beat)
+  // well before the audio actually caught up to it — a short, tight
+  // fallback only, since nothing can legitimately be queued ahead of
+  // this utterance (see triggerMilestoneQuote's own comment above).
+  let revealed = false;
+  const reveal = (hideDelayMs)=>{
+    if(gen!==G._mqGen || revealed) return;
+    revealed = true;
+    t.textContent = text; el.classList.add('show');
+    clearTimeout(el._hideT);
+    if(save.opt.sfx){ Snd.noise(.5,.35,600); setTimeout(()=>Snd.tone(60,.6,'sine',.2,35),60); }
+    Snd.duckMusic(true, .35);
+    G.slowT = Math.max(G.slowT||0, .5); zoomKick(1.06); shake(4);
+    el._hideT = setTimeout(finish, hideDelayMs);
+  };
   // booming "voice from the heavens" register (cls:'god'), not the
   // higher 'you' voice or even the regular documentary narrator
   const utter = speakLine({ speaker:'', cls:'god', text });
@@ -6034,13 +6053,14 @@ function triggerMilestoneQuote(){
     // stays on screen for exactly as long as the voice takes to say it,
     // with a generous fallback in case this device's TTS never fires
     // onend/onerror (silent/broken engines, some sandboxed browsers)
-    utter.onend = finish;
-    utter.onerror = finish;
     const words = Math.max(1, text.trim().split(/\s+/).length);
     const estMs = Math.max(1800, (words/(3.7*.8))*1000);
-    el._hideT = setTimeout(finish, estMs + 3500);
+    utter.onstart = ()=>reveal(estMs + 3500);
+    utter.onend = finish;
+    utter.onerror = finish;
+    setTimeout(()=>reveal(estMs + 3500), 350);
   } else {
-    el._hideT = setTimeout(finish, 4200);
+    reveal(4200);
   }
 }
 const PLAYER_AMBIENT = {
@@ -6279,25 +6299,32 @@ function playerAmbientLine(){
   // rather than talk over (or get talked over by) whatever's already
   // playing, and never queue behind it either; the timer already re-rolled
   // a fresh 42-70s wait regardless, so missing one ambient line here is
-  // low-stakes and never noticeable. Because this only ever runs when the
-  // channel is confirmed free (and Cutscene.play() clears it the instant
-  // a cutscene needs it), the caption is safe to show immediately — there
-  // is nothing else it could possibly be mismatched against.
+  // low-stakes and never noticeable.
   if(G._voiceBusy) return;
   const prog = clamp(P.level/100, 0, 1);
   const ambSet = G.relation==='dad' ? PLAYER_AMBIENT_DAD : G.relation==='sister' ? PLAYER_AMBIENT_SISTER : G.relation==='brother' ? PLAYER_AMBIENT_BROTHER : G.relation==='son' ? PLAYER_AMBIENT_SON : G.relation==='daughter' ? PLAYER_AMBIENT_DAUGHTER : G.relation==='friend' ? PLAYER_AMBIENT_FRIEND : G.relation==='wife' ? PLAYER_AMBIENT_WIFE : G.relation==='husband' ? PLAYER_AMBIENT_HUSBAND : G.relation==='lost' ? PLAYER_AMBIENT_LOST : PLAYER_AMBIENT;
   const pool = prog>.66 ? ambSet.late : prog>.33 ? ambSet.mid : ambSet.early;
   const text = pick(pool);
   const gen = (G._ambGen = (G._ambGen||0) + 1);
-  toast('YOU', text, 'linear-gradient(135deg,#26f0ff,#8b5cff)');
   const utter = speakLine({ speaker:'YOU', cls:'you', text, mood: prog>.66?'scared':null, shake: prog>.66?1:0 });
   if(utter){
     G._voiceBusy = true;
+    // caption waits for the voice to actually start (short fallback —
+    // nothing can legitimately be queued ahead of this utterance), same
+    // fix as the milestone quotes above and for the same reason: an
+    // engine cold-start delay on this exact voice used to show the
+    // caption before the audio had actually caught up to it
+    let shown = false;
+    const show = ()=>{ if(gen!==G._ambGen || shown) return; shown = true; toast('YOU', text, 'linear-gradient(135deg,#26f0ff,#8b5cff)'); };
     const clear = ()=>{ if(gen===G._ambGen) releaseVoice(); };
+    utter.onstart = show;
     utter.onend = clear; utter.onerror = clear;
+    setTimeout(show, 350);
     const words = Math.max(1, text.trim().split(/\s+/).length);
     const estMs = Math.max(1200, (words/(3.7*(utter.rate||1)))*1000);
     setTimeout(clear, estMs + 3000);
+  } else {
+    toast('YOU', text, 'linear-gradient(135deg,#26f0ff,#8b5cff)');
   }
 }
 const STORY = {
@@ -7090,9 +7117,28 @@ function unlockSpeech(){
   if(_speechUnlocked || !window.speechSynthesis) return;
   _speechUnlocked = true;
   try{
+    refreshVoices();
+    // a TTS engine's cold-start latency is per-voice, not global — warming
+    // only the device default left the very first real line spoken in
+    // ANY other voice (the male-leaning narrator/dad/boss register, most
+    // of the time, since a device's default voice is very often the
+    // female one) with a genuine, audible startup lag the first time it
+    // was ever used — this is very likely the source of "the man's voice
+    // starts late." Warm the default AND the specific male/female voices
+    // pickVoiceFor() will actually reach for, if the voice list has
+    // already loaded by this first tap (cheap either way: all silent,
+    // rate 10, finish in a blink).
     const u = new SpeechSynthesisUtterance('.');
     u.volume = 0; u.rate = 10;
     speechSynthesis.speak(u);
+    [pickVoiceFor('boss'), pickVoiceFor('mom')].forEach(v=>{
+      if(!v) return;
+      try{
+        const uu = new SpeechSynthesisUtterance('.');
+        uu.volume = 0; uu.rate = 10; uu.voice = v;
+        speechSynthesis.speak(uu);
+      }catch(e){}
+    });
   }catch(e){}
 }
 if(window.speechSynthesis){
@@ -7328,13 +7374,6 @@ const Cutscene = {
     const gen = (this._speakGen = (this._speakGen||0) + 1);
     const utter = speakLine(line);
     if(utter){
-      // Cutscene.play() calls stopVoice() before the very first line, and
-      // every line after that only ever starts once the previous one's
-      // onend already fired below — so nothing can ever be ahead of this
-      // utterance in the queue, and it's always safe to start revealing
-      // the instant it's requested, no onstart-gating needed.
-      Snd.duckMusic(true);
-      const lineT0 = performance.now();
       // reveal starts on an estimated per-line pace (word count over the
       // utterance's own rate), but the instant a real word boundary
       // arrives, the pace is thrown out and replaced with the actual
@@ -7343,7 +7382,7 @@ const Cutscene = {
       const words = Math.max(1, line.text.trim().split(/\s+/).length);
       const estMs = Math.max(350, (words/(3.7*utter.rate))*1000);
       let stepMs = clamp(estMs/chars.length, 14, 85);
-      let i=0;
+      let i=0, lineT0=performance.now(), started=false;
       const runInterval = ()=>{
         clearInterval(this._typeIV);
         this._typeIV = setInterval(()=>{
@@ -7351,7 +7390,6 @@ const Cutscene = {
           if(el.children[i]) el.children[i].classList.add('on'); i++;
         }, stepMs);
       };
-      runInterval();
       // a device that reports having speech synthesis but whose engine
       // never actually calls back (silent/broken TTS, some sandboxed or
       // headless environments) would otherwise stall the cutscene here
@@ -7372,9 +7410,31 @@ const Cutscene = {
           this._advance();
         }, estMs + 3000);
       };
-      armFallback();
+      // the reveal (and the music duck) waits for the voice to actually
+      // start before it begins — some voices (very often whichever gender
+      // isn't the device's default) carry a real, audible engine cold-
+      // start delay the first time they're used, and starting the
+      // typewriter on the call instead of the real start made the text
+      // visibly race ahead of a voice that hadn't caught up yet. This is
+      // now a short, tight fallback rather than the old long one: nothing
+      // can legitimately be queued ahead of this utterance anymore
+      // (stopVoice() clears the channel before the first line, and every
+      // line after that only starts once the previous one's onend has
+      // already fired), so there's no multi-second wait left to race
+      // against — just the ordinary startup latency itself.
+      const begin = ()=>{
+        if(!this.playing || gen!==this._speakGen || started) return;
+        started = true;
+        Snd.duckMusic(true);
+        lineT0 = performance.now();
+        runInterval();
+        armFallback();
+      };
+      utter.onstart = begin;
+      setTimeout(begin, 350);
       utter.onboundary = (ev)=>{
         if(!this.playing || gen!==this._speakGen || typeof ev.charIndex!=='number') return;
+        if(!started) begin();
         i = Math.max(i, Math.min(chars.length, ev.charIndex));
         for(let k=0;k<i;k++) if(el.children[k]) el.children[k].classList.add('on');
         const elapsed = performance.now() - lineT0;
