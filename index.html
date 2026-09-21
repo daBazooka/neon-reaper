@@ -74,6 +74,23 @@ canvas{display:block;position:absolute;inset:0;width:100%;height:100%}
 #escapeLbl{font:800 11px/1 var(--f1);letter-spacing:3px;color:#ff3b5c;text-align:center;margin-bottom:4px;text-shadow:0 0 12px #ff3b5c;animation:enragetxt .5s ease-in-out infinite}
 #escapeBarWrap{height:10px;background:rgba(0,0,0,.6);border:1px solid #ff3b5c;border-radius:6px;overflow:hidden}
 #escapeBar{height:100%;width:100%;background:linear-gradient(90deg,#ffd23c,#ff3b5c);box-shadow:0 0 14px #ff3b5c;transition:width .15s}
+/* the level-up card pick: a real choice instead of a silent auto-pick,
+   but still true to the game's no-pause philosophy — play keeps running
+   underneath it. A 3s bar drains down; tap a card, or the best-ranked one
+   picks itself the instant it empties, so a level-up is never a soft-lock
+   for a player who's mid-dodge and can't spare a tap right now. */
+#levelUpPick{position:absolute;top:150px;left:50%;transform:translateX(-50%);width:min(300px,72vw);
+  opacity:0;pointer-events:none;transition:opacity .2s;z-index:13}
+#levelUpPick.show{opacity:1;pointer-events:auto}
+#levelUpPickLbl{font:800 11px/1 var(--f1);letter-spacing:3px;color:var(--li);text-align:center;margin-bottom:5px;text-shadow:0 0 12px var(--li)}
+#levelUpPickBarWrap{height:6px;background:rgba(0,0,0,.6);border:1px solid var(--li);border-radius:4px;overflow:hidden;margin-bottom:8px}
+#levelUpPickBar{height:100%;width:100%;background:linear-gradient(90deg,var(--li),var(--cy));box-shadow:0 0 10px var(--li)}
+#levelUpPickHost{gap:7px}
+#levelUpPickHost .card{padding:8px 10px;gap:9px;background:rgba(8,10,20,.88)}
+#levelUpPickHost .card .ic{width:34px;height:34px;flex:0 0 34px;font-size:18px}
+#levelUpPickHost .card .nm{font-size:12px}
+#levelUpPickHost .card .ds{font-size:10px;display:none}
+#levelUpPickHost .card .lv{font-size:9px}
 #announce{position:absolute;top:42%;left:0;right:0;text-align:center;font:900 44px/1 var(--f1);letter-spacing:4px;opacity:0;pointer-events:none}
 #milestoneQuote{position:absolute;left:0;right:0;bottom:24%;text-align:center;padding:0 22px;opacity:0;pointer-events:none;transition:opacity .7s ease;z-index:11}
 #milestoneQuote.show{opacity:1}
@@ -384,6 +401,11 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   <div id="combo"><small>COMBO</small><span id="comboV">x1</span></div>
   <div id="frzwrap"><div id="frzlbl">FRENZY</div><div id="frzbar"><i></i></div></div>
   <div id="bosswrap"><div id="bossname">BOSS</div><div id="bosshpwrap"><div id="bosshp"></div></div></div>
+  <div id="levelUpPick">
+    <div id="levelUpPickLbl">CHOOSE ONE</div>
+    <div id="levelUpPickBarWrap"><div id="levelUpPickBar"></div></div>
+    <div class="cards" id="levelUpPickHost"></div>
+  </div>
   <div id="announce"></div>
   <div id="milestoneQuote"><div class="mq-text" id="mqText"></div></div>
   <div id="fpsCounter" class="hidden">60 FPS</div>
@@ -3053,7 +3075,7 @@ function gainXP(v){
   if(leveled) recalc(P); // max HP scales with level — keep it (and the HP bar) in sync the instant you level up
   if(story) checkStoryMilestones();
   else checkArcadeFinalBoss();
-  if(G.pendingLevels>0 && G.state==='PLAY') autoLevelUp();
+  if(G.pendingLevels>0 && G.state==='PLAY' && !G._lvlPickActive) startLevelUpPick();
 }
 // queued rather than fired straight at the DOM: two game events landing in
 // the same frame (a boss dying right as a level milestone hits, say) used to
@@ -3637,25 +3659,48 @@ function applyOffer(o){
   // announcement for attention. The floating number alone is enough.
   dnum(P.x, P.y-P.r-30, 0, false, d.col, '+ '+d.nm);
 }
-/* No choice screen — a power is just added the instant you level up, no
-   stopping and no pausing the fight. G.rerolls (still granted per-character,
-   e.g. Omega's +3) is "how many options get rolled and the best one kept",
-   so a high-reroll character reliably gets a stronger pick each level. */
-function autoLevelUp(){
-  while(G.pendingLevels>0){
-    G.pendingLevels--;
-    Snd.lvl(); Snd.sweep(true); Ads.happy();
-    setTheme(P.level, true); zoomKick(1.08); shake(3);
-    const xw=$('xpwrap'); xw.classList.remove('pop'); void xw.offsetWidth; xw.classList.add('pop');
-    const rollN = Math.max(1, G.rerolls||1);
-    const offers = buildOffers(rollN);
-    const rank = o => o.rare==='epic' ? 2 : o.rare==='rare' ? 1 : 0;
-    let best = offers[0];
-    for(const o of offers) if(rank(o) > rank(best)) best = o;
-    applyOffer(best);
+/* A real choice screen — but a non-blocking one, true to the game's
+   no-pause philosophy: play keeps running underneath it. Up to 3 cards
+   (weighted by G.rerolls, still "roll more, see better options" for a
+   high-reroll character) with a 3-second bar; tap one, or the best-ranked
+   option picks itself the instant the bar empties, so a level-up can
+   never soft-lock a player who's mid-dodge and can't spare a tap. */
+const rankOffer = o => o.rare==='epic' ? 2 : o.rare==='rare' ? 1 : 0;
+function startLevelUpPick(onAllDone){
+  if(G.pendingLevels<=0){
+    G._lvlPickActive = false;
+    if(G.chestQ>0){ G.chestQ--; openChest(); return; }
+    if(onAllDone) onAllDone();
+    return;
   }
-  if(G.chestQ>0){ G.chestQ--; openChest(); return true; }
-  return false;
+  G._lvlPickActive = true;
+  G.pendingLevels--;
+  Snd.lvl(); Snd.sweep(true); Ads.happy();
+  setTheme(P.level, true); zoomKick(1.08); shake(3);
+  const xw=$('xpwrap'); xw.classList.remove('pop'); void xw.offsetWidth; xw.classList.add('pop');
+  const rollN = Math.max(3, G.rerolls||1);
+  let offers = buildOffers(rollN).sort((a,b)=>rankOffer(b)-rankOffer(a)).slice(0,3);
+  while(offers.length<3) offers.push({ kind:'x', id:'heal' });
+  let best = offers[0];
+  for(const o of offers) if(rankOffer(o) > rankOffer(best)) best = o;
+  const gen = (G._lvlPickGen = (G._lvlPickGen||0) + 1);
+  let resolved = false;
+  const resolve = (pick)=>{
+    if(resolved || gen!==G._lvlPickGen) return;
+    resolved = true;
+    clearInterval(G._lvlPickIV);
+    $('levelUpPick').classList.remove('show');
+    applyOffer(pick);
+    setTimeout(()=>startLevelUpPick(onAllDone), 60);
+  };
+  drawCards($('levelUpPickHost'), offers, resolve);
+  $('levelUpPick').classList.add('show');
+  const bar = $('levelUpPickBar');
+  bar.style.transition='none'; bar.style.width='100%';
+  requestAnimationFrame(()=>{ bar.style.transition='width 3s linear'; bar.style.width='0%'; });
+  let t = 3.0;
+  clearInterval(G._lvlPickIV);
+  G._lvlPickIV = setInterval(()=>{ t -= .1; if(t<=0) resolve(best); }, 100);
 }
 
 /* ---------------- 22. CHEST ---------------- */
@@ -3680,9 +3725,10 @@ function openChest(){
   show('chestScreen');
 }
 $('chestOk').onclick = ()=>{ Snd.click(); hide('chestScreen');
-  if(G.pendingLevels>0 && autoLevelUp()) return;
-  if(G.chestQ>0){ G.chestQ--; openChest(); return; }
-  G.state='PLAY'; last=0; acc=0; Ads.gameplayStart(); };
+  G.state='PLAY'; last=0; acc=0; Ads.gameplayStart();
+  if(G.pendingLevels>0 && !G._lvlPickActive) startLevelUpPick();
+  else if(G.chestQ>0){ G.chestQ--; openChest(); }
+};
 $('chestScreen').addEventListener('click', e=>{ if(e.target.id!=='chestOk') $('chestOk').click(); });
 
 /* ---------------- 23. SCREEN HELPERS ---------------- */
@@ -5906,21 +5952,24 @@ const MILESTONE_QUOTES_LOST = [
   'They are not waiting for a hero. They have always just been waiting for you. That was always going to be enough.'
 ];
 // the single release point for the shared voice lock — whichever system
-// (milestone quote or ambient VO) was speaking calls this when it's done,
-// so a milestone that got queued behind an *ambient* line (not just
-// behind another milestone) still actually gets its turn afterward
+// (milestone quote or ambient VO) was speaking calls this when it's done.
+// Nothing re-triggers itself from here anymore — the update() loop's own
+// short retry cooldown picks it back up on its own within a beat or two.
 function releaseVoice(){
   G._voiceBusy = false;
-  if(G._mqQueued){ G._mqQueued = false; triggerMilestoneQuote(); }
 }
 function triggerMilestoneQuote(){
-  // never interrupts ANY other spoken line in the game (ambient VO included,
-  // not just another milestone quote) — if one comes due while something
-  // else is still being said, it's remembered and starts the instant the
-  // current line actually finishes, text and voice both, instead of both
-  // fighting over the same speech channel at once
-  if(G._voiceBusy){ G._mqQueued = true; return; }
-  if(G.mqCooldown>0) return; // still on cooldown from the last one — real silence between lines now
+  // if the voice channel is busy (an ambient line, or a cutscene about to
+  // take over), this beat is simply skipped rather than queued — the
+  // update() loop tries again on a short cooldown regardless, so missing
+  // one attempt is never noticeable. This — plus stopVoice() clearing the
+  // channel the instant a cutscene starts (see Cutscene.play) — means a
+  // quote is now only ever shown at the exact moment nothing else could
+  // possibly be speaking, so the text on screen and the audio playing can
+  // never belong to two different lines. No queueing, no onstart-timing
+  // races to get right — collision is prevented by construction instead
+  // of patched after the fact.
+  if(G._voiceBusy || G.mqCooldown>0) return;
   // one flat, level-independent pool per relation — fully shuffled and
   // reshuffled (not reset) only once it runs out, so a single match can
   // burn through the whole pool without a repeat before it ever cycles
@@ -5931,63 +5980,34 @@ function triggerMilestoneQuote(){
   const el = $('milestoneQuote'); const t = $('mqText');
   clearTimeout(el._hideT);
   G._voiceBusy = true;
+  G.mqCooldown = rnd(4,7);
   const gen = (G._mqGen = (G._mqGen||0) + 1);
   const finish = ()=>{
     if(gen!==G._mqGen) return;
     Snd.duckMusic(false);
     el.classList.remove('show');
-    G.mqCooldown = rnd(4,7); // a short beat before the next one — set before releaseVoice() so a queued retry can't skip it
     releaseVoice();
   };
-  // the visible line — and its "a god is speaking" moment (thunder SFX,
-  // music duck, slowT/zoomKick/shake) — now only actually appears once the
-  // voice truly starts, not the instant this was requested. speakLine()
-  // no longer cancels whatever's already speaking, so a new quote can sit
-  // queued behind a still-finishing ambient line for a moment — showing
-  // the text immediately used to mean the words on screen and the voice
-  // actually playing could belong to two different lines at once.
-  let revealed = false;
-  const reveal = (hideDelayMs)=>{
-    if(gen!==G._mqGen || revealed) return;
-    revealed = true;
-    t.textContent = text; el.classList.add('show');
-    clearTimeout(el._hideT);
-    // a low thunder-crack under the line itself — sells "a god is speaking"
-    // rather than just "the music got quieter"
-    if(save.opt.sfx){ Snd.noise(.5,.35,600); setTimeout(()=>Snd.tone(60,.6,'sine',.2,35),60); }
-    // ducked to a third of baseline — enough that the line clearly reads
-    // as louder than the music, without the old bug where reading the
-    // live (mid-transition) gain value on every rapid re-duck compounded
-    // the volume down toward silence over a run's worth of back-to-back
-    // quotes. duckMusic() now always ducks from/restores to the stable
-    // _musBase, so the piano is guaranteed to still be there between
-    // lines, just clearly quieter while one is playing
-    Snd.duckMusic(true, .35);
-    G.slowT = Math.max(G.slowT||0, .5); zoomKick(1.06); shake(4);
-    el._hideT = setTimeout(finish, hideDelayMs);
-  };
+  t.textContent = text; el.classList.add('show');
+  // a low thunder-crack under the line itself — sells "a god is speaking"
+  // rather than just "the music got quieter"
+  if(save.opt.sfx){ Snd.noise(.5,.35,600); setTimeout(()=>Snd.tone(60,.6,'sine',.2,35),60); }
+  Snd.duckMusic(true, .35);
+  G.slowT = Math.max(G.slowT||0, .5); zoomKick(1.06); shake(4);
   // booming "voice from the heavens" register (cls:'god'), not the
   // higher 'you' voice or even the regular documentary narrator
   const utter = speakLine({ speaker:'', cls:'god', text });
   if(utter){
-    const words = Math.max(1, text.trim().split(/\s+/).length);
-    const estMs = Math.max(1800, (words/(3.7*.8))*1000);
     // stays on screen for exactly as long as the voice takes to say it,
     // with a generous fallback in case this device's TTS never fires
     // onend/onerror (silent/broken engines, some sandboxed browsers)
-    utter.onstart = ()=>reveal(estMs + 3500);
     utter.onend = finish;
     utter.onerror = finish;
-    // a handful of engines never fire onstart at all — reveal anyway as a
-    // last resort so a quote can never silently sit invisible forever. This
-    // has to stay generous (not a quick race): a line genuinely queued
-    // behind another one can legitimately wait several seconds for its
-    // real turn, and a tight fallback here would win that race and show
-    // the text before the voice actually starts — the exact bug this
-    // whole onstart-gate exists to prevent.
-    setTimeout(()=>reveal(estMs + 3500), 6000);
+    const words = Math.max(1, text.trim().split(/\s+/).length);
+    const estMs = Math.max(1800, (words/(3.7*.8))*1000);
+    el._hideT = setTimeout(finish, estMs + 3500);
   } else {
-    reveal(4200);
+    el._hideT = setTimeout(finish, 4200);
   }
 }
 const PLAYER_AMBIENT = {
@@ -6224,31 +6244,27 @@ function playerAmbientLine(){
   if(!P || !isStoryMode() || G.state!=='PLAY') return;
   // same shared voice lock as milestone quotes — skip this beat entirely
   // rather than talk over (or get talked over by) whatever's already
-  // playing; the timer already re-rolled a fresh 42-70s wait regardless,
-  // so missing one ambient line here is low-stakes and never noticeable
+  // playing, and never queue behind it either; the timer already re-rolled
+  // a fresh 42-70s wait regardless, so missing one ambient line here is
+  // low-stakes and never noticeable. Because this only ever runs when the
+  // channel is confirmed free (and Cutscene.play() clears it the instant
+  // a cutscene needs it), the caption is safe to show immediately — there
+  // is nothing else it could possibly be mismatched against.
   if(G._voiceBusy) return;
   const prog = clamp(P.level/100, 0, 1);
   const ambSet = G.relation==='dad' ? PLAYER_AMBIENT_DAD : G.relation==='sister' ? PLAYER_AMBIENT_SISTER : G.relation==='brother' ? PLAYER_AMBIENT_BROTHER : G.relation==='son' ? PLAYER_AMBIENT_SON : G.relation==='daughter' ? PLAYER_AMBIENT_DAUGHTER : G.relation==='friend' ? PLAYER_AMBIENT_FRIEND : G.relation==='wife' ? PLAYER_AMBIENT_WIFE : G.relation==='husband' ? PLAYER_AMBIENT_HUSBAND : G.relation==='lost' ? PLAYER_AMBIENT_LOST : PLAYER_AMBIENT;
   const pool = prog>.66 ? ambSet.late : prog>.33 ? ambSet.mid : ambSet.early;
   const text = pick(pool);
   const gen = (G._ambGen = (G._ambGen||0) + 1);
+  toast('YOU', text, 'linear-gradient(135deg,#26f0ff,#8b5cff)');
   const utter = speakLine({ speaker:'YOU', cls:'you', text, mood: prog>.66?'scared':null, shake: prog>.66?1:0 });
   if(utter){
     G._voiceBusy = true;
-    // the toast only appears once the voice actually starts — it used to
-    // fire the instant this was called, which could show a caption for a
-    // line whose audio was still queued behind another one finishing
-    let shown = false;
-    const show = ()=>{ if(gen!==G._ambGen || shown) return; shown = true; toast('YOU', text, 'linear-gradient(135deg,#26f0ff,#8b5cff)'); };
     const clear = ()=>{ if(gen===G._ambGen) releaseVoice(); };
-    utter.onstart = show;
     utter.onend = clear; utter.onerror = clear;
-    setTimeout(show, 6000); // last-resort fallback only — long enough to never race a real queueing wait
     const words = Math.max(1, text.trim().split(/\s+/).length);
     const estMs = Math.max(1200, (words/(3.7*(utter.rate||1)))*1000);
     setTimeout(clear, estMs + 3000);
-  } else {
-    toast('YOU', text, 'linear-gradient(135deg,#26f0ff,#8b5cff)');
   }
 }
 const STORY = {
@@ -7025,6 +7041,18 @@ if(window.speechSynthesis){ refreshVoices(); speechSynthesis.onvoiceschanged = r
       onvoiceschanged has already fired once. refreshVoices() below is
       retried on a schedule instead of trusting a single event. */
 let _speechUnlocked = false, _speechActive = false;
+// a deliberate, clean full stop — the one place actually calling cancel()
+// is still correct: a cutscene about to speak its own first line always
+// wins over whatever ambient/milestone chatter might still be finishing,
+// so it force-clears the channel right before it starts rather than
+// waiting or queueing behind it. This is the only interrupt left in the
+// whole voice system, and it's an intentional priority override, not an
+// accidental race between unrelated systems.
+function stopVoice(){
+  try{ speechSynthesis.cancel(); }catch(e){}
+  _speechActive = false;
+  G._voiceBusy = false;
+}
 function unlockSpeech(){
   if(_speechUnlocked || !window.speechSynthesis) return;
   _speechUnlocked = true;
@@ -7231,6 +7259,10 @@ const Cutscene = {
   },
   play(script, dark, onDone){
     if(!this.cv) this.init();
+    // a cutscene's own first line always wins over any ambient/milestone
+    // line still finishing — force the channel clear before speaking
+    // rather than letting the two race or queue against each other
+    stopVoice();
     this.script=script; this.idx=-1; this.onDone=onDone; this.playing=true; this.t0=gt;
     show('cutscene'); this.resize();
     $('csVignette').className = dark ? 'dark' : '';
@@ -7263,6 +7295,13 @@ const Cutscene = {
     const gen = (this._speakGen = (this._speakGen||0) + 1);
     const utter = speakLine(line);
     if(utter){
+      // Cutscene.play() calls stopVoice() before the very first line, and
+      // every line after that only ever starts once the previous one's
+      // onend already fired below — so nothing can ever be ahead of this
+      // utterance in the queue, and it's always safe to start revealing
+      // the instant it's requested, no onstart-gating needed.
+      Snd.duckMusic(true);
+      const lineT0 = performance.now();
       // reveal starts on an estimated per-line pace (word count over the
       // utterance's own rate), but the instant a real word boundary
       // arrives, the pace is thrown out and replaced with the actual
@@ -7271,7 +7310,7 @@ const Cutscene = {
       const words = Math.max(1, line.text.trim().split(/\s+/).length);
       const estMs = Math.max(350, (words/(3.7*utter.rate))*1000);
       let stepMs = clamp(estMs/chars.length, 14, 85);
-      let i=0, lineT0=performance.now(), started=false;
+      let i=0;
       const runInterval = ()=>{
         clearInterval(this._typeIV);
         this._typeIV = setInterval(()=>{
@@ -7279,6 +7318,7 @@ const Cutscene = {
           if(el.children[i]) el.children[i].classList.add('on'); i++;
         }, stepMs);
       };
+      runInterval();
       // a device that reports having speech synthesis but whose engine
       // never actually calls back (silent/broken TTS, some sandboxed or
       // headless environments) would otherwise stall the cutscene here
@@ -7299,32 +7339,9 @@ const Cutscene = {
           this._advance();
         }, estMs + 3000);
       };
-      // the reveal (and the music duck) only actually starts once the
-      // voice truly begins — not the instant speakLine() was called.
-      // speakLine() queues rather than interrupts, so this exact line can
-      // sit queued behind a still-finishing ambient/milestone line for a
-      // moment; starting the typewriter immediately used to mean the text
-      // could finish revealing itself in total silence before the voice
-      // actually caught up to it.
-      const begin = ()=>{
-        if(!this.playing || gen!==this._speakGen || started) return;
-        started = true;
-        Snd.duckMusic(true);
-        lineT0 = performance.now();
-        runInterval();
-        armFallback();
-      };
-      utter.onstart = begin;
-      // a handful of engines never fire onstart at all — begin anyway as a
-      // last resort, but generously: this line can legitimately still be
-      // queued behind another one for several seconds (see speakLine — it
-      // queues instead of interrupting now), and a tight fallback here
-      // would win that race and start typing before the voice actually
-      // does, right back into the desync this is meant to prevent.
-      setTimeout(begin, 6000);
+      armFallback();
       utter.onboundary = (ev)=>{
         if(!this.playing || gen!==this._speakGen || typeof ev.charIndex!=='number') return;
-        if(!started) begin();
         i = Math.max(i, Math.min(chars.length, ev.charIndex));
         for(let k=0;k<i;k++) if(el.children[k]) el.children[k].classList.add('on');
         const elapsed = performance.now() - lineT0;
@@ -7365,7 +7382,7 @@ const Cutscene = {
   _end(){
     clearInterval(this._typeIV); clearTimeout(this._waitT); clearTimeout(this._voiceFallbackT);
     this.playing=false; hide('cutscene'); $('csVignette').className='';
-    if(window.speechSynthesis) speechSynthesis.cancel();
+    if(window.speechSynthesis) stopVoice();
     Snd.duckMusic(false);
     Snd.stopCutsceneMusic();
     const cb=this.onDone; this.onDone=null;
@@ -7675,7 +7692,7 @@ function onFinalBossOrAllyKilled(e){
         const home = relVerbFor(G.relation)+' HOME. NOW SURVIVE.';
         announce('DEADLY WAVE — '+home, '#ff3b5c');
         toast('DEADLY WAVE', 'Death is real again. This is the only fight you can actually lose.', 'linear-gradient(135deg,#ff3b5c,#7a0f22)');
-        setTimeout(()=>startEscape(), 2200);
+        armEscapeStart(2200);
       });
     }, 900);
   }
@@ -7740,7 +7757,7 @@ function onArcadeFinalBossKilled(){
   // the hardest thing left to survive, not a number that quietly passes.
   G.postRescue = true; G.rescueLevel = P.level;
   playArcadeVictoryAnim();
-  setTimeout(()=>startEscape(), 2900);
+  armEscapeStart(2900);
 }
 /* the "animation as an ending" for every non-story mode: no new screen,
    just every celebratory primitive the game already has (shockwave
@@ -7776,6 +7793,21 @@ function playArcadeVictoryAnim(){
    Reaching the exit before it closes is the real ending; getting caught
    outside the shrinking safe zone (or run down by the existing post-
    rescue wave, unchanged) is the real way to lose it. */
+// the final boss's own kill can queue a chest (killEnemy()'s generic
+// boss-down handling doesn't know or care that this particular boss is
+// the final one), and collecting a chest holds G.state at 'CHEST' until
+// the player taps through it — a one-shot startEscape() timer landing
+// during that window used to just silently give up forever. This retries
+// on a short beat until PLAY actually resumes, so the escape can never
+// be silently skipped by whatever else happens to be showing right then.
+function armEscapeStart(delayMs){
+  const tryStart = ()=>{
+    if(G.state==='OVER' || G.state==='MENU') return; // the run is already over — nothing left to start
+    if(G.state==='PLAY'){ startEscape(); return; }
+    setTimeout(tryStart, 500);
+  };
+  setTimeout(tryStart, delayMs);
+}
 function startEscape(){
   if(!P || G.state!=='PLAY' || G.escapeActive) return;
   G.escapeActive = true; G.escapeT = 0; G.escapeLimit = 42;
@@ -7840,9 +7872,11 @@ function _beginRunNow(){
   G.arcadeFinalArmed=false; G.arcadeFinalBattleActive=false; G.arcadeFinalBossRef=null; G.arcadeLevel100Done=false;
   G.postRescue=false; G.rescueLevel=0; G.dmgLog=[]; G.lastBossHp=0; G.ambientT=rnd(24,40);
   G.escapeActive=false; G.escapeT=0; G.escapeLimit=42; G.exitX=0; G.exitY=0; G.worldR=0; G.escapeStartR=0; G.escaped=false;
+  G._lvlPickActive=false; clearInterval(G._lvlPickIV); $('levelUpPick').classList.remove('show');
   Snd.M.finalBoss = 0;
   $('escapeWrap').classList.remove('show');
-  G.milestoneQueue=[]; G._voiceBusy=false; G._mqQueued=false; G.mqCooldown=rnd(3,5);
+  G.milestoneQueue=[]; G.mqCooldown=rnd(3,5);
+  if(window.speechSynthesis) stopVoice(); // no leftover speech bleeding in from a previous run
   _announceQ.length = 0; _announceBusy = false; // no stale banner text bleeding into a fresh run
   const arena = ARENAS[G.arenaI]||ARENAS[0];
   setTheme(arena.theme,false); theme.bg=THEMES[arena.theme].bg.slice(); theme.g=THEMES[arena.theme].g.slice();
@@ -8189,7 +8223,7 @@ $('sfxBtn2').onclick = ()=>{ Snd.setSfx(!save.opt.sfx); renderStats(); };
 $('musBtn').onclick = ()=>{ Snd.setMus(!save.opt.mus); renderStats(); };
 $('shakeBtn').onclick = ()=>{ save.opt.shake = save.opt.shake?0:1; persist(); renderStats(); };
 $('fpsBtn').onclick = ()=>{ save.opt.fps = save.opt.fps?0:1; persist(); renderStats(); $('fpsCounter').classList.toggle('hidden', !save.opt.fps); };
-$('voiceBtn').onclick = ()=>{ save.opt.voice = save.opt.voice?0:1; persist(); renderStats(); if(!save.opt.voice && window.speechSynthesis) speechSynthesis.cancel(); };
+$('voiceBtn').onclick = ()=>{ save.opt.voice = save.opt.voice?0:1; persist(); renderStats(); if(!save.opt.voice && window.speechSynthesis) stopVoice(); };
 // a direct, isolated diagnostic: this button's own tap is the purest
 // possible user gesture available anywhere in the game (no game logic,
 // no queued lines, nothing between the tap and speak()) — if this stays
@@ -8207,7 +8241,7 @@ $('voiceTestBtn').onclick = ()=>{
   Snd.click();
   if(!window.speechSynthesis){ toast('NO SPEECH ENGINE', 'This browser has no window.speechSynthesis at all.'); return; }
   try{
-    speechSynthesis.cancel();
+    stopVoice();
     const u = new SpeechSynthesisUtterance('This is a test of the cutscene voice. If you can hear this, voice will work in the game.');
     u.pitch = 1; u.rate = 1; u.volume = 1;
     const v = pickVoiceFor('narr'); if(v) u.voice = v;
@@ -8338,16 +8372,16 @@ $('modeBack').onclick = ()=>{ Snd.click(); goMenu(); };
 
 /* ---------------- 32. BOOT ---------------- */
 const RELATION_MENU = [
-  { relation:'mom',      label:'PLAY MOTHER',  icon:'💔', presetId:'save' },
-  { relation:'dad',      label:'PLAY FATHER',  icon:'🛠', presetId:'save_dad' },
-  { relation:'sister',   label:'PLAY SISTER',  icon:'🎻', presetId:'save_sister' },
-  { relation:'brother',  label:'PLAY BROTHER', icon:'🥊', presetId:'save_brother' },
-  { relation:'son',      label:'PLAY SON',     icon:'🧸', presetId:'save_son' },
-  { relation:'daughter', label:'PLAY DAUGHTER',icon:'🌻', presetId:'save_daughter' },
-  { relation:'friend',   label:'PLAY FRIEND',  icon:'🤝', presetId:'save_friend' },
-  { relation:'wife',     label:'PLAY WIFE',    icon:'💍', presetId:'save_wife' },
-  { relation:'husband',  label:'PLAY HUSBAND', icon:'🤵', presetId:'save_husband' },
-  { relation:'lost',     label:'A LOST LOVED ONE', icon:'🕯', presetId:'save_lost' },
+  { relation:'mom',      label:'PLAY FOR MOTHER',  icon:'💔', presetId:'save' },
+  { relation:'dad',      label:'PLAY FOR FATHER',  icon:'🛠', presetId:'save_dad' },
+  { relation:'sister',   label:'PLAY FOR SISTER',  icon:'🎻', presetId:'save_sister' },
+  { relation:'brother',  label:'PLAY FOR BROTHER', icon:'🥊', presetId:'save_brother' },
+  { relation:'son',      label:'PLAY FOR SON',     icon:'🧸', presetId:'save_son' },
+  { relation:'daughter', label:'PLAY FOR DAUGHTER',icon:'🌻', presetId:'save_daughter' },
+  { relation:'friend',   label:'PLAY FOR FRIEND',  icon:'🤝', presetId:'save_friend' },
+  { relation:'wife',     label:'PLAY FOR WIFE',    icon:'💍', presetId:'save_wife' },
+  { relation:'husband',  label:'PLAY FOR HUSBAND', icon:'🤵', presetId:'save_husband' },
+  { relation:'lost',     label:'PLAY FOR A LOST LOVED ONE', icon:'🕯', presetId:'save_lost' },
 ];
 function renderRelGrid(){
   const el = $('relGrid'); if(!el) return;
