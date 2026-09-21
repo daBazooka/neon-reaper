@@ -3742,8 +3742,23 @@ function loop(ts){
   if(G.state==='PLAY'){
     if(G.slowT>0) G.slowT -= raw;
     if(G.hitstop>0){ G.hitstop -= raw; }
-    else { acc += raw * (G.slowT>0 ? .55 : 1); let n=0; // a softer dip than the old .35 — reads as weighty, not a stutter
-      while(acc>=STEP && n<5){ update(STEP); acc-=STEP; n++; } if(acc>STEP*6) acc=0; }
+    else {
+      // slow-motion used to be a hard binary switch — the instant slowT hit
+      // exactly 0, the world snapped from 55% speed straight back to 100%
+      // in a single frame, with zero easing either way. Bullet-time fires
+      // on a lot of moments (every milestone quote, every big kill, every
+      // boss telegraph), so that snap was a real, frequent stutter — easy
+      // to mistake for "the game lagging" even though nothing was actually
+      // slow. G.slowFactor now eases toward its target every frame instead
+      // of jumping to it, same lerp-toward-target pattern camZ already
+      // uses above, just a faster time constant so it still reads as
+      // punchy bullet-time rather than a sluggish fade.
+      if(G.slowFactor===undefined) G.slowFactor = 1;
+      const slowTarget = G.slowT>0 ? .55 : 1;
+      G.slowFactor = lerp(G.slowFactor, slowTarget, 1-Math.pow(.0001, raw));
+      acc += raw * G.slowFactor; let n=0;
+      while(acc>=STEP && n<5){ update(STEP); acc-=STEP; n++; } if(acc>STEP*6) acc=0;
+    }
     updateHUD();
   }
   render();
@@ -8135,7 +8150,7 @@ function _beginRunNow(){
   G.t=0; G.score=0; G.kills=0; G.runCoins=0; G.combo=0; G.comboT=0; G.maxCombo=0;
   G.spawnAcc=0; G.bossN=0; G.eliteT=22; G.shake=0; G.hitstop=0; G.flash=0;
   G.bossRef=null; G.pendingLevels=0; G.rerolls=1; G.usedRevive=0; G.chestQ=0; G.streakKill=0; G.dead=false;
-  G.frenzy=false; G.frzCharge=0; G.frzT=0; G.lastMin=0; G.nearCd=0; G.wash=0; G.camZ=1; G.slowT=0; G.musT=0;
+  G.frenzy=false; G.frzCharge=0; G.frzT=0; G.lastMin=0; G.nearCd=0; G.wash=0; G.camZ=1; G.slowT=0; G.slowFactor=1; G.musT=0;
   G.ultCd=4; G.ultFx=null;
   G.finalArmed=false; G.finalBattleActive=false; G.finalAllies=[]; G.finalBossRef=null; G.motherRescued=false; G._lastMilestone=0; G._badEndingShown=false;
   G.arcadeFinalArmed=false; G.arcadeFinalBattleActive=false; G.arcadeFinalBossRef=null; G.arcadeLevel100Done=false;
