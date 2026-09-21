@@ -648,6 +648,8 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   <div class="col">
     <button class="btn ghost" id="sfxBtn2">♪ SOUND: ON</button>
     <button class="btn ghost" id="musBtn">♫ MUSIC: ON</button>
+    <button class="btn ghost" id="vibeBtn">🎹 MUSIC MOOD: AUTO</button>
+    <div class="hintrow" style="margin:2px 0 0">AUTO lets the cutscene score follow each scene's own emotion — tender, dreadful, triumphant and so on. Pick one of the 10 moods yourself to lock the score to it instead, for every cutscene from here on.</div>
     <button class="btn ghost" id="shakeBtn">☲ SCREEN SHAKE: ON</button>
     <button class="btn ghost" id="qualityBtn">◨ GRAPHICS: AUTO</button>
     <div class="hintrow" style="margin:2px 0 0">AUTO watches your device's speed and turns down effects on its own if things start to chug — pick a fixed level if you'd rather choose yourself.</div>
@@ -745,7 +747,7 @@ const defaultSave = () => ({
   ach: {}, achClaimed: {}, daily: { last: 0, streak: 0 },
   quests: { day: 0, list: [], prog: [0,0,0], claimed: [0,0,0] },
   adCoins: { day: 0, used: 0 },
-  opt: { sfx: 1, mus: 1, shake: 1, quality: 'auto', voice: 1, fps: 0 },
+  opt: { sfx: 1, mus: 1, shake: 1, quality: 'auto', voice: 1, fps: 0, vibe: 'AUTO' },
   seen: 0, netId: null, handle: null, blocked: {}
 });
 let save = defaultSave();
@@ -1142,6 +1144,24 @@ const Snd = {
     playPhrase();
   },
   stopCutsceneMusic(){ clearTimeout(this.csTimer); this.csTimer=null; },
+  // one self-contained phrase of a named vibe, played immediately — lets
+  // the settings screen's mood picker actually be heard the instant it's
+  // picked, instead of making the player sit through a whole cutscene to
+  // find out what they just chose. Deliberately doesn't touch csStep/
+  // csTimer, so it never interferes with an actual cutscene in progress.
+  previewVibe(vibeName){
+    this.init(); this.resume();
+    if(!this.ready || !save.opt.mus) return;
+    const vibe = MUSIC_VIBES[vibeName]; if(!vibe) return;
+    const t = this.ctx.currentTime;
+    const r = vibe.roots[0];
+    this.at(r/2, vibe.noteLen, 'sine', .09*vibe.vol, t, null, -4);
+    this.at(r/2, vibe.noteLen, 'triangle', .06*vibe.vol, t, null, 4);
+    this.at(r/2*1.5, vibe.noteLen, 'sine', .036*vibe.vol, t, null, 0);
+    const note = this.M.momTheme[0] * (vibe.octave || 1);
+    this.at(note, vibe.noteLen*.48, 'triangle', .09*vibe.vol, t+.9, null, -2);
+    this.at(note/2, vibe.noteLen*.48, 'sine', .054*vibe.vol, t+.9);
+  },
   blip(){ this.tone(rnd(700,900), .025, 'square', .025, null); },
   swell(dark){
     if(!this.ready || !save.opt.sfx) return;
@@ -1173,7 +1193,11 @@ const MUSIC_VIBES = {
 // art, speaker class, shake) — no need to hand-tag hundreds of lines
 // across 10 separate stories; the fields driving the VOICE's own
 // pitch/rate choices (see speakLine) already say enough about the beat
+const VIBE_NAMES = ['AUTO', ...Object.keys(MUSIC_VIBES)];
 function pickMusicVibe(line, fallbackDark){
+  // a manual pick from the settings screen wins outright — AUTO is the
+  // only value that falls through to the per-line matching below
+  if(save.opt.vibe && save.opt.vibe!=='AUTO') return save.opt.vibe;
   if(!line) return fallbackDark ? 'GRIEF' : 'TENDER';
   if(line.cls==='boss') return 'DREAD';
   if(line.art==='embrace') return 'PEACE';
@@ -1834,21 +1858,21 @@ const PMAX = 5;
 const CHARS = [
   { id:'volt',  n:'VOLT',  e:'⚡', w:'blaster', price:0,     d:'Balanced. +10% fire rate.',       hp:0,  dmg:1,    spd:1,    cd:.9,  extra:{}, ship:'arrow', sc:'#26f0ff' },
   { id:'saber', n:'SABER', e:'✧', w:'orbit',   price:1500,  d:'Fast & fragile. +22% speed.',     hp:-20,dmg:1.05, spd:1.22, cd:1,   extra:{}, ship:'star6', sc:'#b6ff3c' },
-  { id:'cryo',  n:'CRYO',  e:'❄', w:'nova',    price:3500,  d:'+25% area, +30 HP, slower.',      hp:30, dmg:1,    spd:.93,  cd:1,   extra:{area:.25}, ship:6, sc:'#7fd6ff' },
+  { id:'cryo',  n:'CRYO',  e:'❄', w:'nova',    price:3500,  d:'+25% area, +30 HP, slower.',      hp:30, dmg:1,    spd:.93,  cd:1,   extra:{area:.25}, ship:'crystal', sc:'#7fd6ff' },
   { id:'hex',   n:'HEX',   e:'◍', w:'hole',    price:7000,  d:'+25% luck, +15% XP. Glass build.',hp:-15,dmg:1,    spd:1.05, cd:1,   extra:{luck:.25,xp:.15}, ship:'kite', sc:'#c47bff' },
   { id:'omega', n:'OMEGA', e:'☠', w:'laser',   price:15000, d:'+30% damage, always finds the strongest power on level-up.', hp:10, dmg:1.3,  spd:1,    cd:1,   extra:{rerolls:3}, ship:'burst', sc:'#ff3b5c' },
-  { id:'tesla',   n:'TESLA',   e:'☇', w:'chain', price:25000, d:'+15% crit chance. Lightning specialist.',        hp:-10, dmg:1.1,  spd:1,    cd:1,  extra:{crit:.15}, ship:'star8', sc:'#8b5cff' },
+  { id:'tesla',   n:'TESLA',   e:'☇', w:'chain', price:25000, d:'+15% crit chance. Lightning specialist.',        hp:-10, dmg:1.1,  spd:1,    cd:1,  extra:{crit:.15}, ship:'bolt', sc:'#8b5cff' },
   { id:'vesper',  n:'VESPER',  e:'➹', w:'swarm', price:32000, d:'+2 extra projectiles, always swarming.',         hp:0,   dmg:1,    spd:1.05, cd:.92,extra:{multi:2}, ship:'wings', sc:'#ff2fb9' },
-  { id:'warden',  n:'WARDEN',  e:'⛨', w:'nova',  price:40000, d:'+50 HP, +3 flat armor. Slow but unkillable.',    hp:50,  dmg:1,    spd:.85,  cd:1,  extra:{armorFlat:3}, ship:8, sc:'#ffb020' },
+  { id:'warden',  n:'WARDEN',  e:'⛨', w:'nova',  price:40000, d:'+50 HP, +3 flat armor. Slow but unkillable.',    hp:50,  dmg:1,    spd:.85,  cd:1,  extra:{armorFlat:3}, ship:'shield', sc:'#ffb020' },
   { id:'crimson', n:'CRIMSON', e:'❖', w:'blaster',price:50000, d:'Berserker: +35% dmg, +18% fire rate, glass HP.',hp:-30, dmg:1.35, spd:1.1,  cd:.82,extra:{}, ship:'blade', sc:'#ff4d6a' },
-  { id:'nemesis', n:'NEMESIS', e:'♛', w:'laser', price:75000, d:'The apex Reaper. +25% area/XP/luck, tanky.',     hp:40,  dmg:1.2,  spd:1.1,  cd:.9, extra:{area:.15,xp:.15,luck:.15}, ship:'star10', sc:'#ffd23c' },
+  { id:'nemesis', n:'NEMESIS', e:'♛', w:'laser', price:75000, d:'The apex Reaper. +25% area/XP/luck, tanky.',     hp:40,  dmg:1.2,  spd:1.1,  cd:.9, extra:{area:.15,xp:.15,luck:.15}, ship:'crown', sc:'#ffd23c' },
   { id:'ghost',   n:'GHOST',   e:'☾', w:'orbit', price:90000,  d:'15% chance to dodge any hit entirely.',       hp:-10, dmg:1,    spd:1.15, cd:1,  extra:{dodge:.15}, ship:'cross', sc:'#cfe0ff' },
-  { id:'eclipse', n:'ECLIPSE', e:'☄', w:'chain', price:110000, d:'Ultimate charges 45% faster.',                hp:0,   dmg:1.1,  spd:1,    cd:1,  extra:{ultCdMul:.55}, ship:12, sc:'#a374ff' },
-  { id:'aeon',    n:'AEON',    e:'⏣', w:'blaster',price:130000,d:'Starts with 2 weapons already equipped.',      hp:0,   dmg:.95,  spd:1,    cd:1,  extra:{secondWep:'nova'}, ship:7, sc:'#4dc9ff' },
+  { id:'eclipse', n:'ECLIPSE', e:'☄', w:'chain', price:110000, d:'Ultimate charges 45% faster.',                hp:0,   dmg:1.1,  spd:1,    cd:1,  extra:{ultCdMul:.55}, ship:'comet', sc:'#a374ff' },
+  { id:'aeon',    n:'AEON',    e:'⏣', w:'blaster',price:130000,d:'Starts with 2 weapons already equipped.',      hp:0,   dmg:.95,  spd:1,    cd:1,  extra:{secondWep:'nova'}, ship:'hourglass', sc:'#4dc9ff' },
   { id:'magma',   n:'MAGMA',   e:'♆', w:'hole',  price:150000, d:'+30% area. Devastating, fragile black holes.', hp:-20, dmg:1.4,  spd:.95,  cd:1,  extra:{area:.3}, ship:'star5', sc:'#ff6a1a' },
-  { id:'titan',   n:'TITAN',   e:'⛰', w:'hole',  price:200000, d:'+80 HP, +6 flat armor. A walking fortress.',   hp:80,  dmg:.9,   spd:.8,   cd:1.1,extra:{armorFlat:6}, ship:10, sc:'#8494b8' },
+  { id:'titan',   n:'TITAN',   e:'⛰', w:'hole',  price:200000, d:'+80 HP, +6 flat armor. A walking fortress.',   hp:80,  dmg:.9,   spd:.8,   cd:1.1,extra:{armorFlat:6}, ship:'bastion', sc:'#8494b8' },
   { id:'shrike',  n:'SHRIKE',  e:'⚔', w:'swarm', price:250000, d:'+20% dodge, +2 extra projectiles. Glass-cannon striker.', hp:-25, dmg:1.15, spd:1.18, cd:.88, extra:{dodge:.2,multi:2}, ship:'diamond', sc:'#ff8c3c' },
-  { id:'oracle',  n:'ORACLE',  e:'❂', w:'hole',  price:320000, d:'+20% luck, +20% XP, +2 rerolls. Always sees the best path.', hp:0, dmg:.95, spd:1, cd:1, extra:{luck:.2,xp:.2,rerolls:2}, ship:9, sc:'#c9ff6a' }
+  { id:'oracle',  n:'ORACLE',  e:'❂', w:'hole',  price:320000, d:'+20% luck, +20% XP, +2 rerolls. Always sees the best path.', hp:0, dmg:.95, spd:1, cd:1, extra:{luck:.2,xp:.2,rerolls:2}, ship:'eye', sc:'#c9ff6a' }
 ];
 const charById = id => CHARS.find(c=>c.id===id) || CHARS[0];
 
@@ -3386,6 +3410,22 @@ function drawShape(x,y,r,shape,rot,c){
     [[r*1.7,0],[-r*.25,r*.32],[-r*.95,0],[-r*.25,-r*.32]].forEach(([px,py],i)=>rp(px,py,i));
   } else if(shape==='wings'){
     [[r*1.25,0],[-r*.15,r*1.15],[-r*.7,r*.18],[-r*.7,-r*.18],[-r*.15,-r*1.15]].forEach(([px,py],i)=>rp(px,py,i));
+  } else if(shape==='crystal'){
+    [[0,-r*1.5],[r*.55,-r*.35],[r*.4,r*.5],[0,r*1.15],[-r*.4,r*.5],[-r*.55,-r*.35]].forEach(([px,py],i)=>rp(px,py,i));
+  } else if(shape==='shield'){
+    [[-r*.9,-r*.55],[r*.9,-r*.55],[r*.95,r*.15],[0,r*1.3],[-r*.95,r*.15]].forEach(([px,py],i)=>rp(px,py,i));
+  } else if(shape==='comet'){
+    [[r*1.5,0],[0,r*.55],[-r*.55,r*.2],[-r*1.4,r*.5],[-r*.65,0],[-r*1.4,-r*.5],[-r*.55,-r*.2],[0,-r*.55]].forEach(([px,py],i)=>rp(px,py,i));
+  } else if(shape==='hourglass'){
+    [[-r*.95,-r*1.1],[r*.95,-r*1.1],[r*.3,0],[r*.95,r*1.1],[-r*.95,r*1.1],[-r*.3,0]].forEach(([px,py],i)=>rp(px,py,i));
+  } else if(shape==='bastion'){
+    [[-r*.6,-r*1.15],[r*.6,-r*1.15],[r*1.15,0],[r*.6,r*1.15],[-r*.6,r*1.15],[-r*1.15,0]].forEach(([px,py],i)=>rp(px,py,i));
+  } else if(shape==='eye'){
+    [[r*1.45,0],[r*.35,r*.5],[-r*.35,r*.5],[-r*1.45,0],[-r*.35,-r*.5],[r*.35,-r*.5]].forEach(([px,py],i)=>rp(px,py,i));
+  } else if(shape==='crown'){
+    [[-r*1.1,r*.65],[-r*1.1,-r*.1],[-r*.6,-r*1.15],[-r*.3,-r*.2],[0,-r*1.3],[r*.3,-r*.2],[r*.6,-r*1.15],[r*1.1,-r*.1],[r*1.1,r*.65]].forEach(([px,py],i)=>rp(px,py,i));
+  } else if(shape==='bolt'){
+    [[r*.15,-r*1.3],[-r*.55,r*.05],[-r*.1,r*.05],[-r*.35,r*1.3],[r*.55,-r*.15],[r*.1,-r*.15]].forEach(([px,py],i)=>rp(px,py,i));
   } else { poly(x,y,r,6,rot,c); return; }
   c.closePath();
 }
@@ -8582,6 +8622,7 @@ function renderStats(){
   g.innerHTML = rows.map(r=>`<div class="stat"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('');
   $('sfxBtn2').textContent='♪ SOUND: '+(save.opt.sfx?'ON':'OFF');
   $('musBtn').textContent='♫ MUSIC: '+(save.opt.mus?'ON':'OFF');
+  $('vibeBtn').textContent='🎹 MUSIC MOOD: '+save.opt.vibe;
   $('shakeBtn').textContent='☲ SCREEN SHAKE: '+(save.opt.shake?'ON':'OFF');
   const qLabel = save.opt.quality==='auto' ? 'AUTO ('+quality().toUpperCase()+')' : save.opt.quality.toUpperCase();
   $('qualityBtn').textContent = '◨ GRAPHICS: '+qLabel;
@@ -8607,6 +8648,15 @@ $('statsBtn').onclick = ()=>{ Snd.click(); hideAll(); show('statsScreen'); rende
 $('statsBack').onclick = ()=>{ Snd.click(); goMenu(); };
 $('sfxBtn2').onclick = ()=>{ Snd.setSfx(!save.opt.sfx); renderStats(); };
 $('musBtn').onclick = ()=>{ Snd.setMus(!save.opt.mus); renderStats(); };
+$('vibeBtn').onclick = ()=>{
+  Snd.click();
+  const i = VIBE_NAMES.indexOf(save.opt.vibe);
+  save.opt.vibe = VIBE_NAMES[(i+1)%VIBE_NAMES.length];
+  persist(); renderStats();
+  // instant feedback — hear the mood you just picked without needing to
+  // sit through a whole cutscene to find out what it sounds like
+  if(save.opt.vibe!=='AUTO') Snd.previewVibe(save.opt.vibe);
+};
 $('shakeBtn').onclick = ()=>{ save.opt.shake = save.opt.shake?0:1; persist(); renderStats(); };
 $('fpsBtn').onclick = ()=>{ save.opt.fps = save.opt.fps?0:1; persist(); renderStats(); $('fpsCounter').classList.toggle('hidden', !save.opt.fps); };
 $('voiceBtn').onclick = ()=>{ save.opt.voice = save.opt.voice?0:1; persist(); renderStats(); if(!save.opt.voice && window.speechSynthesis) stopVoice(); };
