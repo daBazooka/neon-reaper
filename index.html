@@ -67,6 +67,13 @@ canvas{display:block;position:absolute;inset:0;width:100%;height:100%}
 #bossname{font:700 11px/1 var(--f1);letter-spacing:3px;color:var(--mg);text-align:center;margin-bottom:4px;text-shadow:0 0 10px var(--mg)}
 #bosshpwrap{height:11px;background:rgba(0,0,0,.6);border:1px solid var(--mg);border-radius:6px;overflow:hidden}
 #bosshp{height:100%;width:100%;background:linear-gradient(90deg,var(--mg),var(--vi));box-shadow:0 0 14px var(--mg);transition:width .12s}
+/* the post-final-boss escape race: how far the collapsing world still is
+   from swallowing you, not a plain countdown — reads as "run", not "wait" */
+#escapeWrap{position:absolute;top:96px;left:50%;transform:translateX(-50%);width:min(420px,78vw);opacity:0;transition:opacity .25s;pointer-events:none}
+#escapeWrap.show{opacity:1}
+#escapeLbl{font:800 11px/1 var(--f1);letter-spacing:3px;color:#ff3b5c;text-align:center;margin-bottom:4px;text-shadow:0 0 12px #ff3b5c;animation:enragetxt .5s ease-in-out infinite}
+#escapeBarWrap{height:10px;background:rgba(0,0,0,.6);border:1px solid #ff3b5c;border-radius:6px;overflow:hidden}
+#escapeBar{height:100%;width:100%;background:linear-gradient(90deg,#ffd23c,#ff3b5c);box-shadow:0 0 14px #ff3b5c;transition:width .15s}
 #announce{position:absolute;top:42%;left:0;right:0;text-align:center;font:900 44px/1 var(--f1);letter-spacing:4px;opacity:0;pointer-events:none}
 #milestoneQuote{position:absolute;left:0;right:0;bottom:24%;text-align:center;padding:0 22px;opacity:0;pointer-events:none;transition:opacity .7s ease;z-index:11}
 #milestoneQuote.show{opacity:1}
@@ -380,6 +387,7 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   <div id="announce"></div>
   <div id="milestoneQuote"><div class="mq-text" id="mqText"></div></div>
   <div id="fpsCounter" class="hidden">60 FPS</div>
+  <div id="escapeWrap"><div id="escapeLbl">FIND THE EXIT</div><div id="escapeBarWrap"><div id="escapeBar"></div></div></div>
   <div id="pausebtn">❚❚</div>
   <canvas id="minimap" width="92" height="92"></canvas>
   <div id="weprow"></div>
@@ -799,7 +807,15 @@ const Snd = {
     // deliberately NOT her theme, so the title screen has its own
     // identity instead of sounding like a quiet version of a match
     menuTheme:[329.63,392,440,392,349.23,329.63,293.66],
-    menuIdx:0
+    menuIdx:0,
+    // the final-boss theme — a driving, dissonant minor riff (half-steps
+    // and a tritone in there on purpose) that takes over completely the
+    // instant the final boss fight begins, in any mode, and hands control
+    // straight back the instant it's defeated. Deliberately harsher than
+    // everything else in the score: square/sawtooth instead of the calm
+    // theme's triangle/sine, a driving kick under it, no resolution.
+    finalTheme:[130.81,155.56,146.83,174.61,164.81,196,185,220],
+    finalIdx:0, finalBoss:0
   },
   schedule(){
     if(!this.ready || this.muted) return;
@@ -829,8 +845,10 @@ const Snd = {
       // continuously, so it's always audible from the first second to
       // level 100, loud enough to carry over the rest of the mix, and
       // swelling louder and thicker (a harmony joins past the midpoint)
-      // the closer the run gets to the end
-      if(M.story && s===0){
+      // the closer the run gets to the end. Stands down the instant the
+      // final boss theme takes over (see below) and picks right back up
+      // the instant it's defeated.
+      if(M.story && !M.finalBoss && s===0){
         M._themeIdx = (M._themeIdx===undefined) ? 0 : (M._themeIdx+1) % M.momTheme.length;
         const f = M.momTheme[M._themeIdx];
         const themeVol = .24 + M.progress*.16;
@@ -840,9 +858,28 @@ const Snd = {
         if(M.progress>.5) this.at(f*1.5, spb*13, 'sine', .05+M.progress*.04, t, null, 5);
       }
 
+      // --- final boss theme: the one deliberate full song-change in the
+      // whole score. A driving kick every beat, a harsh sawtooth/square
+      // riff moving twice as fast as her calm theme, with a tritone-ish
+      // wobble baked into the note choice so it never resolves — reads as
+      // genuinely dangerous rather than just "the normal theme, louder."
+      // Works in every mode: story's rescue fight and every arcade mode's
+      // own final boss both set M.finalBoss the instant that fight opens.
+      if(M.finalBoss){
+        if(s%4===0) this.drum(t, 'kick', .5);
+        if(s%2===0) this.drum(t, 'hihat', .06);
+        if(s%8===0){
+          M.finalIdx = (M.finalIdx===undefined) ? 0 : (M.finalIdx+1) % M.finalTheme.length;
+          const f = M.finalTheme[M.finalIdx];
+          this.at(f, spb*7, 'sawtooth', .22, t, null, -10);
+          this.at(f/2, spb*7, 'square', .16, t);
+          this.at(f*2, spb*3.4, 'sawtooth', .07, t, null, 10);
+        }
+      }
+
       // --- menu theme: its own permanent melody, only while sitting at
       // the title screen — never plays over a match, story or otherwise
-      if(M.menu && !M.story && s===0){
+      if(M.menu && !M.story && !M.finalBoss && s===0){
         M.menuIdx = (M.menuIdx===undefined) ? 0 : (M.menuIdx+1) % M.menuTheme.length;
         const f = M.menuTheme[M.menuIdx];
         this.at(f, spb*13, 'triangle', .2, t, null, 2);
@@ -2613,7 +2650,7 @@ function update(dt){
   // that fight within 180s is already the real challenge; once it's
   // underway the timer waits for it to resolve instead of ending the
   // run out from under the player
-  if(G.mode==='timeattack' && G.t>=TIMEATTACK_LIMIT && G.state==='PLAY' && !G.arcadeFinalBattleActive){ endTimeAttack(); return; }
+  if(G.mode==='timeattack' && G.t>=TIMEATTACK_LIMIT && G.state==='PLAY' && !G.arcadeFinalBattleActive && !G.escapeActive){ endTimeAttack(); return; }
   // ---- player move
   if(!spectating){
     let ix=0, iy=0;
@@ -2639,6 +2676,21 @@ function update(dt){
     // above, doesn't replace it
     P.noDmgT = (P.noDmgT||0) + dt;
     if(P.noDmgT>=5 && P.hp<P.maxHp) P.hp = Math.min(P.maxHp, P.hp + (P.maxHp/10)*dt);
+  }
+
+  // ---- THE ESCAPE: the safe bubble around the exit shrinks on a clock;
+  // standing outside it is real, escalating damage — the world genuinely
+  // closing in, not just a timer ticking somewhere off-screen
+  if(G.escapeActive && !spectating){
+    G.escapeT += dt;
+    const prog = clamp(G.escapeT/G.escapeLimit, 0, 1);
+    G.worldR = lerp(G.escapeStartR, 160, prog);
+    const dExit = Math.hypot(P.x-G.exitX, P.y-G.exitY);
+    if(dExit > G.worldR){
+      P.hp -= dt * (24 + prog*70);
+      if(Math.random()<dt*5) burst(P.x,P.y,2,'#ff3b5c',50,.5,2);
+    }
+    if(dExit < 150) winEscape();
   }
 
   // ---- low-HP tension: heartbeat vignette + pulse when critically low
@@ -3121,6 +3173,22 @@ function render(){
   ctx.strokeStyle=theme.a; ctx.globalAlpha=.55; ctx.lineWidth=5;
   ctx.strokeRect(-ARENA,-ARENA,ARENA*2,ARENA*2); ctx.globalAlpha=1;
 
+  // the escape: a lit exit beacon, and the shrinking lethal boundary
+  // closing in around it — the "world collapsing" made visible, not just
+  // a number ticking down somewhere in the HUD
+  if(G.escapeActive){
+    const pulse = .55+.45*Math.sin(gt*4);
+    ctx.strokeStyle = 'rgba(255,59,92,.8)'; ctx.lineWidth = 6;
+    ctx.setLineDash([26,18]); ctx.lineDashOffset = -gt*40;
+    ctx.beginPath(); ctx.arc(G.exitX, G.exitY, G.worldR, 0, TAU); ctx.stroke();
+    ctx.setLineDash([]);
+    const bg = ctx.createRadialGradient(G.exitX,G.exitY,4,G.exitX,G.exitY,120*(1+pulse*.25));
+    bg.addColorStop(0,'rgba(255,210,60,.95)'); bg.addColorStop(.5,'rgba(255,210,60,.35)'); bg.addColorStop(1,'rgba(255,210,60,0)');
+    ctx.fillStyle=bg; ctx.beginPath(); ctx.arc(G.exitX,G.exitY,120*(1+pulse*.25),0,TAU); ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.globalAlpha=.85;
+    ctx.beginPath(); ctx.arc(G.exitX,G.exitY,46+pulse*8,0,TAU); ctx.stroke(); ctx.globalAlpha=1;
+  }
+
   // hazard zones (arena modifiers)
   for(const h of hazards){
     if(h.x+h.r<L||h.x-h.r>R||h.y+h.r<T||h.y-h.r>B) continue;
@@ -3375,6 +3443,14 @@ function renderMinimap(){
     const pulse = 3.4+Math.sin(gt*8)*1.2;
     mmCtx.beginPath(); mmCtx.arc(bx,by,pulse,0,TAU); mmCtx.fill();
   }
+  // the exit, once it's open — the one thing on the minimap worth beelining for
+  if(G.escapeActive){
+    const [xx,xy] = plot(G.exitX,G.exitY);
+    mmCtx.fillStyle='#ffd23c';
+    const pulse = 3.6+Math.sin(gt*6)*1.4;
+    mmCtx.beginPath(); mmCtx.arc(xx,xy,pulse,0,TAU); mmCtx.fill();
+    mmCtx.strokeStyle='#fff'; mmCtx.lineWidth=1; mmCtx.beginPath(); mmCtx.arc(xx,xy,pulse+2.5,0,TAU); mmCtx.stroke();
+  }
   mmCtx.restore();
   // ring + player dot
   mmCtx.strokeStyle='rgba(38,240,255,.5)'; mmCtx.lineWidth=1.5;
@@ -3463,6 +3539,12 @@ function updateHUD(){
   $('frzbar').firstElementChild.style.width = (G.frenzy ? clamp(G.frzT/7,0,1) : clamp(G.frzCharge,0,1))*100+'%';
   setText('frzlbl', G.frenzy ? 'OVERDRIVE ' + G.frzT.toFixed(1) + 's' : 'FRENZY ' + Math.floor(G.frzCharge*100) + '%');
   if(G.bossRef) $('bosshp').style.width = clamp(G.bossRef.hp/G.bossRef.maxHp,0,1)*100+'%';
+  if(G.escapeActive){
+    const dExit = Math.hypot(P.x-G.exitX, P.y-G.exitY);
+    const margin = clamp((G.worldR-dExit)/Math.max(1,G.escapeStartR), 0, 1);
+    $('escapeBar').style.width = (margin*100)+'%';
+    setText('escapeLbl', dExit>G.worldR ? 'OUTSIDE THE SAFE ZONE — RUN' : Math.round(dExit)+'m TO THE EXIT');
+  }
   if((hudT++ % 20)===0) renderWepRow();
 }
 function renderWepRow(){
@@ -4739,7 +4821,13 @@ const MILESTONE_QUOTES = [
   'Power used well looks like patience. Power used badly looks like him.',
   'The strongest version of you protects. The weakest version of you just wins.',
   'You don’t need power to feel like enough. You need it to make sure everyone around you is safe enough to feel that way too.',
-  'Strength is only ever as good as what it’s protecting.'
+  'Strength is only ever as good as what it’s protecting.',
+  'Somewhere she is folding laundry that doesn’t need folding, just to have something to do with her hands while she waits for you.',
+  'You will spend the rest of your life trying to become someone who deserved a love like that. You never fully will. She never needed you to.',
+  'You used to think dying for someone was the hardest thing love could ask of you. It isn’t. Living long enough to come back is.',
+  'Somewhere out there, right now, she is saying your name to no one, just to hear it in the air.',
+  'There will come a day, long after this, when a song or the smell of rain brings her right back into your chest, exactly the way she always was.',
+  'She is not waiting for a hero. She has always just been waiting for you. That was always going to be enough.'
 ];
 /* the father's quote pool — a completely different throughline from the
    mother's (craftsmanship, debt, and "finish what you start" instead of
@@ -4850,7 +4938,13 @@ const MILESTONE_QUOTES_DAD = [
   'A father who never asked for thanks does not need you to thank him. He needs you to come home.',
   'The debt was never fair. Neither was taking him. Go make something right out of both.',
   'You don’t just want to win this. You want to walk back into that workshop and mean it when you say it’s over.',
-  'He built you patiently, one ordinary evening at a time, and this — all of this — is what patience like that actually becomes.'
+  'He built you patiently, one ordinary evening at a time, and this — all of this — is what patience like that actually becomes.',
+  'Somewhere he is straightening tools that don’t need straightening, just to have something to do with his hands while he waits for you.',
+  'You will spend the rest of your life trying to become a man who deserved a father like that. You never fully will. He never needed you to.',
+  'You used to think dying for someone was the hardest thing love could ask of you. It isn’t. Living long enough to come back is.',
+  'Somewhere out there, right now, he is saying your name to no one, just to hear it in the air.',
+  'There will come a day, long after this, when sawdust or the smell of an old workshop brings him right back into your chest, exactly the way he always was.',
+  'He is not waiting for a hero. He has always just been waiting for you. That was always going to be enough.'
 ];
 /* the sister's quote pool — a third completely different throughline
    (protection reversed, rhythm and tempo, catching instead of being
@@ -4970,7 +5064,13 @@ const MILESTONE_QUOTES_SISTER = [
   'A sister who never asked for thanks does not need you to thank her. She needs you to come home.',
   'The debt was never fair. Neither was taking her. Go make something right out of both.',
   'You don’t just want to win this. You want to walk back to that street corner and mean it when you say it’s over.',
-  'She built you patiently, one ordinary evening at a time, and this — all of this — is what patience like that actually becomes.'
+  'She built you patiently, one ordinary evening at a time, and this — all of this — is what patience like that actually becomes.',
+  'Somewhere she is retying laces that don’t need retying, just to have something to do with her hands while she waits for you.',
+  'You will spend the rest of your life trying to become someone who deserved a sister like that. You never fully will. She never needed you to.',
+  'You used to think dying for someone was the hardest thing love could ask of you. It isn’t. Living long enough to come back is.',
+  'Somewhere out there, right now, she is saying your name to no one, just to hear it in the air.',
+  'There will come a day, long after this, when a familiar song brings her right back into your chest, exactly the way she always was.',
+  'She is not waiting for a hero. She has always just been waiting for you. That was always going to be enough.'
 ];
 const MILESTONE_QUOTES_BROTHER = [
   'He spent his whole childhood knocking you down just to teach you how to get back up. This is the one time you get to return the favor.',
@@ -5084,7 +5184,13 @@ const MILESTONE_QUOTES_BROTHER = [
   'A brother who never asked for thanks does not need you to thank him. He needs you to come home.',
   'The contract was never fair. Neither was signing him without asking. Go make something right out of both.',
   'You don’t just want to win this. You want to walk back to that old backyard ring and mean it when you say it’s over.',
-  'He built you patiently, one early morning at a time, and this — all of this — is what patience like that actually becomes.'
+  'He built you patiently, one early morning at a time, and this — all of this — is what patience like that actually becomes.',
+  'Somewhere he is wrapping hands that don’t need wrapping, just to have something to do with his hands while he waits for you.',
+  'You will spend the rest of your life trying to become someone who deserved a brother like that. You never fully will. He never needed you to.',
+  'You used to think dying for someone was the hardest thing love could ask of you. It isn’t. Living long enough to come back is.',
+  'Somewhere out there, right now, he is saying your name to no one, just to hear it in the air.',
+  'There will come a day, long after this, when the smell of a gym brings him right back into your chest, exactly the way he always was.',
+  'He is not waiting for a hero. He has always just been waiting for you. That was always going to be enough.'
 ];
 const MILESTONE_QUOTES_SON = [
   'You spent every night of his life making sure the dark never got to him first. Don’t let it get to him now.',
@@ -5214,7 +5320,13 @@ const MILESTONE_QUOTES_SON = [
   'A parent who never asked for thanks does not need to be thanked. He needs his son home.',
   'The Shepherd was never fair. Neither was taking him. Go make something right out of both.',
   'You don’t just want to win this. You want to walk back into that bedroom and mean it when you say the light stays on now.',
-  'You built him patiently, one ordinary bedtime at a time, and this — all of this — is what patience like that actually becomes.'
+  'You built him patiently, one ordinary bedtime at a time, and this — all of this — is what patience like that actually becomes.',
+  'You used to think you’d die for him without hesitation. You were wrong about the hard part — living long enough to carry him home is harder.',
+  'Somewhere his bed is still made small, still waiting, the blanket folded back exactly the way he likes it.',
+  'You will spend the rest of your life trying to deserve the way he still says your name like you invented safety. You never fully will. He never needed you to.',
+  'There will come a day, decades from now, when he is grown and gone and something as small as a nightlight in a stranger’s window brings this exact night right back into your chest.',
+  'He is not waiting for a hero. He is waiting for the only voice in the world that has ever made the dark stop being dark.',
+  'You measured his whole life in ordinary Tuesdays. Go measure this one the same way — as just another Tuesday you show up.'
 ];
 const MILESTONE_QUOTES_DAUGHTER = [
   'You planted a garden with her before she could even spell the word "seed." Go dig up every last one of his instead.',
@@ -5328,7 +5440,13 @@ const MILESTONE_QUOTES_DAUGHTER = [
   'A parent who never asked for thanks does not need to be thanked. She needs her daughter home.',
   'The Gardener was never fair. Neither was taking her. Go make something right out of both.',
   'You don’t just want to win this. You want to walk back into that garden and mean it when you say it’s finally, actually finished.',
-  'You built her patiently, one ordinary season at a time, and this — all of this — is what patience like that actually becomes.'
+  'You built her patiently, one ordinary season at a time, and this — all of this — is what patience like that actually becomes.',
+  'You used to think you’d die for her without hesitation. You were wrong about the hard part — living long enough to carry her home is harder.',
+  'Somewhere her bed is still made small, still waiting, the blanket folded back exactly the way she likes it.',
+  'You will spend the rest of your life trying to deserve the way she still says your name like you invented safety. You never fully will. She never needed you to.',
+  'There will come a day, decades from now, when she is grown and gone and something as small as a nightlight in a stranger’s window brings this exact night right back into your chest.',
+  'She is not waiting for a hero. She is waiting for the only voice in the world that has ever made the dark stop being dark.',
+  'You measured her whole life in ordinary Tuesdays. Go measure this one the same way — as just another Tuesday you show up.'
 ];
 const MILESTONE_QUOTES_FRIEND = [
   'The house doesn’t get to keep this hand. Go take it back.',
@@ -5436,7 +5554,13 @@ const MILESTONE_QUOTES_FRIEND = [
   'A friend who never asked for thanks does not need you to thank them. They need you to come get them.',
   'The debt was never fair. Neither was taking them. Go make something right out of both.',
   'You don’t just want to win this. You want to walk back into that back room and mean it when you say it’s over.',
-  'They built this friendship patiently, one ordinary losing night at a time, and this — all of this — is what patience like that actually becomes.'
+  'They built this friendship patiently, one ordinary losing night at a time, and this — all of this — is what patience like that actually becomes.',
+  'Somewhere they are shuffling a deck that doesn’t need shuffling, just to have something to do with their hands while they wait for you.',
+  'You will spend the rest of your life trying to become someone who deserved a friend like that. You never fully will. They never needed you to.',
+  'You used to think dying for someone was the hardest thing friendship could ask of you. It isn’t. Living long enough to come back is.',
+  'Somewhere out there, right now, they are saying your name to no one, just to hear it in the air.',
+  'There will come a day, long after this, when an old joke only the two of you would get brings them right back into the room with you.',
+  'They are not waiting for a hero. They have always just been waiting for you. That was always going to be enough.'
 ];
 const MILESTONE_QUOTES_WIFE = [
   'A vow isn’t a moment. It’s a decision you keep making, every single day, long after the room full of witnesses went home.',
@@ -5544,7 +5668,13 @@ const MILESTONE_QUOTES_WIFE = [
   'A wife who never asked for thanks does not need to be thanked. She needs you to come get her.',
   'The vow was never fair to take. Neither was taking her. Go make something right out of both.',
   'You don’t just want to win this. You want to walk back into that kitchen and mean it when you say you’re both finally home.',
-  'You built this marriage patiently, one ordinary morning at a time, and this — all of this — is what patience like that actually becomes.'
+  'You built this marriage patiently, one ordinary morning at a time, and this — all of this — is what patience like that actually becomes.',
+  'Somewhere her side of the bed is still made, still waiting, exactly the way she always leaves it.',
+  'You will spend the rest of your life trying to become someone who deserved a love like that. You never fully will. She never needed you to.',
+  'You used to think dying for someone was the hardest thing a vow could ask of you. It isn’t. Living long enough to come back is.',
+  'Somewhere out there, right now, she is saying your name to no one, just to hear it in the air.',
+  'There will come a day, decades from now, when an ordinary Tuesday brings this exact fear right back into your chest, and you will be so glad you get to feel it because it means she’s still there to lose.',
+  'She is not waiting for a hero. She married a person. Go be that person, all the way home.'
 ];
 const MILESTONE_QUOTES_HUSBAND = [
   'A verdict isn’t the end of the story. It’s just his word for it. Go write the real ending yourself.',
@@ -5652,7 +5782,13 @@ const MILESTONE_QUOTES_HUSBAND = [
   'A husband who never once asked to be thanked does not need thanking now. He needs you to come get him.',
   'That ruling was never fair to begin with. Neither was taking him. Go make something right out of both wrongs at once.',
   'You don’t just want to win this fight. You want to walk back into that kitchen and mean it, completely, when you finally say you’re both home.',
-  'You built this entire marriage patiently, one unremarkable morning at a time, and this — every bit of it — is what that kind of patience eventually becomes.'
+  'You built this entire marriage patiently, one unremarkable morning at a time, and this — every bit of it — is what that kind of patience eventually becomes.',
+  'Somewhere his side of the bed is still made, still waiting, exactly the way he always leaves it.',
+  'You will spend the rest of your life trying to become someone who deserved a love like that. You never fully will. He never needed you to.',
+  'You used to think dying for someone was the hardest thing a vow could ask of you. It isn’t. Living long enough to come back is.',
+  'Somewhere out there, right now, he is saying your name to no one, just to hear it in the air.',
+  'There will come a day, decades from now, when an ordinary Tuesday brings this exact fear right back into your chest, and you will be so glad you get to feel it because it means he’s still there to lose.',
+  'He is not waiting for a hero. He married a person. Go be that person, all the way home.'
 ];
 const MILESTONE_QUOTES_LOST = [
   'Some people accept a goodbye. You never once did, and that refusal is the whole reason you’re still climbing.',
@@ -5761,7 +5897,13 @@ const MILESTONE_QUOTES_LOST = [
   'Someone who never once asked to be thanked does not need thanking now. They need you to come get them.',
   'That crossing was never fair to begin with. Neither was losing them. Go make something right out of both wrongs at once.',
   'You don’t just want to win this fight. You want to walk back into that ordinary life and mean it, completely, when you finally say they’re home.',
-  'You built this entire love patiently, one ordinary day at a time, and this — every bit of it — is what that kind of patience eventually becomes.'
+  'You built this entire love patiently, one ordinary day at a time, and this — every bit of it — is what that kind of patience eventually becomes.',
+  'Somewhere, some part of their life is still exactly as they left it, still waiting, untouched, on purpose.',
+  'You will spend the rest of your life trying to become someone who deserved a love like that. You never fully will. They never needed you to.',
+  'You used to think dying for someone was the hardest thing love could ask of you. It isn’t. Living long enough to come back is.',
+  'Somewhere out there, right now, you are saying their name to no one, just to hear it in the air. Go make it true the other way around too.',
+  'There will come a day, long after this, when something small and ordinary brings them right back into your chest, exactly the way they always were.',
+  'They are not waiting for a hero. They have always just been waiting for you. That was always going to be enough.'
 ];
 // the single release point for the shared voice lock — whichever system
 // (milestone quote or ambient VO) was speaking calls this when it's done,
@@ -5787,7 +5929,6 @@ function triggerMilestoneQuote(){
   if(!G.milestoneQueue || !G.milestoneQueue.length) G.milestoneQueue = shuffle(qPool.slice());
   const text = G.milestoneQueue.pop();
   const el = $('milestoneQuote'); const t = $('mqText');
-  t.textContent = text; el.classList.add('show');
   clearTimeout(el._hideT);
   G._voiceBusy = true;
   const gen = (G._mqGen = (G._mqGen||0) + 1);
@@ -5798,13 +5939,22 @@ function triggerMilestoneQuote(){
     G.mqCooldown = rnd(4,7); // a short beat before the next one — set before releaseVoice() so a queued retry can't skip it
     releaseVoice();
   };
-  // a low thunder-crack under the line itself — sells "a god is speaking"
-  // rather than just "the music got quieter"
-  if(save.opt.sfx){ Snd.noise(.5,.35,600); setTimeout(()=>Snd.tone(60,.6,'sine',.2,35),60); }
-  // booming "voice from the heavens" register (cls:'god'), not the
-  // higher 'you' voice or even the regular documentary narrator
-  const utter = speakLine({ speaker:'', cls:'god', text });
-  if(utter){
+  // the visible line — and its "a god is speaking" moment (thunder SFX,
+  // music duck, slowT/zoomKick/shake) — now only actually appears once the
+  // voice truly starts, not the instant this was requested. speakLine()
+  // no longer cancels whatever's already speaking, so a new quote can sit
+  // queued behind a still-finishing ambient line for a moment — showing
+  // the text immediately used to mean the words on screen and the voice
+  // actually playing could belong to two different lines at once.
+  let revealed = false;
+  const reveal = (hideDelayMs)=>{
+    if(gen!==G._mqGen || revealed) return;
+    revealed = true;
+    t.textContent = text; el.classList.add('show');
+    clearTimeout(el._hideT);
+    // a low thunder-crack under the line itself — sells "a god is speaking"
+    // rather than just "the music got quieter"
+    if(save.opt.sfx){ Snd.noise(.5,.35,600); setTimeout(()=>Snd.tone(60,.6,'sine',.2,35),60); }
     // ducked to a third of baseline — enough that the line clearly reads
     // as louder than the music, without the old bug where reading the
     // live (mid-transition) gain value on every rapid re-duck compounded
@@ -5813,18 +5963,32 @@ function triggerMilestoneQuote(){
     // _musBase, so the piano is guaranteed to still be there between
     // lines, just clearly quieter while one is playing
     Snd.duckMusic(true, .35);
-    utter.onend = finish;
-    utter.onerror = finish;
+    G.slowT = Math.max(G.slowT||0, .5); zoomKick(1.06); shake(4);
+    el._hideT = setTimeout(finish, hideDelayMs);
+  };
+  // booming "voice from the heavens" register (cls:'god'), not the
+  // higher 'you' voice or even the regular documentary narrator
+  const utter = speakLine({ speaker:'', cls:'god', text });
+  if(utter){
+    const words = Math.max(1, text.trim().split(/\s+/).length);
+    const estMs = Math.max(1800, (words/(3.7*.8))*1000);
     // stays on screen for exactly as long as the voice takes to say it,
     // with a generous fallback in case this device's TTS never fires
     // onend/onerror (silent/broken engines, some sandboxed browsers)
-    const words = Math.max(1, text.trim().split(/\s+/).length);
-    const estMs = Math.max(1800, (words/(3.7*.8))*1000);
-    el._hideT = setTimeout(finish, estMs + 3500);
+    utter.onstart = ()=>reveal(estMs + 3500);
+    utter.onend = finish;
+    utter.onerror = finish;
+    // a handful of engines never fire onstart at all — reveal anyway as a
+    // last resort so a quote can never silently sit invisible forever. This
+    // has to stay generous (not a quick race): a line genuinely queued
+    // behind another one can legitimately wait several seconds for its
+    // real turn, and a tight fallback here would win that race and show
+    // the text before the voice actually starts — the exact bug this
+    // whole onstart-gate exists to prevent.
+    setTimeout(()=>reveal(estMs + 3500), 6000);
   } else {
-    el._hideT = setTimeout(finish, 4200);
+    reveal(4200);
   }
-  G.slowT = Math.max(G.slowT||0, .5); zoomKick(1.06); shake(4);
 }
 const PLAYER_AMBIENT = {
   early: [
@@ -6069,14 +6233,22 @@ function playerAmbientLine(){
   const text = pick(pool);
   const gen = (G._ambGen = (G._ambGen||0) + 1);
   const utter = speakLine({ speaker:'YOU', cls:'you', text, mood: prog>.66?'scared':null, shake: prog>.66?1:0 });
-  toast('YOU', text, 'linear-gradient(135deg,#26f0ff,#8b5cff)');
   if(utter){
     G._voiceBusy = true;
+    // the toast only appears once the voice actually starts — it used to
+    // fire the instant this was called, which could show a caption for a
+    // line whose audio was still queued behind another one finishing
+    let shown = false;
+    const show = ()=>{ if(gen!==G._ambGen || shown) return; shown = true; toast('YOU', text, 'linear-gradient(135deg,#26f0ff,#8b5cff)'); };
     const clear = ()=>{ if(gen===G._ambGen) releaseVoice(); };
+    utter.onstart = show;
     utter.onend = clear; utter.onerror = clear;
+    setTimeout(show, 6000); // last-resort fallback only — long enough to never race a real queueing wait
     const words = Math.max(1, text.trim().split(/\s+/).length);
     const estMs = Math.max(1200, (words/(3.7*(utter.rate||1)))*1000);
     setTimeout(clear, estMs + 3000);
+  } else {
+    toast('YOU', text, 'linear-gradient(135deg,#26f0ff,#8b5cff)');
   }
 }
 const STORY = {
@@ -7083,16 +7255,14 @@ const Cutscene = {
     const chars = Array.from(line.text);
     chars.forEach(ch=>{ const sp=document.createElement('span'); sp.className='car'; sp.textContent = ch===' '?' ':ch; el.appendChild(sp); });
     clearInterval(this._typeIV); clearTimeout(this._waitT);
-    // a generation token: speakLine() cancels any still-playing utterance
-    // from the previous line, but a cancelled utterance can still fire its
-    // own onend/onerror afterward in some browsers — without this check
-    // that stray callback would call _advance() a second time and skip
-    // the line that just started
+    // a generation token: speakLine() no longer cancels a still-playing
+    // utterance from the previous line (it queues instead, see speakLine),
+    // but a stray onend/onerror from an old utterance could otherwise still
+    // land here — without this check that would call _advance() a second
+    // time and skip the line that just started
     const gen = (this._speakGen = (this._speakGen||0) + 1);
     const utter = speakLine(line);
     if(utter){
-      Snd.duckMusic(true);
-      const lineT0 = performance.now();
       // reveal starts on an estimated per-line pace (word count over the
       // utterance's own rate), but the instant a real word boundary
       // arrives, the pace is thrown out and replaced with the actual
@@ -7101,7 +7271,7 @@ const Cutscene = {
       const words = Math.max(1, line.text.trim().split(/\s+/).length);
       const estMs = Math.max(350, (words/(3.7*utter.rate))*1000);
       let stepMs = clamp(estMs/chars.length, 14, 85);
-      let i=0;
+      let i=0, lineT0=performance.now(), started=false;
       const runInterval = ()=>{
         clearInterval(this._typeIV);
         this._typeIV = setInterval(()=>{
@@ -7109,7 +7279,6 @@ const Cutscene = {
           if(el.children[i]) el.children[i].classList.add('on'); i++;
         }, stepMs);
       };
-      runInterval();
       // a device that reports having speech synthesis but whose engine
       // never actually calls back (silent/broken TTS, some sandboxed or
       // headless environments) would otherwise stall the cutscene here
@@ -7130,9 +7299,32 @@ const Cutscene = {
           this._advance();
         }, estMs + 3000);
       };
-      armFallback();
+      // the reveal (and the music duck) only actually starts once the
+      // voice truly begins — not the instant speakLine() was called.
+      // speakLine() queues rather than interrupts, so this exact line can
+      // sit queued behind a still-finishing ambient/milestone line for a
+      // moment; starting the typewriter immediately used to mean the text
+      // could finish revealing itself in total silence before the voice
+      // actually caught up to it.
+      const begin = ()=>{
+        if(!this.playing || gen!==this._speakGen || started) return;
+        started = true;
+        Snd.duckMusic(true);
+        lineT0 = performance.now();
+        runInterval();
+        armFallback();
+      };
+      utter.onstart = begin;
+      // a handful of engines never fire onstart at all — begin anyway as a
+      // last resort, but generously: this line can legitimately still be
+      // queued behind another one for several seconds (see speakLine — it
+      // queues instead of interrupting now), and a tight fallback here
+      // would win that race and start typing before the voice actually
+      // does, right back into the desync this is meant to prevent.
+      setTimeout(begin, 6000);
       utter.onboundary = (ev)=>{
         if(!this.playing || gen!==this._speakGen || typeof ev.charIndex!=='number') return;
+        if(!started) begin();
         i = Math.max(i, Math.min(chars.length, ev.charIndex));
         for(let k=0;k<i;k++) if(el.children[k]) el.children[k].classList.add('on');
         const elapsed = performance.now() - lineT0;
@@ -7461,10 +7653,11 @@ function triggerFinalBattle(){
   announce('⚠ THE HOLLOW KING ⚠', kind.c); Snd.big(); Snd.finalGateSting(); shake(24);
   $('bosswrap').style.opacity=1; $('bossname').textContent='THE HOLLOW KING';
   Snd.setIntensity(1,true,false); zoomKick(1.18); G.wash=.9; G.washC=kind.c;
+  Snd.M.finalBoss = 1; // the one deliberate song-change moment — see Snd.schedule()
 }
 function onFinalBossOrAllyKilled(e){
   if(e.finalAlly){ G.finalAllies = (G.finalAllies||[]).filter(a=>a!==e); }
-  if(e.finalBoss){ G.finalBossRef = null; }
+  if(e.finalBoss){ G.finalBossRef = null; Snd.M.finalBoss = 0; }
   const alliesLeft = (G.finalAllies||[]).length;
   if(!G.finalBossRef && alliesLeft===0 && G.finalBattleActive && !G.motherRescued){
     G.motherRescued = true;
@@ -7475,13 +7668,14 @@ function onFinalBossOrAllyKilled(e){
       Cutscene.play(curStory().ending, false, ()=>{
         // he/she is home now — the run doesn't end here. what's left of
         // his forces knows exactly who you are, and comes for you 1000x
-        // harder: postRescueMul() ramps so fast that surviving even 5
-        // more levels past the rescue is meant to be nearly impossible.
+        // harder: postRescueMul() ramps so fast that the dash to the exit
+        // is genuinely dangerous, not a victory lap
         G.postRescue = true; G.rescueLevel = P.level;
         G.state='PLAY'; last=0; acc=0; Ads.gameplayStart();
         const home = relVerbFor(G.relation)+' HOME. NOW SURVIVE.';
         announce('DEADLY WAVE — '+home, '#ff3b5c');
         toast('DEADLY WAVE', 'Death is real again. This is the only fight you can actually lose.', 'linear-gradient(135deg,#ff3b5c,#7a0f22)');
+        setTimeout(()=>startEscape(), 2200);
       });
     }, 900);
   }
@@ -7531,12 +7725,14 @@ function spawnArcadeFinalBoss(){
   announce('⚠ '+name+' ⚠', kind.c); Snd.big(); Snd.finalGateSting(); shake(24);
   $('bosswrap').style.opacity=1; $('bossname').textContent=name;
   Snd.setIntensity(1,true,false); zoomKick(1.18); G.wash=.9; G.washC=kind.c;
+  Snd.M.finalBoss = 1; // the one deliberate song-change moment — see Snd.schedule()
 }
 function onArcadeFinalBossKilled(){
   if(G.arcadeLevel100Done) return;
   G.arcadeLevel100Done = true;
   G.arcadeFinalBattleActive = false;
   G.arcadeFinalBossRef = null;
+  Snd.M.finalBoss = 0;
   Snd.joySting();
   // the run keeps going after this exactly like story mode's post-rescue
   // wave does — the same postRescueMul() ramp, just without a captive
@@ -7544,6 +7740,7 @@ function onArcadeFinalBossKilled(){
   // the hardest thing left to survive, not a number that quietly passes.
   G.postRescue = true; G.rescueLevel = P.level;
   playArcadeVictoryAnim();
+  setTimeout(()=>startEscape(), 2900);
 }
 /* the "animation as an ending" for every non-story mode: no new screen,
    just every celebratory primitive the game already has (shockwave
@@ -7567,6 +7764,55 @@ function playArcadeVictoryAnim(){
   setTimeout(()=>{
     toast('SURVIVAL MODE', 'What comes next hits far harder. This is the only fight left worth bragging about.', 'linear-gradient(135deg,#ff3b5c,#7a0f22)');
   }, 1500);
+}
+
+/* ---------------- 23d. THE ESCAPE ----------------
+   Fires after the final boss falls, in every mode. The ending used to
+   just hand off into "survive forever until you eventually die" with no
+   actual finish line. Now there's a real objective and a real deadline:
+   a lit exit spawns a real distance away, and a lethal boundary around
+   it tightens on a clock — the world genuinely closing in, not a figure
+   of speech — forcing an actual sprint instead of endless circling.
+   Reaching the exit before it closes is the real ending; getting caught
+   outside the shrinking safe zone (or run down by the existing post-
+   rescue wave, unchanged) is the real way to lose it. */
+function startEscape(){
+  if(!P || G.state!=='PLAY' || G.escapeActive) return;
+  G.escapeActive = true; G.escapeT = 0; G.escapeLimit = 42;
+  const a = rnd(0, TAU), dist = ARENA*.85;
+  G.exitX = clamp(P.x + Math.cos(a)*dist, -ARENA+200, ARENA-200);
+  G.exitY = clamp(P.y + Math.sin(a)*dist, -ARENA+200, ARENA-200);
+  // starts generous — the shrink is the pressure, not the opening moment
+  G.escapeStartR = Math.hypot(P.x-G.exitX, P.y-G.exitY) + 700;
+  G.worldR = G.escapeStartR;
+  $('escapeWrap').classList.add('show');
+  announce('THE WORLD IS COLLAPSING — RUN', '#ff3b5c');
+  toast('FIND THE EXIT', 'A way out just opened. Reach it before the world closes in around it.', 'linear-gradient(135deg,#ff3b5c,#7a0f22)');
+  Snd.sweep(true); shake(8);
+}
+function winEscape(){
+  if(!G.escapeActive) return;
+  G.escapeActive = false; G.escaped = true;
+  $('escapeWrap').classList.remove('show');
+  // the single biggest, most deliberate flourish in the whole game — this
+  // is the actual finish line, not just another beat along the way
+  zoomKick(1.5); shake(20); G.wash=1; G.washC='#ffd23c'; G.flash=.9; G.slowT=2.2;
+  burst(P.x,P.y,80,'#ffd23c',360,1.3,5);
+  for(let i=0;i<7;i++) setTimeout(()=>{
+    if(!P) return;
+    shock(P.x,P.y,300+i*160,'#ffd23c',7);
+    burst(P.x,P.y,30,'#fff',320,1,4.5);
+  }, i*160);
+  Snd.big(); Snd.finalGateSting(); Snd.joySting();
+  announce('YOU MADE IT OUT', '#ffd23c');
+  if(isStoryMode()){
+    setTimeout(()=>announce(relVerbFor(G.relation)+' SAFE. YOU BOTH ARE.', '#ff9fd6'), 1000);
+    setTimeout(()=>toast('HOME', 'Everything after this is just the two of you, safe, together.', 'linear-gradient(135deg,#ffd23c,#ff9fd6)'), 2000);
+  } else {
+    setTimeout(()=>announce('SAFE. ALIVE. DONE.', '#ff9fd6'), 1000);
+    setTimeout(()=>toast('MADE IT', 'Out, in one piece, with the whole thing still ringing in your ears.', 'linear-gradient(135deg,#ffd23c,#ff9fd6)'), 2000);
+  }
+  setTimeout(()=>{ if(G.state==='PLAY') finishRun(); }, 3400);
 }
 
 /* ---------------- 24. RUN FLOW ---------------- */
@@ -7593,6 +7839,9 @@ function _beginRunNow(){
   G.finalArmed=false; G.finalBattleActive=false; G.finalAllies=[]; G.finalBossRef=null; G.motherRescued=false; G._lastMilestone=0; G._badEndingShown=false;
   G.arcadeFinalArmed=false; G.arcadeFinalBattleActive=false; G.arcadeFinalBossRef=null; G.arcadeLevel100Done=false;
   G.postRescue=false; G.rescueLevel=0; G.dmgLog=[]; G.lastBossHp=0; G.ambientT=rnd(24,40);
+  G.escapeActive=false; G.escapeT=0; G.escapeLimit=42; G.exitX=0; G.exitY=0; G.worldR=0; G.escapeStartR=0; G.escaped=false;
+  Snd.M.finalBoss = 0;
+  $('escapeWrap').classList.remove('show');
   G.milestoneQueue=[]; G._voiceBusy=false; G._mqQueued=false; G.mqCooldown=rnd(3,5);
   _announceQ.length = 0; _announceBusy = false; // no stale banner text bleeding into a fresh run
   const arena = ARENAS[G.arenaI]||ARENAS[0];
@@ -7755,7 +8004,10 @@ function _finishRunNow(){
   $('fLevel').textContent = P? P.level : 1;
   $('fCoins').textContent = lastEarned;
   $('dblBtn').disabled = false; $('dblBtn').textContent = '▶ DOUBLE SHARDS ×2';
-  if(G.motherRescued){
+  if(G.escaped){
+    $('overTitle').textContent = isStoryMode() ? '🏆 HOME. TOGETHER. FOR GOOD.' : '🏆 YOU MADE IT OUT ALIVE';
+    $('overTitle').style.color = 'var(--li)';
+  } else if(G.motherRescued){
     $('overTitle').textContent = '🏆 YOU SAVED '+relObjFor(G.relation);
     $('overTitle').style.color = 'var(--li)';
   } else if(isStoryMode()){
