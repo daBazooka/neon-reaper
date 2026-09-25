@@ -204,7 +204,7 @@ canvas{display:block;position:absolute;inset:0;width:100%;height:100%}
 .btn:active{transform:scale(.96)}
 .btn.play{font-size:21px;padding:19px 26px;background:linear-gradient(135deg,var(--li),var(--cy) 55%,var(--vi));box-shadow:0 10px 40px rgba(182,255,60,.34)}
 .btn.ghost{background:rgba(255,255,255,.05);color:var(--txt);border:1px solid var(--line);box-shadow:none}
-.btn.ad{background:linear-gradient(135deg,var(--or),#ff6a3c);box-shadow:0 8px 26px rgba(255,176,32,.34);color:#1a0b00}
+.btn.spin{background:linear-gradient(135deg,var(--or),#ff6a3c);box-shadow:0 8px 26px rgba(255,176,32,.34);color:#1a0b00}
 .btn.gold{background:linear-gradient(135deg,#ffd23c,var(--or));color:#1a0b00}
 .btn.easy{background:linear-gradient(90deg,#ff6ec7,#ffd23c,#7fd6ff);box-shadow:0 8px 26px rgba(255,110,199,.34);color:#1a0b1a;padding:12px 22px}
 .btn.easy small{display:block;font:600 10px/1.3 var(--f2);letter-spacing:.4px;margin-top:3px;opacity:.85}
@@ -503,7 +503,7 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
       <button class="btn ghost" id="achBtn">★ GOALS</button>
       <button class="btn ghost" id="statsBtn">⚙ MORE</button>
     </div>
-    <button class="btn ad" id="freeCoinBtn">✦ SPIN FOR FREE SHARDS <small id="freeLeft"></small></button>
+    <button class="btn spin" id="freeCoinBtn">✦ SPIN FOR FREE SHARDS <small id="freeLeft"></small></button>
     <button class="btn ghost" id="globalBtn">🌐 GLOBAL — LEADERBOARD &amp; CHAT</button>
     <button class="btn ghost" id="partyBtn">🤝 PLAY WITH FRIENDS</button>
   </div>
@@ -566,7 +566,7 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
     <div class="stat"><span>SHARDS</span><b id="fCoins">0</b></div>
   </div>
   <div class="col">
-    <button class="btn ad" id="dblBtn">✦ SPIN TO MULTIPLY SHARDS</button>
+    <button class="btn spin" id="dblBtn">✦ SPIN TO MULTIPLY SHARDS</button>
     <button class="btn play" id="againBtn">↻ RUN IT AGAIN</button>
     <div class="row">
       <button class="btn ghost" id="overShopBtn">⚡ SPEND</button>
@@ -653,7 +653,7 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   <div class="sub">EVERY LEVEL MAKES EVERY FUTURE RUN STRONGER</div>
   <div id="shopFlying"><canvas class="chrShip" id="shopShipCv"></canvas><span id="shopShipNm"></span></div>
   <div class="panel"><div class="list" id="shopList"></div></div>
-  <button class="btn ad" id="shopAdBtn" style="margin-top:12px">✦ SPIN FOR SHARDS</button>
+  <button class="btn spin" id="shopSpinBtn" style="margin-top:12px">✦ SPIN FOR SHARDS</button>
 </div>
 
 <!-- HEROES -->
@@ -802,7 +802,7 @@ const defaultSave = () => ({
   chars: { volt:1 }, char: 'volt',
   ach: {}, achClaimed: {}, daily: { last: 0, streak: 0 },
   quests: { day: 0, list: [], prog: [0,0,0], claimed: [0,0,0] },
-  adCoins: { day: 0, used: 0 },
+  spinCoins: { day: 0, used: 0 },
   opt: { sfx: 1, mus: 1, shake: 1, quality: 'auto', voice: 1, fps: 0, vibe: 'AUTO' },
   seen: 0, netId: null, handle: null, blocked: {}
 });
@@ -8776,7 +8776,7 @@ function renderShop(){
 }
 $('shopBtn').onclick = ()=>{ Snd.click(); openShop(); };
 $('shopBack').onclick = ()=>{ Snd.click(); goMenu(); };
-$('shopAdBtn').onclick = ()=> Wheel.open(WHEEL_COINS, 'SPIN FOR SHARDS', seg=>{
+$('shopSpinBtn').onclick = ()=> Wheel.open(WHEEL_COINS, 'SPIN FOR SHARDS', seg=>{
   save.coins+=seg.amt; persist(); renderShop(); refreshCoins(); toast('REWARD','+'+seg.amt+' ◈ shards'); });
 
 /* ---------------- 26. HEROES ---------------- */
@@ -9016,7 +9016,7 @@ $('claimBtn').onclick = ()=>{
 };
 
 /* ---------------- 31. FREE COIN WHEEL ---------------- */
-const AD_MAX = 5;
+const FREE_SPIN_MAX = 5;
 const WHEEL_COINS = [
   { label:'300◈',  w:26, amt:300  },
   { label:'350◈',  w:22, amt:350  },
@@ -9035,15 +9035,15 @@ const WHEEL_DOUBLE = [
   { label:'×4',   w:3,  mult:4   },
   { label:'×5',   w:1,  mult:5   }
 ];
-function refreshFreeAd(){
+function refreshFreeSpin(){
   const d=today();
-  if(save.adCoins.day!==d){ save.adCoins={day:d,used:0}; persist(); }
-  const left = AD_MAX - save.adCoins.used;
+  if(save.spinCoins.day!==d){ save.spinCoins={day:d,used:0}; persist(); }
+  const left = FREE_SPIN_MAX - save.spinCoins.used;
   $('freeLeft').textContent = '('+left+' left today)';
   $('freeCoinBtn').disabled = left<=0;
 }
 $('freeCoinBtn').onclick = ()=> Wheel.open(WHEEL_COINS, 'SPIN FOR SHARDS', seg=>{
-  save.adCoins.used++; save.coins+=seg.amt; persist(); refreshCoins(); refreshFreeAd();
+  save.spinCoins.used++; save.coins+=seg.amt; persist(); refreshCoins(); refreshFreeSpin();
   toast('REWARD','+'+seg.amt+' ◈ shards'); checkAch();
 });
 
@@ -9155,7 +9155,7 @@ function watchChatSetting(){
   Ads.fetchPortalUser();     // best-effort, never blocks boot — see Ads.fetchPortalUser
   const netP = Net.init();   // kept as a promise so invite/instant-multiplayer paths can await it below
   save.seen = (save.seen||0)+1;
-  refreshCoins(); refreshFreeAd(); renderQuests(); checkAch();
+  refreshCoins(); refreshFreeSpin(); renderQuests(); checkAch();
   renderRelGrid();
   watchChatSetting();
   if(!ONLINE_ENABLED){
