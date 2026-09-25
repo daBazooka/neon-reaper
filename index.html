@@ -830,16 +830,31 @@ const Snd = {
     try{
       const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
       this.ctx = new AC();
-      this.master = this.ctx.createGain(); this.master.gain.value = .5; this.master.connect(this.ctx.destination);
+      this.master = this.ctx.createGain();
+      // if the CrazyGames portal already signaled a mute (sdkMute() can
+      // fire before the user's first gesture ever creates this context —
+      // see Ads.init()'s onMuteChange registration), honor it from the
+      // very first frame instead of hardcoding audible here and correcting
+      // a frame later.
+      this.master.gain.value = (this._adMuted || this._sdkMuted) ? 0 : .5;
+      this.master.connect(this.ctx.destination);
       // combat SFX turned down and the piano turned up from their old
       // 1.0/0.32 split — the score (and any spoken line, ducked further
       // still below) should always read as the lead, not the gunfire
       this.sfxGain = this.ctx.createGain(); this.sfxGain.gain.value = save.opt.sfx ? this._sfxBase : 0; this.sfxGain.connect(this.master);
       this.musGain = this.ctx.createGain(); this.musGain.gain.value = save.opt.mus ? this._musBase : 0; this.musGain.connect(this.master);
       this.ready = true; this.startMusic();
+      if(this._adMuted || this._sdkMuted) this.ctx.suspend();
     }catch(e){}
   },
-  resume(){ if(this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+  // resume() is called constantly from ordinary input handling (every
+  // keydown/pointerdown) as a general "the tab has focus, audio may need
+  // unlocking" nudge -- if it unconditionally un-suspended the context, the
+  // very next keypress during an ad break or a portal-level mute would
+  // silently defeat that mute. Explicit unmutes (adMute(false)/sdkMute(false)
+  // below) call ctx.resume() directly instead of through here, so this
+  // guard never blocks a real unmute, only an incidental one.
+  resume(){ if(this.ctx && this.ctx.state === 'suspended' && !this.muted) this.ctx.resume(); },
   tone(f, d, type, vol, slide, dest){
     if(!this.ready || (!save.opt.sfx && dest!==this.musGain)) return;
     const c = this.ctx, t = c.currentTime;
@@ -1049,14 +1064,26 @@ const Snd = {
     if(!this.ready || !save.opt.sfx) return;
     this.tone(up?160:1400, .5, 'sawtooth', .07, up?1600:120);
   },
-  adMute(on){
-    this.muted = !!on;
+  _adMuted:false, _sdkMuted:false,
+  // ad-break muting and the CrazyGames portal's own mute-through-SDK signal
+  // are tracked as two independent reasons, combined here, rather than one
+  // shared flag -- otherwise an ad ending (or the portal unmuting) while
+  // the other reason is still active would incorrectly un-mute audio out
+  // from under it.
+  _applyHardMute(){
+    const on = this._adMuted || this._sdkMuted;
+    this.muted = on;
     if(!this.ready) return;
     try{
       if(this.master) this.master.gain.value = on ? 0 : (this.M.story ? .82 : .5);
       if(on) this.ctx.suspend(); else this.ctx.resume();
     }catch(e){}
   },
+  adMute(on){ this._adMuted = !!on; this._applyHardMute(); },
+  // the CrazyGames SDK's own mute-through-SDK signal (see Ads.init()) --
+  // the portal calls this when the player mutes via its own chrome, a
+  // separate control surface from this game's in-game SFX/Music toggles.
+  sdkMute(on){ this._sdkMuted = !!on; this._applyHardMute(); },
   setSfx(v){ save.opt.sfx = v?1:0; if(this.sfxGain) this.sfxGain.gain.value = v?this._sfxBase:0; persist(); },
   setMus(v){
     save.opt.mus = v?1:0; this._musBase = v?.48:0;
@@ -1282,6 +1309,13 @@ const Ads = {
         await sdk.init();
         this.provider = 'crazygames';
         Store.cg = sdk.data || null;
+        // the portal's own mute control (its chrome, or a device-level
+        // mute) is a separate surface from this game's in-game SFX/Music
+        // toggles -- feature-detected since SDK versions vary, same as
+        // every other optional sdk.* call in this file.
+        try{
+          if(typeof sdk.game.onMuteChange==='function') sdk.game.onMuteChange(isMuted => Snd.sdkMute(isMuted));
+        }catch(e){}
       }catch(e){ this.provider = 'none'; }
     } else if(window.PokiSDK){
       try{ await window.PokiSDK.init(); this.provider='poki'; }catch(e){ this.provider='poki'; }
