@@ -103,12 +103,20 @@ CrazyGames wants one visible to players.
 - Single HTML file, zero external image/audio assets — all art is
   procedural canvas, all audio is synthesized Web Audio. No licensing
   risk from third-party assets.
-- CrazyGames SDK v3 already integrated: `init`, `loadingStart/Stop`,
-  `gameplayStart/Stop` are called correctly around every state
+- CrazyGames SDK v3 already integrated: `init` → `loadingStart` →
+  `loadingStop`, then `gameplayStart/Stop` around every state
   transition (run start, pause/resume, revive, chest, cutscenes,
-  death). Rewarded + midgame ad calls are wired in, with a working
-  fallback if the ad SDK isn't present, so a preview build never
-  breaks.
+  death) — verified against the SDK's own documented call order, not
+  just presence. Midgame ad calls are wired in (self-limited to once
+  per 3 minutes, never on a first-time player's result screen), with a
+  working fallback if the ad SDK isn't present, so a preview build
+  never breaks.
+- No rewarded-ad flow: the game never shows a "watch an ad for a
+  bonus" prompt. That path is deliberately replaced everywhere by an
+  in-game spin-the-wheel mini-game instead, whose worst outcome is
+  still strictly better than the flat reward it replaced. (An
+  `Ads.rewarded()` helper exists in the code for future use but is
+  currently unused — nothing calls it.)
 - GLOBAL leaderboard/chat and PLAY WITH FRIENDS are currently
   **inactive by design** — `FIREBASE_CONFIG` near the top of
   `index.html` still holds placeholder values. Both features are
