@@ -23,10 +23,11 @@ You don't aim. You don't reload. You just move.
 
 NEON REAPER drops you into a glowing arena where your weapons fire
 themselves and the only thing standing between you and the swarm is
-how well you dodge. Every level-up stacks another weapon or power onto
-your build — orbiting blades, chain lightning, homing missiles,
-gravity wells — until a run that started with one weak blaster ends in
-a screen-filling storm of your own making.
+how well you dodge. Every level-up puts a real choice in front of you
+— orbiting blades, chain lightning, homing missiles, gravity wells —
+pick with a tap or a keypress without ever losing sight of the fight,
+until a run that started with one weak blaster ends in a
+screen-filling storm of your own making.
 
 **Ten stories, ten reasons to fight.** Play through fully voiced,
 hand-written rescue stories — a parent searching for a stolen child, a
@@ -136,3 +137,17 @@ CrazyGames wants one visible to players.
   Firebase credentials are filled in; until then, their buttons are
   deliberately hidden rather than shown broken (CrazyGames rejects
   submissions with a non-functional invite button).
+- Global `error`/`unhandledrejection` handlers catch anything thrown
+  outside the render loop (an SDK callback, a click handler, an async
+  function) so one unexpected error can't surface as a raw uncaught
+  exception inside the sandboxed iframe CrazyGames runs the game in.
+- Movement has real momentum (fast to accelerate, noticeably slower to
+  stop or reverse) and level-up power picks are interactive again —
+  tap, number keys, or any other key confirms the recommended pick —
+  without ever pausing the arena underneath, restoring player choice
+  that an earlier build had removed after it blocked view of combat.
+- A pseudo-3D depth pass on top of the existing procedural-canvas
+  renderer: ground shadows under the player and every enemy, parallax
+  starfield, volumetric enemy shading on the high-quality tier, and
+  layered elevation shadows across the UI — all gated behind the
+  existing adaptive-quality tiers, zero cost on low-end devices.
