@@ -360,8 +360,15 @@ if (tocSection) {
 }
 
 // ---------- assemble ----------
+// WITH_COVERS=1: wrap the book in its front and back cover (full-page images)
+const WITH_COVERS = process.env.WITH_COVERS === '1';
+if (WITH_COVERS) {
+  sections.unshift({ children: [P(fullBleed('cover_front_trim'))], bleed: true, cover: true });
+  sections.push({ children: [P(fullBleed('cover_back_trim'))], bleed: true, cover: true });
+}
+const firstBook = sections.findIndex((x) => !x.cover);
 const docSections = sections.map((s, idx) => {
-  const pageNumbers = s.restart ? { start: 1, formatType: NumberFormat.DECIMAL } : (idx === 0 ? { start: 1, formatType: NumberFormat.LOWER_ROMAN } : (s.front ? { formatType: NumberFormat.LOWER_ROMAN } : undefined));
+  const pageNumbers = s.restart ? { start: 1, formatType: NumberFormat.DECIMAL } : (idx === firstBook ? { start: 1, formatType: NumberFormat.LOWER_ROMAN } : (s.front ? { formatType: NumberFormat.LOWER_ROMAN } : undefined));
   const props = { page: { size: PAGE, margin: MARGIN, ...(pageNumbers ? { pageNumbers } : {}) }, titlePage: true };
   const hf = s.bleed ? { headers: { default: emptyHF().header, first: emptyHF().header }, footers: { default: emptyHF().footer, first: emptyHF().footer } }
     : { headers: { default: runningHeader(s.header), first: emptyHF().header }, footers: { default: pageFooter(), first: emptyHF().footer } };
@@ -395,6 +402,6 @@ const doc = new Document({
   sections: docSections,
 });
 
-const out = path.join(ROOT, 'output', 'Burn_to_Become_Illustrated_Manuscript.docx');
+const out = path.join(ROOT, 'output', WITH_COVERS ? 'Burn_to_Become_Complete_With_Covers.docx' : 'Burn_to_Become_Illustrated_Manuscript.docx');
 fs.mkdirSync(path.dirname(out), { recursive: true });
 Packer.toBuffer(doc).then((buf) => { fs.writeFileSync(out, buf); console.log('wrote', out, (buf.length / 1024 / 1024).toFixed(2) + ' MB', sections.length, 'sections'); });
