@@ -798,6 +798,17 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
    Poki / GameDistribution / itch / Capacitor (Play Store).
    ============================================================ */
 
+// last line of defense: the main loop (see loop()) already re-arms its own
+// requestAnimationFrame before running any risky code each tick, so one bad
+// frame can't kill the loop itself -- but an error thrown from an SDK
+// callback, a click handler, or an async function happens outside that loop
+// entirely and would otherwise surface as a raw uncaught exception inside
+// the sandboxed iframe CrazyGames runs the game in. This doesn't fix
+// whatever the bug was, it just stops one unexpected error from ever being
+// silently fatal to the page.
+addEventListener('error', e => { try{ console.warn('caught error:', e.message); }catch(_){} });
+addEventListener('unhandledrejection', e => { try{ console.warn('caught rejection:', e.reason); }catch(_){} });
+
 /* ---------------- 0. TINY UTIL ---------------- */
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
