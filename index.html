@@ -279,6 +279,9 @@ h2.tt{font:900 20px/1 var(--f1);letter-spacing:2px;margin-bottom:12px;text-align
 #wheelResult.show{opacity:1;transform:scale(1)}
 #wheelSpinBtn{max-width:220px}
 
+#confirmOv{position:absolute;inset:0;z-index:80;pointer-events:auto;background:rgba(3,4,10,.88);display:flex;align-items:center;justify-content:center;padding:20px}
+#confirmPanel{max-width:360px}
+
 /* ---- CUTSCENE ---- */
 #cutscene{position:absolute;inset:0;z-index:70;background:#000;overflow:hidden}
 #csStage{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1}
@@ -717,6 +720,22 @@ kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5
   </div>
   <div id="wheelResult"></div>
   <button class="btn gold" id="wheelSpinBtn">✦ SPIN ✦</button>
+</div>
+
+<!-- generic confirm dialog -- replaces window.confirm(), which a sandboxed
+     iframe (exactly how portals like CrazyGames commonly embed a game)
+     silently ignores without the allow-modals permission, turning
+     whatever called it into a dead, no-feedback no-op. This works in
+     every embedding context and matches the rest of the UI's own
+     styling instead of a native browser dialog. -->
+<div id="confirmOv" class="hidden">
+  <div class="panel" id="confirmPanel">
+    <div id="confirmMsg" style="font:600 14px/1.5 var(--f2);color:var(--txt);text-align:center;margin-bottom:16px"></div>
+    <div class="row">
+      <button class="btn ghost" id="confirmNo">CANCEL</button>
+      <button class="btn" id="confirmYes">CONFIRM</button>
+    </div>
+  </div>
 </div>
 
 <!-- CUTSCENE (shared by the intro and the ending) -->
@@ -4218,6 +4237,14 @@ function show(id){ $(id).classList.remove('hidden'); }
 function hide(id){ $(id).classList.add('hidden'); }
 const SCREENS = ['menuScreen','modeScreen','dailyScreen','chestScreen','pauseScreen','overScreen','reviveScreen','shopScreen','heroScreen','achScreen','statsScreen'];
 function hideAll(){ SCREENS.forEach(hide); Ads.clearBanner(); }
+function askConfirm(msg, onYes){
+  $('confirmMsg').textContent = msg;
+  show('confirmOv');
+  const yesBtn = $('confirmYes'), noBtn = $('confirmNo');
+  const cleanup = () => { hide('confirmOv'); yesBtn.onclick = null; noBtn.onclick = null; };
+  yesBtn.onclick = () => { cleanup(); onYes(); };
+  noBtn.onclick = cleanup;
+}
 
 /* ---------------- 23b. STORY: "SAVE HER" ----------------
    Classic and Easy mode are the story mode. The instant you hit level
@@ -8836,18 +8863,19 @@ $('qualityBtn').onclick = ()=>{
   save.opt.quality = QUALITY_CYCLE[(i+1)%QUALITY_CYCLE.length];
   persist(); renderStats(); resize();
 };
-$('wipeBtn').onclick = ()=>{ if(confirm('Erase ALL progress permanently?')){ save=defaultSave(); writeSave(); location.reload(); } };
+$('wipeBtn').onclick = ()=>{ askConfirm('Erase ALL progress permanently?', ()=>{ save=defaultSave(); writeSave(); location.reload(); }); };
 $('rewatchIntroBtn').onclick = ()=>{ Snd.click(); hideAll(); Snd.init(); Snd.resume(); G.relation = save.lastRelation||'mom'; Cutscene.play(curStory().intro, true, ()=>goMenu()); };
 $('rewatchEndBtn').onclick = ()=>{ Snd.click(); hideAll(); Snd.init(); Snd.resume(); G.relation = save.lastRelation||'mom'; Cutscene.play(curStory().ending, false, ()=>goMenu()); };
 $('ascendBtn').onclick = ()=>{
   const metaMax = META.reduce((a,m)=>a+m.max,0);
   if(Object.values(save.meta).reduce((a,b)=>a+b,0) < metaMax) return;
-  if(!confirm('Ascend now? This resets every permanent upgrade and your shard balance, but grants a permanent stacking bonus to damage, XP and shard gain forever. This cannot be undone.')) return;
-  save.ascension = (save.ascension||0)+1;
-  save.meta = defaultSave().meta;
-  save.coins = 0;
-  persist(); Snd.big(); toast('ASCENDED', 'Ascension '+save.ascension+' — permanent power gained');
-  checkAch(); refreshCoins(); renderStats();
+  askConfirm('Ascend now? This resets every permanent upgrade and your shard balance, but grants a permanent stacking bonus to damage, XP and shard gain forever. This cannot be undone.', ()=>{
+    save.ascension = (save.ascension||0)+1;
+    save.meta = defaultSave().meta;
+    save.coins = 0;
+    persist(); Snd.big(); toast('ASCENDED', 'Ascension '+save.ascension+' — permanent power gained');
+    checkAch(); refreshCoins(); renderStats();
+  });
 };
 
 /* ---------------- 29. QUESTS ---------------- */
