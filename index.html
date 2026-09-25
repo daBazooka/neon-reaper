@@ -2797,6 +2797,10 @@ function spawnBoss(){
   // Every later boss has plenty of surrounding trash mobs and a far
   // stronger build to close that same gap, so only this one needs to
   // start closer.
+  if(G.bossN===0 && save.runs===0 && !_tutBoss){
+    _tutBoss = true;
+    tutToast('BOSS INCOMING', 'Bigger and tougher, but fights exactly the same — keep moving, keep firing.', 'linear-gradient(135deg,#ff2fb9,#ff3b5c)');
+  }
   const p = G.bossN===0 ? ringPos(.38) : ringPos();
   const kind = BOSSKINDS[G.bossN % BOSSKINDS.length];
   const hard = G.mode==='hardcore' ? 1.3 : G.mode==='easy' ? .78 : G.mode==='classic' ? 1.2 : 1;
@@ -2998,9 +3002,42 @@ function damage(e, amt, crit, color, kbx, kby){
   else if(Math.random()<.5) Snd.hit();
 }
 const KWORDS = [[8,'NICE'],[16,'SAVAGE'],[28,'BRUTAL'],[45,'INSANE'],[70,'GODLIKE'],[110,'UNREAL'],[160,'REAPER']];
+// first-run-only mechanics tutorial: four short toasts (run start, first
+// kill, first level-up, first boss) reusing the existing non-blocking
+// toast() UI instead of any new full-screen overlay -- this file already
+// learned that lesson once with the level-up picker (see its own comment),
+// so a tutorial is the last place to reintroduce a screen-blocking modal.
+// save.runs only increments at the very end of a run (see finishRun), so
+// it reads 0 for a player's entire first run and never again after --
+// these flags exist only to stop a hint repeating within that one run
+// (e.g. every kill, not just the first).
+let _tutKill=false, _tutLevel=false, _tutBoss=false;
+// a brand-new player can plausibly hit level 2 within a couple seconds of
+// their first kill -- early XP thresholds are low -- so the four hints
+// calling toast() independently could stack two or three deep on screen
+// at once. Routing them through their own queue instead of the shared
+// toast() call sites (which several unrelated, already-tuned things use
+// and shouldn't have their timing changed) guarantees only one tutorial
+// hint is ever visible at a time, in the order they actually happened.
+let _tutQueue=[], _tutBusy=false;
+function tutToast(title, body, color){
+  _tutQueue.push({title,body,color});
+  if(!_tutBusy) _tutNext();
+}
+function _tutNext(){
+  if(!_tutQueue.length){ _tutBusy=false; return; }
+  _tutBusy = true;
+  const n = _tutQueue.shift();
+  toast(n.title, n.body, n.color, 4200);
+  setTimeout(_tutNext, 4600);
+}
 function killEnemy(e){
   const i = enemies.indexOf(e); if(i<0) return;
   enemies.splice(i,1); e.dead = true;
+  if(save.runs===0 && !_tutKill){
+    _tutKill = true;
+    tutToast('ENEMY DOWN', 'It dropped a shard — walk over it to collect XP and level up.', 'linear-gradient(135deg,#b6ff3c,#26f0ff)');
+  }
   if(e.finalBoss || e.finalAlly) onFinalBossOrAllyKilled(e);
   else if(e.arcadeFinalBoss) onArcadeFinalBossKilled();
   P.kills++; G.kills++;
@@ -4284,7 +4321,7 @@ function updateUltHUD(){
   $('ultwrap').style.setProperty('--ultp', pct);
   $('ultwrap').classList.toggle('ready', G.ultCd<=0);
 }
-function toast(title, body, color){
+function toast(title, body, color, dur){
   const t = document.createElement('div'); t.className='toast';
   if(color) t.style.background = color;
   t.innerHTML = `<b>${title}</b>${body}`;
@@ -4299,7 +4336,7 @@ function toast(title, body, color){
   // means a toast repositions itself correctly mid-fade if the screen
   // changes underneath it, not just at the moment it was created.
   $('toasts').appendChild(t);
-  setTimeout(()=>{ t.style.transition='opacity .4s,transform .4s'; t.style.opacity=0; t.style.transform='translateY(-14px)'; setTimeout(()=>t.remove(),420); }, 2600);
+  setTimeout(()=>{ t.style.transition='opacity .4s,transform .4s'; t.style.opacity=0; t.style.transform='translateY(-14px)'; setTimeout(()=>t.remove(),420); }, dur||2600);
 }
 
 /* ---------------- 21. LEVEL UP ---------------- */
@@ -4419,6 +4456,10 @@ function showLevelUpPick(offers, best, onChosen){
     host.appendChild(el);
   });
   host.classList.add('show');
+  if(save.runs===0 && !_tutLevel){
+    _tutLevel = true;
+    tutToast('LEVEL UP!', 'Tap a card, press its number, or keep moving — the best pick is chosen for you.', 'linear-gradient(135deg,#8b5cff,#26f0ff)');
+  }
   // 2.6s, same lifetime the old auto-resolve gave a level-up -- long
   // enough to glance at and tap or press a number key, short enough that
   // several level-ups from one big kill don't stack up and stall the run
@@ -8703,6 +8744,7 @@ function _beginRunNow(){
   G.milestoneQueue=[]; G.mqCooldown=rnd(3,5);
   if(window.speechSynthesis) stopVoice(); // no leftover speech bleeding in from a previous run
   _announceQ.length = 0; _announceBusy = false; // no stale banner text bleeding into a fresh run
+  _tutQueue.length = 0; _tutBusy = false; // same reason -- a still-draining tutorial hint from a fast first run/death shouldn't surface into whatever run starts next
   const arena = ARENAS[G.arenaI]||ARENAS[0];
   setTheme(arena.theme,false); theme.bg=THEMES[arena.theme].bg.slice(); theme.g=THEMES[arena.theme].g.slice();
   Snd.setIntensity(0,false,false);
@@ -8751,6 +8793,14 @@ function _beginRunNow(){
   // the mode name) so the two read as one continuous beat instead of
   // colliding on screen
   setTimeout(()=>showGoalBanner('REACH LEVEL 100'), 1100);
+  // a player's very first-ever run only: four short, non-blocking toasts
+  // (this one, plus one each on first kill/level-up/boss below) walk
+  // through the actual mechanics rather than repeating the menu's control
+  // hint. Staggered well clear of the entrance beats above so nothing on
+  // screen collides with anything else at the same moment.
+  if(save.runs===0){
+    setTimeout(()=>tutToast('SURVIVE THE SWARM', 'Move into enemies to fight — your weapons fire on their own. Dodge everything else.', 'linear-gradient(135deg,#26f0ff,#8b5cff)'), 2200);
+  }
   // quest run-scoped progress reset
   qRunReset();
 }
