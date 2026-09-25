@@ -245,6 +245,10 @@ h2.tt{font:900 20px/1 var(--f1);letter-spacing:2px;margin-bottom:12px;text-align
   transition:transform .1s,border-color .15s,box-shadow .1s;animation:cin .22s backwards}
 .pickcard:active{transform:translateY(2px) scale(.95);box-shadow:0 3px 8px -4px rgba(0,0,0,.5)}
 .pickcard.rare{border-color:var(--vi)} .pickcard.epic{border-color:var(--or)}
+/* the currently-highlighted card when navigating by keyboard (A/D or
+   Left/Right) -- a white ring so it reads as "this one" regardless of the
+   card's own rarity border color underneath it */
+.pickcard.hi{box-shadow:0 0 0 2px #fff,0 10px 18px -8px rgba(0,0,0,.65),0 1px 0 rgba(255,255,255,.06) inset;transform:translateY(-3px)}
 .pickcard .ic{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;background:rgba(38,240,255,.1)}
 .pickcard .nm{font:900 9px/1.1 var(--f1);letter-spacing:.3px}
 .pickcard .key{font:700 8px/1 var(--f1);color:var(--dim);letter-spacing:1px}
@@ -2336,15 +2340,22 @@ const inp = { mx:0, my:0, active:false, dx:0, dy:0 };
 addEventListener('keydown', e=>{
   keys[e.key.toLowerCase()] = 1;
   if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase())) e.preventDefault();
-  // level-up power pick: 1/2/3 chooses that exact card; any other
-  // non-movement key confirms the recommended one, same "any key" pattern
-  // as the ultimate below -- so a player who's just mashing keys to fight
-  // never gets stuck on a card they didn't consciously stop for, while a
-  // player who DOES want to look can use the number keys deliberately.
+  // level-up power pick: 1/2/3 still instant-selects that exact card, but
+  // A/D or Left/Right now move a highlight across the row (matching the
+  // cards' actual horizontal layout -- W/S/Up/Down have nothing to
+  // navigate, so they stay pure movement) and SPACE or ENTER confirms
+  // whichever card is currently highlighted. These are the same keys that
+  // already move the ship, and deliberately keep doing exactly that here
+  // too -- the whole point of this picker existing is that dodging never
+  // has to stop to make a choice, so movement can't be sacrificed just to
+  // also steer a cursor.
   if(_lvlPickPending){
     const digit = '123'.indexOf(e.key) + 1;
+    const k = e.key.toLowerCase();
     if(digit>=1 && digit<=3 && _lvlPickPending.offers[digit-1]) _lvlPickPending.resolve(_lvlPickPending.offers[digit-1]);
-    else if(!['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','shift','control','alt','meta','tab','capslock','escape'].includes(e.key.toLowerCase())) _lvlPickPending.resolve(_lvlPickPending.best);
+    else if(k==='a'||k==='arrowleft') _lvlPickPending.prev();
+    else if(k==='d'||k==='arrowright') _lvlPickPending.next();
+    else if(k===' '||k==='enter') _lvlPickPending.confirm();
   }
   // Escape is a browser-reserved key on the web (it exits fullscreen at
   // the browser level, a behavior page JS cannot override) -- CrazyGames'
@@ -3615,14 +3626,21 @@ function hurtPlayer(amt){
   setTimeout(()=>{ f.style.opacity = P.hp/P.maxHp < .3 ? .45 : 0; }, 130);
   dnum(P.x, P.y-26, amt, false, '#ff3b5c');
   if(P.hp<=0){
-    // death is switched off for the entire main story campaign — leveling,
-    // every boss along the way, even the final boss himself. The only
-    // place you can actually die in story mode is the endless DEADLY
-    // WAVE that starts once the mother is rescued (G.postRescue), exactly
-    // the "endless simulation after level 100" this is meant to gate.
-    // Every other mode (classic/hardcore/bossrush/easy) is unaffected.
-    if(isStoryMode() && !G.postRescue){ P.hp = 1; }
-    else { P.hp=0; onDeath(); }
+    // story mode used to floor HP at 1 here instead of ever actually
+    // dying, for the entire main campaign -- meant to keep the rescue
+    // narrative from being interrupted by a hard fail state. In practice
+    // it meant the HP bar never had real stakes in the game's own default,
+    // most-played mode: taking a hit that should be lethal just... wasn't,
+    // no matter how much damage stacked up. That reads as broken rather
+    // than forgiving, and story mode already has the same revive system
+    // every other non-hardcore mode uses (see onDeath/openRevive) -- up to
+    // 2 offers, free ones from meta upgrades or paid with coins -- which
+    // already provides the "don't harshly gate the story behind skill"
+    // forgiveness this was trying to add a second, invisible layer of.
+    // Declining every revive still correctly falls through to the existing
+    // "she wasn't rescued" bad-ending cutscene in finishRun(), previously
+    // reachable only by quitting mid-run, never by actually losing a fight.
+    P.hp=0; onDeath();
   }
 }
 function gainXP(v){
@@ -4439,6 +4457,8 @@ function showLevelUpPick(offers, best, onChosen){
   const host = $('lvlPickWrap');
   host.innerHTML = '';
   let resolved = false;
+  let idx = Math.max(0, offers.indexOf(best));
+  const cards = [];
   const resolve = o => {
     if(resolved) return; resolved = true;
     clearTimeout(_lvlPickPending.timer);
@@ -4447,6 +4467,7 @@ function showLevelUpPick(offers, best, onChosen){
     Snd.click();
     onChosen(o);
   };
+  const setHi = () => cards.forEach((el,i)=>el.classList.toggle('hi', i===idx));
   offers.forEach((o,i)=>{
     const d = offerHTML(o);
     const el = document.createElement('div');
@@ -4454,19 +4475,27 @@ function showLevelUpPick(offers, best, onChosen){
     el.innerHTML = `<div class="ic" style="color:${d.col};border-color:${d.col}55">${d.ic}</div><div class="nm" style="color:${d.col}">${d.nm}</div><div class="key">${i+1}</div>`;
     el.onclick = () => resolve(o);
     host.appendChild(el);
+    cards.push(el);
   });
+  setHi(); // default highlight lands on the recommended card, same as the old any-key-confirms-best fallback
   host.classList.add('show');
   if(save.runs===0 && !_tutLevel){
     _tutLevel = true;
-    tutToast('LEVEL UP!', 'Tap a card, press its number, or keep moving — the best pick is chosen for you.', 'linear-gradient(135deg,#8b5cff,#26f0ff)');
+    tutToast('LEVEL UP!', 'Tap a card, press 1-3, or ←/→ then SPACE — the best pick is chosen if you keep dodging.', 'linear-gradient(135deg,#8b5cff,#26f0ff)');
   }
-  // 2.6s, same lifetime the old auto-resolve gave a level-up -- long
-  // enough to glance at and tap or press a number key, short enough that
-  // several level-ups from one big kill don't stack up and stall the run
-  // for a player who's ignoring them (any keypress but a movement key
-  // resolves it immediately anyway, so this timeout is really only for
-  // someone who's let go of every key entirely).
-  _lvlPickPending = { offers, best, resolve, timer: setTimeout(()=>resolve(best), 2600) };
+  // 3.4s, a bit longer than the old single-keypress version's 2.6s --
+  // navigating with arrows then confirming with SPACE/ENTER is a real
+  // two-step action, so it needs a little more room than the old "any
+  // key confirms" scheme did, while still resolving to the current
+  // highlight (never a stale "best" that ignores arrow input someone
+  // already made) if the player lets go of every key entirely.
+  _lvlPickPending = {
+    offers, best, resolve,
+    prev: ()=>{ idx = Math.max(0, idx-1); setHi(); },
+    next: ()=>{ idx = Math.min(offers.length-1, idx+1); setHi(); },
+    confirm: ()=>resolve(offers[idx]),
+    timer: setTimeout(()=>resolve(offers[idx]), 3400)
+  };
 }
 // death can land mid-pick now that it's a real, non-instant choice instead
 // of the old always-synchronous auto-apply -- without this, a dangling
