@@ -2600,8 +2600,8 @@ function spawnAt(type, x, y, mult, elite){
   };
   enemies.push(e); return e;
 }
-function ringPos(){
-  const a = Math.random()*TAU, d = Math.max(VW,VH)*.62 + rnd(60,180);
+function ringPos(mul){
+  const a = Math.random()*TAU, d = Math.max(VW,VH)*(mul!=null?mul:.62) + rnd(60,180);
   return { x: clamp(P.x + Math.cos(a)*d, -ARENA+40, ARENA-40), y: clamp(P.y + Math.sin(a)*d, -ARENA+40, ARENA-40) };
 }
 function spawnWave(dt){
@@ -2665,7 +2665,17 @@ function recentDps(){
   return sum/span;
 }
 function spawnBoss(){
-  const p = ringPos();
+  // the very first boss lands just 22s into a run (see nextBoss below),
+  // while the player still has minimal weapon range and no other nearby
+  // enemies to fill the gap -- spawning it at the same off-screen ring
+  // distance a regular grunt gets (empirically ~900-1100 units) meant a
+  // measured ~10s of it just walking into range before the fight could
+  // start at all, on top of the fight itself: dead time that reads as
+  // "this boss takes forever," right at a new player's first impression.
+  // Every later boss has plenty of surrounding trash mobs and a far
+  // stronger build to close that same gap, so only this one needs to
+  // start closer.
+  const p = G.bossN===0 ? ringPos(.38) : ringPos();
   const kind = BOSSKINDS[G.bossN % BOSSKINDS.length];
   const hard = G.mode==='hardcore' ? 1.3 : G.mode==='easy' ? .78 : G.mode==='classic' ? 1.2 : 1;
   // no boss — including the final one — is meant to be genuinely hard
