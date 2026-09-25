@@ -8134,6 +8134,14 @@ function checkStoryMilestones(){
     G.state='CUTSCENE'; Ads.gameplayStop();
     Cutscene.play(curStory().finalConfront, true, ()=>{
       G.state='PLAY'; last=0; acc=0; Ads.gameplayStart();
+      // crossing level 100 is what armed this cutscene in the first place,
+      // so there's always a pending perk-pick from that level-up still
+      // waiting — gainXP()'s own guard for it (G.state==='PLAY') was false
+      // the instant it checked, since this cutscene had already taken over
+      // synchronously in the same call. Same resume-on-return-to-PLAY
+      // pattern as chestOk below; without it the pick silently never
+      // happens unless the player later collects an unrelated XP orb.
+      if(G.pendingLevels>0 && !G._lvlPickActive) startLevelUpPick();
       triggerFinalBattle();
     });
   }
@@ -8198,6 +8206,11 @@ function onFinalBossOrAllyKilled(e){
         // is genuinely dangerous, not a victory lap
         G.postRescue = true; G.rescueLevel = P.level;
         G.state='PLAY'; last=0; acc=0; Ads.gameplayStart();
+        // same stranding as the finalConfront cutscene above, and the
+        // stakes are higher here: the deadly wave right after this is
+        // deliberately lethal, so the player needs every earned perk
+        // applied before it starts, not stuck waiting on a stray XP orb.
+        if(G.pendingLevels>0 && !G._lvlPickActive) startLevelUpPick();
         const home = relVerbFor(G.relation)+' HOME. NOW SURVIVE.';
         announce('DEADLY WAVE — '+home, '#ff3b5c');
         toast('DEADLY WAVE', 'Death is real again. This is the only fight you can actually lose.', 'linear-gradient(135deg,#ff3b5c,#7a0f22)');
