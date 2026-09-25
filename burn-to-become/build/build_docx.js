@@ -329,7 +329,7 @@ const docSections = sections.map((s, idx) => {
 });
 
 const doc = new Document({
-  creator: '[Author Name]', title: 'Burn to Become', description: 'Burn to Become: The Life You Could Have Lived — illustrated manuscript, 6 x 9 in',
+  creator: 'Bazooka', title: 'Burn to Become', description: 'Burn to Become: The Life You Could Have Lived — illustrated manuscript, 6 x 9 in',
   features: { updateFields: true },
   styles: {
     default: { document: { run: { font: FONT, size: 23, color: INK }, paragraph: { spacing: { line: 300, lineRule: LineRuleType.AUTO } } } },
