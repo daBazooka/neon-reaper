@@ -1300,6 +1300,14 @@ function pickMusicVibe(line, fallbackDark){
    Google AdSense H5 / Capacitor-AdMob bridge). Falls back to a clean
    built-in placeholder so the game is fully playable anywhere. */
 const CG = () => (window.CrazyGames && window.CrazyGames.SDK) || null;
+// CrazyGames reviews a new submission as "Basic Launch" first -- no ads
+// allowed at all at that stage, monetization only turns on once the game
+// passes review and is promoted to "Full Implementation". Their own QA
+// tooling automatically detects any ad SDK call (interstitial or banner)
+// during a Basic Launch pass and rejects on the spot. Flip this to false
+// once the CrazyGames dashboard confirms Full Implementation is live --
+// nothing else needs to change, every ad call below already checks it.
+const BASIC_LAUNCH_MODE = true;
 const Ads = {
   busy:false, provider:'none', ready:false, lastMid:-999, mids:0,
   async init(){
@@ -1360,6 +1368,7 @@ const Ads = {
   // portal's own ad-slot bookkeeping always matches what's really on
   // screen instead of drifting out of sync with a stale request
   requestBanner(){
+    if(BASIC_LAUNCH_MODE) return; // no ads allowed at all during Basic Launch review
     try{
       if(this.provider!=='crazygames') return;
       const sdk = CG(); if(!sdk || !sdk.banner || typeof sdk.banner.requestBanner!=='function') return;
@@ -1390,7 +1399,7 @@ const Ads = {
       cb(ok);
     };
     try{
-      if(this.provider==='crazygames'){
+      if(this.provider==='crazygames' && !BASIC_LAUNCH_MODE){
         CG().ad.requestAd('rewarded', {
           adStarted: ()=> Snd.adMute(true),
           adFinished: ()=> done(true),
@@ -1407,6 +1416,7 @@ const Ads = {
 
   /* midgame ad — natural break only, self-limited on top of the portal's own cap */
   interstitial(){
+    if(BASIC_LAUNCH_MODE) return; // no ads allowed at all during Basic Launch review
     if(this.busy) return;
     if(save.runs < 2) return;                       // never on a first-time player's first result
     if(gt - this.lastMid < 180) return;             // at least 3 minutes between midrolls
