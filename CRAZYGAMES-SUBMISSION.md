@@ -107,16 +107,28 @@ CrazyGames wants one visible to players.
   `loadingStop`, then `gameplayStart/Stop` around every state
   transition (run start, pause/resume, revive, chest, cutscenes,
   death) — verified against the SDK's own documented call order, not
-  just presence. Midgame ad calls are wired in (self-limited to once
-  per 3 minutes, never on a first-time player's result screen), with a
-  working fallback if the ad SDK isn't present, so a preview build
-  never breaks.
+  just presence.
+- **Basic Launch: zero ads of any kind, on purpose.** `BASIC_LAUNCH_MODE`
+  (near the top of `index.html`, right above the `Ads` object) is
+  currently `true`, and every single ad-surface call in the file —
+  midgame interstitial, banner request, banner clear, the unused
+  rewarded-ad helper — checks it first and no-ops while it's on.
+  Verified exhaustively: nothing in the file touches `sdk.ad`/
+  `sdk.banner` while the flag is set. This exists specifically because
+  CrazyGames doesn't allow any ads during Basic Launch review — flip
+  it to `false` once the dashboard confirms promotion to Full
+  Implementation, and every ad call (self-limited to once per 3
+  minutes, never on a first-time player's result screen, with a
+  working non-CrazyGames fallback) is already wired and ready.
 - No rewarded-ad flow: the game never shows a "watch an ad for a
-  bonus" prompt. That path is deliberately replaced everywhere by an
-  in-game spin-the-wheel mini-game instead, whose worst outcome is
-  still strictly better than the flat reward it replaced. (An
-  `Ads.rewarded()` helper exists in the code for future use but is
-  currently unused — nothing calls it.)
+  bonus" prompt, ads on or off. That path is deliberately replaced
+  everywhere by an in-game spin-the-wheel mini-game instead, whose
+  worst outcome is still strictly better than the flat reward it
+  replaced.
+- Supports CrazyGames' mute-through-SDK signal (`sdk.game.onMuteChange`)
+  — the portal's own mute control, separate from the game's in-game
+  SFX/Music toggles, correctly silences audio when the player mutes via
+  CrazyGames' own chrome.
 - GLOBAL leaderboard/chat and PLAY WITH FRIENDS are currently
   **inactive by design** — `FIREBASE_CONFIG` near the top of
   `index.html` still holds placeholder values. Both features are
