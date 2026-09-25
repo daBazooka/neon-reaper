@@ -7,13 +7,13 @@ const {
   Document, Packer, Paragraph, TextRun, ImageRun, AlignmentType, HeadingLevel, PageBreak,
   Header, Footer, PageNumber, TableOfContents, Table, TableRow, TableCell, WidthType, BorderStyle,
   ShadingType, HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, TextWrappingType,
-  NumberFormat, LineRuleType, HeightRule, VerticalAlign,
+  NumberFormat, LineRuleType, HeightRule, VerticalAlign, Bookmark, InternalHyperlink, TabStopType, LeaderType, Tab,
 } = d;
 
 const ROOT = path.resolve(__dirname, '..');
 const IMG = (n) => { const j = path.join(ROOT, 'images', n + '.jpg'); return fs.existsSync(j) ? j : path.join(ROOT, 'images', n + '.png'); };
 const TYPE = (f) => f.endsWith('.jpg') ? 'jpg' : 'png';
-const FONT = 'Garamond';
+const FONT = 'EB Garamond';
 const INK = '141414';
 
 // ---------- page geometry: 6 x 9 in ----------
@@ -159,6 +159,19 @@ function newSection({ header = 'Burn to Become', first = true, bleed = false, re
 }
 const push = (...els) => cur.children.push(...els.flat());
 
+// ---------- contents page (static, numbered; page numbers from a previous render) ----------
+const PAGES_FILE = path.join(__dirname, 'toc_pages.json');
+const PAGES = fs.existsSync(PAGES_FILE) ? JSON.parse(fs.readFileSync(PAGES_FILE, 'utf8')) : {};
+const TOCENTRIES = [];
+let tocSection = null;
+function tocMark(kind, label, title) {
+  const key = 'toc' + String(TOCENTRIES.length + 1).padStart(3, '0');
+  TOCENTRIES.push({ key, kind, label, title });
+  return key;
+}
+const tabRun = (text, o = {}) => new TextRun({ font: FONT, ...o, children: [new Tab(), text] });
+const bm = (key, r) => new Bookmark({ id: key, children: [r] });
+
 let i = 0;
 while (i < lines.length) {
   const raw = lines[i];
@@ -206,8 +219,8 @@ while (i < lines.length) {
   }
   if (line === '@toc') {
     newSection({ first: true });
-    push(P(run('CONTENTS', { size: 30, characterSpacing: 120 }), { alignment: AlignmentType.CENTER, spacing: { before: 0.6 * IN, after: 480 } }));
-    push(new TableOfContents('Contents', { hyperlink: true, headingStyleRange: '1-2' }));
+    push(P(run('CONTENTS', { size: 30, characterSpacing: 120 }), { alignment: AlignmentType.CENTER, spacing: { before: 0.25 * IN, after: 300 } }));
+    tocSection = cur;
     continue;
   }
   if (line.startsWith('@front ')) {
@@ -215,7 +228,8 @@ while (i < lines.length) {
     mode = /NOTES|BIBLIOGRAPHY/.test(t) ? 'biblio' : 'body';
     newSection({ header: sub ? titleCase(t) : titleCase(t), first: true });
     push(P(run(''), { spacing: { before: 1.0 * IN } }));
-    push(P(run(t, { size: 36, characterSpacing: 60 }), { heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER, spacing: { after: sub ? 120 : 200 } }));
+    const fkey = tocMark('front', '', sub && /EPILOGUE|MANUAL/.test(t) ? t + ': ' + sub.toUpperCase() : t);
+    push(P(bm(fkey, run(t, { size: 36, characterSpacing: 60 })), { heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER, spacing: { after: sub ? 120 : 200 } }));
     if (sub) push(P(run(sub, { italics: true, size: 28 }), { alignment: AlignmentType.CENTER, spacing: { after: 200 } }));
     push(ornament());
     firstPara = true;
@@ -225,7 +239,8 @@ while (i < lines.length) {
     mode = 'notes';
     newSection({ header: 'Notes', first: true });
     push(P(run(''), { spacing: { before: 1.0 * IN } }));
-    push(P(run('NOTES', { size: 36, characterSpacing: 60 }), { heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER, spacing: { after: 200 } }));
+    const nkey = tocMark('front', '', 'NOTES');
+    push(P(bm(nkey, run('NOTES', { size: 36, characterSpacing: 60 })), { heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER, spacing: { after: 200 } }));
     push(ornament());
     firstPara = true;
     continue;
@@ -238,7 +253,8 @@ while (i < lines.length) {
     newSection({ header: 'Part ' + num, first: true, restart });
     push(P([fullBleed(img)], { spacing: { after: 0 } }));
     push(P(run('PART ' + num, { size: 26, characterSpacing: 200, color: 'DDDDDD' }), { alignment: AlignmentType.CENTER, spacing: { before: 4.3 * IN, after: 200 } }));
-    push(P(run(t, { size: 38, bold: true, color: 'FFFFFF', characterSpacing: 20 }), { heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER, indent: { left: 200, right: 200 } }));
+    const pkey = tocMark('part', 'PART ' + num, t);
+    push(P(bm(pkey, run(t, { size: 38, bold: true, color: 'FFFFFF', characterSpacing: 20 })), { heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER, indent: { left: 200, right: 200 } }));
     push(P(new PageBreak()));
     push(P(run(''), { spacing: { before: 0.4 * IN } }));
     firstPara = true;
@@ -250,7 +266,8 @@ while (i < lines.length) {
     newSection({ header: titleCase(t.split(':')[0]), first: true });
     push(P(run(''), { spacing: { before: 0.9 * IN } }));
     push(P(run('CHAPTER ' + NUMWORDS[+n], { size: 19, characterSpacing: 160, color: '555555' }), { alignment: AlignmentType.CENTER, spacing: { after: 200 } }));
-    push(P(run(t, { size: 34, bold: true }), { heading: HeadingLevel.HEADING_2, alignment: AlignmentType.CENTER, spacing: { after: 160, line: 380 }, indent: { left: 300, right: 300 } }));
+    const ckey = tocMark('chapter', String(n).padStart(2, '0'), t);
+    push(P(bm(ckey, run(t, { size: 34, bold: true })), { heading: HeadingLevel.HEADING_2, alignment: AlignmentType.CENTER, spacing: { after: 160, line: 380 }, indent: { left: 300, right: 300 } }));
     push(ornament());
     firstPara = true;
     continue;
@@ -321,6 +338,27 @@ while (i < lines.length) {
   firstPara = false;
 }
 
+// ---------- fill the contents page ----------
+if (tocSection) {
+  const tabs = [{ type: TabStopType.LEFT, position: 460 }, { type: TabStopType.RIGHT, position: TEXT_W, leader: LeaderType.DOT }];
+  for (const e of TOCENTRIES) {
+    const pg = PAGES[e.key] || '000';
+    let children, opts;
+    if (e.kind === 'part') {
+      children = [run(e.label + '   ', { size: 16, bold: true, characterSpacing: 60, color: '555555' }), run(e.title, { size: 17, bold: true, characterSpacing: 20 }), tabRun(pg, { size: 17, bold: true })];
+      opts = { spacing: { before: 200, after: 60 }, tabStops: [{ type: TabStopType.RIGHT, position: TEXT_W, leader: LeaderType.DOT }], keepNext: true };
+    } else if (e.kind === 'chapter') {
+      children = [run(e.label, { size: 17, color: '666666' }), tabRun(e.title, { size: 17 }), tabRun(pg, { size: 17 })];
+      opts = { spacing: { after: 30, line: 245 }, tabStops: tabs, indent: { left: 460, hanging: 460, right: 360 } };
+    } else {
+      children = [run(e.title, { size: 17, bold: true, characterSpacing: 20 }), tabRun(pg, { size: 17, bold: true })];
+      opts = { spacing: { before: 140, after: 40 }, tabStops: [{ type: TabStopType.RIGHT, position: TEXT_W, leader: LeaderType.DOT }] };
+    }
+    tocSection.children.push(P(new InternalHyperlink({ anchor: e.key, children }), opts));
+  }
+  fs.writeFileSync(path.join(__dirname, 'toc_entries.json'), JSON.stringify(TOCENTRIES, null, 1));
+}
+
 // ---------- assemble ----------
 const docSections = sections.map((s, idx) => {
   const pageNumbers = s.restart ? { start: 1, formatType: NumberFormat.DECIMAL } : (idx === 0 ? { start: 1, formatType: NumberFormat.LOWER_ROMAN } : (s.front ? { formatType: NumberFormat.LOWER_ROMAN } : undefined));
@@ -332,7 +370,6 @@ const docSections = sections.map((s, idx) => {
 
 const doc = new Document({
   creator: 'Bazooka', title: 'Burn to Become', description: 'Burn to Become: The Life You Could Have Lived — illustrated manuscript, 6 x 9 in',
-  features: { updateFields: true },
   styles: {
     default: { document: { run: { font: FONT, size: 23, color: INK }, paragraph: { spacing: { line: 300, lineRule: LineRuleType.AUTO } } } },
     paragraphStyles: [
