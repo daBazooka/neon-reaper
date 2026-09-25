@@ -10,8 +10,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
 <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js" onerror="window.__fbLoadFailed=true"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js" onerror="window.__fbLoadFailed=true"></script>
+<!-- Firebase (optional GLOBAL leaderboard/chat/party backend) is loaded
+     lazily from Net.init() below, only if FIREBASE_CONFIG has been filled
+     in with real credentials — never unconditionally on every page load.
+     See the FIREBASE_CONFIG comment for why. -->
 <style>
 :root{
   --bg:#05060d; --bg2:#0a0d1c;
@@ -1477,10 +1479,29 @@ const Net = {
 
   configured(){ return ONLINE_ENABLED && FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf('YOUR_') !== 0; },
 
+  // loaded on demand, only once real credentials are configured — a
+  // shipped build never fetches these from gstatic.com at all. The two
+  // SDK files have a load-order dependency (database-compat needs
+  // app-compat already on window.firebase), so this stays sequential.
+  _loadScripts(){
+    if(this._scriptsP) return this._scriptsP;
+    const urls = [
+      'https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js',
+      'https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js'
+    ];
+    this._scriptsP = urls.reduce((p, src) => p.then(ok => ok && new Promise(resolve => {
+      const s = document.createElement('script');
+      s.src = src; s.onload = () => resolve(true); s.onerror = () => resolve(false);
+      document.head.appendChild(s);
+    })), Promise.resolve(true));
+    return this._scriptsP;
+  },
+
   async init(){
     this.uid = save.netId || (save.netId = 'r' + Math.random().toString(36).slice(2,11));
     this.handle = save.handle || null;
-    if(!this.configured() || typeof firebase === 'undefined' || window.__fbLoadFailed){
+    if(!this.configured()){ this.setStatus(false); return false; }
+    if(typeof firebase === 'undefined' && !(await this._loadScripts())){
       this.setStatus(false); return false;
     }
     try{
