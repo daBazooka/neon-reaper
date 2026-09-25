@@ -8972,8 +8972,13 @@ function watchChatSetting(){
 
 (async function boot(){
   resize();
-  try{ if(window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.game) window.CrazyGames.SDK.game.loadingStart(); }catch(e){}
+  // CrazyGames' documented order is init() -> loadingStart() -> (load) ->
+  // loadingStop(): loadingStart() has to fire through the SAME Ads object
+  // Ads.init() just set up (this.provider etc.), and only once sdk.init()
+  // has actually resolved — never before it, and never as a second,
+  // untracked direct call to the raw SDK.
   await Ads.init();          // must finish before we read the save (SDK data module)
+  Ads.loadingStart();
   loadSave(); rollQuests();
   Ads.fetchPortalUser();     // best-effort, never blocks boot — see Ads.fetchPortalUser
   const netP = Net.init();   // kept as a promise so invite/instant-multiplayer paths can await it below
