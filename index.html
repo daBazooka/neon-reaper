@@ -135,13 +135,26 @@ canvas{display:block;position:absolute;inset:0;width:100%;height:100%}
   .btn.play{font-size:19px;padding:17px 18px}
   .screen{padding:62px 12px 28px}
 }
-@media (max-height:520px){ .screen{padding:44px 12px 18px} .logo{font-size:clamp(28px,8vh,46px)} .tag{margin:6px 0 12px} }
+@media (max-height:520px){ .screen{padding:44px 12px 18px} .logo{font-size:clamp(28px,8vh,46px)} .tag{margin:6px 0 12px}
+  /* on a short/landscape phone, top:54-56% (~210px at 390px tall) lands
+     goalBanner right on top of a toast (fixed top:190px in gameplay, see
+     toast() — the two were never checked against each other). A fixed px
+     value clears the toast's zone reliably at any height in this
+     breakpoint, since toast's own position doesn't scale with viewport
+     height either; measured against #ultwrap (top:288px at 390px tall)
+     to confirm it still clears the bottom HUD too. */
+  #goalBanner{top:250px}
+}
 #stick{position:absolute;width:118px;height:118px;border-radius:50%;border:2px solid rgba(38,240,255,.35);background:rgba(38,240,255,.06);display:none;z-index:11;pointer-events:none}
 #stick i{position:absolute;left:50%;top:50%;width:48px;height:48px;margin:-24px 0 0 -24px;border-radius:50%;background:rgba(38,240,255,.5);box-shadow:0 0 22px var(--cy)}
 #toasts{position:absolute;top:120px;left:50%;transform:translateX(-50%);z-index:30;display:flex;flex-direction:column;gap:7px;align-items:center;pointer-events:none}
-/* this base top is overridden inline by toast() below at the moment each
-   toast is created — see the comment there for why a plain CSS rule
-   (media query or otherwise) can never win against that */
+/* #hud and #toasts are direct siblings (see the HTML), so these two rules
+   track #hud's live hidden/visible state instead of a value baked in once
+   when a toast happens to be created — see the comment in toast() for why
+   that mattered. Higher specificity than the bare #toasts rule above, so
+   no cascade-order dependency either. */
+#hud.hidden ~ #toasts{top:222px}
+#hud:not(.hidden) ~ #toasts{top:190px}
 .toast{background:linear-gradient(135deg,rgba(139,92,255,.95),rgba(38,240,255,.9));color:#03060f;font:700 12px/1.3 var(--f2);padding:9px 15px;border-radius:11px;box-shadow:0 8px 30px rgba(38,240,255,.35);animation:tin .35s cubic-bezier(.2,1.6,.4,1)}
 .toast b{display:block;font:900 10px/1 var(--f1);letter-spacing:2px;margin-bottom:3px}
 @keyframes tin{from{transform:translateY(-22px) scale(.8);opacity:0}}
@@ -4040,19 +4053,16 @@ function toast(title, body, color){
   const t = document.createElement('div'); t.className='toast';
   if(color) t.style.background = color;
   t.innerHTML = `<b>${title}</b>${body}`;
-  // the toast stack sits just under the in-game HUD's topbar by default —
-  // correct during a run, but with the HUD hidden (menu, daily-claim,
-  // any non-gameplay screen) that same position lands squarely on top of
-  // the big logo/tagline instead, which is exactly what a first-run
-  // "DAY 1 +150 shards" claim toast used to stomp on.
-  // During a run, #combo sits at top:112-114px and #frzwrap's bottom
-  // edge lands around 168-180px (see their CSS) — 120px used to clear
-  // both, but no longer does after they were both moved down to clear
-  // the pause button, at every viewport width, not just mobile. A
-  // level-up/evolution/achievement toast is common enough mid-run that
-  // this needs to actually clear the combo/frenzy readout, not just the
-  // topbar.
-  $('toasts').style.top = $('hud').classList.contains('hidden') ? '222px' : '190px';
+  // #toasts' position tracks #hud.hidden live via the CSS sibling rules
+  // next to its base rule — NOT set here. A one-time snapshot taken at
+  // creation time used to go stale: claim the daily reward (toast created
+  // while #hud is still hidden, positioned for the menu) then immediately
+  // tap play before that toast finishes its 2.6s fade, and it kept the
+  // menu's position through the whole run, landing on top of whatever
+  // sits at that height during actual gameplay (the goal banner, on a
+  // short/landscape viewport). Driving it from #hud's live class instead
+  // means a toast repositions itself correctly mid-fade if the screen
+  // changes underneath it, not just at the moment it was created.
   $('toasts').appendChild(t);
   setTimeout(()=>{ t.style.transition='opacity .4s,transform .4s'; t.style.opacity=0; t.style.transform='translateY(-14px)'; setTimeout(()=>t.remove(),420); }, 2600);
 }
