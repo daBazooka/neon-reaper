@@ -7,13 +7,13 @@ const names = process.argv.slice(2).length ? process.argv.slice(2) : [
   'plate_potential','plate_mevsme','plate_evidence','plate_anger','plate_burn'];
 (async () => {
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--allow-file-access-from-files'] });
-  const page = await browser.newPage({ viewport: { width: 1800, height: 2700 }, deviceScaleFactor: 1 });
+  const page = await browser.newPage({ viewport: { width: 1900, height: 2800 }, deviceScaleFactor: 1 });
   page.on('pageerror', e => console.error('PAGE ERROR', e.message));
   for (const n of names) {
     await page.goto('file://' + path.resolve(__dirname, '../illustrations/illus.html'));
     await page.evaluate(n => window.render(n), n);
     const el = (await page.$('svg')) || (await page.$('canvas'));
-    await el.screenshot({ path: path.resolve(__dirname, '../images', n + '.png') });
+    await el.screenshot({ path: path.resolve(__dirname, n.startsWith('cover_') ? '../cover' : '../images', n + '.png') });
     console.log('rendered', n);
   }
   await browser.close();
