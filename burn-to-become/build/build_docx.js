@@ -23,7 +23,7 @@ const MARGIN = { top: 1.0 * IN, bottom: 0.9 * IN, left: 0.75 * IN, right: 0.75 *
 const TEXT_W = PAGE.width - MARGIN.left - MARGIN.right; // 4.5in
 const PX = (inches) => Math.round(inches * 96);
 
-const NUMWORDS = ['ZERO','ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','TEN','ELEVEN','TWELVE','THIRTEEN','FOURTEEN','FIFTEEN','SIXTEEN','SEVENTEEN','EIGHTEEN','NINETEEN','TWENTY','TWENTY-ONE','TWENTY-TWO','TWENTY-THREE','TWENTY-FOUR','TWENTY-FIVE','TWENTY-SIX','TWENTY-SEVEN','TWENTY-EIGHT','TWENTY-NINE','THIRTY','THIRTY-ONE','THIRTY-TWO','THIRTY-THREE','THIRTY-FOUR','THIRTY-FIVE','THIRTY-SIX','THIRTY-SEVEN','THIRTY-EIGHT','THIRTY-NINE','FORTY','FORTY-ONE','FORTY-TWO','FORTY-THREE'];
+const NUMWORDS = ['ZERO','ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','TEN','ELEVEN','TWELVE','THIRTEEN','FOURTEEN','FIFTEEN','SIXTEEN','SEVENTEEN','EIGHTEEN','NINETEEN','TWENTY','TWENTY-ONE','TWENTY-TWO','TWENTY-THREE','TWENTY-FOUR','TWENTY-FIVE','TWENTY-SIX','TWENTY-SEVEN','TWENTY-EIGHT','TWENTY-NINE','THIRTY','THIRTY-ONE','THIRTY-TWO','THIRTY-THREE','THIRTY-FOUR','THIRTY-FIVE','THIRTY-SIX','THIRTY-SEVEN','THIRTY-EIGHT','THIRTY-NINE','FORTY','FORTY-ONE','FORTY-TWO','FORTY-THREE','FORTY-FOUR','FORTY-FIVE','FORTY-SIX'];
 const PLATES = {
   'Potential is undefeated': 'plate_potential',
   'IT IS ME VS. ME.': 'plate_mevsme',
@@ -86,9 +86,11 @@ const pull = (text) => P(run(text, { italics: true, size: 28 }), {
   alignment: AlignmentType.CENTER, spacing: { before: 280, after: 280, line: 320 }, indent: { left: 360, right: 360 },
   border: { top: { style: BorderStyle.SINGLE, size: 4, color: '999999', space: 10 }, bottom: { style: BorderStyle.SINGLE, size: 4, color: '999999', space: 10 } },
 });
+let FIGN = 0;
 function figure(name, caption) {
   const out = [P(inlineImage(name), { alignment: AlignmentType.CENTER, spacing: { before: 240, after: 80, line: 240, lineRule: LineRuleType.AUTO }, keepNext: true })];
-  if (caption) out.push(P(run(caption, { italics: true, size: 19, color: '444444' }), { alignment: AlignmentType.CENTER, spacing: { after: 280 }, indent: { left: 360, right: 360 } }));
+  FIGN += 1;
+  if (caption) out.push(P([run('Figure ' + FIGN + '.  ', { bold: true, size: 17, color: '444444', characterSpacing: 20 }), run(caption, { italics: true, size: 19, color: '444444' })], { alignment: AlignmentType.CENTER, spacing: { after: 280 }, indent: { left: 360, right: 360 } }));
   return out;
 }
 function exerciseBox(title, lines) {
