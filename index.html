@@ -2263,6 +2263,15 @@ function pollGamepad(onMove){
   const ultDown = gp.buttons[0] && gp.buttons[0].pressed;
   if(ultDown && !gpUltLatch) fireUltimate();
   gpUltLatch = ultDown;
+}
+// separate from pollGamepad() above on purpose: that one is only ever
+// called from inside update(dt), which itself only runs while
+// G.state==='PLAY' -- so the resume half of a pause toggle placed there
+// could never fire once actually paused. This runs every animation
+// frame regardless of state, so Start can both pause AND resume.
+function pollGamepadPause(){
+  if(!gpConnected || !navigator.getGamepads) return;
+  const gp = navigator.getGamepads()[0]; if(!gp) return;
   const pauseDown = (gp.buttons[9] && gp.buttons[9].pressed) || (gp.buttons[8] && gp.buttons[8].pressed);
   if(pauseDown && !gpPadLatch){ if(G.state==='PLAY') pauseGame(); else if(G.state==='PAUSE') resumeGame(); }
   gpPadLatch = pauseDown;
@@ -3940,6 +3949,7 @@ let last = 0, acc = 0, gt = 0, qCheckT = 0; const STEP = 1/60;
 G.frame = 0;
 function loop(ts){
   requestAnimationFrame(loop);
+  pollGamepadPause(); // every frame regardless of G.state -- see its own comment
   if(!last) last = ts;
   let raw = (ts - last)/1000; last = ts;
   if(raw > .25) raw = .25;
