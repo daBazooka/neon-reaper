@@ -46,7 +46,19 @@ Stylized action violence against abstract neon creatures that shatter into glowi
 
 ## Assets to upload
 - **Game build:** `dist/index.html` (zip it)
-- **Covers / video:** not made yet
+- **Covers:** `promo/cover-1920x1080.png`, `promo/cover-800x1200.png`, `promo/cover-800x800.png`
+- **Video:** `promo/trailer-1920x1080.mp4` (a vertical `promo/trailer-1080x1920.mp4` is included for social media)
+
+## Marketing assets
+The covers are staged in-game frames. The player and five echoes dash into a marked crowd at the same moment, for a "LEGION SYNC!", with the logo added on top.
+
+The 30-second trailer is real gameplay captured frame by frame, with the game's own synthesized darksynth audio:
+1. **0–6 s:** a brawl, and a new echo joins at the clock strike. "EVERY 5 SECONDS… YOUR PAST SELF JOINS THE FIGHT"
+2. **6–12 s:** echoes mark enemies and SYNC strikes chain. "STRIKE TOGETHER: SYNC"
+3. **12–15 s:** LEGION stops time, and the whole army strikes. "LEGION: TIME STOPS"
+4. **15–23 s:** the Hollow King and its echo dashes, then the boss falls. "BOSSES WITH ECHOES OF THEIR OWN"
+5. **23–27 s:** a surrounding swarm is wiped out by a second LEGION. "BECOME THE LEGION"
+6. **27–30 s:** logo end card
 
 ## Note for the reviewer
 All art is drawn in code and all audio is synthesized in code, with no third-party assets. No ads during Basic Launch (`ADS_ENABLED = false` in `js/sdk.js`).
