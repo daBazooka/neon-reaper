@@ -167,7 +167,7 @@ function doRevive(){
 function gameOver(){
   clearInterval(revIV);
   G.state = 'over'; aimCancel(); SDK.gameplayStop(); tip(null); AU.setMusic(0, false);
-  hide('hud'); hideAll();
+  hide('hud'); hideAll(); $('toasts').innerHTML = '';
   commitMissions();
   const shards = Math.round(G.runShards);
   save.shards += shards; save.runs++;
@@ -200,7 +200,7 @@ function gameOver(){
   if(lvls) mh += `<div class="oM"><span>LEVEL UP! Now level ${save.level}</span><b>+${lvls * 40} ◈</b></div>`;
   for(const m of save.missions) if(m.fresh){ mh += `<div class="oM"><span>✔ ${m.txt}</span><b>+${m.reward} ◈</b></div>`; m.fresh = false; }
   $('oMissions').innerHTML = mh;
-  $('oNext').innerHTML = newBest && G.score > 0 ? 'You beat your record!' : `Best <b>${fmt(save.best)}</b> — only <b>${fmt(save.best - G.score + 1)}</b> more to beat it`;
+  $('oNext').innerHTML = save.best <= 0 ? '' : newBest ? 'You beat your record!' : `Best <b>${fmt(save.best)}</b> — only <b>${fmt(save.best - G.score + 1)}</b> more to beat it`;
   $('oTip').innerHTML = 'TIP: ' + pick(TIPS);
   $('dblBtn').classList.toggle('hidden', !SDK.canRewarded() || shards <= 0); $('dblBtn').disabled = false;
   G.lastShards = shards;

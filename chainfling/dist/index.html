@@ -58,7 +58,21 @@ button{font-family:var(--f);color:inherit;border:0;background:none;cursor:pointe
 .toast.out{opacity:0;transform:translateY(-8px);transition:.3s}
 
 /* ---------- screens ---------- */
-.screen{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:calc(16px + var(--sat)) 16px calc(16px + var(--sab));overflow-y:auto;touch-action:pan-y}
+.screen{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:14px;padding:calc(16px + var(--sat)) 16px calc(16px + var(--sab));overflow-y:auto;touch-action:pan-y}
+.screen>:first-child{margin-top:auto}
+.screen>:last-child{margin-bottom:auto}
+#menu>:first-child,#menu>:last-child{margin:0}
+@media (max-height:500px){
+  .screen{gap:8px}
+  h2{font-size:22px}
+  #oScore{font-size:36px}
+  .oGrid div,.menuStats div{padding:6px}
+  #oTip,#pauseBuild{display:none}
+  .btn.big{padding:12px;font-size:17px}
+  .oM{padding:5px 10px}
+  #revRing{width:84px;height:84px}
+  #revNum{font-size:32px}
+}
 .screen.dim{background:rgba(4,5,12,.78);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
 h2{font:900 30px/1 var(--f);letter-spacing:4px;text-align:center}
 h2.red{color:var(--rd);text-shadow:0 0 18px var(--rd)}
@@ -119,7 +133,7 @@ h2.red{color:var(--rd);text-shadow:0 0 18px var(--rd)}
 .card .cl{font:800 11px/1 var(--f);color:var(--dim);margin-top:10px;letter-spacing:1px}
 .card .ck{display:inline-block;margin-top:10px;font:800 10px/1 var(--f);color:var(--dim);border:1px solid var(--line);border-radius:5px;padding:3px 6px}
 @media (pointer:coarse){.card .ck{display:none}}
-@media (max-width:620px){#cardRow{flex-direction:column;align-items:center}.card{flex:0 0 auto;width:100%;max-width:380px;display:grid;grid-template-columns:54px 1fr;grid-template-rows:auto auto auto;text-align:left;column-gap:12px;padding:12px 14px}.card .ci{grid-row:1/4;align-self:center;font-size:34px;height:auto;text-align:center}.card .cr{margin-top:0}.card .cd{min-height:0;margin-top:4px}.card .cl{display:none}}
+@media (max-width:620px){#cardRow{flex-direction:column;align-items:center}.card{flex:0 0 auto;width:100%;max-width:380px;display:grid;grid-template-columns:54px 1fr;grid-template-rows:auto auto auto;text-align:left;column-gap:12px;padding:12px 14px}.card .ci{grid-row:1/4;align-self:center;font-size:34px;height:auto;text-align:center}.card .cr{margin-top:0}.card .cd{min-height:0;margin-top:4px}.card .cl,.card .ck{display:none}}
 
 /* pause build */
 .build{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:420px}
@@ -595,14 +609,21 @@ function xpNeed(lv){ return 400 + lv * 250; }
 const AU = {
   ctx:null, master:null, sfx:null, mus:null, lp:null, noiseBuf:null,
   portalMute:false, adMuted:false, hidden:false,
-  intensity:0, boss:false, step:0, nextT:0, timer:null, kickAt:0, lastPick:0,
+  intensity:0, boss:false, step:0, nextT:0, timer:null, kickAt:0, lastPick:0, lastHit:-1, lastBoom:-1,
 
   init(){
     if(this.ctx) return;
     try{ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return; this.ctx = new AC(); }catch(e){ return; }
     const c = this.ctx;
-    const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
-    this.master = c.createGain(); this.master.connect(comp); comp.connect(c.destination);
+    // master -> compressor -> soft limiter: big chain reactions stack dozens of
+    // voices, so the output is soft-clipped (tanh) instead of hard-clipping
+    const comp = c.createDynamicsCompressor();
+    comp.threshold.value = -18; comp.knee.value = 10; comp.ratio.value = 12; comp.attack.value = .002; comp.release.value = .18;
+    const pre = c.createGain(); pre.gain.value = .5;
+    const lim = c.createWaveShaper(), curve = new Float32Array(2048);
+    for(let i = 0; i < curve.length; i++){ const x = i / (curve.length - 1) * 2 - 1; curve[i] = Math.tanh(x * 2) * .98; }
+    lim.curve = curve;
+    this.master = c.createGain(); this.master.connect(comp); comp.connect(pre); pre.connect(lim); lim.connect(c.destination);
     this.sfx = c.createGain(); this.sfx.connect(this.master);
     this.lp = c.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 18000; this.lp.Q.value = 2;
     this.mus = c.createGain(); this.lp.connect(this.mus); this.mus.connect(this.master);
@@ -658,13 +679,15 @@ const AU = {
     const sc = [0,2,4,7,9,12,14,16,19,21,24,26,28,31,33,36];
     const n = sc[clamp(chain - 1, 0, sc.length - 1)];
     const f = 330 * Math.pow(2, n / 12);
-    this.tone(f, .18, 'triangle', .3); this.tone(f * 2, .1, 'square', .05);
-    this.noise(.07, 2600, .16, 'highpass', 0, 0, .8);
+    // many kills can land in the same frame; later ones are quieter so they don't stack
+    const now = this.ctx.currentTime, k = now - this.lastHit < .03 ? .45 : 1; this.lastHit = now;
+    this.tone(f, .18, 'triangle', .3 * k); this.tone(f * 2, .1, 'square', .05 * k);
+    this.noise(.07, 2600, .16 * k, 'highpass', 0, 0, .8);
   },
   thud(){ if(!this.ctx) return; this.tone(140, .1, 'square', .1, 70); this.noise(.06, 900, .12); },
   bounce(){ if(!this.ctx) return; this.tone(110, .1, 'sine', .28, 55); this.noise(.05, 1400, .1); },
   clang(){ if(!this.ctx) return; this.tone(880, .22, 'square', .08, 430); this.tone(1320, .28, 'triangle', .12, 940); },
-  boom(big){ if(!this.ctx) return; this.noise(big ? .8 : .5, 800, big ? .7 : .5, 'lowpass', 70); this.tone(95, big ? .6 : .4, 'sine', .55, 28); },
+  boom(big){ if(!this.ctx) return; const now = this.ctx.currentTime; if(now - this.lastBoom < .07) return; this.lastBoom = now; this.noise(big ? .8 : .5, 800, big ? .7 : .5, 'lowpass', 70); this.tone(95, big ? .6 : .4, 'sine', .55, 28); },
   hurt(){ if(!this.ctx) return; this.tone(240, .4, 'sawtooth', .22, 50); this.noise(.35, 600, .35, 'lowpass', 90); },
   pickup(){ if(!this.ctx) return; const t = performance.now(); if(t - this.lastPick < 40) return; this.lastPick = t; this.tone(1250 + Math.random() * 300, .07, 'sine', .07, 1900); },
   parry(){ if(!this.ctx) return; this.tone(1700, .09, 'square', .06, 2600); this.noise(.05, 5000, .1, 'highpass'); },
@@ -1094,6 +1117,7 @@ function update(dt){
   if(G.aiming && P.focus <= 0 && P.ch > 0) AU.setSlow(false);
 
   G.shake = Math.max(0, G.shake - dt * 30);
+  if(G.chainPulse > 0) G.chainPulse = Math.max(0, G.chainPulse - dt * 5);
   G.flash = Math.max(0, G.flash - dt * 3);
   for(let i = 0; i < 4; i++) G.wallFx[i] = Math.max(0, G.wallFx[i] - dt * 3);
   if(G.hitstop > 0){ G.hitstop -= dt; tickFx(dt * .15); return; }
@@ -1323,7 +1347,9 @@ function addKillScore(base, x, y, col){
   const ch = G.air ? Math.max(1, G.chain) : 1;
   const pts = Math.round(base * ch * G.mult * G.scoreMul);
   G.score += pts; ev('score', G.score);
-  pop(x, y, '+' + fmt(pts), col, 13 + Math.min(14, ch * 1.2));
+  // long chains would bury the arena in numbers; the chain counter over the core carries it
+  if(ch <= 3 || ch % 5 === 0) pop(x, y, '+' + fmt(pts), col, 13 + Math.min(14, ch * 1.2));
+  G.chainPulse = 1;
 }
 
 const CALLS = { 3:['TRIPLE!','#ffb020'], 5:['CHAIN x5','#ff3fb4'], 8:['FRENZY!','#b46bff'], 12:['RAMPAGE!','#27f3ff'],
@@ -1584,7 +1610,7 @@ function part(x, y, vx, vy, life, c, s){ if(G.PT.length < partCap()) G.PT.push({
 function burst(x, y, n, c, spd){ if(G.q === 'low') n = Math.ceil(n * .45); for(let i = 0; i < n; i++){ const a = rnd(0, TAU), s = rnd(.2, 1) * spd; part(x, y, Math.cos(a) * s, Math.sin(a) * s, rnd(.3, .75), c, rnd(1.5, 4)); } }
 function sparks(x, y, c){ burst(x, y, 8, c, 300); }
 function shock(x, y, r, c, w){ if(G.SH.length < 24) G.SH.push({ x, y, r:4, max:r, life:.45, ml:.45, c, w }); }
-function pop(x, y, txt, c, size){ if(G.POP.length > 40) G.POP.shift(); G.POP.push({ x, y, txt, c, size:size || 14, life:.95, vy:-60 }); }
+function pop(x, y, txt, c, size){ if(G.POP.length > 18) G.POP.shift(); G.POP.push({ x, y, txt, c, size:size || 14, life:.95, vy:-60 }); }
 function shakeIt(v){ if(save.opt.shake) G.shake = Math.min(24, G.shake + v); }
 function tickFx(dt){
   for(let i = G.PT.length - 1; i >= 0; i--){ const p = G.PT[i]; p.life -= dt; if(p.life <= 0){ G.PT.splice(i, 1); continue; } const f = Math.exp(-3.2 * dt); p.vx *= f; p.vy *= f; p.x += p.vx * dt; p.y += p.vy * dt; }
@@ -1920,6 +1946,17 @@ function drawPlayer(){
   if(G.aiming && P.ch > 0){
     cx.strokeStyle = rgba('#27f3ff', .8); cx.lineWidth = 3;
     cx.beginPath(); cx.arc(P.x, P.y, P.r + 20, Math.PI / 2 - Math.PI * P.focus / ST.focus * .5, Math.PI / 2 + Math.PI * P.focus / ST.focus * .5); cx.stroke();
+  }
+  // live chain counter while airborne
+  if(G.air && G.chain >= 2){
+    const k = G.chainPulse || 0, hot = G.chain >= 12 ? '#ffb020' : G.chain >= 6 ? '#ff3fb4' : '#ffffff';
+    cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.font = `900 ${Math.round(22 + Math.min(18, G.chain * .6) + k * 10)}px system-ui,sans-serif`;
+    cx.lineWidth = 4; cx.strokeStyle = 'rgba(0,0,0,.7)';
+    const ty = P.y - P.r - 34;
+    cx.strokeText(G.chain, P.x, ty); cx.fillStyle = hot; cx.fillText(G.chain, P.x, ty);
+    cx.font = '800 10px system-ui,sans-serif'; cx.fillStyle = rgba('#ffffff', .8); cx.fillText('CHAIN', P.x, ty + 18);
+    cx.textBaseline = 'alphabetic';
   }
   // orbit blades
   const ob = G.up.orbit || 0;
@@ -2261,7 +2298,7 @@ function doRevive(){
 function gameOver(){
   clearInterval(revIV);
   G.state = 'over'; aimCancel(); SDK.gameplayStop(); tip(null); AU.setMusic(0, false);
-  hide('hud'); hideAll();
+  hide('hud'); hideAll(); $('toasts').innerHTML = '';
   commitMissions();
   const shards = Math.round(G.runShards);
   save.shards += shards; save.runs++;
@@ -2294,7 +2331,7 @@ function gameOver(){
   if(lvls) mh += `<div class="oM"><span>LEVEL UP! Now level ${save.level}</span><b>+${lvls * 40} ◈</b></div>`;
   for(const m of save.missions) if(m.fresh){ mh += `<div class="oM"><span>✔ ${m.txt}</span><b>+${m.reward} ◈</b></div>`; m.fresh = false; }
   $('oMissions').innerHTML = mh;
-  $('oNext').innerHTML = newBest && G.score > 0 ? 'You beat your record!' : `Best <b>${fmt(save.best)}</b> — only <b>${fmt(save.best - G.score + 1)}</b> more to beat it`;
+  $('oNext').innerHTML = save.best <= 0 ? '' : newBest ? 'You beat your record!' : `Best <b>${fmt(save.best)}</b> — only <b>${fmt(save.best - G.score + 1)}</b> more to beat it`;
   $('oTip').innerHTML = 'TIP: ' + pick(TIPS);
   $('dblBtn').classList.toggle('hidden', !SDK.canRewarded() || shards <= 0); $('dblBtn').disabled = false;
   G.lastShards = shards;

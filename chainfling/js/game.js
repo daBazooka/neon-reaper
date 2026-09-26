@@ -341,6 +341,7 @@ function update(dt){
   if(G.aiming && P.focus <= 0 && P.ch > 0) AU.setSlow(false);
 
   G.shake = Math.max(0, G.shake - dt * 30);
+  if(G.chainPulse > 0) G.chainPulse = Math.max(0, G.chainPulse - dt * 5);
   G.flash = Math.max(0, G.flash - dt * 3);
   for(let i = 0; i < 4; i++) G.wallFx[i] = Math.max(0, G.wallFx[i] - dt * 3);
   if(G.hitstop > 0){ G.hitstop -= dt; tickFx(dt * .15); return; }
@@ -570,7 +571,9 @@ function addKillScore(base, x, y, col){
   const ch = G.air ? Math.max(1, G.chain) : 1;
   const pts = Math.round(base * ch * G.mult * G.scoreMul);
   G.score += pts; ev('score', G.score);
-  pop(x, y, '+' + fmt(pts), col, 13 + Math.min(14, ch * 1.2));
+  // long chains would bury the arena in numbers; the chain counter over the core carries it
+  if(ch <= 3 || ch % 5 === 0) pop(x, y, '+' + fmt(pts), col, 13 + Math.min(14, ch * 1.2));
+  G.chainPulse = 1;
 }
 
 const CALLS = { 3:['TRIPLE!','#ffb020'], 5:['CHAIN x5','#ff3fb4'], 8:['FRENZY!','#b46bff'], 12:['RAMPAGE!','#27f3ff'],
@@ -831,7 +834,7 @@ function part(x, y, vx, vy, life, c, s){ if(G.PT.length < partCap()) G.PT.push({
 function burst(x, y, n, c, spd){ if(G.q === 'low') n = Math.ceil(n * .45); for(let i = 0; i < n; i++){ const a = rnd(0, TAU), s = rnd(.2, 1) * spd; part(x, y, Math.cos(a) * s, Math.sin(a) * s, rnd(.3, .75), c, rnd(1.5, 4)); } }
 function sparks(x, y, c){ burst(x, y, 8, c, 300); }
 function shock(x, y, r, c, w){ if(G.SH.length < 24) G.SH.push({ x, y, r:4, max:r, life:.45, ml:.45, c, w }); }
-function pop(x, y, txt, c, size){ if(G.POP.length > 40) G.POP.shift(); G.POP.push({ x, y, txt, c, size:size || 14, life:.95, vy:-60 }); }
+function pop(x, y, txt, c, size){ if(G.POP.length > 18) G.POP.shift(); G.POP.push({ x, y, txt, c, size:size || 14, life:.95, vy:-60 }); }
 function shakeIt(v){ if(save.opt.shake) G.shake = Math.min(24, G.shake + v); }
 function tickFx(dt){
   for(let i = G.PT.length - 1; i >= 0; i--){ const p = G.PT[i]; p.life -= dt; if(p.life <= 0){ G.PT.splice(i, 1); continue; } const f = Math.exp(-3.2 * dt); p.vx *= f; p.vy *= f; p.x += p.vx * dt; p.y += p.vy * dt; }

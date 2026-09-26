@@ -7,14 +7,21 @@
 const AU = {
   ctx:null, master:null, sfx:null, mus:null, lp:null, noiseBuf:null,
   portalMute:false, adMuted:false, hidden:false,
-  intensity:0, boss:false, step:0, nextT:0, timer:null, kickAt:0, lastPick:0,
+  intensity:0, boss:false, step:0, nextT:0, timer:null, kickAt:0, lastPick:0, lastHit:-1, lastBoom:-1,
 
   init(){
     if(this.ctx) return;
     try{ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return; this.ctx = new AC(); }catch(e){ return; }
     const c = this.ctx;
-    const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
-    this.master = c.createGain(); this.master.connect(comp); comp.connect(c.destination);
+    // master -> compressor -> soft limiter: big chain reactions stack dozens of
+    // voices, so the output is soft-clipped (tanh) instead of hard-clipping
+    const comp = c.createDynamicsCompressor();
+    comp.threshold.value = -18; comp.knee.value = 10; comp.ratio.value = 12; comp.attack.value = .002; comp.release.value = .18;
+    const pre = c.createGain(); pre.gain.value = .5;
+    const lim = c.createWaveShaper(), curve = new Float32Array(2048);
+    for(let i = 0; i < curve.length; i++){ const x = i / (curve.length - 1) * 2 - 1; curve[i] = Math.tanh(x * 2) * .98; }
+    lim.curve = curve;
+    this.master = c.createGain(); this.master.connect(comp); comp.connect(pre); pre.connect(lim); lim.connect(c.destination);
     this.sfx = c.createGain(); this.sfx.connect(this.master);
     this.lp = c.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 18000; this.lp.Q.value = 2;
     this.mus = c.createGain(); this.lp.connect(this.mus); this.mus.connect(this.master);
@@ -70,13 +77,15 @@ const AU = {
     const sc = [0,2,4,7,9,12,14,16,19,21,24,26,28,31,33,36];
     const n = sc[clamp(chain - 1, 0, sc.length - 1)];
     const f = 330 * Math.pow(2, n / 12);
-    this.tone(f, .18, 'triangle', .3); this.tone(f * 2, .1, 'square', .05);
-    this.noise(.07, 2600, .16, 'highpass', 0, 0, .8);
+    // many kills can land in the same frame; later ones are quieter so they don't stack
+    const now = this.ctx.currentTime, k = now - this.lastHit < .03 ? .45 : 1; this.lastHit = now;
+    this.tone(f, .18, 'triangle', .3 * k); this.tone(f * 2, .1, 'square', .05 * k);
+    this.noise(.07, 2600, .16 * k, 'highpass', 0, 0, .8);
   },
   thud(){ if(!this.ctx) return; this.tone(140, .1, 'square', .1, 70); this.noise(.06, 900, .12); },
   bounce(){ if(!this.ctx) return; this.tone(110, .1, 'sine', .28, 55); this.noise(.05, 1400, .1); },
   clang(){ if(!this.ctx) return; this.tone(880, .22, 'square', .08, 430); this.tone(1320, .28, 'triangle', .12, 940); },
-  boom(big){ if(!this.ctx) return; this.noise(big ? .8 : .5, 800, big ? .7 : .5, 'lowpass', 70); this.tone(95, big ? .6 : .4, 'sine', .55, 28); },
+  boom(big){ if(!this.ctx) return; const now = this.ctx.currentTime; if(now - this.lastBoom < .07) return; this.lastBoom = now; this.noise(big ? .8 : .5, 800, big ? .7 : .5, 'lowpass', 70); this.tone(95, big ? .6 : .4, 'sine', .55, 28); },
   hurt(){ if(!this.ctx) return; this.tone(240, .4, 'sawtooth', .22, 50); this.noise(.35, 600, .35, 'lowpass', 90); },
   pickup(){ if(!this.ctx) return; const t = performance.now(); if(t - this.lastPick < 40) return; this.lastPick = t; this.tone(1250 + Math.random() * 300, .07, 'sine', .07, 1900); },
   parry(){ if(!this.ctx) return; this.tone(1700, .09, 'square', .06, 2600); this.noise(.05, 5000, .1, 'highpass'); },

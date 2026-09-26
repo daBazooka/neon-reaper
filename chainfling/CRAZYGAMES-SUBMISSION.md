@@ -103,3 +103,17 @@ Works on desktop and mobile, in both portrait and landscape.
   uncaught inside the portal iframe.
 - **Adaptive quality.** In AUTO mode the game drops its pixel ratio and
   effects if the frame rate falls. It weighs about 140 KB in total.
+
+---
+
+## Marketing assets (`promo/`)
+
+| File | Use |
+|---|---|
+| `cover-1920x1080.png` | Landscape cover (16:9) |
+| `cover-800x1200.png` | Portrait cover (2:3) |
+| `cover-800x800.png` | Square cover (1:1) |
+| `trailer-1920x1080.mp4` | 30 s landscape gameplay trailer, 60 fps, H.264 + AAC |
+| `trailer-1080x1920.mp4` | 30 s portrait version for mobile and social |
+
+All of these are captured from the real game running its real code; nothing is mocked up. The trailers are played by a scripted bot on a frame-exact clock. Their audio is the game's own synthesized sound, re-rendered sample-accurately (peak −0.7 dBFS, no clipping). The covers show only the game title and no other text.

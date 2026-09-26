@@ -258,6 +258,17 @@ function drawPlayer(){
     cx.strokeStyle = rgba('#27f3ff', .8); cx.lineWidth = 3;
     cx.beginPath(); cx.arc(P.x, P.y, P.r + 20, Math.PI / 2 - Math.PI * P.focus / ST.focus * .5, Math.PI / 2 + Math.PI * P.focus / ST.focus * .5); cx.stroke();
   }
+  // live chain counter while airborne
+  if(G.air && G.chain >= 2){
+    const k = G.chainPulse || 0, hot = G.chain >= 12 ? '#ffb020' : G.chain >= 6 ? '#ff3fb4' : '#ffffff';
+    cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.font = `900 ${Math.round(22 + Math.min(18, G.chain * .6) + k * 10)}px system-ui,sans-serif`;
+    cx.lineWidth = 4; cx.strokeStyle = 'rgba(0,0,0,.7)';
+    const ty = P.y - P.r - 34;
+    cx.strokeText(G.chain, P.x, ty); cx.fillStyle = hot; cx.fillText(G.chain, P.x, ty);
+    cx.font = '800 10px system-ui,sans-serif'; cx.fillStyle = rgba('#ffffff', .8); cx.fillText('CHAIN', P.x, ty + 18);
+    cx.textBaseline = 'alphabetic';
+  }
   // orbit blades
   const ob = G.up.orbit || 0;
   for(let k = 0; k < ob; k++){
