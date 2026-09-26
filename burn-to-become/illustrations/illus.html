@@ -1,0 +1,713 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:EBG;src:url(fonts/EB_Garamond-normal-400.ttf)}
+@font-face{font-family:EBG;font-style:italic;src:url(fonts/EB_Garamond-italic-400.ttf)}
+@font-face{font-family:EBG;font-weight:600;src:url(fonts/EB_Garamond-normal-600.ttf)}
+@font-face{font-family:Bebas;src:url(fonts/Bebas_Neue-normal-400.ttf)}
+@font-face{font-family:Oswald;font-weight:300;src:url(fonts/Oswald-normal-300.ttf)}
+@font-face{font-family:Oswald;font-weight:400;src:url(fonts/Oswald-normal-400.ttf)}
+@font-face{font-family:Oswald;font-weight:600;src:url(fonts/Oswald-normal-600.ttf)}
+@font-face{font-family:Corm;font-weight:500;src:url(fonts/Cormorant_Garamond-normal-500.ttf)}
+@font-face{font-family:Corm;font-style:italic;font-weight:500;src:url(fonts/Cormorant_Garamond-italic-500.ttf)}
+@font-face{font-family:Corm;font-weight:700;src:url(fonts/Cormorant_Garamond-normal-700.ttf)}
+html,body{margin:0;background:#000}
+canvas{display:block}
+</style></head>
+<body>
+<span style="font-family:EBG">a</span><span style="font-family:EBG;font-style:italic">a</span><span style="font-family:Bebas">a</span><span style="font-family:Oswald">a</span><span style="font-family:Corm">a</span><span style="font-family:Corm;font-style:italic">a</span><span style="font-family:Corm;font-weight:700">a</span><span style="font-family:Oswald;font-weight:300">a</span><span style="font-family:Oswald;font-weight:600">a</span><span style="font-family:EBG;font-weight:600">a</span>
+<script>
+// ---------- utilities ----------
+let seed = 7;
+function rnd(){ seed = (seed*16807) % 2147483647; return (seed-1)/2147483646; }
+function rr(a,b){ return a + (b-a)*rnd(); }
+function gauss(){ return (rnd()+rnd()+rnd()+rnd()-2)/2; }
+const INK = '#141414', PAPER = '#ffffff';
+let C, X, W, H;
+function setup(w,h){ W=w; H=h; C=document.createElement('canvas'); C.width=w; C.height=h; document.body.appendChild(C); X=C.getContext('2d'); X.lineCap='round'; X.lineJoin='round'; }
+function grain(amount, mono=true){
+  const img = X.getImageData(0,0,W,H), d = img.data;
+  for(let i=0;i<d.length;i+=4){ const n=(Math.random()-0.5)*amount; d[i]+=n; d[i+1]+=n; d[i+2]+=n; }
+  X.putImageData(img,0,0);
+}
+function vignette(strength=0.6){
+  const g = X.createRadialGradient(W/2,H/2,Math.min(W,H)*0.25,W/2,H/2,Math.max(W,H)*0.75);
+  g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,`rgba(0,0,0,${strength})`);
+  X.fillStyle=g; X.fillRect(0,0,W,H);
+}
+function darkSky(top='#3a3a3a', bottom='#0b0b0b'){
+  const g = X.createLinearGradient(0,0,0,H); g.addColorStop(0,top); g.addColorStop(1,bottom);
+  X.fillStyle=g; X.fillRect(0,0,W,H);
+}
+function speckle(n, color, rmin, rmax, alpha=0.6, region){
+  X.fillStyle=color;
+  for(let i=0;i<n;i++){ const x=region?rr(region[0],region[2]):rr(0,W), y=region?rr(region[1],region[3]):rr(0,H);
+    X.globalAlpha=rr(0.1,alpha); X.beginPath(); X.arc(x,y,rr(rmin,rmax),0,Math.PI*2); X.fill(); }
+  X.globalAlpha=1;
+}
+// hatching strokes for ink texture
+function hatch(x0,y0,x1,y1,n,angle,len,color,alpha,width=1.2){
+  X.strokeStyle=color; X.lineWidth=width;
+  for(let i=0;i<n;i++){ const x=rr(x0,x1), y=rr(y0,y1), a=angle+gauss()*0.15, l=len*rr(0.5,1.2);
+    X.globalAlpha=rr(alpha*0.3,alpha); X.beginPath(); X.moveTo(x,y); X.lineTo(x+Math.cos(a)*l,y+Math.sin(a)*l); X.stroke(); }
+  X.globalAlpha=1;
+}
+// ---------- the wanderer silhouette ----------
+function wanderer(x,y,h,{dir=1,lean=0,color=INK,staff=true,sword=true,flutter=1}={}){
+  X.save(); X.translate(x,y); X.scale(h*dir,h); X.rotate(lean); X.fillStyle=color; X.strokeStyle=color;
+  // legs
+  X.lineWidth=0.045;
+  X.beginPath(); X.moveTo(-0.05,-0.32); X.quadraticCurveTo(-0.08,-0.15,-0.1,-0.01); X.stroke();
+  X.beginPath(); X.moveTo(0.05,-0.32); X.quadraticCurveTo(0.1,-0.18,0.12,-0.04); X.stroke();
+  X.beginPath(); X.ellipse(-0.085,-0.005,0.045,0.018,0,0,Math.PI*2); X.fill();
+  X.beginPath(); X.ellipse(0.14,-0.03,0.045,0.018,0.2,0,Math.PI*2); X.fill();
+  // cloak
+  X.beginPath();
+  X.moveTo(-0.09,-0.78); X.quadraticCurveTo(-0.16,-0.6,-0.21,-0.3);
+  X.lineTo(-0.16,-0.33); X.lineTo(-0.13,-0.27); X.lineTo(-0.08,-0.31); X.lineTo(-0.03,-0.26); X.lineTo(0.03,-0.3);
+  X.lineTo(0.08,-0.27); X.lineTo(0.12,-0.32); X.lineTo(0.16,-0.3);
+  X.quadraticCurveTo(0.14,-0.6,0.09,-0.78); X.closePath(); X.fill();
+  // fluttering strips
+  for(let i=0;i<2*flutter;i++){ const yy=-0.66+i*0.16; X.beginPath(); X.moveTo(-0.11,yy); X.quadraticCurveTo(-0.22,yy+0.02,-0.3,yy+0.1); X.quadraticCurveTo(-0.2,yy+0.06,-0.13,yy+0.09); X.closePath(); X.fill(); }
+  // head + hat (kasa)
+  X.beginPath(); X.arc(0,-0.83,0.055,0,Math.PI*2); X.fill();
+  X.beginPath(); X.moveTo(-0.2,-0.855); X.quadraticCurveTo(0,-0.83,0.2,-0.855); X.lineTo(0.03,-0.99); X.lineTo(-0.03,-0.99); X.closePath(); X.fill();
+  if(sword){ X.lineWidth=0.022; X.beginPath(); X.moveTo(-0.02,-0.55); X.lineTo(-0.27,-0.8); X.stroke(); X.lineWidth=0.035; X.beginPath(); X.moveTo(-0.17,-0.7); X.lineTo(-0.2,-0.73); X.stroke(); }
+  if(staff){ X.lineWidth=0.018; X.beginPath(); X.moveTo(0.17,-0.92); X.lineTo(0.27,0.0); X.stroke();
+    X.lineWidth=0.04; X.beginPath(); X.moveTo(0.12,-0.62); X.lineTo(0.2,-0.66); X.stroke(); }
+  X.restore();
+}
+// ---------- feather wing ----------
+function feather(x0,y0,ang,len,wid,color,alpha,curve=0.15){
+  const bend = curve*len;
+  const px = (t)=>{ const bx=x0+Math.cos(ang)*len*t, by=y0+Math.sin(ang)*len*t; const off=Math.sin(Math.PI*t)*bend; return [bx+Math.cos(ang+Math.PI/2)*off, by+Math.sin(ang+Math.PI/2)*off]; };
+  X.strokeStyle=color; X.lineWidth=2.2; X.globalAlpha=alpha;
+  X.beginPath(); for(let t=0;t<=1.001;t+=0.02){ const p=px(t); t===0?X.moveTo(p[0],p[1]):X.lineTo(p[0],p[1]); } X.stroke();
+  const n = Math.floor(len/5);
+  for(let i=0;i<n;i++){ const t=i/n, p=px(t), w=wid*Math.pow(Math.sin(Math.PI*Math.min(1,t*1.15+0.05)),0.6)*(1-0.35*t);
+    for(const s of [-1,1]){ const a=ang+s*(0.55+gauss()*0.12)+Math.PI*0.0; const l=w*rr(0.7,1.15);
+      X.lineWidth=rr(0.8,1.8); X.globalAlpha=alpha*rr(0.35,1);
+      X.beginPath(); X.moveTo(p[0],p[1]); X.quadraticCurveTo(p[0]+Math.cos(a)*l*0.5,p[1]+Math.sin(a)*l*0.5, p[0]+Math.cos(a+s*0.25)*l, p[1]+Math.sin(a+s*0.25)*l); X.stroke(); }
+  }
+  X.globalAlpha=1;
+}
+function wing(ox,oy,a0,a1,count,lmin,lmax,wid,color='#fff',alpha=0.9){
+  for(let i=0;i<count;i++){ const t=i/(count-1); const a=a0+(a1-a0)*t+gauss()*0.03;
+    const len = lmin + (lmax-lmin)*Math.pow(Math.sin(Math.PI*(0.15+0.85*t)),1.2)*rr(0.85,1.05);
+    feather(ox+gauss()*10,oy+gauss()*10,a,len,wid*rr(0.7,1.1),color,alpha*rr(0.6,1),rr(-0.08,0.2)); }
+}
+function wing2(ox,oy,scale,color='#fff',alpha=0.95,dir=-1){
+  // leading edge: shoulder -> wrist -> tip, sweeping up and out (dir=-1 = to the left)
+  const P0=[ox,oy], P1=[ox+dir*0.12*scale,oy-0.85*scale], P2=[ox+dir*0.62*scale,oy-1.25*scale];
+  const edge=(t)=>[(1-t)*(1-t)*P0[0]+2*(1-t)*t*P1[0]+t*t*P2[0],(1-t)*(1-t)*P0[1]+2*(1-t)*t*P1[1]+t*t*P2[1]];
+  const rows=[{n:34,lmin:0.22,lmax:0.34,wid:0.035,a:0.55},{n:26,lmin:0.35,lmax:0.6,wid:0.05,a:0.8},{n:16,lmin:0.5,lmax:1.05,wid:0.065,a:1}];
+  rows.reverse().forEach((row,ri)=>{ for(let i=0;i<row.n;i++){ const t=0.05+0.95*i/(row.n-1); const e=edge(t);
+      // feathers fan: near shoulder point down, near tip point outward
+      const ang = dir<0 ? (Math.PI*0.62 + t*Math.PI*0.55) : (Math.PI*0.38 - t*Math.PI*0.55);
+      const len=scale*(row.lmin+(row.lmax-row.lmin)*Math.pow(t,1.3))*rr(0.9,1.05);
+      feather(e[0],e[1],ang+gauss()*0.04,len,scale*row.wid,color,alpha*row.a,dir*rr(0.02,0.1)); } });
+  // edge line
+  X.strokeStyle=color; X.globalAlpha=alpha; X.lineWidth=scale*0.012; X.beginPath(); for(let t=0;t<=1;t+=0.02){const e=edge(t); t?X.lineTo(e[0],e[1]):X.moveTo(e[0],e[1]);} X.stroke(); X.globalAlpha=1;
+}
+// ---------- terrain ----------
+function ridgeLine(y0,amp,rough,seedOff){ // midpoint displacement ridge returning array of y per x step
+  const n=257, ys=new Array(n).fill(0); ys[0]=y0+gauss()*amp; ys[n-1]=y0+gauss()*amp;
+  let step=n-1, a=amp;
+  while(step>1){ for(let i=0;i<n-1;i+=step){ const m=i+step/2; ys[m]=(ys[i]+ys[i+step])/2+gauss()*a; } step/=2; a*=rough; }
+  return ys;
+}
+function fillRidge(ys,color,bottom=H){
+  X.fillStyle=color; X.beginPath(); X.moveTo(0,bottom);
+  ys.forEach((y,i)=>X.lineTo(i/(ys.length-1)*W,y)); X.lineTo(W,bottom); X.closePath(); X.fill();
+}
+function scribbleBall(cx,cy,r,n=260,color=INK,alpha=0.55){
+  X.strokeStyle=color;
+  for(let i=0;i<n;i++){ const a=rr(0,Math.PI*2), rx=r*rr(0.55,1), ry=r*rr(0.55,1), rot=rr(0,Math.PI);
+    X.lineWidth=rr(0.8,2.4); X.globalAlpha=rr(alpha*0.4,alpha);
+    X.beginPath(); X.ellipse(cx+gauss()*r*0.05,cy+gauss()*r*0.05,rx,ry,rot,a,a+rr(1.5,4.5)); X.stroke(); }
+  X.globalAlpha=1;
+}
+function brushStroke(points,width,color,dry=0.5){
+  // points: array [x,y,w]; draws many thin parallel bristles
+  const bristles=60;
+  for(let b=0;b<bristles;b++){ const off=(b/(bristles-1)-0.5); const gap=rnd()<dry*0.25;
+    X.strokeStyle=color; X.globalAlpha=gap?0.15:rr(0.55,0.95); X.lineWidth=width/bristles*2.2;
+    X.beginPath();
+    points.forEach((p,i)=>{ const q=points[Math.min(i+1,points.length-1)], pr=points[Math.max(i-1,0)];
+      const dx=q[0]-pr[0], dy=q[1]-pr[1], L=Math.hypot(dx,dy)||1, nx=-dy/L, ny=dx/L;
+      const w=p[2]*width; const x=p[0]+nx*off*w, y=p[1]+ny*off*w;
+      if(i===0) X.moveTo(x,y); else if(rnd()<dry*0.02*Math.abs(off)*4){ X.stroke(); X.beginPath(); X.moveTo(x,y);} else X.lineTo(x,y); });
+    X.stroke(); }
+  X.globalAlpha=1;
+}
+function text(str,x,y,font,color,align='center',spacing=0){
+  X.font=font; X.fillStyle=color; X.textAlign=align; X.textBaseline='alphabetic';
+  if('letterSpacing' in X) X.letterSpacing=spacing+'px';
+  X.fillText(str,x,y); if('letterSpacing' in X) X.letterSpacing='0px';
+}
+function wrapText(str,x,y,maxW,lineH,font,color,align='center'){
+  X.font=font; const words=str.split(' '); const lines=[]; let cur='';
+  for(const w of words){ const t=cur?cur+' '+w:w; if(X.measureText(t).width>maxW && cur){ lines.push(cur); cur=w; } else cur=t; }
+  lines.push(cur); lines.forEach((l,i)=>text(l,x,y+i*lineH,font,color,align)); return lines.length;
+}
+function star(x,y,r,color='#fff',alpha=1){ X.fillStyle=color; X.globalAlpha=alpha; X.beginPath(); X.arc(x,y,r,0,Math.PI*2); X.fill(); X.globalAlpha=1; }
+function starfield(n,region){ for(let i=0;i<n;i++){ const s=Math.pow(rnd(),6)*4+0.6; star(rr(region[0],region[2]),rr(region[1],region[3]),s,'#fff',rr(0.3,1)); } }
+
+function bottomShade(from=0.55){ const g=X.createLinearGradient(0,H*from,0,H*0.8); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,0.88)'); X.fillStyle=g; X.fillRect(0,H*from,W,H*(1-from)); }
+// ---------- scenes ----------
+const S = {};
+// Frontispiece: the winged climber
+S.frontispiece = ()=>{ setup(1800,2700); seed=11;
+  darkSky('#4a4a4a','#0e0e0e');
+  hatch(0,0,W,H*0.8,2500,-0.9,60,'#000',0.18,2);
+  // slope
+  const slope=(x)=>H*0.93 - (x/W)*H*0.34;
+  X.fillStyle='#eeeeee'; X.beginPath(); X.moveTo(0,H); for(let x=0;x<=W;x+=10) X.lineTo(x,slope(x)+Math.sin(x*0.02)*6+gauss()*3); X.lineTo(W,H); X.fill();
+  hatch(0,H*0.62,W,H,1800,-0.33,80,'#9a9a9a',0.35,1.4);
+  const fx=1260, fy=slope(1260)+6;
+  wing2(fx-60,fy-215,1050,'#ffffff',0.95,-1);
+  wanderer(fx,fy,300,{lean:0.28});
+  speckle(900,'#fff',0.6,2.2,0.7,[0,0,W,H*0.75]);
+  X.globalAlpha=0.9; text('to become a star,',W*0.72,H*0.13,'italic 92px EBG','#fff','center'); text('you must burn.',W*0.72,H*0.13+110,'italic 92px EBG','#fff','center'); X.globalAlpha=1;
+  vignette(0.55); grain(26);
+};
+// Part I: hallway of doors, one open
+S.part1 = ()=>{ setup(1800,2700); seed=21;
+  X.fillStyle='#0c0c0c'; X.fillRect(0,0,W,H);
+  const vx=W/2, vy=H*0.33;
+  // floor and walls perspective lines
+  X.strokeStyle='#2a2a2a'; X.lineWidth=3;
+  for(let i=-12;i<=12;i++){ X.beginPath(); X.moveTo(vx,vy); X.lineTo(vx+i*220,H); X.stroke(); }
+  // doors receding on both sides
+  for(let k=0;k<9;k++){ const t=Math.pow(0.72,k); const dw=260*t, dh=620*t;
+    for(const s of [-1,1]){ const cx=vx+s*(700*t+40), top=vy+(H*0.62-vy)*t- dh*0.9, bottom=top+dh;
+      X.strokeStyle='#3a3a3a'; X.lineWidth=Math.max(1,6*t); X.strokeRect(cx-dw/2,top,dw,dh);
+      if(s===1 && k===2){ // open door with light
+        const g=X.createLinearGradient(cx-dw/2,0,cx+dw/2,0); g.addColorStop(0,'#fffef6'); g.addColorStop(1,'#d9d6c9');
+        X.fillStyle=g; X.fillRect(cx-dw/2,top,dw,dh);
+        X.fillStyle='rgba(255,252,235,0.16)'; X.beginPath(); X.moveTo(cx-dw/2,bottom); X.lineTo(cx+dw/2,bottom); X.lineTo(cx+dw*3.5,H); X.lineTo(cx-dw*1.2,H); X.fill();
+        X.fillStyle='#161616'; X.beginPath(); X.moveTo(cx-dw/2,top); X.lineTo(cx-dw/2-dw*0.35,top+dh*0.06); X.lineTo(cx-dw/2-dw*0.35,bottom+dh*0.04); X.lineTo(cx-dw/2,bottom); X.fill();
+      }
+    } }
+  // tiny figure silhouette facing the light
+  wanderer(vx+120,H*0.8,210,{dir:1,staff:false,sword:false,flutter:0,color:'#000'});
+  hatch(0,0,W,H,2200,1.2,50,'#000',0.25,2);
+  bottomShade(); vignette(0.7); grain(22);
+};
+// Part II: the wanderer and his reflection
+S.part2 = ()=>{ setup(1800,2700); seed=31;
+  darkSky('#d9d9d9','#8a8a8a');
+  const wy=H*0.52;
+  hatch(0,0,W,wy,1400,0.05,120,'#555',0.2,1.5);
+  // water
+  const g=X.createLinearGradient(0,wy,0,H); g.addColorStop(0,'#1c1c1c'); g.addColorStop(1,'#050505'); X.fillStyle=g; X.fillRect(0,wy,W,H-wy);
+  // shore line
+  X.fillStyle='#111'; X.fillRect(0,wy-8,W,16);
+  wanderer(W*0.5,wy,520,{staff:true});
+  // reflection: redraw flipped in light gray with ripples
+  const off=document.createElement('canvas'); off.width=W; off.height=H; const oc=off.getContext('2d');
+  const tmp=X; X=oc; X.lineCap='round'; X.lineJoin='round'; wanderer(W*0.5,wy,520,{staff:true,color:'#cfcfcf'}); X=tmp;
+  for(let y=0;y<600;y+=3){ const shift=Math.sin(y*0.09)*(4+y*0.03)+gauss()*2; X.globalAlpha=Math.max(0,0.85-y/700);
+    X.drawImage(off,0,wy-y-3,W,3,shift,wy+y,W,3); }
+  X.globalAlpha=1;
+  hatch(0,wy+10,W,H,1800,0,90,'#444',0.35,1.6);
+  vignette(0.5); grain(24);
+};
+// Part III: ridges and a river, tiny army
+S.part3 = ()=>{ setup(1800,2700); seed=41;
+  darkSky('#bdbdbd','#6a6a6a');
+  const cols=['#9a9a9a','#7d7d7d','#5f5f5f','#434343','#262626','#111'];
+  cols.forEach((c,i)=>{ const ys=ridgeLine(H*(0.28+i*0.07),160-i*12,0.55); fillRidge(ys,c); hatch(0,H*(0.3+i*0.07),W,H,300,-0.6,40,'#000',0.08,1); });
+  // river snaking
+  X.strokeStyle='#e8e8e8'; X.lineWidth=40; X.globalAlpha=0.85; X.beginPath(); X.moveTo(W*0.1,H); X.bezierCurveTo(W*0.7,H*0.85,W*0.2,H*0.72,W*0.65,H*0.62); X.stroke();
+  X.lineWidth=16; X.beginPath(); X.moveTo(W*0.65,H*0.62); X.quadraticCurveTo(W*0.8,H*0.57,W*0.72,H*0.53); X.stroke(); X.globalAlpha=1;
+  // army dots
+  for(let i=0;i<160;i++){ const x=rr(W*0.22,W*0.48), y=rr(H*0.73,H*0.76)+ (x-W*0.22)*0.08; X.fillStyle='#000'; X.fillRect(x,y,4,9); X.fillRect(x+1,y-8,1.5,8); }
+  wanderer(W*0.3,H*0.72,110,{});
+  bottomShade(); vignette(0.5); grain(24);
+};
+// Part IV: open birdcage, feathers escaping
+S.part4 = ()=>{ setup(1800,2700); seed=51;
+  darkSky('#2a2a2a','#060606');
+  const cx=W*0.45, top=H*0.16, bot=H*0.6, r=380;
+  X.strokeStyle='#d8d8d8'; X.lineWidth=7;
+  // dome + bars
+  for(let i=0;i<=12;i++){ const t=i/12, x=cx-r+t*2*r; const k=(x-cx)/r; const yTop=top+220-Math.sqrt(Math.max(0,1-k*k))*220;
+    if(i>=7&&i<=9) continue; // opening
+    X.beginPath(); X.moveTo(x,bot); X.lineTo(x,yTop+220*(1-Math.sqrt(Math.max(0,1-k*k)))*0 ); X.stroke(); }
+  X.beginPath(); X.ellipse(cx,top+220,r,220,0,Math.PI,2*Math.PI); X.stroke();
+  X.lineWidth=12; X.beginPath(); X.ellipse(cx,bot,r,40,0,0,Math.PI*2); X.stroke();
+  X.beginPath(); X.arc(cx,top-40,36,0,Math.PI*2); X.stroke(); X.beginPath(); X.moveTo(cx,top-4); X.lineTo(cx,top); X.stroke();
+  // open door swung out
+  const dx=cx-r+2*r*(7/12), dw=2*r*(2/12);
+  X.lineWidth=6; X.save(); X.translate(dx+dw,bot-40); X.transform(1,-0.18,0,1,0,0);
+  X.strokeRect(0,-380,dw*0.9,380); for(let j=1;j<4;j++){ X.beginPath(); X.moveTo(dw*0.9*j/4,-380); X.lineTo(dw*0.9*j/4,0); X.stroke(); } X.restore();
+  // feathers drifting out and up to the right
+  for(let i=0;i<18;i++){ const t=i/17; const x=dx+dw/2+t*W*0.5+gauss()*60, y=bot-200-t*H*0.45+gauss()*80;
+    feather(x,y,rr(-2.2,-0.6),rr(90,190)*(1-t*0.4),rr(18,30),'#fff',0.9*(1-t*0.5),rr(-0.2,0.2)); }
+  vignette(0.6); grain(26);
+};
+// Part V: a single flame
+function flame(cx,base,h,wid){
+  for(let layer=0;layer<5;layer++){ const k=1-layer*0.18; const hh=h*k, ww=wid*k;
+    const g=X.createLinearGradient(0,base-hh,0,base); g.addColorStop(0,'rgba(255,255,255,0)'); g.addColorStop(0.35,`rgba(255,255,255,${0.25+layer*0.15})`); g.addColorStop(1,`rgba(255,255,255,${0.5+layer*0.1})`);
+    X.fillStyle=g; X.beginPath(); X.moveTo(cx,base-hh);
+    X.bezierCurveTo(cx+ww*0.25,base-hh*0.6,cx+ww*0.6,base-hh*0.35,cx+ww*0.5,base-hh*0.1);
+    X.quadraticCurveTo(cx+ww*0.35,base,cx,base); X.quadraticCurveTo(cx-ww*0.35,base,cx-ww*0.5,base-hh*0.1);
+    X.bezierCurveTo(cx-ww*0.6,base-hh*0.35,cx-ww*0.1,base-hh*0.55,cx,base-hh); X.fill(); }
+  // flicker strokes
+  X.strokeStyle='#fff'; for(let i=0;i<220;i++){ const t=rnd(); const y=base-h*t*1.1; const x=cx+gauss()*wid*0.35*(1-t);
+    X.globalAlpha=rr(0.05,0.35)*(1-t); X.lineWidth=rr(1,3); X.beginPath(); X.moveTo(x,y); X.quadraticCurveTo(x+gauss()*30,y-40,x+gauss()*20,y-rr(40,120)); X.stroke(); }
+  X.globalAlpha=1;
+}
+S.part5 = ()=>{ setup(1800,2700); seed=61;
+  X.fillStyle='#070707'; X.fillRect(0,0,W,H);
+  const cx=W/2, base=H*0.52;
+  const glow=X.createRadialGradient(cx,base-200,10,cx,base-200,900); glow.addColorStop(0,'rgba(255,255,255,0.28)'); glow.addColorStop(1,'rgba(255,255,255,0)'); X.fillStyle=glow; X.fillRect(0,0,W,H);
+  flame(cx,base,620,300);
+  // embers
+  for(let i=0;i<140;i++){ const y=rr(H*0.05,base-300), x=cx+gauss()*(base-y)*0.5; star(x,y,rr(1,4),'#fff',rr(0.2,0.9)); }
+  X.fillStyle='#1a1a1a'; X.beginPath(); X.ellipse(cx,base+20,220,40,0,0,Math.PI*2); X.fill();
+  vignette(0.5); grain(22);
+};
+// Epilogue / star
+S.star = ()=>{ setup(1500,1000); seed=71;
+  darkSky('#1d1d1d','#030303'); starfield(700,[0,0,W,H*0.8]);
+  const sx=W*0.62, sy=H*0.3;
+  const g=X.createRadialGradient(sx,sy,2,sx,sy,420); g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(0.06,'rgba(255,255,255,0.9)'); g.addColorStop(0.25,'rgba(255,255,255,0.18)'); g.addColorStop(1,'rgba(255,255,255,0)');
+  X.fillStyle=g; X.fillRect(0,0,W,H);
+  X.strokeStyle='#fff'; for(let i=0;i<220;i++){ const a=rr(0,Math.PI*2), l=rr(40,380)*Math.pow(rnd(),1.5); X.globalAlpha=rr(0.05,0.4); X.lineWidth=rr(0.6,2); X.beginPath(); X.moveTo(sx+Math.cos(a)*20,sy+Math.sin(a)*20); X.lineTo(sx+Math.cos(a)*l,sy+Math.sin(a)*l); X.stroke(); }
+  X.globalAlpha=1;
+  const ys=ridgeLine(H*0.8,60,0.55); ys.forEach((y,i)=>{ ys[i]=y - Math.max(0,120-Math.abs(i-70)*3); }); fillRidge(ys,'#000');
+  wanderer(70/256*W,ys[70]+4,120,{color:'#000'});
+  grain(20);
+};
+// Door in a dark room (ch1)
+S.door = ()=>{ setup(1500,1000); seed=81;
+  X.fillStyle='#101010'; X.fillRect(0,0,W,H);
+  const floorY=H*0.78; X.fillStyle='#070707'; X.fillRect(0,floorY,W,H-floorY);
+  const dx=W*0.66, dy=H*0.16, dw=230, dh=floorY-dy;
+  const lg=X.createLinearGradient(dx,0,dx+dw,0); lg.addColorStop(0,'#ffffff'); lg.addColorStop(1,'#dcdcdc'); X.fillStyle=lg; X.fillRect(dx,dy,dw,dh);
+  X.fillStyle='rgba(255,255,255,0.14)'; X.beginPath(); X.moveTo(dx,floorY); X.lineTo(dx+dw,floorY); X.lineTo(dx+dw*0.4,H); X.lineTo(dx-dw*2.6,H); X.fill();
+  X.fillStyle='#1c1c1c'; X.beginPath(); X.moveTo(dx,dy); X.lineTo(dx+110,dy+30); X.lineTo(dx+110,floorY+22); X.lineTo(dx,floorY); X.fill();
+  X.fillStyle='#bbb'; X.beginPath(); X.arc(dx+95,dy+dh*0.52,6,0,Math.PI*2); X.fill();
+  // desk, chair, glowing screen
+  X.fillStyle='#000'; X.fillRect(W*0.12,floorY-190,360,16); X.fillRect(W*0.12+10,floorY-174,12,174); X.fillRect(W*0.12+330,floorY-174,12,174);
+  X.fillStyle='#d8d8d8'; X.globalAlpha=0.9; X.fillRect(W*0.12+90,floorY-360,200,130); X.globalAlpha=1; X.fillStyle='#000'; X.fillRect(W*0.12+180,floorY-230,20,40);
+  const sg=X.createRadialGradient(W*0.12+190,floorY-300,10,W*0.12+190,floorY-300,380); sg.addColorStop(0,'rgba(255,255,255,0.18)'); sg.addColorStop(1,'rgba(255,255,255,0)'); X.fillStyle=sg; X.fillRect(0,0,W,H);
+  X.fillStyle='#000'; X.fillRect(W*0.12+60,floorY-260,16,260); X.fillRect(W*0.12+60,floorY-120,110,14); X.fillRect(W*0.12+156,floorY-120,14,120);
+  hatch(0,0,W,H,1500,1.25,40,'#000',0.3,2); vignette(0.55); grain(22);
+};
+// Boulder (ch14)
+S.boulder = ()=>{ setup(1500,1000); seed=91;
+  X.fillStyle=PAPER; X.fillRect(0,0,W,H);
+  const s=(x)=>H*0.95-(x/W)*H*0.62;
+  X.strokeStyle=INK; X.lineWidth=3; X.beginPath(); for(let x=0;x<=W;x+=8){ const y=s(x)+gauss()*2; x?X.lineTo(x,y):X.moveTo(x,y);} X.stroke();
+  for(let i=0;i<500;i++){ const x=rr(0,W), y=s(x)+rr(4,160); X.globalAlpha=rr(0.15,0.6); X.lineWidth=rr(0.8,2); X.beginPath(); X.moveTo(x,y); X.lineTo(x+rr(20,60),y-rr(12,40)*0.62*0.9); X.stroke(); }
+  X.globalAlpha=1;
+  const bx=W*0.62, r=150, by=s(bx)-r+10; scribbleBall(bx,by,r,320);
+  // pushing figure: leaning wanderer without staff
+  wanderer(bx-r-70,s(bx-r-70)+2,240,{lean:0.75,staff:false,sword:false,flutter:1});
+  grain(10);
+};
+// River (ch22)
+S.river = ()=>{ setup(1500,1000); seed=101;
+  darkSky('#cfcfcf','#8f8f8f');
+  [ '#a0a0a0','#7a7a7a','#555' ].forEach((c,i)=>fillRidge(ridgeLine(H*(0.3+i*0.08),70,0.55),c));
+  const g=X.createLinearGradient(0,H*0.55,0,H); g.addColorStop(0,'#e9e9e9'); g.addColorStop(1,'#9d9d9d'); X.fillStyle=g; X.fillRect(0,H*0.56,W,H*0.18);
+  hatch(0,H*0.56,W,H*0.74,900,0,60,'#666',0.4,1.4);
+  X.fillStyle='#181818'; X.beginPath(); X.moveTo(0,H); X.lineTo(0,H*0.74); for(let x=0;x<=W;x+=12) X.lineTo(x,H*0.74+Math.sin(x*0.01)*10+gauss()*4); X.lineTo(W,H); X.fill();
+  for(let i=0;i<220;i++){ const x=rr(W*0.08,W*0.62), y=rr(H*0.78,H*0.9); X.fillStyle='#000'; X.fillRect(x,y,5,12); X.fillRect(x+2,y-24,1.6,24); }
+  wanderer(W*0.8,H*0.84,170,{color:'#000'});
+  vignette(0.35); grain(20);
+};
+// Enso (ch23)
+S.enso = ()=>{ setup(1500,1000); seed=111;
+  X.fillStyle=PAPER; X.fillRect(0,0,W,H);
+  const cx=W*0.5, cy=H*0.5, R=340, pts=[];
+  for(let t=0;t<=1;t+=0.004){ const a=-Math.PI*0.35+t*Math.PI*1.86; const w=0.25+0.75*Math.sin(Math.PI*Math.min(1,t*1.1))*(1-t*0.55); pts.push([cx+Math.cos(a)*R*(1+gauss()*0.004),cy+Math.sin(a)*R*(1+gauss()*0.004),w]); }
+  brushStroke(pts,90,INK,0.8);
+  // two strokes (swords)
+  brushStroke([[cx-150,cy+230,0.3],[cx-40,cy+40,1],[cx+90,cy-190,0.2]],26,INK,0.6);
+  brushStroke([[cx-40,cy+250,0.3],[cx+40,cy+80,1],[cx+120,cy-110,0.2]],18,INK,0.6);
+  X.fillStyle='#8a1c1c'; X.fillRect(W*0.8,H*0.72,52,52); text('道',W*0.8+26,H*0.72+42,'38px "WenQuanYi Zen Hei"','#fff');
+  grain(8);
+};
+// Candle (ch27)
+S.candle = ()=>{ setup(1500,1000); seed=121;
+  X.fillStyle='#050505'; X.fillRect(0,0,W,H);
+  const cx=W/2, base=H*0.52;
+  const glow=X.createRadialGradient(cx,base-60,5,cx,base-60,520); glow.addColorStop(0,'rgba(255,255,255,0.35)'); glow.addColorStop(1,'rgba(255,255,255,0)'); X.fillStyle=glow; X.fillRect(0,0,W,H);
+  flame(cx,base,170,70);
+  X.strokeStyle='#000'; X.lineWidth=5; X.beginPath(); X.moveTo(cx,base); X.lineTo(cx,base+20); X.stroke();
+  const cg=X.createLinearGradient(cx-60,0,cx+60,0); cg.addColorStop(0,'#bdbdbd'); cg.addColorStop(0.4,'#f0f0f0'); cg.addColorStop(1,'#7a7a7a'); X.fillStyle=cg; X.fillRect(cx-60,base+18,120,300);
+  X.fillStyle='#eee'; X.beginPath(); X.ellipse(cx,base+18,60,12,0,0,Math.PI*2); X.fill();
+  grain(18);
+};
+// Phone cage (ch28)
+S.phonecage = ()=>{ setup(1500,1000); seed=131;
+  X.fillStyle=PAPER; X.fillRect(0,0,W,H);
+  const pw=300, ph=600, px=W/2-pw/2, py=H/2-ph/2;
+  const rrect=(x,y,w,h,r)=>{ X.beginPath(); X.moveTo(x+r,y); X.arcTo(x+w,y,x+w,y+h,r); X.arcTo(x+w,y+h,x,y+h,r); X.arcTo(x,y+h,x,y,r); X.arcTo(x,y,x+w,y,r); X.closePath(); };
+  X.strokeStyle=INK; X.lineWidth=14; rrect(px,py,pw,ph,46); X.stroke();
+  X.lineWidth=7; for(let i=1;i<7;i++){ const x=px+pw*i/7; X.beginPath(); X.moveTo(x,py+10); X.lineTo(x,py+ph-10); X.stroke(); }
+  X.lineWidth=5; X.beginPath(); X.moveTo(px+120,py+30); X.lineTo(px+180,py+30); X.stroke();
+  wanderer(W/2,py+ph-40,210,{color:INK});
+  // highlight "cards" floating outside
+  for(let i=0;i<9;i++){ const x=rr(80,W-260), y=rr(60,H-200); if(x>px-200&&x<px+pw+20) continue; X.save(); X.translate(x,y); X.rotate(gauss()*0.2);
+    X.fillStyle='#f2f2f2'; X.strokeStyle='#bbb'; X.lineWidth=2; X.fillRect(0,0,170,210); X.strokeRect(0,0,170,210);
+    X.fillStyle='#9a9a9a'; X.fillRect(12,12,146,120); X.fillStyle='#c9c9c9'; X.fillRect(12,146,110,10); X.fillRect(12,166,80,10);
+    X.fillStyle='#fff'; X.beginPath(); X.arc(40,72,14,0,Math.PI*2); X.fill(); X.restore(); }
+  grain(8);
+};
+// Summit (ch37)
+S.summit = ()=>{ setup(1500,1000); seed=141;
+  darkSky('#e0e0e0','#9a9a9a');
+  const far=ridgeLine(H*0.25,50,0.5); far.forEach((y,i)=>far[i]=y-Math.max(0,260-Math.abs(i-180)*4)); fillRidge(far,'#b3b3b3');
+  X.fillStyle='rgba(235,235,235,0.8)'; for(let i=0;i<30;i++){ X.beginPath(); X.ellipse(rr(0,W),rr(H*0.45,H*0.6),rr(120,300),rr(20,40),0,0,Math.PI*2); X.fill(); }
+  const near=ridgeLine(H*0.75,40,0.5); near.forEach((y,i)=>near[i]=y-Math.max(0,300-Math.abs(i-70)*5)); fillRidge(near,'#151515');
+  wanderer(70/256*W,near[70]+3,130,{color:'#151515'});
+  hatch(0,H*0.5,W,H,700,-0.8,40,'#000',0.2,1.4); grain(18);
+};
+// Hourglass (ch39)
+S.hourglass = ()=>{ setup(1500,1000); seed=151;
+  X.fillStyle='#0a0a0a'; X.fillRect(0,0,W,H);
+  const cx=W/2, top=H*0.1, bot=H*0.9, w=250;
+  X.strokeStyle='#ddd'; X.lineWidth=6;
+  X.beginPath(); X.moveTo(cx-w,top); X.bezierCurveTo(cx-w,H*0.4,cx-18,H*0.44,cx-14,H/2); X.bezierCurveTo(cx-18,H*0.56,cx-w,H*0.6,cx-w,bot); X.stroke();
+  X.beginPath(); X.moveTo(cx+w,top); X.bezierCurveTo(cx+w,H*0.4,cx+18,H*0.44,cx+14,H/2); X.bezierCurveTo(cx+18,H*0.56,cx+w,H*0.6,cx+w,bot); X.stroke();
+  X.fillStyle='#ddd'; X.fillRect(cx-w-40,top-24,2*w+80,24); X.fillRect(cx-w-40,bot,2*w+80,24);
+  // sand = stars: remaining top as dots, falling stream, pile of stars below
+  for(let i=0;i<900;i++){ const y=rr(H*0.28,H*0.47); const half=(w-20)*Math.pow((H*0.5-y)/(H*0.22),0.8); star(cx+rr(-half,half),y,rr(0.8,2.6),'#fff',rr(0.4,1)); }
+  for(let i=0;i<120;i++) star(cx+gauss()*3,rr(H*0.5,H*0.8),rr(0.8,1.8),'#fff',0.8);
+  for(let i=0;i<1400;i++){ const y=rr(H*0.7,bot-4); const half=(w-20)*Math.pow((y-H*0.7)/(H*0.2),0.7); star(cx+rr(-half,half),y,rr(0.8,2.6),'#fff',rr(0.4,1)); }
+  grain(18);
+};
+
+
+// Footsteps in snow (ch22)
+S.footsteps = ()=>{ setup(1500,1000); seed=161;
+  const g=X.createLinearGradient(0,0,0,H); g.addColorStop(0,'#8e8e8e'); g.addColorStop(0.32,'#cfcfcf'); g.addColorStop(1,'#f4f4f4'); X.fillStyle=g; X.fillRect(0,0,W,H);
+  const far=ridgeLine(H*0.3,40,0.55); fillRidge(far,'#6a6a6a',H*0.36); X.fillStyle='#d6d6d6'; X.fillRect(0,H*0.355,W,H);
+  hatch(0,H*0.36,W,H,1100,0.02,70,'#9a9a9a',0.25,1.2);
+  // path of prints: from bottom-left foreground to a point near the horizon
+  const path=(t)=>{ const x=W*0.32+Math.sin(t*3.2)*W*0.14*(1-t)+t*W*0.28, y=H*0.98-(H*0.6)*Math.pow(t,0.62); return [x,y]; };
+  const steps=26;
+  for(let k=0;k<steps;k++){ const t=k/steps, [x,y]=path(t), [x2,y2]=path(t+0.01); const ang=Math.atan2(y2-y,x2-x);
+    const sc=Math.pow(1-t,1.6)*1+0.08; const side=(k%2?1:-1);
+    const px=x+Math.cos(ang+Math.PI/2)*side*22*sc, py=y+Math.sin(ang+Math.PI/2)*side*22*sc;
+    X.save(); X.translate(px,py); X.rotate(ang+Math.PI/2); X.scale(sc,sc*0.55);
+    X.fillStyle='rgba(60,60,60,0.55)'; X.beginPath(); X.ellipse(0,0,15,34,0,0,Math.PI*2); X.fill();
+    X.fillStyle='rgba(20,20,20,0.55)'; X.beginPath(); X.ellipse(0,-10,10,18,0,0,Math.PI*2); X.fill();
+    X.fillStyle='rgba(255,255,255,0.5)'; X.beginPath(); X.ellipse(4,4,12,28,0,0,Math.PI*2); X.fill(); X.restore(); }
+  const [ex,ey]=path(1); wanderer(ex,ey+4,70,{color:'#1a1a1a'});
+  speckle(500,'#fff',0.5,1.6,0.6,[0,0,W,H*0.35]); vignette(0.35); grain(14);
+};
+// Threshold: the door from the first chapter, open onto the mountain (ch44)
+S.threshold = ()=>{ setup(1500,1000); seed=171;
+  X.fillStyle='#0d0d0d'; X.fillRect(0,0,W,H); hatch(0,0,W,H,1300,1.25,40,'#000',0.28,2);
+  const floorY=H*0.8, dx=W*0.5, dy=H*0.12, dw=330, dh=floorY-dy;
+  // outside world inside the door frame
+  X.save(); X.beginPath(); X.rect(dx,dy,dw,dh); X.clip();
+  const sky=X.createLinearGradient(0,dy,0,floorY); sky.addColorStop(0,'#ffffff'); sky.addColorStop(1,'#d9d9d9'); X.fillStyle=sky; X.fillRect(dx,dy,dw,dh);
+  const saveW=W; const r1=ridgeLine(0,1,0.5); X.fillStyle='#b5b5b5'; X.beginPath(); X.moveTo(dx,floorY);
+  for(let i=0;i<=40;i++){ const x=dx+i/40*dw; const peak=Math.max(0,1-Math.abs(i-24)/14); X.lineTo(x,dy+dh*0.62-peak*dh*0.4+gauss()*4); } X.lineTo(dx+dw,floorY); X.fill();
+  X.fillStyle='#8c8c8c'; X.beginPath(); X.moveTo(dx,floorY); for(let i=0;i<=40;i++){ const x=dx+i/40*dw; X.lineTo(x,dy+dh*0.78+Math.sin(i*0.5)*8+gauss()*3);} X.lineTo(dx+dw,floorY); X.fill();
+  X.restore();
+  // light spilling into the room
+  X.fillStyle='rgba(255,255,255,0.13)'; X.beginPath(); X.moveTo(dx,floorY); X.lineTo(dx+dw,floorY); X.lineTo(dx+dw*1.15,H); X.lineTo(dx-dw*1.6,H); X.fill();
+  // open door leaf
+  X.fillStyle='#1f1f1f'; X.beginPath(); X.moveTo(dx,dy); X.lineTo(dx-150,dy+40); X.lineTo(dx-150,floorY+30); X.lineTo(dx,floorY); X.fill();
+  X.fillStyle='#999'; X.beginPath(); X.arc(dx-130,dy+dh*0.55,6,0,Math.PI*2); X.fill();
+  // the chair and the phone left behind
+  X.fillStyle='#000'; const cx=W*0.16; X.fillRect(cx,floorY-230,16,230); X.fillRect(cx,floorY-110,120,14); X.fillRect(cx+106,floorY-110,14,110);
+  X.fillStyle='#cfcfcf'; X.save(); X.translate(cx+60,floorY-122); X.rotate(-0.05); X.fillRect(-18,-6,36,8); X.restore();
+  const pg=X.createRadialGradient(cx+60,floorY-125,2,cx+60,floorY-125,90); pg.addColorStop(0,'rgba(255,255,255,0.18)'); pg.addColorStop(1,'rgba(255,255,255,0)'); X.fillStyle=pg; X.fillRect(0,0,W,H);
+  // the wanderer stepping through, backlit
+  wanderer(dx+dw*0.45,floorY+2,250,{color:'#050505'});
+  vignette(0.5); grain(20);
+};
+
+
+// ---------- COVER ----------
+function coverFront(bleed){ // uses global W,H; bleed in px (0 for ebook)
+  seed=201;
+  darkSky('#3d3d3d','#0a0a0a');
+  hatch(0,0,W,H*0.8,Math.round(W*H/1800),-0.9,W*0.035,'#000',0.2,2);
+  speckle(Math.round(W*0.5),'#fff',0.6,2.2,0.6,[0,0,W,H*0.7]);
+  // ember glow behind the climber
+  const slope=(x)=>H*0.975-(x/W)*H*0.26;
+  const fx=W*0.72, fy=slope(fx)+6;
+  const g=X.createRadialGradient(fx-W*0.12,fy-H*0.2,5,fx-W*0.12,fy-H*0.2,W*0.7);
+  g.addColorStop(0,'rgba(255,120,40,0.22)'); g.addColorStop(1,'rgba(255,120,40,0)'); X.fillStyle=g; X.fillRect(0,0,W,H);
+  X.fillStyle='#ededed'; X.beginPath(); X.moveTo(0,H); for(let x=0;x<=W;x+=8) X.lineTo(x,slope(x)+Math.sin(x*0.015)*5+gauss()*2); X.lineTo(W,H); X.fill();
+  hatch(0,H*0.68,W,H,Math.round(W*0.9),-0.3,W*0.05,'#9a9a9a',0.3,1.4);
+  wing2(fx-W*0.03,fy-H*0.075,W*0.31,'#ffffff',0.95,-1);
+  wanderer(fx,fy,H*0.105,{lean:0.28});
+  // title
+  const cx=W/2, top=bleed+H*0.085;
+  X.save(); X.shadowColor='rgba(255,110,30,0.55)'; X.shadowBlur=W*0.03;
+  text('BURN',cx,top+W*0.16,`700 ${Math.round(W*0.19)}px Corm`,'#fbf6ef','center',Math.round(W*0.02));
+  X.restore();
+  text('TO BECOME',cx,top+W*0.16+W*0.105,`700 ${Math.round(W*0.083)}px Corm`,'#fbf6ef','center',Math.round(W*0.018));
+  X.fillStyle='#e0662b'; X.fillRect(cx-W*0.06,top+W*0.315,W*0.12,Math.max(2,W*0.0025));
+  text('The Life You Could Have Lived',cx,top+W*0.375,`italic ${Math.round(W*0.042)}px EBG`,'#e9e4dc','center');
+  // author on the snow
+  text('BAZOOKA',cx,H-bleed-H*0.045,`600 ${Math.round(W*0.05)}px EBG`,'#161616','center',Math.round(W*0.02));
+  vignette(0.35); grain(22);
+}
+S.cover_front = ()=>{ setup(1875,2775); coverFront(38); };
+S.cover_ebook = ()=>{ setup(1600,2560); coverFront(0); };
+S.cover_back = ()=>{ setup(1875,2775); seed=211; const b=38;
+  darkSky('#1f1f1f','#070707'); hatch(0,0,W,H,1800,-0.9,60,'#000',0.22,2);
+  const L=b+0.55*300, R=W-b-0.5*300, mw=R-L; let y=b+0.75*300;
+  X.fillStyle='#e0662b'; X.fillRect(L,y-70,90,4);
+  const q='“Potential is undefeated because potential has never entered the arena.”';
+  const nq=wrapText(q,L,y,mw,80,'italic 66px Corm','#f2ede6','left'); y+=nq*80+80;
+  const paras=[
+   'There is a version of your life that exists only in your imagination. In it, you are finally disciplined, finally confident, finally living. This book is about the distance between that life and the one you are actually living—and what it takes to close it.',
+   'Moving from the small negotiations that keep us stuck to the real, complicated lives of Alexander, Musashi, Michael Jordan, Cristiano Ronaldo, Kobe Bryant, and Viktor Frankl, Burn to Become refuses easy motivation. It does not promise that you can become anything. It asks a harder question: within the life you actually have, where is your agency?',
+   'Honest, grounded in research, and illustrated throughout, it ends with a thirty-day Field Manual that turns ideas into action.'];
+  for(const t of paras){ const n=wrapText(t,L,y,mw,62,'43px EBG','#d9d4cc','left'); y+=n*62+40; }
+  y+=20; X.fillStyle='#444'; X.fillRect(L,y,mw,2); y+=80;
+  const n2=wrapText('The fire was never supposed to consume you. It was supposed to show you what matters.',L,y,mw,68,'italic 52px Corm','#f2ede6','left'); y+=n2*68+60;
+  text('BAZOOKA',L,y+10,'600 40px EBG','#e0662b','left',10);
+  // small wanderer walking toward the right edge (toward the spine and front)
+  wanderer(L+60,H-b-0.62*300,150,{color:'#bdbdbd'});
+  X.fillStyle='#2a2a2a'; X.fillRect(L-40,H-b-0.62*300+2,420,3);
+  vignette(0.45); grain(20);
+};
+S.cover_spine = ()=>{ setup(163,2775); seed=221; darkSky('#222','#0a0a0a'); grain(18);
+  X.save(); X.translate(W/2,H/2); X.rotate(Math.PI/2);
+  text('BURN TO BECOME',-150,14,'700 44px Corm','#fbf6ef','center',8);
+  X.fillStyle='#e0662b'; X.fillRect(360,-2,40,4);
+  text('BAZOOKA',560,12,'600 30px EBG','#cfcfcf','center',6);
+  X.restore(); };
+
+
+// ---------- scenes drawn from the book's recurring images (v2) ----------
+// The pattern repeating (ch2): a terminal that keeps printing the same warning
+S.plate_cycle = ()=>{ setup(1800,2700); seed=301;
+  X.fillStyle='#030503'; X.fillRect(0,0,W,H);
+  const lines=['[You have to break the pattern today,','or the cycle will repeat tomorrow.]'];
+  const n=11, lh=196, y0=250;
+  for(let k=0;k<n;k++){
+    const a = k===n-1 ? 1 : 0.18+0.6*(k/(n-1));
+    X.globalAlpha=a;
+    const col = k===n-1 ? '#9dffb5' : '#3ddc6b';
+    text(lines[0],110,y0+k*lh,'62px "DejaVu Sans Mono"',col,'left');
+    text(lines[1],110,y0+k*lh+74,'62px "DejaVu Sans Mono"',col,'left');
+  }
+  X.globalAlpha=1;
+  // blinking cursor after the last line and the one different line
+  const yy=y0+n*lh+30; text('> break it_',110,yy,'bold 96px "DejaVu Sans Mono"','#ffffff','left');
+  for(let y=0;y<H;y+=4){ X.fillStyle='rgba(0,0,0,0.25)'; X.fillRect(0,y,W,2); } // scanlines
+  vignette(0.6); grain(18);
+};
+// The tent at the Hyphasis (ch23)
+S.tent = ()=>{ setup(1500,1000); seed=311;
+  darkSky('#101418','#040506'); starfield(500,[0,0,W,H*0.5]);
+  const hill=ridgeLine(H*0.45,40,0.5); fillRidge(hill,'#0b0c0d');
+  // campfires of the army on the hills
+  for(let i=0;i<70;i++){ const x=rr(0,W), y=rr(H*0.47,H*0.6); const g=X.createRadialGradient(x,y,0,x,y,16); g.addColorStop(0,'rgba(255,170,90,0.9)'); g.addColorStop(1,'rgba(255,120,40,0)'); X.fillStyle=g; X.fillRect(x-16,y-16,32,32); }
+  // river
+  const rg=X.createLinearGradient(0,H*0.62,0,H*0.74); rg.addColorStop(0,'#2a3036'); rg.addColorStop(1,'#15191c'); X.fillStyle=rg; X.fillRect(0,H*0.62,W,H*0.12);
+  hatch(0,H*0.62,W,H*0.74,500,0,70,'#6d7782',0.35,1.2);
+  X.fillStyle='#060707'; X.fillRect(0,H*0.74,W,H*0.26);
+  // the tent, lit from inside
+  const tx=W*0.46, ty=H*0.9, tw=300, th=210;
+  const tg=X.createLinearGradient(tx,ty-th,tx,ty); tg.addColorStop(0,'#d99a55'); tg.addColorStop(1,'#8a4a1e');
+  X.fillStyle=tg; X.beginPath(); X.moveTo(tx-tw/2,ty); X.lineTo(tx,ty-th); X.lineTo(tx+tw/2,ty); X.closePath(); X.fill();
+  X.fillStyle='#2a1508'; X.beginPath(); X.moveTo(tx-26,ty); X.lineTo(tx,ty-th*0.55); X.lineTo(tx+26,ty); X.fill();
+  const glow=X.createRadialGradient(tx,ty-80,10,tx,ty-80,420); glow.addColorStop(0,'rgba(255,150,70,0.28)'); glow.addColorStop(1,'rgba(255,150,70,0)'); X.fillStyle=glow; X.fillRect(0,0,W,H);
+  X.strokeStyle='#1a0d05'; X.lineWidth=4; X.beginPath(); X.moveTo(tx,ty-th); X.lineTo(tx,ty-th-40); X.stroke();
+  // soldiers waiting outside, turned toward home (west)
+  for(let i=0;i<9;i++) wanderer(W*0.66+i*48, H*0.93+ (i%2)*8, 90, {dir:-1, staff:false, sword:true, flutter:0, color:'#000'});
+  vignette(0.55); grain(18);
+};
+// The scoreboard after the game (ch25)
+S.scoreboard = ()=>{ setup(1500,1000); seed=321;
+  X.fillStyle='#070707'; X.fillRect(0,0,W,H);
+  // empty seats rising on both sides
+  for(let r=0;r<14;r++){ const y=H*0.42+r*26; X.fillStyle=`rgba(255,255,255,${0.04+r*0.004})`; for(let x=0;x<W;x+=34){ if(x>W*0.28&&x<W*0.72&&r<8) continue; X.fillRect(x+ (r%2)*17, y, 22, 12); } }
+  // floor
+  const fg=X.createLinearGradient(0,H*0.78,0,H); fg.addColorStop(0,'#1d1a16'); fg.addColorStop(1,'#0a0908'); X.fillStyle=fg; X.fillRect(0,H*0.78,W,H*0.22);
+  X.strokeStyle='rgba(255,255,255,0.15)'; X.lineWidth=3; X.beginPath(); X.ellipse(W/2,H*0.9,260,40,0,0,Math.PI*2); X.stroke();
+  // board
+  const bx=W*0.3, by=H*0.07, bw=W*0.4, bh=H*0.3; X.fillStyle='#111'; X.fillRect(bx,by,bw,bh); X.strokeStyle='#333'; X.lineWidth=6; X.strokeRect(bx,by,bw,bh);
+  X.fillStyle='#222'; X.fillRect(W/2-4,0,8,by);
+  X.save(); X.shadowColor='rgba(255,90,40,0.9)'; X.shadowBlur=18;
+  text('HOME',bx+bw*0.22,by+70,'40px Bebas','#ff7a3d','center',6); text('AWAY',bx+bw*0.78,by+70,'40px Bebas','#ff7a3d','center',6);
+  text('88',bx+bw*0.22,by+185,'120px Bebas','#ff7a3d','center',4); text('89',bx+bw*0.78,by+185,'120px Bebas','#ff7a3d','center',4);
+  text('FINAL',W/2,by+bh-24,'44px Bebas','#ffd2b8','center',10); X.restore();
+  const cone=X.createLinearGradient(0,by+bh,0,H*0.9); cone.addColorStop(0,'rgba(255,200,160,0.10)'); cone.addColorStop(1,'rgba(255,200,160,0)'); X.fillStyle=cone; X.beginPath(); X.moveTo(bx+40,by+bh); X.lineTo(bx+bw-40,by+bh); X.lineTo(W*0.72,H*0.9); X.lineTo(W*0.28,H*0.9); X.fill();
+  wanderer(W/2,H*0.9,170,{color:'#000'});
+  vignette(0.5); grain(18);
+};
+// Four airballs (ch27)
+S.airball = ()=>{ setup(1500,1000); seed=331;
+  X.fillStyle=PAPER; X.fillRect(0,0,W,H);
+  const rimX=W*0.8, rimY=H*0.36;
+  X.fillStyle='#fff'; X.strokeStyle=INK; X.lineWidth=6; X.fillRect(rimX+40,rimY-170,24,230); X.strokeRect(rimX+40,rimY-170,24,230);
+  X.lineWidth=5; X.beginPath(); X.ellipse(rimX-10,rimY,70,14,0,0,Math.PI*2); X.stroke();
+  X.lineWidth=2; for(let i=0;i<9;i++){ const x=rimX-78+i*17; X.beginPath(); X.moveTo(x,rimY+4); X.lineTo(rimX-10+(x-rimX+10)*0.6,rimY+110); X.stroke(); }
+  X.beginPath(); X.moveTo(rimX-60,rimY+110); X.lineTo(rimX+40,rimY+110); X.stroke();
+  X.strokeStyle='#999'; X.lineWidth=3; X.beginPath(); X.moveTo(0,H*0.9); X.lineTo(W,H*0.9); X.stroke();
+  const shooter=[W*0.16,H*0.62];
+  [[0.62,0.40],[0.66,0.50],[0.70,0.30],[0.72,0.46]].forEach(([fx,peak],k)=>{
+    const ex=W*fx, ey=H*0.9; X.setLineDash([6,12]); X.strokeStyle=`rgba(20,20,20,${0.25+k*0.2})`; X.lineWidth=3;
+    X.beginPath(); X.moveTo(shooter[0],shooter[1]); X.quadraticCurveTo((shooter[0]+ex)/2,H*peak-120,ex,ey-20); X.stroke(); X.setLineDash([]);
+    X.fillStyle=INK; X.beginPath(); X.arc(ex,ey-26,16,0,Math.PI*2); X.fill();
+  });
+  X.fillStyle=INK; X.beginPath(); X.arc(W*0.72,H*0.9-26,26,0,Math.PI*2); X.fill();
+  text('0 / 4',rimX-10,rimY-210,'60px Bebas',INK,'center',8);
+  wanderer(W*0.14,H*0.9,230,{staff:false,sword:false,color:INK});
+  grain(8);
+};
+// Even a one percent chance (ch36)
+S.onepercent = ()=>{ setup(1500,1000); seed=341;
+  const g=X.createLinearGradient(0,0,0,H); g.addColorStop(0,'#f2f2f2'); g.addColorStop(1,'#cfcfcf'); X.fillStyle=g; X.fillRect(0,0,W,H);
+  const horizon=H*0.5; X.fillStyle='#bdbdbd'; X.fillRect(0,horizon,W,H-horizon);
+  hatch(0,horizon,W,H,900,-0.2,60,'#8a8a8a',0.3,1.2);
+  // the army: rows of spears and bodies on the far field
+  for(let row=0;row<9;row++){ const y=horizon-8+row*16; const sc=0.5+row*0.09;
+    for(let x=-10;x<W+10;x+=rr(5,12)*sc){ X.fillStyle=`rgba(15,15,15,${0.55+row*0.05})`; X.fillRect(x,y-10*sc,5*sc,14*sc); X.fillRect(x+2*sc,y-34*sc-rr(0,10),1.4*sc,26*sc); } }
+  // flags
+  for(let i=0;i<14;i++){ const x=rr(40,W-40), y=horizon-60-rr(0,20); X.fillStyle='#111'; X.fillRect(x,y,2,50); X.beginPath(); X.moveTo(x+2,y); X.lineTo(x+32,y+8); X.lineTo(x+2,y+16); X.fill(); }
+  // the one who stays
+  wanderer(W*0.5,H*0.94,260,{color:'#0a0a0a'});
+  text('1%',W*0.5,H*0.2,'150px Bebas','#1a1a1a','center',10);
+  vignette(0.3); grain(12);
+};
+// Putting the rock down (ch38)
+S.sisyphus_rest = ()=>{ setup(1500,1000); seed=351;
+  X.fillStyle=PAPER; X.fillRect(0,0,W,H);
+  const sun=X.createRadialGradient(W*0.82,H*0.3,10,W*0.82,H*0.3,260); sun.addColorStop(0,'rgba(0,0,0,0.12)'); sun.addColorStop(1,'rgba(0,0,0,0)'); X.fillStyle=sun; X.fillRect(0,0,W,H);
+  X.strokeStyle=INK; X.lineWidth=3;
+  const s=(x)=> x<W*0.62 ? H*0.95-(x/(W*0.62))*H*0.55 : H*0.40+ (x-W*0.62)*0.08;
+  X.beginPath(); for(let x=0;x<=W;x+=8){ const y=s(x)+gauss()*2; x?X.lineTo(x,y):X.moveTo(x,y);} X.stroke();
+  for(let i=0;i<420;i++){ const x=rr(0,W), y=s(x)+rr(4,150); X.globalAlpha=rr(0.1,0.5); X.lineWidth=rr(0.8,1.8); X.beginPath(); X.moveTo(x,y); X.lineTo(x+rr(20,50),y-rr(4,20)); X.stroke(); }
+  X.globalAlpha=1;
+  const bx=W*0.66, br=110; scribbleBall(bx,s(bx)-br+6,br,300);
+  wanderer(W*0.58,s(W*0.58)+4,200,{lean:-0.08,staff:true,sword:false,flutter:0});
+  grain(8);
+};
+// The old you is dying (ch39): one figure walks on while its old shape turns to embers
+S.embers = ()=>{ setup(1500,1000); seed=361;
+  darkSky('#141414','#050505');
+  const ground=H*0.84; X.fillStyle='#0b0b0b'; X.fillRect(0,ground,W,H-ground);
+  const off=document.createElement('canvas'); off.width=W; off.height=H; const oc=off.getContext('2d');
+  const keep=X; X=oc; X.lineCap='round'; X.lineJoin='round'; wanderer(W*0.36,ground,330,{color:'#fff'}); X=keep;
+  const data=oc.getImageData(0,0,W,H).data;
+  for(let y=0;y<H;y+=3) for(let x=0;x<W;x+=3){ const a=data[(y*W+x)*4+3]; if(a<120) continue;
+    const t=1-(y-(ground-330))/330; const lift=Math.pow(Math.max(0,t),1.6)*rr(0,420); const drift=gauss()*t*80;
+    const hot=Math.min(1,t*1.4); X.fillStyle=`rgba(255,${Math.round(200-120*hot)},${Math.round(120-100*hot)},${0.35+0.6*(1-t)})`;
+    X.fillRect(x+drift,y-lift,2.4,2.4); }
+  const glow=X.createRadialGradient(W*0.36,ground-160,10,W*0.36,ground-160,380); glow.addColorStop(0,'rgba(255,120,40,0.22)'); glow.addColorStop(1,'rgba(255,120,40,0)'); X.fillStyle=glow; X.fillRect(0,0,W,H);
+  wanderer(W*0.66,ground,330,{color:'#000'});
+  X.strokeStyle='rgba(255,255,255,0.08)'; X.lineWidth=2; X.beginPath(); X.moveTo(W*0.66,ground+2); X.lineTo(W*0.95,ground+2); X.stroke();
+  vignette(0.5); grain(18);
+};
+
+// ---------- diagrams (SVG) ----------
+function svgScene(w,h,markup){ return new Promise(res=>{ setup(w,h); const img=new Image(); const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><style>
+ .t{font-family:EBG,serif;fill:${INK}} .l{font-family:Oswald,sans-serif;fill:${INK};letter-spacing:4px} .s{stroke:${INK};fill:none}
+ </style><rect width="100%" height="100%" fill="${PAPER}"/>${markup}</svg>`;
+ // draw via DOM text so web fonts work: render into canvas using drawImage of SVG can't use @font-face, so place SVG in DOM instead
+ const div=document.createElement('div'); div.innerHTML=svg; document.body.innerHTML=''; document.body.appendChild(div); document.body.style.background='#fff'; res(); }); }
+const D = {};
+D.loop = ()=>svgScene(1500,1000,`
+ <defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${INK}"/></marker></defs>
+ <text x="750" y="90" class="l" font-size="34" text-anchor="middle" font-weight="600">HOW THE CAGE LEARNS</text>
+ ${[['Discomfort','a hard task appears',750,230],['Escape','phone, snack, “later”',1130,500],['Relief','tension drops — now',750,770],['Stronger habit','next escape is easier',370,500]].map(([a,b,x,y])=>`<circle cx="${x}" cy="${y}" r="125" class="s" stroke-width="4"/><text x="${x}" y="${y-5}" class="t" font-size="${a.length>10?34:44}" text-anchor="middle" font-weight="600">${a}</text><text x="${x}" y="${y+42}" class="t" font-size="27" text-anchor="middle" font-style="italic">${b}</text>`).join('')}
+ <path d="M870,270 Q1060,300 1080,380" class="s" stroke-width="4" marker-end="url(#a)"/>
+ <path d="M1085,620 Q1060,720 880,745" class="s" stroke-width="4" marker-end="url(#a)"/>
+ <path d="M630,745 Q440,720 415,620" class="s" stroke-width="4" marker-end="url(#a)"/>
+ <path d="M420,380 Q440,300 630,270" class="s" stroke-width="4" marker-end="url(#a)"/>
+ <text x="750" y="505" class="t" font-size="30" text-anchor="middle" font-style="italic">the loop tightens</text>
+ <text x="750" y="945" class="t" font-size="30" text-anchor="middle">To break it: shrink the task, add friction to the escape, and let discomfort pass.</text>`);
+D.voices = ()=>svgScene(1500,1000,`
+ <text x="750" y="90" class="l" font-size="34" text-anchor="middle" font-weight="600">THE FOUR VOICES</text>
+ ${[['FEAR','“What if this goes badly?”',300,300],['EGO','“What will this say about me?”',1200,300],['APPROVAL','“What will they think?”',300,720],['VALUES','“What matters even if it’s uncertain?”',1200,720]].map(([a,b,x,y],i)=>`<rect x="${x-250}" y="${y-110}" width="500" height="220" rx="16" class="s" stroke-width="${i===3?9:3}" ${i===3?'':'stroke-dasharray="10 8"'}/><text x="${x}" y="${y-10}" class="l" font-size="50" text-anchor="middle" font-weight="${i===3?600:400}">${a}</text><text x="${x}" y="${y+50}" class="t" font-size="30" text-anchor="middle" font-style="italic">${b}</text>`).join('')}
+ <circle cx="750" cy="510" r="70" fill="${INK}"/><text x="750" y="522" font-family="Oswald" font-size="30" fill="#fff" text-anchor="middle" letter-spacing="3">YOU</text>
+ ${[[300,300],[1200,300],[300,720]].map(([x,y])=>`<line x1="${x+(x<750?250:-250)}" y1="${y+(y<500?60:-60)}" x2="${750+(x<750?-70:70)}" y2="${510+(y<500?-30:30)}" class="s" stroke-width="2" stroke-dasharray="6 8"/>`).join('')}
+ <line x1="950" y1="660" x2="815" y2="545" class="s" stroke-width="7"/>
+ <text x="750" y="945" class="t" font-size="30" text-anchor="middle">Listen to all four. Let values decide.</text>`);
+D.middle = ()=>{ const pts=(f)=>Array.from({length:61},(_,i)=>{const t=i/60; return `${160+t*1200},${820-f(t)*600}`}).join(' ');
+ return svgScene(1500,1000,`
+ <text x="750" y="90" class="l" font-size="34" text-anchor="middle" font-weight="600">THE BORING MIDDLE</text>
+ <line x1="160" y1="820" x2="1380" y2="820" class="s" stroke-width="3"/><line x1="160" y1="820" x2="160" y2="170" class="s" stroke-width="3"/>
+ <text x="1380" y="870" class="l" font-size="26" text-anchor="end">TIME →</text>
+ <rect x="470" y="170" width="420" height="650" fill="#ececec"/>
+ <polyline points="${pts(t=>0.95*Math.exp(-4*t)+0.05)}" class="s" stroke-width="6" stroke-dasharray="16 10"/>
+ <polyline points="${pts(t=>0.95/(1+Math.exp(-9*(t-0.62))))}" class="s" stroke-width="7"/>
+ <text x="230" y="215" class="t" font-size="34" font-style="italic">excitement</text>
+ <text x="1200" y="230" class="t" font-size="34" font-style="italic">skill</text>
+ <text x="680" y="300" class="l" font-size="36" text-anchor="middle" font-weight="600">WHERE MOST PEOPLE QUIT</text>
+ <text x="680" y="345" class="t" font-size="28" text-anchor="middle" font-style="italic">too familiar to be exciting,</text>
+ <text x="680" y="382" class="t" font-size="28" text-anchor="middle" font-style="italic">too early to be satisfying</text>
+ <text x="750" y="945" class="t" font-size="30" text-anchor="middle">The gap is not evidence that something is wrong. It is the middle.</text>`); };
+D.trytree = ()=>svgScene(1500,1000,`
+ <text x="750" y="90" class="l" font-size="34" text-anchor="middle" font-weight="600">THE ONLY BRANCH WITH TWO ENDINGS</text>
+ <text x="750" y="210" class="t" font-size="60" text-anchor="middle" font-weight="600">If you…</text>
+ <path d="M750,240 L750,330 M750,330 L420,470 M750,330 L1080,470" class="s" stroke-width="6"/>
+ <text x="420" y="530" class="t" font-size="54" text-anchor="middle" font-weight="600">don’t try</text>
+ <text x="1080" y="530" class="t" font-size="54" text-anchor="middle" font-weight="600">try</text>
+ <path d="M420,560 L420,690 M1080,560 L1080,600 M1080,600 L900,690 M1080,600 L1260,690" class="s" stroke-width="6"/>
+ <path d="M380,720 l80,80 M460,720 l-80,80" class="s" stroke-width="12"/>
+ <path d="M860,720 l80,80 M940,720 l-80,80" class="s" stroke-width="12"/>
+ <path d="M1215,760 l35,40 l65,-90" class="s" stroke-width="12"/>
+ <text x="420" y="860" class="t" font-size="28" text-anchor="middle" font-style="italic">certain</text>
+ <text x="900" y="860" class="t" font-size="28" text-anchor="middle" font-style="italic">information</text>
+ <text x="1260" y="860" class="t" font-size="28" text-anchor="middle" font-style="italic">progress</text>
+ <text x="750" y="950" class="t" font-size="30" text-anchor="middle">Even the failed attempt leaves you with something the untried one never will.</text>`);
+D.control = ()=>svgScene(1500,1000,`
+ <text x="750" y="90" class="l" font-size="34" text-anchor="middle" font-weight="600">WHERE YOUR HANDS REACH</text>
+ <circle cx="750" cy="520" r="390" class="s" stroke-width="3" stroke-dasharray="10 10"/>
+ <circle cx="750" cy="520" r="260" fill="#efefef" class="s" stroke-width="4"/>
+ <circle cx="750" cy="520" r="130" fill="${INK}"/>
+ <text x="750" y="510" font-family="Oswald" font-size="32" fill="#fff" text-anchor="middle" letter-spacing="3">CONTROL</text>
+ <text x="750" y="552" font-family="EBG" font-style="italic" font-size="26" fill="#fff" text-anchor="middle">act here</text>
+ <text x="750" y="325" class="l" font-size="32" text-anchor="middle">INFLUENCE</text><text x="750" y="362" class="t" font-size="26" text-anchor="middle" font-style="italic">shape it, don’t own it</text>
+ <text x="750" y="190" class="l" font-size="32" text-anchor="middle">CANNOT CONTROL</text><text x="750" y="226" class="t" font-size="26" text-anchor="middle" font-style="italic">accept, grieve, adapt</text>
+ <text x="180" y="430" class="t" font-size="28" font-style="italic">sending the application</text><line x1="410" y1="440" x2="680" y2="500" class="s" stroke-width="2"/>
+ <text x="1050" y="760" class="t" font-size="28" font-style="italic">how clearly you present yourself</text><line x1="1040" y1="750" x2="900" y2="690" class="s" stroke-width="2"/>
+ <text x="1120" y="330" class="t" font-size="28" font-style="italic">whether they say yes</text><line x1="1110" y1="340" x2="1060" y2="370" class="s" stroke-width="2"/>`);
+D.tuesday = ()=>{ const slots=[['06:30','wake before the phone'],['07:00','move the body'],['08:00','the one important thing'],['12:30','eat, walk, see daylight'],['13:30','the necessary work'],['18:00','people'],['21:00','rest without guilt'],['22:30','sleep']];
+ return svgScene(1500,1000,`
+ <text x="750" y="90" class="l" font-size="34" text-anchor="middle" font-weight="600">DESIGN THE ORDINARY TUESDAY</text>
+ <circle cx="480" cy="530" r="330" class="s" stroke-width="5"/>
+ ${Array.from({length:12},(_,i)=>{const a=i/12*Math.PI*2-Math.PI/2; return `<line x1="${480+Math.cos(a)*300}" y1="${530+Math.sin(a)*300}" x2="${480+Math.cos(a)*330}" y2="${530+Math.sin(a)*330}" class="s" stroke-width="5"/>`}).join('')}
+ <line x1="480" y1="530" x2="480" y2="330" class="s" stroke-width="10"/><line x1="480" y1="530" x2="610" y2="600" class="s" stroke-width="8"/><circle cx="480" cy="530" r="14" fill="${INK}"/>
+ <text x="480" y="760" class="l" font-size="34" text-anchor="middle">TUESDAY</text>
+ ${slots.map(([t,d],i)=>`<text x="880" y="${250+i*85}" class="l" font-size="34">${t}</text><text x="1030" y="${250+i*85}" class="t" font-size="34" font-style="italic">${d}</text>`).join('')}
+ <text x="750" y="950" class="t" font-size="30" text-anchor="middle">An example, not a prescription. Build the version that survives your worst ordinary day.</text>`); };
+
+// ---------- typographic plates ----------
+function plate(lines,{motif='wings',size=120,font='Bebas'}={}){ setup(1800,2700);
+  darkSky('#1e1e1e','#050505'); hatch(0,0,W,H,1800,-1.0,70,'#000',0.25,2);
+  if(motif==='wings'){ seed=5; wing2(W*0.66,H*0.86,620,'#fff',0.45,-1); wanderer(W*0.68,H*0.93,200,{lean:0.25,color:'#000'}); }
+  if(motif==='boulder'){ X.fillStyle='#0a0a0a'; scribbleBall(W*0.7,H*0.8,170,300,'#cfcfcf',0.35); wanderer(W*0.7-250,H*0.8+160,230,{lean:0.75,staff:false,sword:false,color:'#cfcfcf'}); }
+  if(motif==='flame'){ flame(W/2,H*0.86,380,190); }
+  if(motif==='enso'){ const cx=W/2,cy=H*0.8,R=200,pts=[]; for(let t=0;t<=1;t+=0.005){const a=-Math.PI*0.35+t*Math.PI*1.86; pts.push([cx+Math.cos(a)*R,cy+Math.sin(a)*R,0.3+0.7*Math.sin(Math.PI*Math.min(1,t*1.1))*(1-t*0.5)]);} brushStroke(pts,60,'#e5e5e5',0.8); }
+  let y=H*0.3; const lh=size*1.12;
+  const fontStr = font==='Bebas' ? `${size}px Bebas` : `italic ${size}px Corm`;
+  X.font=fontStr; const all=[]; lines.forEach(l=>{ const words=l.split(' '); let cur=''; words.forEach(w=>{ const t=cur?cur+' '+w:w; if(X.measureText(t).width>W*0.86&&cur){all.push(cur);cur=w;} else cur=t; }); all.push(cur); });
+  y = H*0.42 - (all.length*lh)/2;
+  all.forEach((l,i)=>text(l,W/2,y+i*lh,fontStr,'#f2f2f2','center',font==='Bebas'?6:0));
+  vignette(0.5); grain(24);
+}
+const P = {
+  plate_potential: ()=>plate(['POTENTIAL IS','UNDEFEATED BECAUSE','POTENTIAL HAS NEVER','ENTERED THE ARENA.'],{motif:'boulder',size:150}),
+  plate_mevsme: ()=>plate(['IT IS','ME VS. ME.'],{motif:'wings',size:260}),
+  plate_evidence: ()=>plate(['The old identity','is not defeated by argument.','It is outnumbered','by evidence.'],{motif:'enso',size:120,font:'Corm'}),
+  plate_anger: ()=>plate(['USE ANGER','AS INFORMATION.','DO NOT BUILD','A HOUSE INSIDE IT.'],{motif:'flame',size:160}),
+  plate_cycle_unused: null,
+  plate_burn: ()=>plate(['BURN.','BUT NOT YOURSELF.'],{motif:'wings',size:240}),
+};
+
+// ---------- entry ----------
+window.render = async (name)=>{ await document.fonts.ready;
+  if(S[name]) S[name](); else if(D[name]) await D[name](); else if(P[name]) P[name](); else throw new Error('unknown '+name);
+  await document.fonts.ready; return true; };
+</script></body></html>
