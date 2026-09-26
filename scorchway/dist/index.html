@@ -724,26 +724,30 @@ const AU = {
     L.fg = c.createGain(); L.fg.gain.value = 0; fn.connect(L.ff); L.ff.connect(L.fg); L.fg.connect(this.sfx);
   },
   // called every frame with speed ratio, nitro and slip
-  engine(s, nitro, slip){
-    const L = this.loops; if(!L || !this.ctx) return;
-    const t = this.ctx.currentTime, menu = G.state === 'menuplay';
+  engine(s, nitro, slip){ if(!this.loops || !this.ctx) return; this.applyEng(this.engParams(s, nitro, slip)); },
+  engParams(s, nitro, slip){
+    const menu = G.state === 'menuplay';
     const gear = Math.min(4, Math.floor(s * 5)), within = s * 5 - gear, rpm = .22 + Math.min(1, within) * .78 + (nitro ? .15 : 0);
-    const f = 34 + rpm * 70 + gear * 5;
-    L.o1.frequency.setTargetAtTime(f, t, .04); L.o2.frequency.setTargetAtTime(f * .5, t, .04);
-    L.ef.frequency.setTargetAtTime(300 + rpm * 1400 + (nitro ? 900 : 0), t, .05);
-    L.eg.gain.setTargetAtTime(menu ? .015 : .07 + (nitro ? .03 : 0), t, .08);
-    L.sg.gain.setTargetAtTime(menu ? 0 : clamp((slip - .12) * .35, 0, .09), t, .05);
-    L.sf.frequency.setTargetAtTime(1500 + slip * 1600, t, .05);
-    // siren / rotor / fire by proximity
     let cop = 1e9, heli = 1e9;
     for(const e of G.E){ const d = Math.hypot(e.x - P.x, e.y - P.y); if(e.type === 'cop' && d < cop) cop = d; if(e.type === 'heli' && d < heli) heli = d; }
-    const sv = menu ? 0 : clamp(1 - cop / 900, 0, 1) * .035;
-    L.sig.gain.setTargetAtTime(sv, t, .1);
-    L.so.frequency.setTargetAtTime(((G.rt * 1.6) | 0) % 2 ? 960 : 720, t, .05);
-    const hv = menu ? 0 : clamp(1 - heli / 1000, 0, 1) * .12;
-    L.rg.gain.setTargetAtTime(hv * .5, t, .1); L.rlg.gain.setTargetAtTime(hv * .5, t, .1);
     let fire = 0; for(let i = 0; i < G.F.length; i += 4){ const f2 = G.F[i]; if(Math.abs(f2.x - G.camX) < 700 && Math.abs(f2.y - G.camY) < 500) fire++; }
-    L.fg.gain.setTargetAtTime(menu ? 0 : clamp(fire / 60, 0, 1) * .05 * (.6 + .4 * Math.random()), t, .03);
+    const hv = menu ? 0 : clamp(1 - heli / 1000, 0, 1) * .12;
+    return {
+      f:34 + rpm * 70 + gear * 5, cut:300 + rpm * 1400 + (nitro ? 900 : 0), eg:menu ? .015 : .07 + (nitro ? .03 : 0),
+      sg:menu ? 0 : clamp((slip - .12) * .35, 0, .09), sf:1500 + slip * 1600,
+      sv:menu ? 0 : clamp(1 - cop / 900, 0, 1) * .035, so:((G.rt * 1.6) | 0) % 2 ? 960 : 720,
+      hv:hv * .5, fg:menu ? 0 : clamp(fire / 60, 0, 1) * .05 * (.6 + .4 * Math.random()),
+    };
+  },
+  applyEng(p){
+    const L = this.loops; if(!L || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    L.o1.frequency.setTargetAtTime(p.f, t, .04); L.o2.frequency.setTargetAtTime(p.f * .5, t, .04);
+    L.ef.frequency.setTargetAtTime(p.cut, t, .05); L.eg.gain.setTargetAtTime(p.eg, t, .08);
+    L.sg.gain.setTargetAtTime(p.sg, t, .05); L.sf.frequency.setTargetAtTime(p.sf, t, .05);
+    L.sig.gain.setTargetAtTime(p.sv, t, .1); L.so.frequency.setTargetAtTime(p.so, t, .05);
+    L.rg.gain.setTargetAtTime(p.hv, t, .1); L.rlg.gain.setTargetAtTime(p.hv, t, .1);
+    L.fg.gain.setTargetAtTime(p.fg, t, .03);
   },
   engineOff(){ const L = this.loops; if(!L || !this.ctx) return; const t = this.ctx.currentTime; for(const g of [L.eg, L.sg, L.sig, L.rg, L.fg]) g.gain.setTargetAtTime(0, t, .2); },
   drift(){},

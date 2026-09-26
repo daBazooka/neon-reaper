@@ -45,7 +45,19 @@ Cartoon car chases with fiery explosions. There are no people shown being hurt, 
 
 ## Assets to upload
 - **Game build:** `dist/index.html` (zip it)
-- **Covers / video:** not made yet
+- **Covers:** `promo/cover-1920x1080.png`, `promo/cover-800x1200.png`, `promo/cover-800x800.png`
+- **Video:** `promo/trailer-1920x1080.mp4` (a vertical `promo/trailer-1080x1920.mp4` is included for social media)
+
+## Marketing assets
+The covers are staged in-game frames: the muscle car mid-drift, a burning arc of fire behind it, and chasers exploding in an "INFERNO!" chain, with the logo added on top.
+
+The 30-second trailer is real gameplay captured frame by frame, with the game's own synthesized engine, tires, sirens, explosions and desert-rock music:
+1. **0–5 s:** first drifts and first explosions. "DRIFT… TO SET THE DESERT ON FIRE"
+2. **5–11 s:** a pack of chasers burns in a chain. "BURN EVERY CAR THAT CHASES YOU"
+3. **11–14 s:** a nitro run rams through the sheriffs. "NITRO. RAM. WRECK."
+4. **14–20 s:** the sun sets, night falls and the chopper arrives. "DAY TURNS TO NIGHT"
+5. **20–27 s:** the Juggernaut chases you at night and goes down in flames. "TAKE DOWN THE JUGGERNAUT"
+6. **27–30 s:** logo end card
 
 ## Note for the reviewer
 All art is drawn in code and all audio, including the engine, is synthesized in code, with no third-party assets. No ads during Basic Launch (`ADS_ENABLED = false` in `js/sdk.js`). "Route 66½" on the logo is a made-up road name.
