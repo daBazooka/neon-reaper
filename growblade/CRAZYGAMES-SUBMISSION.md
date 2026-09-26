@@ -68,3 +68,14 @@ Suitable for all ages: cute cartoon shapes with googly eyes. Cut pieces burst in
   - Shapes bump harmlessly before they "bite", and pieces you just cut can't hurt you.
   - Every new blade size heals a heart.
   - Result: simulated beginners survive 1.5–5 minutes and reach 12–34 m blades.
+
+## Marketing assets (`promo/`)
+| File | Use |
+|---|---|
+| `cover-1920x1080.png` | Landscape cover |
+| `cover-800x1200.png` | Portrait cover |
+| `cover-800x800.png` | Square cover |
+| `trailer-1920x1080.mp4` | 30 s landscape gameplay trailer (60 fps, H.264 + AAC) |
+| `trailer-1080x1920.mp4` | 30 s portrait version for mobile and social |
+
+All of these are captured from the real game code. The trailer is played by a scripted bot on a frame-exact clock, and the scenes are staged so each mechanic shows clearly. The audio is the game's own synthesized sound (no clipping). The covers contain only the game title.
