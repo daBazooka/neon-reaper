@@ -149,6 +149,7 @@ const lines = files.flatMap((f) => fs.readFileSync(path.join(ROOT, 'manuscript',
 const sections = [];
 let cur = null;
 let firstPara = false;
+let dropNext = false;
 let mode = 'body';
 let numbering = 'front'; // front (roman) -> main (decimal)
 let restartNumbering = false;
@@ -271,6 +272,7 @@ while (i < lines.length) {
     push(P(bm(ckey, run(t, { size: 34, bold: true })), { heading: HeadingLevel.HEADING_2, alignment: AlignmentType.CENTER, spacing: { after: 160, line: 380 }, indent: { left: 300, right: 300 } }));
     push(ornament());
     firstPara = true;
+    dropNext = true;
     continue;
   }
   if (line.startsWith('@plate ')) {
@@ -286,6 +288,22 @@ while (i < lines.length) {
     push(P(run(''), { spacing: { before: 480 } }));
     push(P(run(a, { size: 30, bold: true, characterSpacing: 80 }), { alignment: AlignmentType.CENTER, spacing: { after: 200 }, keepNext: true }));
     rest.forEach((r) => push(P(run(r, { italics: true, size: 23 }), { alignment: AlignmentType.CENTER, spacing: { after: 60 }, keepNext: true })));
+    continue;
+  }
+  if (line.startsWith('@interlude ')) {
+    const [num, t] = line.slice(11).split('|').map((x) => x.trim());
+    const paras = [];
+    while (i < lines.length && lines[i].trim() !== '@endinterlude') { if (lines[i].trim()) paras.push(lines[i].trim()); i++; }
+    i++;
+    push(P(run('INTERLUDE ' + num, { size: 18, characterSpacing: 200, color: '777777' }), { alignment: AlignmentType.CENTER, spacing: { before: 1.1 * IN, after: 160 } }));
+    push(P(run(t, { size: 30, italics: true }), { alignment: AlignmentType.CENTER, spacing: { after: 160 } }));
+    push(ornament());
+    paras.forEach((x, k) => push(P(x.split(/(\*[^*]+\*)/g).filter(Boolean).map((seg) => seg.startsWith('*') ? run(seg.slice(1, -1), { italics: false }) : run(seg, { italics: true })),
+      { style: k === 0 ? 'BodyFirst' : 'Body' })));
+    push(P(run('❖', { size: 18, color: '999999' }), { alignment: AlignmentType.CENTER, spacing: { before: 240 } }));
+    push(P(new PageBreak()));
+    push(P(run(''), { spacing: { before: 0.4 * IN } }));
+    firstPara = true;
     continue;
   }
   if (line === '@break') { push(sceneBreak()); firstPara = true; continue; }
@@ -335,6 +353,14 @@ while (i < lines.length) {
     continue;
   }
   if (mode === 'biblio') { push(P(rich(line, { size: 20 }), { style: 'Biblio' })); continue; }
+  if (dropNext && /^[A-Za-z]/.test(line)) {
+    // classic three-line drop cap (framePr is added in post-processing), then the rest in small caps lead
+    // raised initial: a large first letter standing on the first line (renders identically in Word and the PDF)
+    push(P([run(line[0], { size: 64, color: '1a1a1a' }), ...smallCapsLead(line.slice(1))], { style: 'BodyFirst', spacing: { before: 60 } }));
+    dropNext = false; firstPara = false;
+    continue;
+  }
+  dropNext = false;
   push(body(line, firstPara));
   firstPara = false;
 }
@@ -384,6 +410,8 @@ const doc = new Document({
       { id: 'Body', name: 'Body', basedOn: 'Normal', quickFormat: true, run: { font: FONT, size: 23 },
         paragraph: { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 300 }, spacing: { after: 0, line: 300 } } },
       { id: 'BodyFirst', name: 'Body First', basedOn: 'Body', quickFormat: true, paragraph: { indent: { firstLine: 0 } } },
+      { id: 'DropCap', name: 'Drop Cap', basedOn: 'Normal', run: { font: FONT, size: 104 },
+        paragraph: { spacing: { before: 0, after: 0, line: 900, lineRule: LineRuleType.EXACT }, indent: { firstLine: 0 } } },
       { id: 'ListItem', name: 'List Item', basedOn: 'Normal', run: { font: FONT, size: 22 },
         paragraph: { indent: { left: 400, hanging: 400 }, spacing: { after: 100, line: 280 } } },
       { id: 'Biblio', name: 'Bibliography Entry', basedOn: 'Normal', run: { font: FONT, size: 20 },
