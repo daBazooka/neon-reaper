@@ -48,8 +48,18 @@ Suitable for all ages. Cute cartoon flowers and shy shadow creatures that are fr
 
 ## Assets to upload
 - **Game build:** `dist/index.html` (zip it)
-- **Covers:** not made yet
-- **Video:** not made yet
+- **Covers:** `promo/cover-1920x1080.png`, `promo/cover-800x1200.png`, `promo/cover-800x800.png`
+- **Video:** `promo/trailer-1920x1080.mp4` (a vertical `promo/trailer-1080x1920.mp4` is included for social media)
+
+## Marketing assets
+All three covers are real in-game frames: a freshly closed loop blooming inside a painted meadow, with the logo added on top.
+
+The 30-second trailer is real gameplay captured frame by frame, with the game's own synthesized audio:
+1. **0–7 s:** first loops. "Draw a loop of light… and everything inside BLOOMS"
+2. **7–13 s:** looping glooms free them as butterflies
+3. **13–21 s:** the Hush boss is looped three times, and the meadow around it bursts into bloom
+4. **21–27 s:** the camera pulls back over a painted meadow, and a giant loop catches 16 things at once
+5. **27–30 s:** logo end card
 
 ## Note for the reviewer
 All art is drawn in code and all audio is synthesized in code, with no third-party assets. No ads during Basic Launch (`ADS_ENABLED = false` in `js/sdk.js`).
