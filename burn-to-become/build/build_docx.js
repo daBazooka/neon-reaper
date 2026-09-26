@@ -30,6 +30,7 @@ const PLATES = {
   'The old identity': 'plate_evidence',
   'Use anger as information': 'plate_anger',
   'Burn. But not yourself.': 'plate_burn',
+  'You have to break the pattern today': 'plate_cycle',
 };
 
 // ---------- small helpers ----------
@@ -177,7 +178,7 @@ while (i < lines.length) {
   const raw = lines[i];
   const line = raw.trim();
   i++;
-  if (!line) continue;
+  if (!line || line.startsWith('@@')) continue;
 
   if (line.startsWith('@title ')) {
     const [t, sub, author] = line.slice(7).split('|').map((s) => s.trim());
