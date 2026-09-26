@@ -1,6 +1,6 @@
 # neon-reaper
 
-This repo holds six standalone HTML5 games.
+This repo holds seven standalone HTML5 games.
 
 | Game | Path | What it is |
 |---|---|---|
@@ -10,6 +10,7 @@ This repo holds six standalone HTML5 games.
 | **GROWBLADE** | `growblade/` | A sword game where the blade slices shapes exactly along its path and grows with every cut. See `growblade/CRAZYGAMES-SUBMISSION.md`. |
 | **LUMIBLOOM** | `lumibloom/` | A wholesome loop-drawing game: circle sleeping flowers with a ribbon of light to make them bloom, paint the meadow and free shadow critters. See `lumibloom/CRAZYGAMES-SUBMISSION.md`. |
 | **ECHO LEGION** | `echolegion/` | A neon arena brawler: every 5 seconds your past self becomes an echo that replays your moves, so you fight with an army of yourself. See `echolegion/CRAZYGAMES-SUBMISSION.md`. |
+| **SCORCHWAY** | `scorchway/` | A top-down desert car chase where drifting sets the ground on fire and pursuers explode in chain reactions. See `scorchway/CRAZYGAMES-SUBMISSION.md`. |
 
 Run either one locally with any static server, for example
-`npx http-server .`, then open `/`, `/chainfling/`, `/digfort/`, `/growblade/`, `/lumibloom/` or `/echolegion/`. Each game's `dist/index.html` is a single-file build.
+`npx http-server .`, then open `/`, `/chainfling/`, `/digfort/`, `/growblade/`, `/lumibloom/`, `/echolegion/` or `/scorchway/`. Each game's `dist/index.html` is a single-file build.

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#e2b47a">
+<meta name="description" content="SCORCHWAY: drift to set the desert on fire and burn every car that chases you.">
+<title>SCORCHWAY</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Cpath d=%22M8 1 15 8 8 15 1 8Z%22 fill=%22%23f2b134%22 stroke=%22%233a2418%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vign"></div>
+
+<!-- ============ HUD ============ -->
+<div id="hud" class="hidden">
+  <div id="hudTop">
+    <div class="hL"><div id="hScore">0</div><div id="hCash">$<b>0</b></div></div>
+    <div class="hC"><div id="hHeat"></div><div id="hTime">0:00</div></div>
+    <button id="pauseBtn" class="icoBtn" aria-label="Pause">❚❚</button>
+  </div>
+  <div id="chain"><b>x2</b><span>BURN CHAIN</span></div>
+  <div id="bossBar" class="hidden"><div id="bossName">THE JUGGERNAUT</div><div id="bossHp"><i></i></div></div>
+  <div id="dash">
+    <svg id="speedo" viewBox="0 0 120 80">
+      <path d="M12 72 A52 52 0 0 1 108 72" class="sBg"/>
+      <path id="sArc" d="M12 72 A52 52 0 0 1 108 72" class="sFg"/>
+      <g id="needle"><line x1="60" y1="72" x2="60" y2="28"/></g>
+      <circle cx="60" cy="72" r="6" class="hub"/>
+    </svg>
+    <div class="bars">
+      <div id="spd"><b>0</b><small>KM/H</small></div>
+      <div class="bar"><small>ARMOR</small><div id="hpBar"><i></i></div></div>
+      <div class="bar"><small>NITRO</small><div id="nBar"><i></i></div></div>
+    </div>
+  </div>
+  <button id="nitroBtn" class="hidden"><span>NITRO</span></button>
+  <button id="driftBtn" class="hidden"><span>DRIFT</span></button>
+  <div id="tip" class="hidden"></div>
+</div>
+<div id="announce"></div>
+<div id="toasts"></div>
+
+<!-- ============ MENU ============ -->
+<div id="menu" class="screen hidden">
+  <div class="menuTop">
+    <div class="pill">$ <b id="mCash">0</b></div>
+    <div class="pill lvlPill"><span>LV <b id="mLevel">1</b></span><div class="lvlBar"><i id="mLvlBar"></i></div></div>
+  </div>
+  <div class="logoWrap">
+    <div class="route">ROUTE 66½</div>
+    <h1 id="logo">SCORCHWAY</h1>
+    <div class="tagline">Drift to set the desert on fire. <b>Burn every car that chases you.</b></div>
+  </div>
+  <div class="menuBtns">
+    <button id="playBtn" class="btn big primary">DRIVE</button>
+    <button id="dailyBtn" class="btn wide daily"><span class="dTitle">DAILY RUN</span><span id="dailyMod" class="dSub">—</span></button>
+    <div class="row3">
+      <button id="shopBtn" class="btn">GARAGE</button>
+      <button id="missBtn" class="btn">MISSIONS<i id="missDot" class="dot hidden"></i></button>
+      <button id="setBtn" class="btn">SETTINGS</button>
+    </div>
+  </div>
+  <div class="menuStats">
+    <div><small>BEST SCORE</small><b id="mBest">0</b></div>
+    <div><small>LONGEST RUN</small><b id="mTime">0:00</b></div>
+    <div><small>CARS TORCHED</small><b id="mKills">0</b></div>
+  </div>
+</div>
+
+<!-- ============ PIT STOP ============ -->
+<div id="cards" class="screen hidden dim">
+  <div class="cardHead">
+    <div id="cardsTitle">PIT STOP</div>
+    <div class="cardSub">Pick one mod for your ride <span class="kbd">1</span><span class="kbd">2</span><span class="kbd">3</span></div>
+  </div>
+  <div id="cardRow"></div>
+</div>
+
+<!-- ============ PAUSE ============ -->
+<div id="pause" class="screen hidden dim">
+  <h2>PAUSED</h2>
+  <div id="pauseBuild" class="build"></div>
+  <div class="col">
+    <button id="resumeBtn" class="btn big primary">RESUME</button>
+    <button id="pSetBtn" class="btn wide">SETTINGS</button>
+    <button id="quitBtn" class="btn wide ghost">END RUN</button>
+  </div>
+</div>
+
+<!-- ============ REVIVE ============ -->
+<div id="revive" class="screen hidden dim">
+  <h2 class="red">WRECKED!</h2>
+  <div id="revRing"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" class="bg"/><circle id="revArc" cx="50" cy="50" r="44" class="fg"/></svg><b id="revNum">6</b></div>
+  <div class="col">
+    <button id="revAdBtn" class="btn big primary hidden">KEEP DRIVING <small>(watch ad)</small></button>
+    <button id="revPayBtn" class="btn big primary hidden">REPAIR $<b id="revCost">150</b></button>
+    <button id="revNoBtn" class="btn wide ghost">NO THANKS</button>
+  </div>
+</div>
+
+<!-- ============ GAME OVER ============ -->
+<div id="over" class="screen hidden dim">
+  <div id="oTag" class="hidden">NEW RECORD!</div>
+  <h2 id="oTitle" class="red">WRECKED</h2>
+  <div id="oScoreWrap"><small>SCORE</small><div id="oScore">0</div></div>
+  <div class="oGrid">
+    <div><small>SURVIVED</small><b id="oTime">0:00</b></div>
+    <div><small>TORCHED</small><b id="oKills">0</b></div>
+    <div><small>BEST CHAIN</small><b id="oChain">0</b></div>
+    <div><small>CASH</small><b id="oCash">0</b></div>
+  </div>
+  <div class="oLvl"><span>LV <b id="oLevel">1</b></span><div class="lvlBar"><i id="oLvlBar"></i></div></div>
+  <div id="oNext"></div>
+  <div id="oMissions"></div>
+  <div id="oTip"></div>
+  <div class="col">
+    <button id="retryBtn" class="btn big primary">DRIVE AGAIN</button>
+    <button id="dblBtn" class="btn wide hidden">DOUBLE CASH <small>(watch ad)</small></button>
+    <button id="oMenuBtn" class="btn wide ghost">MENU</button>
+  </div>
+</div>
+
+<!-- ============ GARAGE ============ -->
+<div id="shop" class="screen hidden dim">
+  <div class="panelHead"><h2>GARAGE</h2><div class="pill">$ <b id="sCash">0</b></div></div>
+  <div class="tabs"><button class="tab on" data-tab="car">CARS</button><button class="tab" data-tab="up">UPGRADES</button></div>
+  <div id="shopList" class="list"></div>
+  <button class="btn wide ghost backBtn">BACK</button>
+</div>
+
+<!-- ============ MISSIONS ============ -->
+<div id="missions" class="screen hidden dim">
+  <div class="panelHead"><h2>MISSIONS</h2><div class="pill">DONE <b id="missDone">0</b></div></div>
+  <div id="missList" class="list"></div>
+  <div class="hint">Missions complete automatically while you drive. Finished ones are replaced with tougher ones.</div>
+  <button class="btn wide ghost backBtn">BACK</button>
+</div>
+
+<!-- ============ SETTINGS ============ -->
+<div id="settings" class="screen hidden dim">
+  <div class="panelHead"><h2>SETTINGS</h2></div>
+  <div class="list" id="setList">
+    <label class="setRow"><span>Sound effects</span><input type="checkbox" data-opt="sfx"><i class="sw"></i></label>
+    <label class="setRow"><span>Music</span><input type="checkbox" data-opt="music"><i class="sw"></i></label>
+    <label class="setRow"><span>Screen shake</span><input type="checkbox" data-opt="shake"><i class="sw"></i></label>
+    <div class="setRow"><span>Graphics</span><div class="seg" data-opt="quality"><button data-v="auto">AUTO</button><button data-v="low">LOW</button><button data-v="high">HIGH</button></div></div>
+  </div>
+  <div class="hint" id="keysHint">Mouse: steer toward the cursor · Hold left button / SHIFT: nitro · Right button / SPACE: handbrake · A / D: steer with keys</div>
+  <button id="replayTut" class="btn wide">REPLAY TUTORIAL</button>
+  <button class="btn wide ghost backBtn">BACK</button>
+</div>
+
+<div id="confirm" class="screen hidden dim">
+  <h2 id="cfMsg">Are you sure?</h2>
+  <div class="col"><button id="cfYes" class="btn wide primary">YES</button><button id="cfNo" class="btn wide ghost">NO</button></div>
+</div>
+
+<div id="boot"><div class="bootLogo">SCORCHWAY</div><div class="bootBar"><i></i></div></div>
+
+<script src="js/sdk.js"></script>
+<script src="js/core.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/game.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
