@@ -73,7 +73,7 @@ const hudC = {};
 function setH(key, val, fn){ if(hudC[key] === val) return; hudC[key] = val; fn(val); }
 function updateHUD(){
   const night = G.phase === 'night';
-  setH('phase', G.phase + G.day, () => { $('phase').classList.toggle('night', night); $('phaseIco').textContent = night ? '☾' : '☀'; $('phaseTxt').textContent = (night ? 'NIGHT ' : 'DAY ') + G.day; });
+  setH('phase', G.phase + G.day, () => { $('phase').classList.toggle('night', night); $('phaseIco').textContent = night ? '☾' : '☀'; $('phaseTxt').textContent = G.phase === 'dawn' ? 'DAWN' : (night ? 'NIGHT ' : 'DAY ') + G.day; });
   const pk = night ? 1 - Math.min(1, G.mobs.length / Math.max(1, G.mobs.length + G.spawnQ.length)) : isFinite(G.dayT) ? G.dayT / G.dayLen : 1;
   setH('pbar', Math.round(pk * 100), v => $('phaseBar').firstElementChild.style.width = v + '%');
   setH('nbtn', G.phase === 'day' && G.state === 'play' ? (G.tut && G.tutStep < 3 ? 'h' : 's') : 'h', v => { $('nightBtn').classList.toggle('hidden', v === 'h'); $('nightBtn').classList.toggle('pulse', G.tut); });

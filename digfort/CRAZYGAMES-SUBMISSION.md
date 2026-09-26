@@ -56,3 +56,14 @@ Choose **"Yes, using the Data Module from the CrazyGames SDK"**. On CrazyGames t
   - has no fullscreen request and no external links
 - **Performance:** 60 fps during a busy boss night, thanks to occlusion culling and cached sprites. It drops to a low-quality mode if the frame rate dips.
 - **Balance:** a simulated player who plays at human speed survives 4–14 nights, and boss nights (every 5th) act as the walls.
+
+## Marketing assets (`promo/`)
+| File | Use |
+|---|---|
+| `cover-1920x1080.png` | Landscape cover |
+| `cover-800x1200.png` | Portrait cover |
+| `cover-800x800.png` | Square cover |
+| `trailer-1920x1080.mp4` | 30 s landscape gameplay trailer (60 fps, H.264 + AAC) |
+| `trailer-1080x1920.mp4` | 30 s portrait version for mobile and social |
+
+All of these are captured from the real game code. The trailer is played by a scripted bot on a frame-exact clock, and the scenes are staged so each mechanic shows clearly. The audio is the game's own synthesized sound (peak −4.5 dBFS, no clipping). The covers contain only the game title.
