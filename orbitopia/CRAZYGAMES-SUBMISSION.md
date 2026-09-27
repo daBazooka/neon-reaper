@@ -47,6 +47,20 @@ Peaceful and non-violent: no enemies, no fail state, no text chat. Suitable for 
 
 ## Assets to upload
 - **Game build:** `dist/index.html` (zip it)
+- **Covers:** `promo/cover-1920x1080.png`, `promo/cover-800x1200.png`, `promo/cover-800x800.png`
+- **Video:** `promo/trailer-1920x1080.mp4` (a vertical `promo/trailer-1080x1920.mp4` is included for social media)
+
+## Marketing assets
+The covers are staged in-game frames drawn by the game's own renderer: a glowing Sun surrounded by a red star, gas and ringed giants, an ice giant, a garden world with city lights, a Black Hole with its accretion disc and a golden comet, with the logo added on top.
+
+The 30-second trailer is real gameplay captured frame by frame (a scripted cursor plays the actual game), with the game's own synthesized music and effects:
+1. **0–3 s:** tapping empty space creates stardust. "TAP TO CREATE STARDUST"
+2. **3–9 s:** twins dragged together merge into pebbles, boulders and an asteroid. "DRAG TWINS TOGETHER" · "TWO OF A KIND MERGE INTO SOMETHING NEW"
+3. **9–14 s:** a system of moons, ocean and garden worlds with life; two garden worlds merge and the Gas Giant is discovered. "OCEANS. GARDENS. LIFE."
+4. **14–20 s:** a golden comet is caught, then a Kinship Storm sets off a chain of combo merges. "CATCH GOLDEN COMETS" · "EVERY COMBO PLAYS A MELODY"
+5. **20–24 s:** two neutron stars merge into a Black Hole. "ALL THE WAY TO A BLACK HOLE"
+6. **24–27 s:** the Sun goes Supernova and a new galaxy begins. "THEN GO SUPERNOVA"
+7. **27–30 s:** logo end card
 
 ## Note for the reviewer
 All art (planets, stars, nebulae, the Sun) is drawn in code and all audio (music and effects) is synthesized in code, with no third-party assets. No ads during Basic Launch (`ADS_ENABLED = false` in `js/sdk.js`). Idle progress while away is capped (2 hours at 25% by default) and there are no timers that pressure the player, no purchases and no energy system.
