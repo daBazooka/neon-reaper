@@ -49,7 +49,19 @@ Cartoon fantasy action: stylized forest creatures poof into puffs of colour when
 
 ## Assets to upload
 - **Game build:** `timberfall/dist/index.html` (zip it)
-- **Covers and video:** not made yet. They will be rendered from the game's own renderer, as for the other games
+- **Covers:** `timberfall/promo/cover-1920x1080.png`, `timberfall/promo/cover-800x1200.png`, `timberfall/promo/cover-800x800.png`
+- **Video:** `timberfall/promo/trailer-1920x1080.mp4` (a vertical `timberfall/promo/trailer-1080x1920.mp4` is included for social media)
+
+## Marketing assets
+The covers are staged in-game frames drawn by the game's own renderer: the lumberjack mid-swing as a pine crashes onto a packed crowd of forest creatures, burning logs from an earlier chain, a golden tree and "TIMBER! ×5", with the logo added on top.
+
+The trailer is real gameplay captured frame by frame, with the game's own synthesized music and sound:
+1. **0–4 s:** Pine Hollow. The first chop fells a pine onto a crowd. "EVERY TREE IS A WEAPON"
+2. **4–10 s:** Autumn Birchwood. One chop topples a line of 7 trees. "LINE THEM UP..." · "DOMINO CHAINS!"
+3. **10–15 s:** Snowy Taiga. Lightning, owls, beaver buddies and burning logs against a horde. "22 WILD UPGRADES" · "LIGHTNING. BEAVERS. FIRE."
+4. **15–19 s:** Redwood Giants. A redwood crushes The Old Stump. "BOSSES THAT SHAKE THE FOREST"
+5. **19–26 s:** Haunted Wood. A tree falls on The Hollow King and the sun rises. "SURVIVE THE NIGHT... UNTIL DAWN"
+6. **26–30 s:** logo end card: "TIMBERFALL · Every tree is a weapon."
 
 ## SDK integration (for the reviewer)
 - **Order:** `SDK.init()` → `loadingStart()` → save read from the Data Module → `loadingStop()`.
