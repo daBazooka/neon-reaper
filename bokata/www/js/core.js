@@ -34,7 +34,8 @@ const ARENAS = [
   { id:'ghats',   name:'River Ghats',    tr:400,  sky:['#3f79c2', '#f2b36f', '#ffcf86'], sun:['#fff0b0', .62, .42, 110], haze:'#ffc27a', b:['#e8c48a', '#d9a86a', '#c98d5a', '#f0d6a4', '#b87f58', '#e0b27a'], trim:'#7a4a2a', far:'#e0a877', mid:'#c98a5e', clouds:.4, mood:'gold' },
   { id:'fort',    name:'Desert Fort',    tr:800,  sky:['#2d4d8f', '#e0785a', '#ffb070'], sun:['#ffd08a', .82, .5, 120], haze:'#ff9f6a', b:['#d9955e', '#c47a48', '#e8b07a', '#b8683c', '#d08a56', '#a95c34'], trim:'#5e2f18', far:'#b86a50', mid:'#9c5540', clouds:.3, mood:'dusk' },
   { id:'monsoon', name:'Monsoon Sky',    tr:1300, sky:['#5a6f88', '#8fa6b8', '#d2dccf'], sun:['#fffbe8', .3, .18, 60],  haze:'#cfd8cc', b:['#9fb59a', '#c9c2a8', '#8ea8a0', '#d6cdb4', '#a7b8b8', '#b8a88f'], trim:'#4d5a52', far:'#8ea2ae', mid:'#788d98', clouds:1,  mood:'rain' },
-  { id:'lantern', name:'Lantern Night',  tr:2000, sky:['#0c1030', '#2a2358', '#6b3a6e'], sun:['#fff6d8', .8, .16, 46],  haze:'#6b3a6e', b:['#3a3358', '#453c63', '#2f2a4a', '#51466e', '#3d3560', '#2a2545'], trim:'#1a1630', far:'#2a2550', mid:'#221e44', clouds:.2, mood:'night' },
+  { id:'pantai',  name:'Pantai Layang',  tr:1650, sky:['#2f8fd8', '#7fd0f0', '#ffe9b8'], sun:['#fff6d0', .7, .2, 80],  haze:'#bfeaf0', b:['#b8804f', '#c99461', '#a36f42', '#d8a870', '#8f5f38', '#c08650'], trim:'#5a3418', far:'#5fb8c8', mid:'#3f9fb0', clouds:.6, mood:'beach', music:'gamelan' },
+  { id:'lantern', name:'Lantern Night',  tr:2100, sky:['#0c1030', '#2a2358', '#6b3a6e'], sun:['#fff6d8', .8, .16, 46],  haze:'#6b3a6e', b:['#3a3358', '#453c63', '#2f2a4a', '#51466e', '#3d3560', '#2a2545'], trim:'#1a1630', far:'#2a2550', mid:'#221e44', clouds:.2, mood:'night' },
 ];
 const arenaFor = tr => { let a = ARENAS[0]; for(const x of ARENAS) if(tr >= x.tr) a = x; return a; };
 
@@ -65,7 +66,49 @@ const KITES = [
   { id:'agni',    n:'Agni',           r:3, pat:'flame',   c:['#2a0a0a', '#ff4a1a', '#ffc23a'], spd:1.15, agi:1.08, stab:1.06 },
   { id:'nilkanth',n:'Neelkanth',      r:3, pat:'bird',    c:['#1b3a8f', '#6fd0ff', '#ffe28a'], spd:1.1,  agi:1.14, stab:1.08 },
   { id:'raat',    n:'Chandni Raat',   r:3, pat:'night',   c:['#0c1030', '#ffe8a8', '#6b5bd6'], spd:1.12, agi:1.12, stab:1.1 },
+  // more patangs
+  { id:'paan',    n:'Paan Patta',     r:0, pat:'leaf',    c:['#fff1d6', '#2f9a4a', '#1d6b30'], spd:1.01, agi:1.02, stab:1.01 },
+  { id:'chakri',  n:'Chakri',         r:1, pat:'spiral',  c:['#ffe36e', '#e23b3b', '#2b59c3'], spd:1.04, agi:1.06, stab:1.02 },
+  { id:'holi',    n:'Holi Rang',      r:1, pat:'splash',  c:['#ffffff', '#ff3d7f', '#ffd23a', '#26b3a3', '#7a4ad8'], spd:1.05, agi:1.05, stab:1.03 },
+  { id:'diya',    n:'Diya',           r:2, pat:'diya',    c:['#3a1a4a', '#ff9d2e', '#ffe36e'], spd:1.07, agi:1.06, stab:1.06 },
+  { id:'mehendi', n:'Mehendi',        r:2, pat:'mehendi', c:['#f3d7a8', '#8a3a12'], spd:1.06, agi:1.09, stab:1.05 },
+  { id:'shatranj',n:'Shatranj',       r:1, pat:'checker', c:['#111122', '#fff4e0'], spd:1.05, agi:1.04, stab:1.04 },
+  { id:'tukkal',  n:'Tukkal',         r:3, pat:'lantern', c:['#2a1030', '#ffcf6e', '#ff6a3a'], spd:1.12, agi:1.1, stab:1.12, glow:1 },
+  // Malaysian wau: the moon kite with its crescent tail
+  { id:'waubulan',n:'Wau Bulan',      r:2, shape:'wau', pat:'floral',  c:['#1d4fa8', '#ffd23a', '#e23b3b', '#ffffff'], spd:1.06, agi:1.08, stab:1.1 },
+  { id:'waukucing',n:'Wau Kucing',    r:1, shape:'wau', pat:'split',   c:['#ff8a1e', '#fff1d6'], spd:1.03, agi:1.05, stab:1.08 },
+  { id:'waumerak',n:'Wau Merak',      r:2, shape:'wau', pat:'peacock', c:['#0f6d7a', '#39c3a6', '#2b3fa0', '#ffd23a'], spd:1.07, agi:1.07, stab:1.1 },
+  { id:'wauhelang',n:'Wau Helang',    r:2, shape:'wau', pat:'bird',    c:['#6a3a1a', '#f3d7a8', '#ffd23a'], spd:1.09, agi:1.05, stab:1.09 },
+  { id:'jalabudi',n:'Wau Jala Budi',  r:3, shape:'wau', pat:'floral',  c:['#7a1030', '#ffd23a', '#26b3a3', '#fff6d8'], spd:1.12, agi:1.1, stab:1.14 },
+  // layang-layang: Indonesian and Malaysian fighting kites with long tails
+  { id:'aduan',   n:'Layang Aduan',   r:0, shape:'layang', pat:'band',  c:['#e23b3b', '#ffffff'], spd:1.03, agi:1.03, stab:1 },
+  { id:'pelangi', n:'Layang Pelangi', r:1, shape:'layang', pat:'rainbow', c:['#e23b3b', '#ff9d2e', '#ffd23a', '#3fbf5f', '#3fa9f5', '#7a4ad8'], spd:1.05, agi:1.05, stab:1.03 },
+  { id:'batik',   n:'Layang Batik',   r:2, shape:'layang', pat:'batik', c:['#5a2a10', '#e8b25a', '#fff1d0'], spd:1.08, agi:1.07, stab:1.05 },
+  { id:'naga',    n:'Layang Naga',    r:3, shape:'layang', pat:'dragon', c:['#0e5a3a', '#ffd23a', '#e23b3b'], spd:1.14, agi:1.1, stab:1.07 },
+  { id:'pantai',  n:'Layang Pantai',  r:1, shape:'layang', pat:'wave',  c:['#3fa9f5', '#fff4d6', '#1b5fa0'], spd:1.05, agi:1.04, stab:1.04 },
+  // Japanese rokkaku fighting kites
+  { id:'koi',     n:'Rokkaku Koi',    r:2, shape:'rokkaku', pat:'koi',    c:['#fff4e0', '#ff5a1e', '#1b1b2a'], spd:1.06, agi:1.04, stab:1.12 },
+  { id:'sakura',  n:'Rokkaku Sakura', r:1, shape:'rokkaku', pat:'sakura', c:['#ffe3ec', '#ff7aa8', '#6a2a3a'], spd:1.03, agi:1.03, stab:1.1 },
+  { id:'tsuru',   n:'Rokkaku Tsuru',  r:3, shape:'rokkaku', pat:'crane',  c:['#fff8ec', '#1b1b2a', '#e23b3b'], spd:1.1, agi:1.1, stab:1.15 },
+  { id:'nami',    n:'Rokkaku Nami',   r:2, shape:'rokkaku', pat:'wave',   c:['#e6f3ff', '#1b5fa0', '#3fa9f5'], spd:1.07, agi:1.05, stab:1.12 },
+  // Brazilian pipa
+  { id:'pipa',    n:'Pipa Carioca',   r:1, shape:'pipa', pat:'chevron', c:['#3fbf5f', '#ffd23a', '#2b59c3'], spd:1.06, agi:1.08, stab:1 },
+  { id:'arraia',  n:'Arraia',         r:2, shape:'pipa', pat:'quad',    c:['#ff3d7f', '#ffffff', '#111133'], spd:1.09, agi:1.09, stab:1.02 },
+  { id:'sol',     n:'Pipa do Sol',    r:3, shape:'pipa', pat:'sun',     c:['#ff9f1a', '#ffe36e', '#c2410c'], spd:1.14, agi:1.12, stab:1.05 },
 ];
+
+/* ---------------- spools (charkhi / firki / gelendong): the friend's reel ----------------
+   line: thread length · acc: pull power · pay: how fast slack pays out */
+const SPOOLS = [
+  { id:'bamboo',  n:'Bamboo Charkhi',     c:['#c9923e', '#e8c07a'], line:1,    acc:1,    pay:1,    cost:0,     d:'Light and trusty, made by hand.' },
+  { id:'neem',    n:'Neem Wood Firki',    c:['#8a5a2a', '#d8b27a'], line:1.05, acc:1,    pay:1.12, cost:700,   d:'Lets slack out quickly for a dheel.' },
+  { id:'lacquer', n:'Lacquer Charkhi',    c:['#c0262e', '#2f9a4a'], line:1.04, acc:1.05, pay:1.08, cost:1600,  d:'Bright lac-turned wood. Snappier pulls.' },
+  { id:'brass',   n:'Brass Charkhi',      c:['#c89b2a', '#ffe08a'], line:1.1,  acc:1.03, pay:1.1,  cost:3000,  d:'Holds far more thread.' },
+  { id:'gelendong',n:'Kelantan Gelendong',c:['#1d4fa8', '#ffd23a'], line:1.08, acc:1.06, pay:1.18, cost:5000,  d:'The wau flyer\'s reel from the east coast.' },
+  { id:'silver',  n:'Silver Charkhi',     c:['#b8c0cc', '#ffffff'], line:1.12, acc:1.07, pay:1.18, cost:8000,  d:'Smooth as moonlight.' },
+  { id:'golden',  n:'Golden Charkhi',     c:['#d99a0a', '#fff0a0'], line:1.15, acc:1.08, pay:1.22, cost:12000, d:'For the legends of the rooftops.' },
+];
+const spoolById = id => SPOOLS.find(s => s.id === id) || SPOOLS[0];
 const kiteById = id => KITES.find(k => k.id === id) || KITES[0];
 
 /* ---------------- thread (manja): strength resists cuts, sharpness cuts faster ---------------- */
@@ -97,11 +140,16 @@ const ROAD = [
   { tr:550,  rw:{ kite:'suraj' } },
   { tr:800,  rw:{ coins:800 } },
   { tr:1050, rw:{ kite:'kamal' } },
+  { tr:1200, rw:{ spool:'neem' } },
   { tr:1300, rw:{ coins:1200 } },
   { tr:1650, rw:{ kite:'mor' } },
   { tr:2000, rw:{ coins:2000 } },
+  { tr:1850, rw:{ kite:'waubulan' } },
+  { tr:2200, rw:{ spool:'brass' } },
   { tr:2500, rw:{ kite:'indra' } },
+  { tr:2900, rw:{ kite:'naga' } },
   { tr:3200, rw:{ kite:'raat' } },
+  { tr:3600, rw:{ spool:'golden' } },
 ];
 
 /* ---------------- daily quests ---------------- */
@@ -119,12 +167,12 @@ const SAVE_KEY = 'bokata_save_v1';
 function defSave(){
   return {
     v:1, name:'', coins:200, trophies:0, best:0,
-    kites:['lal', 'chand', 'adha'], kite:'lal', newKites:[], thread:'red', threads:['red'],
+    kites:['lal', 'chand', 'adha', 'aduan'], kite:'lal', newKites:[], thread:'red', threads:['red'], spool:'bamboo', spools:['bamboo'],
     manja:{ str:0, sharp:0 }, road:0, look:{ skin:2, shirt:0 },
     stats:{ cuts:0, loots:0, matches:0, wins:0, duels:0, duelWins:0, best:0, penchWins:0 },
     quests:{ day:0, list:[] }, gift:{ day:0, streak:0 },
     shop:{ day:0, items:[] }, tut:0, seen:{},
-    opt:{ sfx:true, music:true, vib:true, ctrl:'point', quality:'auto', left:false },
+    opt:{ sfx:true, music:true, vib:true, ctrl:'point', quality:'auto', left:false, online:false, server:'' },
   };
 }
 let save = defSave();

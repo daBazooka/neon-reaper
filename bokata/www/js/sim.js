@@ -36,12 +36,12 @@ const roofAt = x => { if(!SKY) return GROUND; const i = clamp(((x + 200) / 8) | 
 /* ---------------- flyers & kites ---------------- */
 function mkFlyer(o){
   return Object.assign({ id:0, name:'', me:false, bot:null, ax:0, ay:0, kitesLeft:3, cuts:0, loots:0, kite:null, respawnT:0,
-    def:KITES[0], thread:'#e0303a', str:1, sharp:1, look:{ skin:2, shirt:0 }, out:false, outT:0, spinDir:1, place:0, arm:0, shout:0, penchUp:0 }, o);
+    def:KITES[0], thread:'#e0303a', str:1, sharp:1, lineK:1, accK:1, payK:1, spool:null, look:{ skin:2, shirt:0 }, out:false, outT:0, spinDir:1, place:0, arm:0, shout:0, penchUp:0 }, o);
 }
 function launchKite(F){
   const k = { x:F.ax + F.spinDir * 10, y:F.ay - 40, vx:F.spinDir * 30, vy:-260, a:-Math.PI / 2, pull:true, L:60, launch:1.1, tx:F.ax, ty:F.ay - 800, sway:rnd(0, TAU), hit:0, trail:[] };
   F.kite = k; F.kitesLeft--; F.respawnT = 0;
-  if(F.me) AU.launch();
+  if(F.me && !M.server) AU.launch();
 }
 function flyerSpeed(F){ return F.def.spd; }
 
@@ -76,7 +76,7 @@ function stepKite(F, dt, pull, tx, ty, steer){
   k.pull = pull;
   if(pull){
     if(steer){ const ta = Math.atan2(ty - k.y, tx - k.x), d = angDiff(ta, k.a), tr = TURN * def.agi * dt; k.a += clamp(d, -tr, tr); }
-    const ca = Math.cos(k.a), sa = Math.sin(k.a), acc = ACC * def.spd;
+    const ca = Math.cos(k.a), sa = Math.sin(k.a), acc = ACC * def.spd * F.accK;
     k.vx += ca * acc * dt; k.vy += sa * acc * dt;
     const sp = Math.hypot(k.vx, k.vy), vm = VMAX * def.spd;
     if(sp > vm){ k.vx *= vm / sp; k.vy *= vm / sp; }
@@ -99,9 +99,10 @@ function stepKite(F, dt, pull, tx, ty, steer){
   if(k.x > WW - 30){ k.x = WW - 30; k.vx = -Math.abs(k.vx) * .4; }
   // thread: pulling keeps it taut, slack pays it out
   const dx = k.x - F.ax, dy = k.y - F.ay, d = Math.hypot(dx, dy) || 1;
-  if(pull) k.L = Math.max(d, Math.min(k.L, d + 6)); else k.L = Math.min(LINE_MAX, k.L + 95 * dt);
-  if(d > k.L || d > LINE_MAX){
-    const lim = Math.min(k.L, LINE_MAX), nx = dx / d, ny = dy / d;
+  const LM = LINE_MAX * F.lineK;
+  if(pull) k.L = Math.max(d, Math.min(k.L, d + 6)); else k.L = Math.min(LM, k.L + 95 * F.payK * dt);
+  if(d > k.L || d > LM){
+    const lim = Math.min(k.L, LM), nx = dx / d, ny = dy / d;
     k.x = F.ax + nx * lim; k.y = F.ay + ny * lim;
     const rv = k.vx * nx + k.vy * ny; if(rv > 0){ k.vx -= nx * rv; k.vy -= ny * rv; }
     k.L = lim;
@@ -136,15 +137,34 @@ function newMatch(mode){
       sharp:isMe ? 1 + .09 * save.manja.sharp : 1 + .09 * Math.round(skill * 8 * rnd(.6, 1.1)),
       look:isMe ? save.look : { skin:(Math.random() * SKIN.length) | 0, shirt:(Math.random() * SHIRT.length) | 0 },
       kitesLeft:menu ? 9999 : 3 });
+    applySpool(F, isMe ? save.spool : pick(SPOOLS.slice(0, 1 + Math.round(skill * 4))).id);
     if(!isMe || menu) F.bot = mkBrain(F, clamp(skill + rnd(-.15, .15), .1, 1));
     flyers.push(F);
   }
   M = { mode, arena:ar, t:0, dur:duel ? 150 : 180, flyers, me:flyers[me], loose:[], falls:[], pench:new Map(), fx:[], pops:[], feed:[],
-    wind:{ x:30, base:rnd(-1, 1) < 0 ? -1 : 1, ph:rnd(0, 100) }, over:false, slow:0, shake:0, elim:0, countdown:menu ? 0 : 3.2, pops0:0 };
+    wind:{ x:30, base:rnd(-1, 1) < 0 ? -1 : 1, ph:rnd(0, 100) }, over:false, slow:0, shake:0, elim:0, countdown:menu ? 0 : 3.2, nid:1 };
   for(const F of flyers){ F.respawnT = .2 + rnd(0, .5); }
   return M;
 }
+function applySpool(F, id){ const s = spoolById(id); F.spool = s; F.lineK = s.line; F.accK = s.acc; F.payK = s.pay; }
 function threadColor(id){ const t = THREADS.find(q => q.id === id); return t ? t.c : '#e0303a'; }
+
+/* cfg = { mode, seed, WW, anchors, arena, dur, wind:{base,ph}, flyers:[{ id, name, def, thread, look, str, sharp, spool, spin, bot }] } */
+function newNetMatch(cfg, youId){
+  WW = cfg.WW;
+  buildSkyline(cfg.seed, cfg.anchors);
+  const flyers = cfg.flyers.map((c, i) => {
+    const ax = cfg.anchors[i], F = mkFlyer({ id:c.id, name:c.name, me:c.id === youId, ax, ay:roofAt(ax) - 38, spinDir:c.spin, def:kiteById(c.def),
+      thread:c.thread, look:c.look, str:c.str, sharp:c.sharp, kitesLeft:3, human:!c.bot });
+    applySpool(F, c.spool);
+    if(c.bot && typeof mkBrain === 'function') F.bot = mkBrain(F, c.bot);
+    return F;
+  });
+  M = { mode:cfg.mode, arena:ARENAS.find(a => a.id === cfg.arena) || ARENAS[0], t:0, dur:cfg.dur, flyers, me:flyers.find(F => F.me) || null, loose:[], falls:[], pench:new Map(), fx:[], pops:[], feed:[],
+    wind:{ x:30, base:cfg.wind.base, ph:cfg.wind.ph }, over:false, slow:0, shake:0, elim:0, countdown:3.2, nid:1, net:true };
+  for(const F of flyers) F.respawnT = .3;
+  return M;
+}
 
 const tmpA = [], tmpB = [];
 function stepMatch(rdt){
@@ -167,6 +187,7 @@ function stepMatch(rdt){
     }
     let pull, tx, ty, steer;
     if(F.me && !F.bot){ pull = IN.down; tx = IN.wx; ty = IN.wy; steer = save.opt.ctrl === 'point'; }
+    else if(F.inp){ pull = F.inp.d; tx = F.inp.x; ty = F.inp.y; steer = F.inp.s; }
     else { const o = botThink(F, dt); pull = o.pull; tx = o.tx; ty = o.ty; steer = true; }
     stepKite(F, dt, pull, tx, ty, steer);
     F.arm = lerp(F.arm, F.kite.pull ? 1 : 0, Math.min(1, dt * 10));
@@ -184,7 +205,8 @@ function stepMatch(rdt){
   // end conditions
   if(live && M.mode !== 'menu'){
     const alive = M.flyers.filter(F => !F.out);
-    if(M.me.out || alive.length <= 1 || M.t >= M.dur) endMatch();
+    const humansLeft = M.flyers.some(F => (F.me || F.human) && !F.out);
+    if((M.me && M.me.out) || !humansLeft || alive.length <= 1 || M.t >= M.dur) endMatch();
   }
 }
 
@@ -237,28 +259,37 @@ function myPench(){
 
 function cut(W, L, x, y, fromAbove){
   const k = L.kite;
-  W.cuts++; W.shout = 1.6;
-  if(fromAbove && W.me && M.mode !== 'menu'){ save.stats.penchWins++; questEv('pench', 1); }
+  W.cuts++;
   // the loose kite keeps a tail of thread down to the cut
-  M.loose.push({ x:k.x, y:k.y, vx:k.vx * .4 + M.wind.x, vy:k.vy * .3 - 40, a:k.a, w:rnd(-2, 2), def:L.def, owner:L, t:0, tail:[x - k.x, y - k.y], thread:L.thread, landed:0 });
-  // the rest of the thread falls from the cut back to the roof
-  const pts = stringPts(L, 12, []); const fall = [];
-  for(let i = 0; i < pts.length; i += 2){ const t = i / (pts.length - 2); if(Math.hypot(pts[i] - L.ax, pts[i + 1] - L.ay) <= Math.hypot(x - L.ax, y - L.ay) + 5) fall.push(pts[i], pts[i + 1]); }
-  fall.push(x, y);
-  M.falls.push({ p:fall, c:L.thread, t:0 });
+  M.loose.push({ id:M.nid++, x:k.x, y:k.y, vx:k.vx * .4 + M.wind.x, vy:k.vy * .3 - 40, a:k.a, w:rnd(-2, 2), def:L.def, owner:L, t:0, tail:[x - k.x, y - k.y], thread:L.thread, landed:0 });
+  cutFx(W, L, x, y, fromAbove);
   L.kite = null; L.respawnT = 2.6;
+  if(M.events) M.events.push({ k:'cut', w:W.id, l:L.id, x:Math.round(x), y:Math.round(y), up:fromAbove ? 1 : 0 });
+}
+// everything you see and hear when a kite is cut (also replayed from server events online)
+function cutFx(W, L, x, y, fromAbove){
+  W.shout = 1.6;
+  if(M.server) return;
+  if(fromAbove && W.me && M.mode !== 'menu'){ save.stats.penchWins++; questEv('pench', 1); }
+  if(L.kite){
+    const pts = stringPts(L, 12, []); const fall = [];
+    for(let i = 0; i < pts.length; i += 2){ if(Math.hypot(pts[i] - L.ax, pts[i + 1] - L.ay) <= Math.hypot(x - L.ax, y - L.ay) + 5) fall.push(pts[i], pts[i + 1]); }
+    fall.push(x, y);
+    M.falls.push({ p:fall, c:L.thread, t:0 });
+  }
   for(let i = 0; i < 26; i++) M.fx.push({ x, y, vx:rnd(-220, 220), vy:rnd(-260, 60), g:420, l:rnd(.5, 1.1), a:rnd(0, TAU), va:rnd(-12, 12), k:'paper', c:pick([L.def.c[0], L.def.c[1] || '#fff', '#ffffff']), s:rnd(3, 7) });
-  M.feed.push({ t:0, txt:`<b style="color:${W.me ? '#ffd23a' : '#fff'}">${W.name}</b> cut <b style="color:${L.me ? '#ff6b6b' : '#fff'}">${L.name}</b>` });
+  M.feed.push({ t:0, txt:`<b style="color:${W.me ? '#ffd23a' : '#fff'}">${esc(W.name)}</b> cut <b style="color:${L.me ? '#ff6b6b' : '#fff'}">${esc(L.name)}</b>` });
   if(M.mode === 'menu'){}
   else if(W.me){
-    M.pops.push({ k:'bokata', t:0, d:1.6 }); M.slow = .45; M.shake = 10;
+    M.pops.push({ k:'bokata', t:0, d:1.6 }); M.slow = M.net ? 0 : .45; M.shake = 10;
     save.stats.cuts++; questEv('cut', 1);
     AU.boKata(); vib([30, 40, 60]);
   } else if(L.me){
     M.pops.push({ k:'lost', t:0, d:1.6, by:W.name }); M.shake = 6;
     AU.lost(); vib(120);
-  } else if(M.me.kite && Math.hypot(x - M.me.kite.x, y - M.me.kite.y) < 900) AU.farCut();
+  } else if(M.me && M.me.kite && Math.hypot(x - M.me.kite.x, y - M.me.kite.y) < 900) AU.farCut();
 }
+function esc(s){ return String(s).replace(/[<>&"]/g, ''); }
 
 /* ---------------- loose kites: drifting loot ---------------- */
 function stepLoose(dt){
@@ -290,14 +321,19 @@ function distSeg(px, py, ax, ay, bx, by){
 }
 function loot(F, q){
   q.gone = true; F.loots++;
-  for(let i = 0; i < 14; i++) M.fx.push({ x:q.x, y:q.y, vx:rnd(-120, 120), vy:rnd(-160, 0), g:200, l:rnd(.4, .9), a:0, va:0, k:'spark', c:'#ffe27a', s:rnd(2, 4) });
+  lootFx(F, q.def, q.x, q.y);
+  if(M.events) M.events.push({ k:'loot', f:F.id, d:q.def.id, x:Math.round(q.x), y:Math.round(q.y) });
+}
+function lootFx(F, def, x, y){
+  if(M.server) return;
+  for(let i = 0; i < 14; i++) M.fx.push({ x, y, vx:rnd(-120, 120), vy:rnd(-160, 0), g:200, l:rnd(.4, .9), a:0, va:0, k:'spark', c:'#ffe27a', s:rnd(2, 4) });
   if(F.me && M.mode !== 'menu'){
-    M.pops.push({ k:'loot', t:0, d:1.4, def:q.def });
+    M.pops.push({ k:'loot', t:0, d:1.4, def });
     save.stats.loots++; questEv('loot', 1);
-    M.lootKites = M.lootKites || []; M.lootKites.push(q.def.id);
+    M.lootKites = M.lootKites || []; M.lootKites.push(def.id);
     AU.loot(); vib(25);
   }
-  M.feed.push({ t:0, txt:`<b>${F.name}</b> looted a <b style="color:${RARITY[q.def.r].c}">${q.def.n}</b>` });
+  M.feed.push({ t:0, txt:`<b>${esc(F.name)}</b> looted a <b style="color:${RARITY[def.r].c}">${def.n}</b>` });
 }
 
 /* ---------------- results ---------------- */
@@ -309,5 +345,5 @@ function endMatch(){
   const order = M.flyers.slice().sort((a, b) => score(b) - score(a));
   order.forEach((F, i) => F.place = i + 1);
   M.order = order;
-  setTimeout(() => showResults(), 900);
+  if(!M.server) setTimeout(() => showResults(), 900);
 }

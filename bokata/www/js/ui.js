@@ -6,7 +6,7 @@ const show = id => $(id).classList.remove('hidden');
 const hide = id => $(id).classList.add('hidden');
 const isHidden = id => $(id).classList.contains('hidden');
 function onTap(el, fn){ el = typeof el === 'string' ? $(el) : el; el.addEventListener('click', e => { e.stopPropagation(); AU.init(); AU.resume(); AU.ui(); fn(e); }); }
-function vib(p){ if(save.opt.vib && navigator.vibrate){ try{ navigator.vibrate(p); }catch(e){} } }
+function vib(p){ if(save.opt.vib && navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)){ try{ navigator.vibrate(p); }catch(e){} } }
 function toast(title, body, dur){
   const host = $('toasts'); while(host.children.length >= 3) host.firstChild.remove();
   const d = document.createElement('div'); d.className = 'toast'; d.innerHTML = `<b>${title}</b>${body || ''}`; host.appendChild(d);
@@ -56,7 +56,8 @@ function goHome(){
   STATE = 'home';
   hide('hud'); hide('results'); hide('pause'); hide('panel'); $('pops').innerHTML = '';
   rollDaily();
-  newMatch('menu'); ambienceInit(); camFollow(0, true); AU.setLevel(0);
+  if(M && M.net) netClose();
+  newMatch('menu'); ambienceInit(); camFollow(0, true); AU.setLevel(0); AU.style = M.arena.music || 'desi';
   refreshHome(); show('home');
 }
 function refreshHome(){
@@ -67,20 +68,21 @@ function refreshHome(){
   const next = ROAD[save.road];
   if(next){
     const prev = save.road ? ROAD[save.road - 1].tr : 0;
-    $('rNext').innerHTML = `Next: ${next.tr} 🏆 · ${next.rw.kite ? kiteById(next.rw.kite).n : next.rw.coins + ' coins'}`;
+    $('rNext').innerHTML = `Next: ${next.tr} 🏆 · ${next.rw.kite ? kiteById(next.rw.kite).n : next.rw.spool ? spoolById(next.rw.spool).n : next.rw.coins + ' coins'}`;
     $('rFill').style.width = clamp((save.trophies - prev) / (next.tr - prev) * 100, 0, 100) + '%';
   } else { $('rNext').textContent = 'Road complete!'; $('rFill').style.width = '100%'; }
   $('roadDot').classList.toggle('hidden', !(next && save.trophies >= next.tr));
   $('kDot').classList.toggle('hidden', !save.newKites.length);
   $('qDot').classList.toggle('hidden', !(giftReady() || save.quests.list.some(q => q.done && !q.claimed)));
   document.querySelectorAll('.mode').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+  $('onlineBtn').classList.toggle('on', !!save.opt.online); $('onlineSub').textContent = save.opt.online ? 'Real flyers + bots' : 'Offline vs bots';
 }
 
 /* ---------------- panels ---------------- */
 let panelKind = '';
 function openPanel(kind){
   panelKind = kind; hide('home'); show('panel');
-  $('pTitle').textContent = { kites:'KITES', thread:'THREAD', quests:'QUESTS', road:'TROPHY ROAD', settings:'SETTINGS' }[kind];
+  $('pTitle').textContent = { kites:'KITES', thread:'GEAR', quests:'QUESTS', road:'TROPHY ROAD', settings:'SETTINGS' }[kind];
   renderPanel();
 }
 function closePanel(){ hide('panel'); if(panelKind === 'kites'){ save.newKites = []; persist(); } panelKind = ''; refreshHome(); show('home'); }
@@ -132,6 +134,17 @@ function renderPanel(){
       onTap(b, () => { if(!spend(cost)) return; save.manja[k]++; persist(); renderPanel(); });
       it.appendChild(b); B.appendChild(it);
     }
+    sec('CHARKHI · YOUR SPOOL');
+    B.insertAdjacentHTML('beforeend', '<div class="sec" style="letter-spacing:0;font-weight:700;opacity:.9">Your friend on the roof holds the spool. A better spool holds more thread, pays out slack faster for a quick dheel and gives snappier pulls.</div>');
+    for(const sp of SPOOLS){
+      const own = save.spools.includes(sp.id), eq = save.spool === sp.id;
+      const it = document.createElement('div'); it.className = 'item';
+      it.innerHTML = `<div class="ii"><i class="sw" style="background:conic-gradient(${sp.c[0]} 0 25%, ${sp.c[1]} 0 50%, ${sp.c[0]} 0 75%, ${sp.c[1]} 0)"></i></div><div class="it"><b>${sp.n}</b><span>${sp.d}</span><div class="stats3"><span>THREAD +${Math.round((sp.line - 1) * 100)}%</span><span>PULL +${Math.round((sp.acc - 1) * 100)}%</span><span>SLACK +${Math.round((sp.pay - 1) * 100)}%</span></div></div>`;
+      const b = document.createElement('button'); b.className = 'btn sm' + (own ? '' : ' green');
+      b.innerHTML = eq ? 'USING' : own ? 'USE' : `<i class="cIco" style="width:14px;height:14px;vertical-align:-2px"></i> ${fmt(sp.cost)}`; b.disabled = eq;
+      onTap(b, () => { if(!own){ if(!spend(sp.cost)) return; save.spools.push(sp.id); AU.unlock(); } save.spool = sp.id; persist(); renderPanel(); });
+      it.appendChild(b); B.appendChild(it);
+    }
     sec('THREAD COLOUR');
     for(const t of THREADS){
       const own = save.threads.includes(t.id), eq = save.thread === t.id;
@@ -164,14 +177,14 @@ function renderPanel(){
   } else if(panelKind === 'road'){
     ROAD.forEach((r, i) => {
       const it = document.createElement('div'); it.className = 'item';
-      const got = i < save.road, can = i === save.road && save.trophies >= r.tr, kd = r.rw.kite && kiteById(r.rw.kite);
+      const got = i < save.road, can = i === save.road && save.trophies >= r.tr, kd = r.rw.kite && kiteById(r.rw.kite), sd = r.rw.spool && spoolById(r.rw.spool);
       const ii = document.createElement('div'); ii.className = 'ii';
-      if(kd) ii.appendChild(kiteIcon(kd, 38)); else ii.innerHTML = '<i class="cIco" style="width:30px;height:30px"></i>';
+      if(kd) ii.appendChild(kiteIcon(kd, 38)); else if(sd) ii.innerHTML = `<i class="sw" style="width:34px;height:34px;background:conic-gradient(${sd.c[0]} 0 25%, ${sd.c[1]} 0 50%, ${sd.c[0]} 0 75%, ${sd.c[1]} 0)"></i>`; else ii.innerHTML = '<i class="cIco" style="width:30px;height:30px"></i>';
       it.appendChild(ii);
-      it.insertAdjacentHTML('beforeend', `<div class="it"><b>🏆 ${r.tr} · ${kd ? kd.n : r.rw.coins + ' coins'}</b><span>${kd ? RARITY[kd.r].n + ' kite' : 'Coins'} · ${arenaFor(r.tr).name}</span></div>`);
+      it.insertAdjacentHTML('beforeend', `<div class="it"><b>🏆 ${r.tr} · ${kd ? kd.n : sd ? sd.n : r.rw.coins + ' coins'}</b><span>${kd ? RARITY[kd.r].n + ' kite' : sd ? 'Spool' : 'Coins'} · ${arenaFor(r.tr).name}</span></div>`);
       const b = document.createElement('button'); b.className = 'btn sm' + (can ? ' green' : '');
       b.textContent = got ? 'CLAIMED' : can ? 'CLAIM' : 'LOCKED'; b.disabled = !can;
-      onTap(b, () => { if(kd){ if(!save.kites.includes(kd.id)){ save.kites.push(kd.id); save.newKites.push(kd.id); } } else save.coins += r.rw.coins; save.road++; AU.unlock(); persist(); renderPanel(); });
+      onTap(b, () => { if(kd){ if(!save.kites.includes(kd.id)){ save.kites.push(kd.id); save.newKites.push(kd.id); } } else if(sd){ if(!save.spools.includes(sd.id)) save.spools.push(sd.id); } else save.coins += r.rw.coins; save.road++; AU.unlock(); persist(); renderPanel(); });
       it.appendChild(b); B.appendChild(it);
     });
     B.insertAdjacentHTML('beforeend', `<div class="sec">SKIES</div>`);
@@ -183,6 +196,7 @@ function renderPanel(){
     sg('Controls', 'ctrl', [['point', 'POINT'], ['classic', 'CLASSIC']]);
     B.insertAdjacentHTML('beforeend', '<div class="sec" style="letter-spacing:0;font-weight:700;opacity:.9">POINT: hold and your kite flies toward your finger. CLASSIC: hold to pull, and the kite darts wherever its nose points, just like a real patang.</div>');
     sg('Graphics', 'quality', [['auto', 'AUTO'], ['low', 'LOW'], ['high', 'HIGH']]);
+    { const r = document.createElement('div'); r.className = 'setRow'; r.innerHTML = '<span>Online server</span>'; const inp = document.createElement('input'); inp.className = 'srvIn'; inp.placeholder = serverURL() || 'wss://your-server/ws'; inp.value = save.opt.server; inp.addEventListener('change', () => { save.opt.server = inp.value.trim(); persist(); }); inp.addEventListener('keydown', e => e.stopPropagation()); r.appendChild(inp); B.appendChild(r); }
     const nb = document.createElement('button'); nb.className = 'btn ghost'; nb.textContent = 'CHANGE NAME & LOOK'; onTap(nb, () => { hide('panel'); openName(); }); B.appendChild(nb);
     const tb = document.createElement('button'); tb.className = 'btn ghost'; tb.textContent = 'REPLAY TUTORIAL'; onTap(tb, () => { save.tut = 0; persist(); toast('TUTORIAL', 'Your next match will be the practice duel.'); }); B.appendChild(tb);
     B.insertAdjacentHTML('beforeend', `<div class="sec" style="letter-spacing:0;font-weight:700;opacity:.85;text-align:center">BO KATA · all art and music made in code.<br>Fly safely in real life: never use glass-coated thread, it hurts birds and people.<br>Matches ${save.stats.matches} · Cuts ${save.stats.cuts} · Loots ${save.stats.loots}</div>`);
@@ -198,8 +212,9 @@ function openName(){
 }
 
 /* ---------------- match flow ---------------- */
-function startMatch(){
+function startMatch(forceOffline){
   const tut = save.tut === 0;
+  if(save.opt.online && !tut && !forceOffline){ hide('home'); hide('results'); STATE = 'mm'; netConnect(mode); return; }
   hide('home'); hide('results'); hide('panel'); $('pops').innerHTML = ''; $('feed').innerHTML = '';
   newMatch(tut ? 'duel' : mode);
   if(tut){ M.tut = true; M.tutStep = 0; M.tutT = 0; const o = M.flyers.find(F => !F.me); o.bot.skill = .12; o.name = 'Guddu'; M.me.sharp *= 1.8; o.str = .6; o.kitesLeft = 1; }
@@ -208,8 +223,19 @@ function startMatch(){
   $('ctrlHint').textContent = save.opt.ctrl === 'point' ? 'HOLD: kite flies to your finger · LET GO: it spins' : 'HOLD to pull · LET GO to spin';
   AU.init(); AU.resume(); AU.setLevel(1);
   save.stats.matches++; questEv('play', 1); persist();
+  matchAudio();
 }
-function pauseMatch(){ if(STATE !== 'play' || M.over) return; STATE = 'pause'; IN.down = false; show('pause'); }
+function matchAudio(){ AU.style = M.arena.music || 'desi'; AU.intro(); }
+function startNetMatch(){
+  hide('home'); hide('results'); hide('panel'); $('pops').innerHTML = ''; $('feed').innerHTML = '';
+  ambienceInit(); camFollow(0, true);
+  STATE = 'play'; show('hud'); for(const k in HC) delete HC[k];
+  $('ctrlHint').textContent = 'ONLINE · ' + (save.opt.ctrl === 'point' ? 'HOLD: kite flies to your finger · LET GO: it spins' : 'HOLD to pull · LET GO to spin');
+  AU.init(); AU.resume(); AU.setLevel(1);
+  save.stats.matches++; questEv('play', 1); persist();
+  matchAudio();
+}
+function pauseMatch(){ if(STATE !== 'play' || M.over) return; STATE = 'pause'; IN.down = false; show('pause'); $('pause').querySelector('h2').textContent = M.net ? 'ONLINE: THE SKY KEEPS FLYING' : 'PAUSED'; }
 function resumeMatch(){ hide('pause'); STATE = 'play'; }
 
 /* ---------------- HUD ---------------- */
@@ -227,7 +253,7 @@ function updateHUD(){
   const kl = me.kitesLeft + (me.kite ? 1 : 0);
   setH('kites', kl, v => { let h = ''; for(let i = 0; i < 3; i++) h += `<i class="${i < v ? '' : 'off'}"></i>`; $('hKites').innerHTML = h; });
   setH('cuts', me.cuts, v => $('hCuts').lastElementChild.textContent = v);
-  setH('count', M.countdown > 0 ? Math.ceil(M.countdown) : 0, v => { $('count').classList.toggle('hidden', !v); $('count').textContent = v > 3 ? '' : v; });
+  setH('count', M.countdown > 0 ? Math.ceil(M.countdown) : 0, v => { $('count').classList.toggle('hidden', !v); $('count').textContent = v > 3 ? '' : v; if(v > 0 && v <= 3 && !M.net) AU.count(v); });
   // respawn / out
   const rs = !me.kite && !M.over && M.countdown <= 0 ? (me.kitesLeft > 0 ? 'NEXT KITE IN ' + Math.max(1, Math.ceil(me.respawnT)) + '…' : 'OUT OF KITES') : '';
   setH('resp', rs, v => { $('respawn').classList.toggle('hidden', !v); $('respawn').textContent = v; });
@@ -237,7 +263,7 @@ function updateHUD(){
     const mine = p.a.me ? p.wb : p.wa, theirs = p.a.me ? p.wa : p.wb, R = p.a.me ? p.b : p.a;
     setH('pOn', 1, () => { show('pench'); $('pThem').textContent = R.name.toUpperCase(); });
     $('pMine').style.width = clamp(mine / 2, 0, 50) + '%'; $('pTheirs').style.width = clamp(theirs / 2, 0, 50) + '%';
-    const hint = !me.kite ? '' : !me.kite.pull ? 'PULL! A SLACK THREAD LOSES' : me.kite.y < R.kite.y - 25 ? 'ABOVE THEM: +30% CUT!' : 'KEEP FLYING FAST!';
+    const hint = !me.kite ? '' : !me.kite.pull ? 'PULL! A SLACK THREAD LOSES' : R.kite && me.kite.y < R.kite.y - 25 ? 'ABOVE THEM: +30% CUT!' : 'KEEP FLYING FAST!';
     setH('pHint', hint, v => $('pHint').textContent = v);
   } else setH('pOn', 0, () => hide('pench'));
   // feed
@@ -320,8 +346,10 @@ function wire(){
   onTap('pBack', closePanel);
   onTap('pauseBtn', pauseMatch);
   onTap('resumeBtn', resumeMatch);
-  onTap('quitBtn', () => { hide('pause'); M.me.out = true; M.me.kite = null; M.me.kitesLeft = 0; STATE = 'play'; endMatch(); });
+  onTap('quitBtn', () => { hide('pause'); if(M.net){ netSend({ t:'leave' }); netClose(); M.over = true; M.order = M.flyers.slice().sort((a, b) => a.me - b.me); M.me.place = M.flyers.length; STATE = 'play'; showResults(); return; } M.me.out = true; M.me.kite = null; M.me.kitesLeft = 0; STATE = 'play'; endMatch(); });
   onTap('againBtn', () => startMatch());
+  onTap('onlineBtn', () => { save.opt.online = !save.opt.online; persist(); refreshHome(); });
+  onTap('mmCancel', () => { netClose(); mmHide(); goHome(); });
   onTap('homeBtn', goHome);
   onTap('nameGo', () => { const v = $('nameIn').value.trim().replace(/[<>&"]/g, '').slice(0, 12); save.name = v || 'Kite Kid'; persist(); hide('nameScr'); goHome(); });
   $('nameIn').addEventListener('keydown', e => { e.stopPropagation(); if(e.key === 'Enter') $('nameGo').click(); });
@@ -364,7 +392,11 @@ function frame(ts){
   }
   try{
     if(M){
-      if(STATE !== 'pause'){ if(STATE === 'play') toWorld(); stepMatch(dt); stepAmbience(dt); camFollow(dt); }
+      if(M.net){ if(STATE === 'play') toWorld(); stepNet(dt); stepAmbience(dt); camFollow(dt); }
+      else if(STATE !== 'pause'){ if(STATE === 'play') toWorld(); stepMatch(dt); stepAmbience(dt); camFollow(dt); }
+      const inMatch = (STATE === 'play' || STATE === 'pause') && M.mode !== 'menu' && !M.over && M.countdown <= 0, k = M.me && M.me.kite;
+      AU.amb({ on:inMatch, menu:STATE === 'home', wind:Math.min(1, Math.abs(M.wind.x) / 60), speed:k ? Math.min(1, Math.hypot(k.vx, k.vy) / 440) : 0, pull:k && k.pull, hum:k ? ({ wau:1, layang:.55, pipa:.45, rokkaku:.4 }[M.me.def.shape] || .3) : 0, crowd:M.pench.size ? 1 : 0 });
+      if(M.over && !M.endHorn && M.mode !== 'menu'){ M.endHorn = true; AU.endHorn(M.me && M.me.place <= (M.mode === 'duel' ? 1 : 3)); }
       render(ts / 1000);
       if(STATE === 'play') updateHUD();
       if(STATE === 'play' && M.mode !== 'menu') AU.setLevel(M.dur - M.t < 30 || myPench() ? 2 : 1);

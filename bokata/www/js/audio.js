@@ -31,7 +31,7 @@ const AU = {
     }catch(e){ this.revIn = null; }
     const nl = c.sampleRate * 2; this.noiseBuf = c.createBuffer(1, nl, c.sampleRate);
     const d = this.noiseBuf.getChannelData(0); for(let i = 0; i < nl; i++) d[i] = Math.random() * 2 - 1;
-    this.apply(); this.startMusic();
+    this.apply(); this.startMusic(); this.makeLoops();
   },
   resume(){ try{ if(this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(() => {}); }catch(e){} },
   apply(){
@@ -84,6 +84,66 @@ const AU = {
   pipudi(f, d, v, delay){ this.tone(f, d, 'sawtooth', v, { delay, cut:f * 3, q:4, f2:f * 1.08, attack:.01, rev:.3 }); this.tone(f * 1.01, d, 'square', v * .5, { delay, cut:f * 2.5, q:2, det:12 }); },
   crowd(v, d){ this.noise(d || 1.6, 1300, v, { q:.7, attack:.25, rev:.4 }); this.noise(d || 1.6, 2600, v * .5, { q:1.2, attack:.3 }); for(let i = 0; i < 4; i++) this.tone(rnd(700, 1100), .35, 'sine', v * .25, { delay:rnd(0, .8), f2:rnd(1300, 1800), glide:.25, vib:9 }); },
 
+  /* ---------- the living sky: continuous loops ----------
+     wind, paper flutter, the wau's humming bow (busur) and the rooftop crowd */
+  makeLoops(){
+    const c = this.ctx, L = this.L = {};
+    const nsrc = () => { const s = c.createBufferSource(); s.buffer = this.noiseBuf; s.loop = true; s.start(); return s; };
+    const lfo = (f, depth, target) => { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = f; g.gain.value = depth; o.connect(g); g.connect(target); o.start(); return { o, g }; };
+    // wind
+    L.wf = c.createBiquadFilter(); L.wf.type = 'lowpass'; L.wf.frequency.value = 500; L.wf.Q.value = .7;
+    L.wg = c.createGain(); L.wg.gain.value = 0; nsrc().connect(L.wf); L.wf.connect(L.wg); L.wg.connect(this.sfx);
+    lfo(.13, 180, L.wf.frequency);
+    // paper flutter: noise chopped by a fast wobble
+    L.ff = c.createBiquadFilter(); L.ff.type = 'bandpass'; L.ff.frequency.value = 1400; L.ff.Q.value = 1.6;
+    L.fa = c.createGain(); L.fa.gain.value = .5; L.fg = c.createGain(); L.fg.gain.value = 0;
+    nsrc().connect(L.ff); L.ff.connect(L.fa); L.fa.connect(L.fg); L.fg.connect(this.sfx);
+    L.flo = lfo(15, .5, L.fa.gain);
+    // the humming bow: a buzzing reed whose pitch rises with speed
+    L.h1 = c.createOscillator(); L.h1.type = 'sawtooth'; L.h1.frequency.value = 180;
+    L.h2 = c.createOscillator(); L.h2.type = 'triangle'; L.h2.frequency.value = 361;
+    L.hf = c.createBiquadFilter(); L.hf.type = 'bandpass'; L.hf.frequency.value = 700; L.hf.Q.value = 1.2;
+    L.hg = c.createGain(); L.hg.gain.value = 0;
+    L.h1.connect(L.hf); L.h2.connect(L.hf); L.hf.connect(L.hg); L.hg.connect(this.sfx);
+    if(this.revIn){ const r = c.createGain(); r.gain.value = .25; L.hg.connect(r); r.connect(this.revIn); }
+    lfo(5.5, 4, L.h1.frequency); lfo(5.5, 8, L.h2.frequency);
+    L.h1.start(); L.h2.start();
+    // rooftop crowd murmur
+    L.cf = c.createBiquadFilter(); L.cf.type = 'bandpass'; L.cf.frequency.value = 700; L.cf.Q.value = .6;
+    L.cg = c.createGain(); L.cg.gain.value = 0; nsrc().connect(L.cf); L.cf.connect(L.cg); L.cg.connect(this.sfx);
+    lfo(.4, 180, L.cf.frequency);
+  },
+  // called every frame with the state of the sky
+  amb(p){
+    const L = this.L; if(!L || !this.ctx) return;
+    const t = this.ctx.currentTime, set = (g, v, k) => g.setTargetAtTime(v, t, k || .12);
+    set(L.wg.gain, p.on ? .05 + p.wind * .09 : p.menu ? .035 : 0, .4);
+    set(L.fg.gain, p.on ? p.speed * (p.pull ? .07 : .035) : 0);
+    set(L.flo.o.frequency, 9 + p.speed * 16);
+    const hv = p.on ? p.hum * (.012 + p.speed * .05) : 0;
+    set(L.hg.gain, hv, .15);
+    set(L.h1.frequency, 150 + p.speed * 120, .1); set(L.h2.frequency, 301 + p.speed * 242, .1);
+    set(L.cg.gain, p.on ? .02 + p.crowd * .03 : p.menu ? .012 : 0, .5);
+    // life on the other rooftops
+    if((p.on || p.menu) && Math.random() < .004) this.pipudi(rnd(520, 760), rnd(.12, .25), .012, 0);
+    if((p.on || p.menu) && Math.random() < .002){ const f = rnd(380, 460); this.tone(f, .35, 'sine', .015, { f2:f * .8, vib:7 }); this.tone(f * .9, .4, 'sine', .012, { delay:.4, f2:f * .7 }); }
+  },
+  ambOff(){ const L = this.L; if(!L || !this.ctx) return; const t = this.ctx.currentTime; for(const g of [L.wg, L.fg, L.hg, L.cg]) g.gain.setTargetAtTime(0, t, .3); },
+
+  /* ---------- match entry & exit ---------- */
+  // shehnai: a bright double-reed melody instrument
+  shehnai(m, d, v, at){ const f = this.mf(m); this.tone(f, d, 'sawtooth', v, { at, bus:this.sfx, cut:f * 3.2, q:3, attack:.03, vib:6, vd:.012, rev:.35 }); this.tone(f * 2, d, 'square', v * .15, { at, bus:this.sfx, cut:f * 4, attack:.03 }); },
+  intro(){
+    if(!this.ctx) return;
+    const t0 = this.ctx.currentTime + .05;
+    // a rising dhol roll under a festive call
+    for(let i = 0; i < 20; i++){ const k = i / 20; this.tone(i % 2 ? 150 : 100, .12, 'sine', .15 + k * .35, { at:t0 + i * .14 * (1 - k * .35), f2:55 }); if(i % 3 === 2) this.noise(.05, 2600, .05 + k * .1, { at:t0 + i * .14 * (1 - k * .35), q:1.4 }); }
+    [62, 66, 69, 74, 72, 74].forEach((m, i) => this.shehnai(m, i === 5 ? .7 : .22, .045, t0 + .2 + i * .24));
+    this.crowd(.07, 2.6);
+  },
+  count(n){ if(!this.ctx) return; this.tone(n ? 120 : 90, .25, 'sine', .45, { f2:50 }); this.tone(n ? this.mf(69 + (3 - n) * 2) : this.mf(74), .18, 'triangle', .06); },
+  endHorn(win){ if(!this.ctx) return; this.ambOff(); const t0 = this.ctx.currentTime + .05; (win ? [74, 78, 81, 86] : [74, 72, 69, 66]).forEach((m, i) => this.shehnai(m, i === 3 ? .8 : .22, .05, t0 + i * .2)); this.tone(80, .8, 'sine', .4, { at:t0, f2:40 }); },
+
   /* ---------- SFX ---------- */
   launch(){ if(this.q()) return; this.noise(.45, 600, .12, { f2:2400, q:.8 }); this.tone(this.mf(74), .18, 'triangle', .05, { delay:.1, f2:this.mf(81) }); },
   go(){ if(this.q()) return; this.tone(90, .4, 'sine', .5, { f2:45 }); this.pipudi(620, .35, .06, 0); this.pipudi(740, .5, .06, .3); this.crowd(.08, 1); },
@@ -123,7 +183,22 @@ const AU = {
     [4, -1, 5, 7, 9, -1, 11, 9, 7, -1, 9, 7, 5, -1, 4, -1],
     [5, -1, 4, 2, 4, -1, -1, -1, 0, -1, -1, -1, -1, -1, -1, -1],
   ],
+  style:'desi',
+  // gamelan: slendro metallophones, bonang, kendang and a great gong on every phrase
+  bell(m, d, v, at){ const f = this.mf(m); this.tone(f, d, 'sine', v, { at, bus:this.mus, rev:.4 }); this.tone(f * 2.76, d * .35, 'sine', v * .3, { at, bus:this.mus }); this.tone(f * 5.4, d * .15, 'sine', v * .12, { at, bus:this.mus }); },
+  SLENDRO:[0, 2, 5, 7, 9, 12, 14, 17, 19, 21, 24],
+  GAM:[[0, 2, 1, 3, 2, 4, 3, 1], [2, 4, 3, 5, 4, 2, 1, 0], [4, 5, 6, 5, 4, 3, 2, 3], [1, 2, 3, 2, 1, 0, 1, 0]],
+  gamelan(st, t, sp){
+    const s16 = st % 16, bar = (st / 16) | 0, L = this.level, o = x => Object.assign({ at:t, bus:this.mus }, x), R = 57;
+    if(s16 === 0 && bar % 2 === 0){ this.tone(this.mf(R - 24), 3.5, 'sine', .22, o({ attack:.02 })); this.tone(this.mf(R - 24) * 1.01, 3.5, 'sine', .12, o({})); }
+    if(s16 % 2 === 0){ const n = this.GAM[bar % 4][s16 / 2]; this.bell(R + 12 + this.SLENDRO[n], .9, L ? .06 : .045, t); }
+    if(L && s16 % 2 === 1){ const n = this.GAM[bar % 4][(s16 - 1) / 2]; this.bell(R + 24 + this.SLENDRO[(n + 2) % 7], .35, .025, t); }
+    if(s16 % 4 === 0) this.bell(R + this.SLENDRO[[0, 3, 2, 4][(s16 / 4) | 0]], 1.6, .05, t);
+    const ken = L ? [0, 3, 6, 8, 10, 11, 14] : [0, 6, 8, 14];
+    if(ken.includes(s16)){ this.tone(s16 % 8 === 0 ? 95 : 190, .12, 'sine', L ? .3 : .2, o({ f2:s16 % 8 === 0 ? 60 : 140 })); if(s16 % 8) this.noise(.04, 1800, .05, o({ q:2 })); }
+  },
   note(st, t, sp){
+    if(this.style === 'gamelan') return this.gamelan(st, t, sp);
     const s16 = st % 16, bar = (st / 16) | 0, L = this.level, B = this.mus, o = x => Object.assign({ at:t, bus:B }, x);
     const SA = 50;                                         // D3
     const chord = [0, 0, 5, 7, 0, 0, -2, 7][bar % 8];     // Sa Sa Ma Pa Sa Sa ni Pa
