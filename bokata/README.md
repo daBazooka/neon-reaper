@@ -1,0 +1,87 @@
+# BO KATA
+
+**Cut the sky.** A real-time kite-fighting game set on festival rooftops.
+
+"Bo kata!" is the cry shouted from rooftops when your kite cuts a rival's
+string. It is a shared childhood memory for hundreds of millions of people
+across South Asia and beyond (Uttarayan, Basant, Shakrain and kite
+festivals everywhere).
+
+## The game
+
+- **One thumb.** Hold and your patang flies toward your finger (Point mode). Let go and it spins and drifts on the wind, just like a real fighter kite. Classic mode is for purists: hold to pull, and the kite darts wherever its nose points.
+- **Pench.** When two threads cross, a cutting duel starts. The thread that saws faster wins. Keep your kite moving, pull (a slack thread loses), and come from above for +30%. Sharper and stronger thread helps. A tug-of-war meter shows who is winning.
+- **BO KATA!** The loser's kite drifts away on the wind. Anyone can **loot** it by touching it with their kite or thread. Looted kites can join your collection.
+- **Modes.**
+  - **Sky Battle:** 12 flyers with 3 kites each over 3 minutes. Last flyer standing, or the best when time runs out, wins.
+  - **Duel:** 1 vs 1.
+- **Progression.** You earn trophies as you play. The trophy road climbs through six skies:
+  1. Gully Rooftops
+  2. Pink City
+  3. River Ghats
+  4. Desert Fort
+  5. Monsoon Sky
+  6. Lantern Night
+
+  You never drop out of a sky you have reached.
+- **Collection and upgrades.**
+  - 18 kites in four rarities.
+  - A daily kite bazaar.
+  - Thread upgrades (sharpness and strength).
+  - 8 thread colours.
+  - Daily quests and a daily gift streak.
+- **First flight.** A guided practice duel teaches pull, slack, pench and your first BO KATA.
+- **Made in code.** All art is procedural: skies, rooftops with water tanks, clotheslines and dishes, flyers with their spool-holding friends, pigeons, sky lanterns and rain. All music and sound is synthesized: dhol, harmonium drone, a bansuri-style flute, chimta, pipudi horns and crowd cheers. The whole game is about 116 KB.
+
+## Project layout
+
+| Path | What |
+|---|---|
+| `www/` | The game (HTML, CSS, JS). This is also the Capacitor web directory. |
+| `dist/index.html` | Single-file build for web portals and itch.io. |
+| `android/` | Native Android project (Capacitor 8). Open it in Android Studio. |
+| `ios/` | Native iOS project (Capacitor 8). Open it in Xcode. |
+| `capacitor.config.json` | App id `com.bokata.kites`. Change it to your own reverse domain before publishing. |
+
+## Run it
+
+```
+npx http-server www -p 8080     # then open http://localhost:8080
+```
+
+## Build the apps
+
+Prerequisites: Node 20+, Android Studio (with the Android SDK), and for iOS a Mac with Xcode.
+
+```
+npm install
+npx cap sync            # copies www/ into both native projects
+npx cap open android    # build > Generate Signed App Bundle (.aab) for Google Play
+npx cap open ios        # Product > Archive for the App Store
+```
+
+The icons (every Android density plus the iOS 1024 px icon) and the splash screens are already installed.
+
+## Store checklist (things only you can do)
+
+- **Accounts.** A Google Play Console developer account and an Apple Developer Program membership.
+- **App id.** Set your own `appId` in `capacitor.config.json`, then run `npx cap sync`.
+- **Signing.**
+  - Android: create an upload keystore and keep it safe.
+  - iOS: set up a signing team in Xcode.
+- **Privacy policy URL.** The game stores progress only on the device and collects nothing.
+- **Content rating questionnaires.** The game has no violence against people, no chat and no purchases. The settings screen includes a real-world safety note about glass-coated thread.
+- **Store listing.**
+  - Name: BO KATA
+  - Short description: "Real-time kite fighting on festival rooftops. Cross threads, win the pench, shout BO KATA!"
+  - Screenshots from the game.
+
+## Roadmap (honest status)
+
+This build is fully playable offline against bot flyers that obey the same physics and rules as you. Real online play needs:
+
+1. **An authoritative game server** (for example Node.js with WebSockets, or a managed service). The simulation in `www/js/sim.js` is written to run on a server: it depends only on `M`, the input and `dt`. You also need matchmaking by trophies, and hosting, which is a running cost.
+2. **Accounts and cloud saves** (Play Games Services / Game Center, or your own backend).
+3. **Friends, clans ("mohallas") and a real-player leaderboard.**
+4. **Optional cosmetic-only purchases or rewarded ads**, added carefully so the game never becomes pay-to-win.
+5. **Localisation:** Hindi, Urdu, Bengali, Gujarati, Punjabi.

@@ -1,6 +1,6 @@
 # neon-reaper
 
-This repo holds eight standalone HTML5 games.
+This repo holds eight standalone HTML5 games, plus BO KATA, a mobile game project.
 
 | Game | Path | What it is |
 |---|---|---|
@@ -11,6 +11,7 @@ This repo holds eight standalone HTML5 games.
 | **LUMIBLOOM** | `lumibloom/` | A wholesome loop-drawing game: circle sleeping flowers with a ribbon of light to make them bloom, paint the meadow and free shadow critters. See `lumibloom/CRAZYGAMES-SUBMISSION.md`. |
 | **ECHO LEGION** | `echolegion/` | A neon arena brawler: every 5 seconds your past self becomes an echo that replays your moves, so you fight with an army of yourself. See `echolegion/CRAZYGAMES-SUBMISSION.md`. |
 | **SCORCHWAY** | `scorchway/` | A top-down desert car chase where drifting sets the ground on fire and pursuers explode in chain reactions. See `scorchway/CRAZYGAMES-SUBMISSION.md`. |
+| **BO KATA** | `bokata/` | A real-time kite-fighting game on festival rooftops, packaged as a web game and as native Android and iOS apps (Capacitor). See `bokata/README.md`. |
 | **ORBITOPIA** | `orbitopia/` | A physics merge-idle game: fling stardust into orbit, merge twins into moons, planets, stars and black holes, grow life and go Supernova. See `orbitopia/CRAZYGAMES-SUBMISSION.md`. |
 
 Run either one locally with any static server, for example
