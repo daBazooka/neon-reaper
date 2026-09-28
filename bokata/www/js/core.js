@@ -185,11 +185,17 @@ function mergeInto(base, src){
   }
   return base;
 }
+// On CrazyGames the SDK Data Module is the only store; LocalStorage is used everywhere else.
 function loadSave(){
-  let raw = null;
-  try{ raw = localStorage.getItem(SAVE_KEY); }catch(e){}
+  let raw = null; const d = typeof SDK !== 'undefined' ? SDK.data() : null;
+  try{ if(d) raw = d.getItem(SAVE_KEY); }catch(e){}
+  if(!raw && !d){ try{ raw = localStorage.getItem(SAVE_KEY); }catch(e){} }
   if(raw){ try{ save = mergeInto(defSave(), JSON.parse(raw)); }catch(e){ save = defSave(); } }
 }
 let _saveT = 0;
-function writeSave(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){} }
+function writeSave(){
+  const s = JSON.stringify(save), d = typeof SDK !== 'undefined' ? SDK.data() : null;
+  if(d){ try{ d.setItem(SAVE_KEY, s); }catch(e){} return; }
+  try{ localStorage.setItem(SAVE_KEY, s); }catch(e){}
+}
 function persist(){ clearTimeout(_saveT); _saveT = setTimeout(writeSave, 250); }

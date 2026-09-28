@@ -8,7 +8,7 @@
    ===================================================================== */
 const AU = {
   ctx:null, master:null, sfx:null, mus:null, revIn:null, noiseBuf:null,
-  hidden:false, step:0, nextT:0, timer:null, last:{}, level:0, sawT:0,
+  hidden:false, portalMute:false, adMuted:false, step:0, nextT:0, timer:null, last:{}, level:0, sawT:0,
 
   init(){
     if(this.ctx) return;
@@ -37,11 +37,13 @@ const AU = {
   apply(){
     if(!this.ctx) return;
     const t = this.ctx.currentTime;
-    this.master.gain.setTargetAtTime(this.hidden ? 0 : 1, t, .03);
+    this.master.gain.setTargetAtTime(this.hidden || this.portalMute || this.adMuted ? 0 : 1, t, .03);
     this.sfx.gain.setTargetAtTime(save.opt.sfx ? .7 : 0, t, .02);
     this.mus.gain.setTargetAtTime(save.opt.music ? .42 : 0, t, .05);
   },
   setHidden(h){ this.hidden = h; this.apply(); },
+  setPortalMute(m){ this.portalMute = m; this.apply(); },
+  adMute(m){ this.adMuted = m; this.apply(); },
   q(){ return !this.ctx || !M || M.mode === 'menu'; },
   thr(k, s){ const t = this.ctx.currentTime; if(t - (this.last[k] || -9) < s) return true; this.last[k] = t; return false; },
 

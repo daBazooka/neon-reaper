@@ -13,6 +13,8 @@ const NET = { ws:null, state:'idle', you:-1, rtt:.1, sendT:0, pingT:0, snapAt:0,
 
 function serverURL(){
   if(save.opt.server) return save.opt.server;
+  // web portals (CrazyGames etc.) host the game inside an iframe: only an explicitly configured server
+  try{ if(window.self !== window.top || SDK.cg) return DEFAULT_SERVER; }catch(e){ return DEFAULT_SERVER; }
   // inside the store apps (capacitor://localhost or https://localhost) use the configured server
   const app = location.protocol === 'capacitor:' || (location.hostname === 'localhost' && !location.port);
   if(!app && (location.protocol === 'http:' || location.protocol === 'https:')) return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';

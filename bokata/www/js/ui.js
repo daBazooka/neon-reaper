@@ -197,9 +197,9 @@ function renderPanel(){
     sg('Controls', 'ctrl', [['point', 'POINT'], ['classic', 'CLASSIC']]);
     B.insertAdjacentHTML('beforeend', '<div class="sec" style="letter-spacing:0;font-weight:700;opacity:.9">POINT: hold and your kite flies toward your finger. CLASSIC: hold to pull, and the kite darts wherever its nose points, just like a real patang.</div>');
     sg('Graphics', 'quality', [['auto', 'AUTO'], ['low', 'LOW'], ['high', 'HIGH']]);
-    { const r = document.createElement('div'); r.className = 'setRow'; r.innerHTML = '<span>Online server</span>'; const inp = document.createElement('input'); inp.className = 'srvIn'; inp.placeholder = serverURL() || 'wss://your-server/ws'; inp.value = save.opt.server; inp.addEventListener('change', () => { save.opt.server = inp.value.trim(); persist(); }); inp.addEventListener('keydown', e => e.stopPropagation()); r.appendChild(inp); B.appendChild(r); }
+    if(!SDK.portal()){ const r = document.createElement('div'); r.className = 'setRow'; r.innerHTML = '<span>Online server</span>'; const inp = document.createElement('input'); inp.className = 'srvIn'; inp.placeholder = serverURL() || 'wss://your-server/ws'; inp.value = save.opt.server; inp.addEventListener('change', () => { save.opt.server = inp.value.trim(); persist(); }); inp.addEventListener('keydown', e => e.stopPropagation()); r.appendChild(inp); B.appendChild(r); }
     const nb = document.createElement('button'); nb.className = 'btn ghost'; nb.textContent = 'CHANGE NAME & LOOK'; onTap(nb, () => { hide('panel'); openName(); }); B.appendChild(nb);
-    const pb = document.createElement('button'); pb.className = 'btn ghost'; pb.textContent = 'PRIVACY POLICY'; onTap(pb, () => { location.href = 'privacy.html'; }); B.appendChild(pb);
+    if(!SDK.portal() && location.protocol !== 'file:'){ const pb = document.createElement('button'); pb.className = 'btn ghost'; pb.textContent = 'PRIVACY POLICY'; onTap(pb, () => { location.href = 'privacy.html'; }); B.appendChild(pb); }
     const tb = document.createElement('button'); tb.className = 'btn ghost'; tb.textContent = 'REPLAY TUTORIAL'; onTap(tb, () => { save.tut = 0; persist(); toast('TUTORIAL', 'Your next match will be the practice duel.'); }); B.appendChild(tb);
     B.insertAdjacentHTML('beforeend', `<div class="sec" style="letter-spacing:0;font-weight:700;opacity:.85;text-align:center">BO KATA · all art and music made in code.<br>Fly safely in real life: never use glass-coated thread, it hurts birds and people.<br>Matches ${save.stats.matches} · Cuts ${save.stats.cuts} · Loots ${save.stats.loots}</div>`);
   }
@@ -329,7 +329,8 @@ function showResults(){
   if(nk.length){ R.insertAdjacentHTML('beforeend', '<div class="sec" style="width:100%;color:#e2502b">NEW KITES FOR YOUR COLLECTION!</div>'); for(const id of nk) R.appendChild(kiteCard(kiteById(id), {})); }
   if(arenaUp) R.insertAdjacentHTML('beforeend', `<div class="sec" style="width:100%;color:#16b3a3">NEW SKY UNLOCKED: ${arenaFor(save.trophies).name.toUpperCase()}!</div>`);
   hide('hud'); show('results');
-  if(won){ AU.win(); vib([40, 60, 40]); } else AU.lose();
+  if(won){ AU.win(); vib([40, 60, 40]); SDK.happytime(); } else AU.lose();
+  if(arenaUp) SDK.happytime();
   if(nk.length || arenaUp) setTimeout(() => AU.unlock(), 700);
   AU.setLevel(0);
 }
@@ -405,6 +406,7 @@ function frame(ts){
     pfS += dt; pfN++; pfT += dt;
     if(pfT > 3){ const avg = pfS / pfN; pfT = pfS = pfN = 0; if(avg > 1 / 40 && V.q !== 'low'){ V.autoQ = 'low'; V.q = 'low'; resize(); } }
   }
+  if(STATE === 'play' && !document.hidden) SDK.gameplayStart(); else SDK.gameplayStop();
   try{
     if(M){
       if(M.net){ if(STATE === 'play') toWorld(); stepNet(dt); stepAmbience(dt); camFollow(dt); }
@@ -420,13 +422,24 @@ function frame(ts){
 }
 addEventListener('error', e => { try{ console.error(e.error || e.message); }catch(_){} });
 
-(function boot(){
+(async function boot(){
+  applyQuality();
+  requestAnimationFrame(frame);
+  SDK.onMute = m => AU.setPortalMute(m);
+  await SDK.init();                 // must resolve before the save is read (CrazyGames Data Module)
+  SDK.loadingStart();
   loadSave();
   applyQuality();
   wire();
   rollDaily();
+  // on CrazyGames nobody is asked to type a name: use their username or a festive one
+  if(!save.name && SDK.cg){
+    let n = '';
+    try{ const u = SDK.cg.user && await Promise.race([SDK.cg.user.getUser(), new Promise(r => setTimeout(() => r(null), 2000))]); if(u && u.username) n = String(u.username).replace(/[<>&"]/g, '').slice(0, 12); }catch(e){}
+    save.name = n || pick(NAMES) + ((Math.random() * 90 + 10) | 0); persist();
+  }
   newMatch('menu'); ambienceInit(); camFollow(0, true);
-  requestAnimationFrame(frame);
   if(!save.name) openName(); else goHome();
-  setTimeout(() => { $('boot').classList.add('gone'); setTimeout(() => $('boot').remove(), 500); }, 600);
+  SDK.loadingStop();
+  setTimeout(() => { $('boot').classList.add('gone'); setTimeout(() => $('boot').remove(), 500); }, 300);
 })();
