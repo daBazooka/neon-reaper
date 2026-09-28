@@ -75,6 +75,7 @@ function refreshHome(){
   $('kDot').classList.toggle('hidden', !save.newKites.length);
   $('qDot').classList.toggle('hidden', !(giftReady() || save.quests.list.some(q => q.done && !q.claimed)));
   document.querySelectorAll('.mode').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+  $('onlineBtn').classList.toggle('hidden', !serverURL());
   $('onlineBtn').classList.toggle('on', !!save.opt.online); $('onlineSub').textContent = save.opt.online ? 'Real flyers + bots' : 'Offline vs bots';
 }
 
@@ -192,12 +193,13 @@ function renderPanel(){
   } else if(panelKind === 'settings'){
     const tg = (label, key) => { const r = document.createElement('div'); r.className = 'setRow'; r.innerHTML = `<span>${label}</span>`; const s = document.createElement('div'); s.className = 'seg'; for(const [v, t] of [[true, 'ON'], [false, 'OFF']]){ const b = document.createElement('button'); b.textContent = t; b.classList.toggle('on', save.opt[key] === v); onTap(b, () => { save.opt[key] = v; AU.apply(); persist(); renderPanel(); }); s.appendChild(b); } r.appendChild(s); B.appendChild(r); };
     const sg = (label, key, opts) => { const r = document.createElement('div'); r.className = 'setRow'; r.innerHTML = `<span>${label}</span>`; const s = document.createElement('div'); s.className = 'seg'; for(const [v, t] of opts){ const b = document.createElement('button'); b.textContent = t; b.classList.toggle('on', save.opt[key] === v); onTap(b, () => { save.opt[key] = v; persist(); if(key === 'quality') applyQuality(); renderPanel(); }); s.appendChild(b); } r.appendChild(s); B.appendChild(r); };
-    tg('Music', 'music'); tg('Sound effects', 'sfx'); tg('Vibration', 'vib');
+    tg('Music', 'music'); tg('Sound effects', 'sfx'); tg('Vibration', 'vib'); tg('Show other players\' names', 'names');
     sg('Controls', 'ctrl', [['point', 'POINT'], ['classic', 'CLASSIC']]);
     B.insertAdjacentHTML('beforeend', '<div class="sec" style="letter-spacing:0;font-weight:700;opacity:.9">POINT: hold and your kite flies toward your finger. CLASSIC: hold to pull, and the kite darts wherever its nose points, just like a real patang.</div>');
     sg('Graphics', 'quality', [['auto', 'AUTO'], ['low', 'LOW'], ['high', 'HIGH']]);
     { const r = document.createElement('div'); r.className = 'setRow'; r.innerHTML = '<span>Online server</span>'; const inp = document.createElement('input'); inp.className = 'srvIn'; inp.placeholder = serverURL() || 'wss://your-server/ws'; inp.value = save.opt.server; inp.addEventListener('change', () => { save.opt.server = inp.value.trim(); persist(); }); inp.addEventListener('keydown', e => e.stopPropagation()); r.appendChild(inp); B.appendChild(r); }
     const nb = document.createElement('button'); nb.className = 'btn ghost'; nb.textContent = 'CHANGE NAME & LOOK'; onTap(nb, () => { hide('panel'); openName(); }); B.appendChild(nb);
+    const pb = document.createElement('button'); pb.className = 'btn ghost'; pb.textContent = 'PRIVACY POLICY'; onTap(pb, () => { location.href = 'privacy.html'; }); B.appendChild(pb);
     const tb = document.createElement('button'); tb.className = 'btn ghost'; tb.textContent = 'REPLAY TUTORIAL'; onTap(tb, () => { save.tut = 0; persist(); toast('TUTORIAL', 'Your next match will be the practice duel.'); }); B.appendChild(tb);
     B.insertAdjacentHTML('beforeend', `<div class="sec" style="letter-spacing:0;font-weight:700;opacity:.85;text-align:center">BO KATA · all art and music made in code.<br>Fly safely in real life: never use glass-coated thread, it hurts birds and people.<br>Matches ${save.stats.matches} · Cuts ${save.stats.cuts} · Loots ${save.stats.loots}</div>`);
   }
@@ -214,7 +216,7 @@ function openName(){
 /* ---------------- match flow ---------------- */
 function startMatch(forceOffline){
   const tut = save.tut === 0;
-  if(save.opt.online && !tut && !forceOffline){ hide('home'); hide('results'); STATE = 'mm'; netConnect(mode); return; }
+  if(save.opt.online && serverURL() && !tut && !forceOffline){ hide('home'); hide('results'); STATE = 'mm'; netConnect(mode); return; }
   hide('home'); hide('results'); hide('panel'); $('pops').innerHTML = ''; $('feed').innerHTML = '';
   newMatch(tut ? 'duel' : mode);
   if(tut){ M.tut = true; M.tutStep = 0; M.tutT = 0; const o = M.flyers.find(F => !F.me); o.bot.skill = .12; o.name = 'Guddu'; M.me.sharp *= 1.8; o.str = .6; o.kitesLeft = 1; }
@@ -376,7 +378,20 @@ function wire(){
   addEventListener('orientationchange', () => setTimeout(resize, 250));
   document.addEventListener('visibilitychange', () => { AU.setHidden(document.hidden); if(document.hidden){ writeSave(); if(STATE === 'play') pauseMatch(); } else AU.resume(); });
   addEventListener('pagehide', writeSave);
-  // Android hardware back (Capacitor / Cordova)
+  // native app hooks (Capacitor App plugin): hardware back button and background/foreground
+  try{
+    const App = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+    if(App){
+      App.addListener('backButton', () => {
+        if(STATE === 'play') pauseMatch(); else if(STATE === 'pause') resumeMatch();
+        else if(STATE === 'mm'){ netClose(); mmHide(); goHome(); }
+        else if(!isHidden('panel')) closePanel(); else if(STATE === 'results') goHome();
+        else if(STATE === 'home') App.minimizeApp ? App.minimizeApp() : App.exitApp();
+      });
+      App.addListener('appStateChange', s => { AU.setHidden(!s.isActive); if(!s.isActive){ writeSave(); if(STATE === 'play') pauseMatch(); } else AU.resume(); });
+    }
+  }catch(e){}
+  // Android hardware back (Cordova-style fallback)
   document.addEventListener('backbutton', e => { e.preventDefault(); if(STATE === 'play') pauseMatch(); else if(STATE === 'pause') resumeMatch(); else if(!isHidden('panel')) closePanel(); else if(STATE === 'results') goHome(); });
 }
 

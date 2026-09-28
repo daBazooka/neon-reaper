@@ -57,7 +57,19 @@ const RULES = makeRules();                        // for data lookups (kites, ar
 const D = vm.runInContext('({ KITES, THREADS, SPOOLS, ARENAS, NAMES, SKIN, SHIRT, arenaFor })', RULES);
 
 /* ---------------- validation of what a client may bring ---------------- */
-const clean = s => String(s || '').replace(/[<>&"\\\u0000-\u001f]/g, '').trim().slice(0, 12) || 'Flyer';
+// nicknames are visible to other players: strip markup and block offensive words
+// fragments that are offensive anywhere in a name
+const BAD = ['fuck', 'fuk', 'shit', 'bitch', 'cunt', 'cock', 'pussy', 'slut', 'whore', 'nigg', 'faggot', 'rapist', 'nazi', 'hitler', 'porn', 'penis', 'vagina', 'bastard', 'asshole',
+  'chutiya', 'chutia', 'madarchod', 'behenchod', 'bhenchod', 'bhosdi', 'gandu', 'randi', 'haramzada', 'kontol', 'memek', 'bangsat'];
+// short words that are only offensive on their own (so "Sussex" or "Sialkot" stay fine)
+const WORDS = ['sex', 'dick', 'fag', 'rape', 'mc', 'bc', 'lund', 'lauda', 'loda', 'harami', 'kutta', 'kamina', 'saala', 'kanjar', 'babi', 'puki', 'pantat', 'sial', 'bodoh', 'anjing'];
+const LEET = { '0':'o', '1':'i', '3':'e', '4':'a', '5':'s', '7':'t', '@':'a', '$':'s', '!':'i' };
+function isBad(n){
+  const low = n.toLowerCase().replace(/[013457@$!]/g, c => LEET[c]);
+  const flat = low.replace(/[^a-z]/g, ''), words = low.split(/[^a-z]+/).filter(Boolean);
+  return BAD.some(w => flat.includes(w)) || WORDS.some(w => flat === w || words.includes(w));
+}
+const clean = s => { const n = String(s || '').replace(/[<>&"\\\u0000-\u001f]/g, '').trim().slice(0, 12); return !n ? 'Flyer' : isBad(n) ? 'Flyer' + (100 + Math.floor(Math.random() * 900)) : n; };
 const intIn = (v, a, b, d) => { v = Math.round(+v); return Number.isFinite(v) ? Math.max(a, Math.min(b, v)) : d; };
 function loadout(h){
   const kite = D.KITES.some(k => k.id === h.kite) ? h.kite : 'lal';

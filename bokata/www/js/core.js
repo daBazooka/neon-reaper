@@ -172,7 +172,7 @@ function defSave(){
     stats:{ cuts:0, loots:0, matches:0, wins:0, duels:0, duelWins:0, best:0, penchWins:0 },
     quests:{ day:0, list:[] }, gift:{ day:0, streak:0 },
     shop:{ day:0, items:[] }, tut:0, seen:{},
-    opt:{ sfx:true, music:true, vib:true, ctrl:'point', quality:'auto', left:false, online:false, server:'' },
+    opt:{ sfx:true, music:true, vib:true, ctrl:'point', quality:'auto', left:false, online:false, server:'', names:true },
   };
 }
 let save = defSave();

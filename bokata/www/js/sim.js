@@ -278,18 +278,19 @@ function cutFx(W, L, x, y, fromAbove){
     M.falls.push({ p:fall, c:L.thread, t:0 });
   }
   for(let i = 0; i < 26; i++) M.fx.push({ x, y, vx:rnd(-220, 220), vy:rnd(-260, 60), g:420, l:rnd(.5, 1.1), a:rnd(0, TAU), va:rnd(-12, 12), k:'paper', c:pick([L.def.c[0], L.def.c[1] || '#fff', '#ffffff']), s:rnd(3, 7) });
-  M.feed.push({ t:0, txt:`<b style="color:${W.me ? '#ffd23a' : '#fff'}">${esc(W.name)}</b> cut <b style="color:${L.me ? '#ff6b6b' : '#fff'}">${esc(L.name)}</b>` });
+  M.feed.push({ t:0, txt:`<b style="color:${W.me ? '#ffd23a' : '#fff'}">${esc(shownName(W))}</b> cut <b style="color:${L.me ? '#ff6b6b' : '#fff'}">${esc(shownName(L))}</b>` });
   if(M.mode === 'menu'){}
   else if(W.me){
     M.pops.push({ k:'bokata', t:0, d:1.6 }); M.slow = M.net ? 0 : .45; M.shake = 10;
     save.stats.cuts++; questEv('cut', 1);
     AU.boKata(); vib([30, 40, 60]);
   } else if(L.me){
-    M.pops.push({ k:'lost', t:0, d:1.6, by:W.name }); M.shake = 6;
+    M.pops.push({ k:'lost', t:0, d:1.6, by:shownName(W) }); M.shake = 6;
     AU.lost(); vib(120);
   } else if(M.me && M.me.kite && Math.hypot(x - M.me.kite.x, y - M.me.kite.y) < 900) AU.farCut();
 }
 function esc(s){ return String(s).replace(/[<>&"]/g, ''); }
+function shownName(F){ return F.me || !F.human || typeof save === 'undefined' || save.opt.names ? F.name : 'Flyer ' + (F.id + 1); }
 
 /* ---------------- loose kites: drifting loot ---------------- */
 function stepLoose(dt){
@@ -333,7 +334,7 @@ function lootFx(F, def, x, y){
     M.lootKites = M.lootKites || []; M.lootKites.push(def.id);
     AU.loot(); vib(25);
   }
-  M.feed.push({ t:0, txt:`<b>${esc(F.name)}</b> looted a <b style="color:${RARITY[def.r].c}">${def.n}</b>` });
+  M.feed.push({ t:0, txt:`<b>${esc(shownName(F))}</b> looted a <b style="color:${RARITY[def.r].c}">${def.n}</b>` });
 }
 
 /* ---------------- results ---------------- */

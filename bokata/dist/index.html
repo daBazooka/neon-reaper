@@ -145,7 +145,7 @@ b{ font-weight:900; }
 /* ---------- pops ---------- */
 #pops{ position:fixed; inset:0; pointer-events:none; z-index:15; display:flex; align-items:center; justify-content:center; }
 .pop{ position:absolute; text-align:center; font-weight:900; animation:popBig 1.5s cubic-bezier(.2, 1.4, .4, 1) forwards; }
-.pop.bk{ font-size:clamp(64px, 16vw, 150px); color:#fff; -webkit-text-stroke:5px #d6282e; paint-order:stroke fill; text-shadow:0 10px 0 #7a1016, 0 0 40px rgba(255,200,80,.8); letter-spacing:2px; transform:rotate(-6deg); }
+.pop.bk{ font-size:clamp(50px, 13vw, 150px); white-space:nowrap; color:#fff; -webkit-text-stroke:5px #d6282e; paint-order:stroke fill; text-shadow:0 10px 0 #7a1016, 0 0 40px rgba(255,200,80,.8); letter-spacing:2px; transform:rotate(-6deg); }
 .pop.bk small{ display:block; font-size:.28em; -webkit-text-stroke:0; color:#ffd23a; text-shadow:0 3px 0 #7a1016; letter-spacing:4px; }
 .pop.lost{ font-size:clamp(36px, 8vw, 70px); color:#fff; -webkit-text-stroke:3px #3a2268; paint-order:stroke fill; text-shadow:0 6px 0 #1f1038; }
 .pop.lost small{ display:block; font-size:.4em; -webkit-text-stroke:0; }
@@ -455,7 +455,7 @@ function defSave(){
     stats:{ cuts:0, loots:0, matches:0, wins:0, duels:0, duelWins:0, best:0, penchWins:0 },
     quests:{ day:0, list:[] }, gift:{ day:0, streak:0 },
     shop:{ day:0, items:[] }, tut:0, seen:{},
-    opt:{ sfx:true, music:true, vib:true, ctrl:'point', quality:'auto', left:false, online:false, server:'' },
+    opt:{ sfx:true, music:true, vib:true, ctrl:'point', quality:'auto', left:false, online:false, server:'', names:true },
   };
 }
 let save = defSave();
@@ -986,18 +986,19 @@ function cutFx(W, L, x, y, fromAbove){
     M.falls.push({ p:fall, c:L.thread, t:0 });
   }
   for(let i = 0; i < 26; i++) M.fx.push({ x, y, vx:rnd(-220, 220), vy:rnd(-260, 60), g:420, l:rnd(.5, 1.1), a:rnd(0, TAU), va:rnd(-12, 12), k:'paper', c:pick([L.def.c[0], L.def.c[1] || '#fff', '#ffffff']), s:rnd(3, 7) });
-  M.feed.push({ t:0, txt:`<b style="color:${W.me ? '#ffd23a' : '#fff'}">${esc(W.name)}</b> cut <b style="color:${L.me ? '#ff6b6b' : '#fff'}">${esc(L.name)}</b>` });
+  M.feed.push({ t:0, txt:`<b style="color:${W.me ? '#ffd23a' : '#fff'}">${esc(shownName(W))}</b> cut <b style="color:${L.me ? '#ff6b6b' : '#fff'}">${esc(shownName(L))}</b>` });
   if(M.mode === 'menu'){}
   else if(W.me){
     M.pops.push({ k:'bokata', t:0, d:1.6 }); M.slow = M.net ? 0 : .45; M.shake = 10;
     save.stats.cuts++; questEv('cut', 1);
     AU.boKata(); vib([30, 40, 60]);
   } else if(L.me){
-    M.pops.push({ k:'lost', t:0, d:1.6, by:W.name }); M.shake = 6;
+    M.pops.push({ k:'lost', t:0, d:1.6, by:shownName(W) }); M.shake = 6;
     AU.lost(); vib(120);
   } else if(M.me && M.me.kite && Math.hypot(x - M.me.kite.x, y - M.me.kite.y) < 900) AU.farCut();
 }
 function esc(s){ return String(s).replace(/[<>&"]/g, ''); }
+function shownName(F){ return F.me || !F.human || typeof save === 'undefined' || save.opt.names ? F.name : 'Flyer ' + (F.id + 1); }
 
 /* ---------------- loose kites: drifting loot ---------------- */
 function stepLoose(dt){
@@ -1041,7 +1042,7 @@ function lootFx(F, def, x, y){
     M.lootKites = M.lootKites || []; M.lootKites.push(def.id);
     AU.loot(); vib(25);
   }
-  M.feed.push({ t:0, txt:`<b>${esc(F.name)}</b> looted a <b style="color:${RARITY[def.r].c}">${def.n}</b>` });
+  M.feed.push({ t:0, txt:`<b>${esc(shownName(F))}</b> looted a <b style="color:${RARITY[def.r].c}">${def.n}</b>` });
 }
 
 /* ---------------- results ---------------- */
@@ -1468,8 +1469,9 @@ function drawFlyer(g, F, t){
   // name tag
   if(M.mode !== 'menu'){
     g.font = `800 ${F.me ? 17 : 14}px "Trebuchet MS", system-ui`; g.textAlign = 'center';
-    const ty = y - 84; g.lineWidth = 4; g.strokeStyle = 'rgba(20,10,20,.65)'; g.strokeText(F.name, x, ty);
-    g.fillStyle = F.me ? '#ffd23a' : F.out ? 'rgba(255,255,255,.4)' : '#ffffff'; g.fillText(F.name, x, ty);
+    const nm = F.me || !F.human || save.opt.names ? F.name : 'Flyer ' + (F.id + 1);
+    const ty = y - 84; g.lineWidth = 4; g.strokeStyle = 'rgba(20,10,20,.65)'; g.strokeText(nm, x, ty);
+    g.fillStyle = F.me ? '#ffd23a' : F.out ? 'rgba(255,255,255,.4)' : '#ffffff'; g.fillText(nm, x, ty);
     // kites left
     const left = F.kitesLeft + (F.kite ? 1 : 0);
     for(let i = 0; i < 3; i++){ g.fillStyle = i < left ? (F.me ? '#ffd23a' : '#ffffff') : 'rgba(255,255,255,.2)'; g.save(); g.translate(x - 14 + i * 14, ty + 14); g.rotate(Math.PI / 4); g.fillRect(-4, -4, 8, 8); g.restore(); }
@@ -1719,6 +1721,7 @@ function refreshHome(){
   $('kDot').classList.toggle('hidden', !save.newKites.length);
   $('qDot').classList.toggle('hidden', !(giftReady() || save.quests.list.some(q => q.done && !q.claimed)));
   document.querySelectorAll('.mode').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+  $('onlineBtn').classList.toggle('hidden', !serverURL());
   $('onlineBtn').classList.toggle('on', !!save.opt.online); $('onlineSub').textContent = save.opt.online ? 'Real flyers + bots' : 'Offline vs bots';
 }
 
@@ -1836,12 +1839,13 @@ function renderPanel(){
   } else if(panelKind === 'settings'){
     const tg = (label, key) => { const r = document.createElement('div'); r.className = 'setRow'; r.innerHTML = `<span>${label}</span>`; const s = document.createElement('div'); s.className = 'seg'; for(const [v, t] of [[true, 'ON'], [false, 'OFF']]){ const b = document.createElement('button'); b.textContent = t; b.classList.toggle('on', save.opt[key] === v); onTap(b, () => { save.opt[key] = v; AU.apply(); persist(); renderPanel(); }); s.appendChild(b); } r.appendChild(s); B.appendChild(r); };
     const sg = (label, key, opts) => { const r = document.createElement('div'); r.className = 'setRow'; r.innerHTML = `<span>${label}</span>`; const s = document.createElement('div'); s.className = 'seg'; for(const [v, t] of opts){ const b = document.createElement('button'); b.textContent = t; b.classList.toggle('on', save.opt[key] === v); onTap(b, () => { save.opt[key] = v; persist(); if(key === 'quality') applyQuality(); renderPanel(); }); s.appendChild(b); } r.appendChild(s); B.appendChild(r); };
-    tg('Music', 'music'); tg('Sound effects', 'sfx'); tg('Vibration', 'vib');
+    tg('Music', 'music'); tg('Sound effects', 'sfx'); tg('Vibration', 'vib'); tg('Show other players\' names', 'names');
     sg('Controls', 'ctrl', [['point', 'POINT'], ['classic', 'CLASSIC']]);
     B.insertAdjacentHTML('beforeend', '<div class="sec" style="letter-spacing:0;font-weight:700;opacity:.9">POINT: hold and your kite flies toward your finger. CLASSIC: hold to pull, and the kite darts wherever its nose points, just like a real patang.</div>');
     sg('Graphics', 'quality', [['auto', 'AUTO'], ['low', 'LOW'], ['high', 'HIGH']]);
     { const r = document.createElement('div'); r.className = 'setRow'; r.innerHTML = '<span>Online server</span>'; const inp = document.createElement('input'); inp.className = 'srvIn'; inp.placeholder = serverURL() || 'wss://your-server/ws'; inp.value = save.opt.server; inp.addEventListener('change', () => { save.opt.server = inp.value.trim(); persist(); }); inp.addEventListener('keydown', e => e.stopPropagation()); r.appendChild(inp); B.appendChild(r); }
     const nb = document.createElement('button'); nb.className = 'btn ghost'; nb.textContent = 'CHANGE NAME & LOOK'; onTap(nb, () => { hide('panel'); openName(); }); B.appendChild(nb);
+    const pb = document.createElement('button'); pb.className = 'btn ghost'; pb.textContent = 'PRIVACY POLICY'; onTap(pb, () => { location.href = 'privacy.html'; }); B.appendChild(pb);
     const tb = document.createElement('button'); tb.className = 'btn ghost'; tb.textContent = 'REPLAY TUTORIAL'; onTap(tb, () => { save.tut = 0; persist(); toast('TUTORIAL', 'Your next match will be the practice duel.'); }); B.appendChild(tb);
     B.insertAdjacentHTML('beforeend', `<div class="sec" style="letter-spacing:0;font-weight:700;opacity:.85;text-align:center">BO KATA · all art and music made in code.<br>Fly safely in real life: never use glass-coated thread, it hurts birds and people.<br>Matches ${save.stats.matches} · Cuts ${save.stats.cuts} · Loots ${save.stats.loots}</div>`);
   }
@@ -1858,7 +1862,7 @@ function openName(){
 /* ---------------- match flow ---------------- */
 function startMatch(forceOffline){
   const tut = save.tut === 0;
-  if(save.opt.online && !tut && !forceOffline){ hide('home'); hide('results'); STATE = 'mm'; netConnect(mode); return; }
+  if(save.opt.online && serverURL() && !tut && !forceOffline){ hide('home'); hide('results'); STATE = 'mm'; netConnect(mode); return; }
   hide('home'); hide('results'); hide('panel'); $('pops').innerHTML = ''; $('feed').innerHTML = '';
   newMatch(tut ? 'duel' : mode);
   if(tut){ M.tut = true; M.tutStep = 0; M.tutT = 0; const o = M.flyers.find(F => !F.me); o.bot.skill = .12; o.name = 'Guddu'; M.me.sharp *= 1.8; o.str = .6; o.kitesLeft = 1; }
@@ -2020,7 +2024,20 @@ function wire(){
   addEventListener('orientationchange', () => setTimeout(resize, 250));
   document.addEventListener('visibilitychange', () => { AU.setHidden(document.hidden); if(document.hidden){ writeSave(); if(STATE === 'play') pauseMatch(); } else AU.resume(); });
   addEventListener('pagehide', writeSave);
-  // Android hardware back (Capacitor / Cordova)
+  // native app hooks (Capacitor App plugin): hardware back button and background/foreground
+  try{
+    const App = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+    if(App){
+      App.addListener('backButton', () => {
+        if(STATE === 'play') pauseMatch(); else if(STATE === 'pause') resumeMatch();
+        else if(STATE === 'mm'){ netClose(); mmHide(); goHome(); }
+        else if(!isHidden('panel')) closePanel(); else if(STATE === 'results') goHome();
+        else if(STATE === 'home') App.minimizeApp ? App.minimizeApp() : App.exitApp();
+      });
+      App.addListener('appStateChange', s => { AU.setHidden(!s.isActive); if(!s.isActive){ writeSave(); if(STATE === 'play') pauseMatch(); } else AU.resume(); });
+    }
+  }catch(e){}
+  // Android hardware back (Cordova-style fallback)
   document.addEventListener('backbutton', e => { e.preventDefault(); if(STATE === 'play') pauseMatch(); else if(STATE === 'pause') resumeMatch(); else if(!isHidden('panel')) closePanel(); else if(STATE === 'results') goHome(); });
 }
 

@@ -329,8 +329,9 @@ function drawFlyer(g, F, t){
   // name tag
   if(M.mode !== 'menu'){
     g.font = `800 ${F.me ? 17 : 14}px "Trebuchet MS", system-ui`; g.textAlign = 'center';
-    const ty = y - 84; g.lineWidth = 4; g.strokeStyle = 'rgba(20,10,20,.65)'; g.strokeText(F.name, x, ty);
-    g.fillStyle = F.me ? '#ffd23a' : F.out ? 'rgba(255,255,255,.4)' : '#ffffff'; g.fillText(F.name, x, ty);
+    const nm = F.me || !F.human || save.opt.names ? F.name : 'Flyer ' + (F.id + 1);
+    const ty = y - 84; g.lineWidth = 4; g.strokeStyle = 'rgba(20,10,20,.65)'; g.strokeText(nm, x, ty);
+    g.fillStyle = F.me ? '#ffd23a' : F.out ? 'rgba(255,255,255,.4)' : '#ffffff'; g.fillText(nm, x, ty);
     // kites left
     const left = F.kitesLeft + (F.kite ? 1 : 0);
     for(let i = 0; i < 3; i++){ g.fillStyle = i < left ? (F.me ? '#ffd23a' : '#ffffff') : 'rgba(255,255,255,.2)'; g.save(); g.translate(x - 14 + i * 14, ty + 14); g.rotate(Math.PI / 4); g.fillRect(-4, -4, 8, 8); g.restore(); }

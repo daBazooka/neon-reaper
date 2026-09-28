@@ -99,6 +99,14 @@ npx cap open ios        # Product > Archive for the App Store
 
 The icons (every Android density plus the iOS 1024 px icon) and the splash screens are already installed.
 
+## Publishing
+
+Everything for the stores is in `store/`:
+- `store/PUBLISHING.md`: the step-by-step guide (server, signing, Google Play, App Store, other stores, a device checklist).
+- `store/LISTING.md`: listing text and the answers for every store form.
+- `store/graphics/`: screenshots for Google Play phone and tablet, iPhone 6.7" and 6.5", iPad 12.9", plus the 1024×500 feature graphic.
+- `www/privacy.html`: the privacy policy (hosted by the server at `/privacy.html`).
+
 ## Store checklist (things only you can do)
 
 - **Accounts.** A Google Play Console developer account and an Apple Developer Program membership.
