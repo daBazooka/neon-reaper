@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1a2a1e">
+<meta name="description" content="TIMBERFALL: every tree is a weapon. Chop, aim the fall and crush the creatures of the night with giant domino chains.">
+<title>TIMBERFALL</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Cpath d=%22M8 1l5 8H3z%22 fill=%22%232f6b3a%22/%3E%3Crect x=%227%22 y=%229%22 width=%222%22 height=%226%22 fill=%22%236b4428%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="joy" class="hidden"><i id="joyKnob"></i></div>
+
+<!-- ============ HUD ============ -->
+<div id="hud" class="hidden">
+  <div id="xpBar"><i></i></div>
+  <div id="hudTop">
+    <div class="hL">
+      <div id="hpWrap"><span class="hpIco">❤</span><div id="hpBar"><i></i></div><b id="hpTxt">100</b></div>
+      <div class="mini"><span class="lvS">LV <b id="lvTxt">1</b></span><span>🌲 <b id="hTrees">0</b></span><span>💀 <b id="hKills">0</b></span></div>
+    </div>
+    <div class="hC">
+      <div id="clockRow"><span id="clockIco">☾</span><b id="clock">0:00</b></div>
+      <div id="nightBar"><i></i><div id="nightMarks"></div><span class="sun">☀</span></div>
+    </div>
+    <div class="hR"><div class="chip goldChip">🪙 <b id="hGold">0</b></div></div>
+    <button id="pauseBtn" class="icoBtn" aria-label="Pause">❚❚</button>
+  </div>
+  <div id="bossBar" class="hidden"><b id="bossName">BOSS</b><div class="bb"><i></i></div></div>
+  <div id="tip" class="hidden"></div>
+</div>
+<div id="announce"></div>
+<div id="toasts"></div>
+
+<!-- ============ MENU ============ -->
+<div id="menu" class="screen hidden">
+  <div class="menuTop">
+    <div class="pill">🪙 <b id="mGold">0</b></div>
+    <div class="pill lvlPill"><span>LV <b id="mLevel">1</b></span><div class="lvlBar"><i id="mLvlBar"></i></div></div>
+  </div>
+  <div class="logoWrap">
+    <h1 id="logo"><span>TIMBER</span><span>FALL</span></h1>
+    <div class="tagline">Every tree is a <b>weapon</b>.</div>
+  </div>
+  <div class="menuBtns">
+    <div id="biome"><button id="bPrev" class="arrow">◀</button><div class="bMid"><b id="bName">Pine Hollow</b><span id="bNote"></span><div id="bDots"></div></div><button id="bNext" class="arrow">▶</button></div>
+    <button id="playBtn" class="btn big primary">PLAY</button>
+    <button id="dailyBtn" class="btn wide daily"><span class="dTitle">DAILY FOREST</span><span id="dailyMod" class="dSub">—</span></button>
+    <div class="row3">
+      <button id="shopBtn" class="btn">CAMP<i id="shopDot" class="dot hidden"></i></button>
+      <button id="missBtn" class="btn">MISSIONS<i id="missDot" class="dot hidden"></i></button>
+      <button id="setBtn" class="btn">SETTINGS</button>
+    </div>
+  </div>
+  <div class="menuStats">
+    <div><small>BEST NIGHT</small><b id="mBestTime">0:00</b></div>
+    <div><small>DAWNS</small><b id="mDawns">0</b></div>
+    <div><small>BEST CHAIN</small><b id="mChain">x0</b></div>
+  </div>
+</div>
+
+<!-- ============ LEVEL-UP CARDS ============ -->
+<div id="cards" class="screen hidden dim">
+  <div class="cardHead">
+    <div id="cardsTitle">LEVEL 2</div>
+    <div class="cardSub">Choose an upgrade <span class="kbd">1</span><span class="kbd">2</span><span class="kbd">3</span></div>
+  </div>
+  <div id="cardRow"></div>
+</div>
+
+<!-- ============ PAUSE ============ -->
+<div id="pause" class="screen hidden dim">
+  <h2>PAUSED</h2>
+  <div id="pauseInfo" class="hint"></div>
+  <div id="pauseBuild" class="build"></div>
+  <div class="col">
+    <button id="resumeBtn" class="btn big primary">RESUME</button>
+    <button id="pSetBtn" class="btn wide">SETTINGS</button>
+    <button id="quitBtn" class="btn wide ghost">END RUN</button>
+  </div>
+</div>
+
+<!-- ============ REVIVE ============ -->
+<div id="revive" class="screen hidden dim">
+  <h2 class="red">YOU'RE DOWN!</h2>
+  <div id="revRing"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" class="bg"/><circle id="revArc" cx="50" cy="50" r="44" class="fg"/></svg><b id="revNum">6</b></div>
+  <div class="col">
+    <button id="revYesBtn" class="btn big primary">GET BACK UP <small>(Second Wind)</small></button>
+    <button id="revNoBtn" class="btn wide ghost">NO THANKS</button>
+  </div>
+</div>
+
+<!-- ============ DAWN ============ -->
+<div id="dawn" class="screen hidden dim sunrise">
+  <div class="sunDisc"></div>
+  <h2 class="gold">DAWN BREAKS!</h2>
+  <div class="hint">You survived the whole night in <b id="dwTime">10:00</b></div>
+  <div class="bigGold">🪙 <b id="dwBonus">+250</b></div>
+  <div id="dwUnlock" class="unlockMsg"></div>
+  <div class="col">
+    <button id="dwKeepBtn" class="btn big primary">KEEP CHOPPING <small>(endless)</small></button>
+    <button id="dwCashBtn" class="btn wide">HEAD HOME</button>
+  </div>
+</div>
+
+<!-- ============ GAME OVER ============ -->
+<div id="over" class="screen hidden dim">
+  <div id="oTag" class="hidden">NEW RECORD!</div>
+  <h2 id="oTitle">THE FOREST TOOK YOU</h2>
+  <div id="oWhy" class="hint"></div>
+  <div id="oTime"><b id="oTimeN">0:00</b><span>SURVIVED</span></div>
+  <div class="oGrid">
+    <div><small>TREES</small><b id="oTrees">0</b></div>
+    <div><small>CREATURES</small><b id="oKills">0</b></div>
+    <div><small>CRUSHED</small><b id="oCrush">0</b></div>
+    <div><small>BEST CHAIN</small><b id="oChain">x0</b></div>
+    <div><small>GOLD</small><b id="oGold">0</b></div>
+  </div>
+  <div class="oLvl"><span>LV <b id="oLevel">1</b></span><div class="lvlBar"><i id="oLvlBar"></i></div></div>
+  <div id="oNext"></div>
+  <div id="oMissions"></div>
+  <div id="oTip"></div>
+  <div class="col">
+    <button id="retryBtn" class="btn big primary">PLAY AGAIN</button>
+    <button id="oMenuBtn" class="btn wide ghost">MENU</button>
+  </div>
+</div>
+
+<!-- ============ CAMP (SHOP) ============ -->
+<div id="shop" class="screen hidden dim">
+  <div class="panelHead"><h2>CAMP</h2><div class="pill">🪙 <b id="sGold">0</b></div></div>
+  <div class="tabs"><button class="tab on" data-tab="camp">UPGRADES</button><button class="tab" data-tab="axes">AXES</button><button class="tab" data-tab="outfits">FLANNELS</button></div>
+  <div id="shopList" class="list"></div>
+  <button class="btn wide ghost backBtn">BACK</button>
+</div>
+
+<!-- ============ MISSIONS ============ -->
+<div id="missions" class="screen hidden dim">
+  <div class="panelHead"><h2>MISSIONS</h2><div class="pill">DONE <b id="missDone">0</b></div></div>
+  <div id="missList" class="list"></div>
+  <div class="hint">Missions complete while you play. Finished ones are replaced by harder ones.</div>
+  <div id="missStats" class="hint"></div>
+  <button class="btn wide ghost backBtn">BACK</button>
+</div>
+
+<!-- ============ SETTINGS ============ -->
+<div id="settings" class="screen hidden dim">
+  <div class="panelHead"><h2>SETTINGS</h2></div>
+  <div class="list">
+    <label class="setRow"><span>Sound effects</span><input type="checkbox" data-opt="sfx"><i class="sw"></i></label>
+    <label class="setRow"><span>Music</span><input type="checkbox" data-opt="music"><i class="sw"></i></label>
+    <label class="setRow"><span>Screen shake</span><input type="checkbox" data-opt="shake"><i class="sw"></i></label>
+    <div class="setRow"><span>Graphics</span><div class="seg" data-opt="quality"><button data-v="auto">AUTO</button><button data-v="low">LOW</button><button data-v="high">HIGH</button></div></div>
+  </div>
+  <button id="replayTut" class="btn wide">REPLAY TUTORIAL</button>
+  <button class="btn wide ghost backBtn">BACK</button>
+</div>
+
+<div id="confirm" class="screen hidden dim">
+  <h2 id="cfMsg">Are you sure?</h2>
+  <div class="col"><button id="cfYes" class="btn wide primary">YES</button><button id="cfNo" class="btn wide ghost">NO</button></div>
+</div>
+
+<div id="boot"><div class="bootLogo">TIMBERFALL</div><div class="bootBar"><i></i></div></div>
+
+<script src="js/sdk.js"></script>
+<script src="js/core.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/game.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # neon-reaper
 
-This repo holds eight standalone HTML5 games, plus BO KATA, a mobile game project.
+This repo holds nine standalone HTML5 games, plus BO KATA, a mobile game project.
 
 | Game | Path | What it is |
 |---|---|---|
@@ -13,6 +13,7 @@ This repo holds eight standalone HTML5 games, plus BO KATA, a mobile game projec
 | **SCORCHWAY** | `scorchway/` | A top-down desert car chase where drifting sets the ground on fire and pursuers explode in chain reactions. See `scorchway/CRAZYGAMES-SUBMISSION.md`. |
 | **BO KATA** | `bokata/` | A real-time kite-fighting game on festival rooftops, packaged as a web game and as native Android and iOS apps (Capacitor). See `bokata/README.md`. |
 | **ORBITOPIA** | `orbitopia/` | A physics merge-idle game: fling stardust into orbit, merge twins into moons, planets, stars and black holes, grow life and go Supernova. See `orbitopia/CRAZYGAMES-SUBMISSION.md`. |
+| **TIMBERFALL** | `timberfall/` | A lumberjack night-survival game where every tree is a weapon: chop, aim the fall and crush creatures in domino chains until dawn. See `timberfall/CRAZYGAMES-SUBMISSION.md`. |
 
-Run either one locally with any static server, for example
-`npx http-server .`, then open `/`, `/chainfling/`, `/digfort/`, `/growblade/`, `/lumibloom/`, `/echolegion/`, `/scorchway/` or `/orbitopia/`. Each game's `dist/index.html` is a single-file build.
+Run any of them locally with any static server, for example
+`npx http-server .`, then open `/`, `/chainfling/`, `/digfort/`, `/growblade/`, `/lumibloom/`, `/echolegion/`, `/scorchway/`, `/orbitopia/` or `/timberfall/`. Each game's `dist/index.html` is a single-file build (for TIMBERFALL, rebuild it with `python3 timberfall/build.py`).
