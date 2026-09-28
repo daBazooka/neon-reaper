@@ -48,6 +48,19 @@ Relaxing and non-violent. No fighting, no chat and no text input. Suitable for a
 
 ## Assets to upload
 - **Game build:** `underneath/dist/index.html` (zip it)
+- **Covers:** `underneath/promo/cover-1920x1080.png`, `underneath/promo/cover-800x1200.png`, `underneath/promo/cover-800x800.png`
+- **Video:** `underneath/promo/trailer-1920x1080.mp4` (a vertical `underneath/promo/trailer-1080x1920.mp4` is included for social media)
+
+## Marketing assets
+The covers are staged in-game frames drawn by the game's own renderer: a sweeping scrub stroke through the grime reveals a sunny meadow full of gems and coins, a butterfly waiting to be caught, a glowing keyhole, a "STREAK x5" pop and the golden eye watching from the grime, with the logo added on top.
+
+The trailer is real gameplay captured frame by frame, with the game's own synthesized music and sound:
+1. **0–4 s:** the first strokes uncover a meadow. "EVERY PICTURE HIDES ANOTHER"
+2. **4–7 s:** coins pop, a creature is caught. "SCRUB. UNCOVER."
+3. **7–12 s:** the keyhole is found and the camera dives into the painting. "FIND THE KEYHOLE... AND DIVE INTO THE PAINTING"
+4. **12–19 s:** Coral Deep: a circle summons a whirlwind, a zigzag calls lightning, the golden eye opens. "12 HIDDEN SECRETS" · "SOMETHING IS WATCHING"
+5. **19–26 s:** dive after dive: Clockwork City, Aurora Peaks, Cosmos, The Core. "8 WORLDS... ONE INSIDE THE NEXT" · "WHAT LIES BENEATH THE CORE?"
+6. **26–30 s:** logo end card: "UNDERNEATH · Every picture hides another."
 
 ## SDK integration (for the reviewer)
 - **Order:** `SDK.init()` → `loadingStart()` → save read from the Data Module → `loadingStop()`.
