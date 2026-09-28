@@ -53,3 +53,10 @@ Each Short ends with a question for comments ("Which curse next?") and links to 
 - Click-through rate (test three thumbnails).
 - Shorts: viewed-vs-swiped-away rate and loop rewatches.
 Rule of thumb: if 30s retention is under about 70%, rewrite the hook before changing anything else.
+
+## Draft footage (bot-recorded)
+`youtube/tools/record-clip.js` drives the game in headless Chromium and records a clip with in-page captions:
+`NODE_PATH=$(npm root -g) node youtube/tools/record-clip.js 720 1280 28 x` (width, height, seconds, unused arg; needs Playwright and a Chromium install).
+`youtube/clips/draft-short-01.webm` is a 28s vertical test render.
+
+**Not ready to post.** The bot moves randomly and only reaches level 1–4, so "100 waves" would be a false promise, which our own packaging rules forbid. There is no audio, the hook caption stays up for the whole clip, and a tutorial banner overlaps it early on. Real episodes need a human (or a much better bot) playing, plus edited sound and pacing.
