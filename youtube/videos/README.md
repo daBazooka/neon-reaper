@@ -1,10 +1,11 @@
 # Videos
 
-All four are original motion graphics with synthesised sound. They make **no test claims** and contain no fake results.
+All five are original motion graphics with synthesised sound. They make **no test claims** and contain no fake results.
 
 | File | Length | Use |
 |---|---|---|
 | `receipts-trailer-short.mp4` | 28s, 1080x1920 | Channel trailer / first Short. Explains the format, the stamps and the Scoreboard, and ends with the claim-submission call to action. |
+| `5-red-flags-viral-claim.mp4` | 45s, 1080x1920 | Evergreen explainer: five signs a viral claim can't be trusted (no sample size, cherry-picked best result, no baseline, undisclosed incentive, no method shown), each with a question to ask. Ends on the channel pitch. General media-literacy advice, no test claims. |
 | `stamp-verified.mp4` | 3s | Verdict sting to cut into any episode or Short. |
 | `stamp-busted.mp4` | 3s | Same, for BUSTED. |
 | `stamp-complicated.mp4` | 3s | Same, for IT'S COMPLICATED. |
@@ -18,8 +19,8 @@ Notes:
 ## Re-rendering
 Needs Node with Playwright (and a Chromium install), plus Python with `imageio-ffmpeg` and `numpy`.
 ```
-NODE_PATH=$(npm root -g) node tools/render.js trailer <frames-dir>   # or verified | busted | complicated
-python3 tools/audio.py trailer out.wav                                 # or: stamp
+NODE_PATH=$(npm root -g) node tools/render.js trailer <frames-dir>   # or redflags | verified | busted | complicated
+python3 tools/audio.py trailer out.wav                                 # or: redflags | stamp
 ffmpeg -framerate 30 -i <frames-dir>/f%04d.jpg -i out.wav -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest out.mp4
 ```
 Edit the text and timing in `tools/motion.html`.

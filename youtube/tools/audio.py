@@ -1,7 +1,7 @@
 # usage: python3 audio.py <trailer|stamp> out.wav   (synthesised SFX, no external assets)
 import sys, numpy as np, wave
 sr=44100; name,out=sys.argv[1],sys.argv[2]
-dur=28 if name=='trailer' else 3
+dur=28 if name=='trailer' else 45 if name=='redflags' else 3
 y=np.zeros(int(sr*dur)); rng=np.random.default_rng(1)
 def add(t,s,g=1.0):
     i=int(t*sr); s=s[:len(y)-i]; y[i:i+len(s)]+=s*g
@@ -20,6 +20,11 @@ if name=='trailer':
     for t in (12.8,15.5,18.0): add(t,thud(),1.0)
     for t in (21.0,21.2,21.4): add(t,ding(),.6)
     add(26.3,thud(),.8)
+elif name=='redflags':
+    for t in (.1,4.0,11.0,18.0,25.0,32.0,39.0): add(t,whoosh(.4),.6)
+    for i in range(5):
+        add(4.0+i*7,thud(),.9); add(4.0+i*7+3.6,ding(),.5)
+    add(42,thud(),.8)
 else:
     add(.5,thud(),1.0)
 y=np.clip(y/max(1e-9,np.abs(y).max())*.9,-1,1)
