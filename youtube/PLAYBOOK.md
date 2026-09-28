@@ -42,7 +42,7 @@ Research snapshot: 2026-09-28. Sources at the bottom. Treat the "signals" as pub
 
 ## 5. What we cannot do from here
 
-I have no access to YouTube analytics, no upload permission and no video editor in this environment. This repo holds the research, the concept, and the scripts and shot lists. Someone with the channel has to record, upload and read analytics. Feed the numbers back and we iterate.
+I have no access to YouTube analytics, no upload permission and no video editor in this environment. This folder holds the research, the channel concept and the production packs. Someone with the channel has to record, upload and read analytics. Feed the numbers back and we iterate.
 
 ## Sources
 - [YouTube Algorithm 2026: Viewer Satisfaction Replaces Watch Time (OutlierKit)](https://outlierkit.com/resources/youtube-viewer-satisfaction-algorithm-2026/)

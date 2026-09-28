@@ -1,6 +1,6 @@
 # Channel concept: RECEIPTS — "We test the viral claims so you don't have to."
 
-Research snapshot: 2026-09-28. This is separate from the game series in `SERIES-BIBLE.md`. Nothing here is guaranteed to go viral. It is a plan built from what the research says audiences and the algorithm reward.
+Research snapshot: 2026-09-28. Nothing here is guaranteed to go viral. It is a plan built from what the research says audiences and the algorithm reward.
 
 ## 1. What the demand research says
 | Finding | Source |
