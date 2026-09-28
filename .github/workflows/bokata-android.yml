@@ -1,0 +1,97 @@
+# Builds the BO KATA Android app on GitHub's servers (no Android Studio needed).
+#
+# Every run produces a debug APK you can install on your phone to test.
+# When the four signing secrets below are set, it also produces the signed
+# release files: app-release.aab (upload this to Google Play) and a signed APK.
+#
+# Repository → Settings → Secrets and variables → Actions → New repository secret:
+#   ANDROID_KEYSTORE_BASE64   your upload keystore (.jks) encoded as base64
+#   ANDROID_KEYSTORE_PASSWORD the keystore password
+#   ANDROID_KEY_ALIAS         the key alias (for example: upload)
+#   ANDROID_KEY_PASSWORD      the key password
+#
+# Run it: Actions → "BO KATA Android build" → Run workflow. Download the
+# results from the run page under "Artifacts".
+name: BO KATA Android build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'bokata/**'
+      - '.github/workflows/bokata-android.yml'
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bokata
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install and sync the web game into the Android project
+        run: |
+          npm ci --no-audit --no-fund
+          npx cap sync android
+
+      - name: Build debug APK (for testing on your phone)
+        working-directory: bokata/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Prepare release signing
+        id: sign
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        working-directory: bokata/android
+        run: |
+          if [ -z "$KS_B64" ]; then
+            echo "No signing secrets set: skipping the release build."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$KS_B64" | base64 -d > upload.jks
+          {
+            echo "storeFile=../upload.jks"
+            echo "storePassword=$KS_PASS"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASS"
+          } > keystore.properties
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build signed release (AAB for Google Play + APK)
+        if: steps.sign.outputs.signed == 'true'
+        working-directory: bokata/android
+        run: ./gradlew bundleRelease assembleRelease --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bokata-debug-apk
+          path: bokata/android/app/build/outputs/apk/debug/*.apk
+
+      - uses: actions/upload-artifact@v4
+        if: steps.sign.outputs.signed == 'true'
+        with:
+          name: bokata-release-for-google-play
+          path: |
+            bokata/android/app/build/outputs/bundle/release/*.aab
+            bokata/android/app/build/outputs/apk/release/*.apk
+
+      - name: Remove signing files
+        if: always()
+        working-directory: bokata/android
+        run: rm -f upload.jks keystore.properties
