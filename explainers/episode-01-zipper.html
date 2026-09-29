@@ -94,8 +94,8 @@ const HITS=[[0,12],[B(2),14],[B(5),14],[B(9),14],[B(12),14],[B(15),14],[B(15,2),
 /* ============================== audio ============================== */
 const A={ctx:null,on:false,start:0,idx:0,muted:false};
 const mtof=m=>440*Math.pow(2,(m-69)/12);
-function initAudio(){
-  const C=new(window.AudioContext||window.webkitAudioContext)();A.ctx=C;
+function initAudio(off){
+  const C=off||new(window.AudioContext||window.webkitAudioContext)();A.ctx=C;
   const comp=C.createDynamicsCompressor();comp.threshold.value=-16;comp.ratio.value=4;comp.attack.value=.004;comp.release.value=.2;
   const master=C.createGain();master.gain.value=.9;A.master=master;master.connect(comp);comp.connect(C.destination);
   const len=C.sampleRate*1.8,ir=C.createBuffer(2,len,C.sampleRate);
@@ -104,8 +104,8 @@ function initAudio(){
   const rvOut=C.createGain();rvOut.gain.value=.5;conv.connect(rvOut);rvOut.connect(master);
   const nb=C.createBuffer(1,C.sampleRate*2,C.sampleRate),nd=nb.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;A.noise=nb;
   A.duck=C.createGain();A.duck.connect(master);A.duck.connect(A.rv);
-  A.start=C.currentTime+.12;A.idx=0;A.on=true;
-  setInterval(schedule,25);schedule();
+  A.start=off?0:C.currentTime+.12;A.idx=0;A.on=true;
+  if(!off){setInterval(schedule,25);schedule();}
 }
 function env(g,t,a,peak,d){g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(peak,.0002),t+a);g.gain.exponentialRampToValueAtTime(.0001,t+a+d);}
 function nsrc(t,dur){const s=A.ctx.createBufferSource();s.buffer=A.noise;s.loop=true;s.start(t,Math.random()*1.5);s.stop(t+dur);return s;}
@@ -130,8 +130,8 @@ function whoosh(t,d){const C=A.ctx,s=nsrc(t,d+.2),f=C.createBiquadFilter(),g=C.c
 function impact(t){const C=A.ctx,o=osc('sine',90,t,1),g=C.createGain();o.frequency.exponentialRampToValueAtTime(30,t+.7);env(g,t,.003,.9,.8);o.connect(g);g.connect(A.master);
   const s=nsrc(t,.5),f=C.createBiquadFilter(),g2=C.createGain();f.type='lowpass';f.frequency.value=3000;env(g2,t,.002,.35,.45);s.connect(f);f.connect(g2);g2.connect(A.master);g2.connect(A.rv);}
 const sfx={
-  pop(i){if(!A.on)return;const t=A.ctx.currentTime,o=osc('sine',700+i*90,t,.09),g=A.ctx.createGain();o.frequency.exponentialRampToValueAtTime(1500+i*90,t+.05);env(g,t,.002,.09,.07);o.connect(g);g.connect(A.master);},
-  tick(up){if(!A.on)return;const C=A.ctx,t=C.currentTime,s=nsrc(t,.03),f=C.createBiquadFilter(),g=C.createGain();f.type='bandpass';f.frequency.value=up?4200:3300;f.Q.value=3;env(g,t,.001,.16,.018);s.connect(f);f.connect(g);g.connect(A.master);
+  pop(i,at){if(!A.on)return;const t=at??A.ctx.currentTime,o=osc('sine',700+i*90,t,.09),g=A.ctx.createGain();o.frequency.exponentialRampToValueAtTime(1500+i*90,t+.05);env(g,t,.002,.09,.07);o.connect(g);g.connect(A.master);},
+  tick(up,at){if(!A.on)return;const C=A.ctx,t=at??C.currentTime,s=nsrc(t,.03),f=C.createBiquadFilter(),g=C.createGain();f.type='bandpass';f.frequency.value=up?4200:3300;f.Q.value=3;env(g,t,.001,.16,.018);s.connect(f);f.connect(g);g.connect(A.master);
     const o=osc('square',up?2100:1700,t,.02),g2=C.createGain();env(g2,t,.001,.02,.012);o.connect(g2);g2.connect(A.master);}
 };
 const CH=[[57,60,64],[53,57,60],[55,60,64],[55,59,62]],ROOT=[33,29,36,31];
@@ -419,6 +419,24 @@ startEl.addEventListener('click',()=>{
 muteBtn.addEventListener('click',e=>{e.stopPropagation();if(!A.ctx)return;A.muted=!A.muted;A.master.gain.value=A.muted?0:.9;muteBtn.style.opacity=A.muted?.4:1;});
 if(!isNaN(fixed))startEl.style.display='none';
 window.__render=t=>render(t,.016,false);
+/* --- offline export helpers (used by make-video.js) --- */
+window.__frame=(t,dt)=>{A.on=false;render(t,dt,true);return cv.toDataURL('image/jpeg',.93).slice(23);};
+window.__audio=async(secs)=>{
+  const SR=44100,off=new OfflineAudioContext(2,SR*secs,SR);initAudio(off);
+  for(let i=0;i<Math.ceil(secs/STEP);i++)playStep(i*STEP,Math.floor(i/16)%NBARS,i%16);
+  for(const c of CAP)c.w.forEach((_,i)=>sfx.pop(i+1,c.t0+i*WS));
+  let prev=kf(0,SLIDER);
+  for(let t=1/60;t<secs;t+=1/60){
+    const y=kf(t,SLIDER),z=kf(t,ZOOM),cy=lerp(kf(t,CYB),y*.9+40,kf(t,FOLLOW)),v=(y-prev)*60,my=y+40;
+    const cross=Math.floor(my/40)-Math.floor((my-v/60)/40);
+    if(Math.abs((y-cy)*z)<1000&&cross)for(let k=0;k<Math.min(3,Math.abs(cross));k++)sfx.tick(v<0,t+k*.004);
+    prev=y;
+  }
+  const buf=await off.startRendering(),L=buf.getChannelData(0),R=buf.getChannelData(1),out=new Int16Array(L.length*2);
+  for(let i=0;i<L.length;i++){out[2*i]=Math.max(-1,Math.min(1,L[i]))*32767;out[2*i+1]=Math.max(-1,Math.min(1,R[i]))*32767;}
+  let bin='';const u8=new Uint8Array(out.buffer);for(let i=0;i<u8.length;i+=32768)bin+=String.fromCharCode.apply(null,u8.subarray(i,i+32768));
+  return btoa(bin);
+};
 requestAnimationFrame(frame);
 })();
 </script>
