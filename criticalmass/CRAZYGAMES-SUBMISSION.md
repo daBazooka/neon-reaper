@@ -45,6 +45,19 @@ Abstract and non-violent: glowing atoms and bubbles. No chat and no text input. 
 
 ## Assets to upload
 - **Game build:** `criticalmass/dist/index.html` (zip it)
+- **Covers:** `criticalmass/promo/cover-1920x1080.png`, `criticalmass/promo/cover-800x1200.png`, `criticalmass/promo/cover-800x800.png`
+- **Video:** `criticalmass/promo/trailer-1920x1080.mp4` (a vertical `criticalmass/promo/trailer-1080x1920.mp4` is included for social media)
+
+## Marketing assets
+The covers are real in-game frames: one tap has set off a huge rainbow chain reaction of Heavy, Splitter, Lightning, Golden and Nova atoms, frozen at its peak, with a big "×120" chain counter and the logo on a dark gradient so the title reads at thumbnail size.
+
+The trailer is real gameplay captured frame by frame, with the game's own synthesized music and sound (every pop plays the next note of the melody):
+1. **0–5 s:** one tap wipes out a cluster of atoms. "ONE TAP..." · "...TOTAL CHAIN REACTION"
+2. **5–11 s:** Heavy, Splitter, Magnet and Lightning atoms spread the chain. "10 WILD ATOMS" · "EVERY POP PLAYS A NOTE"
+3. **11–16 s:** a 140-atom chamber goes up in one reaction. "CHAIN ×10... ×50..." · "TOTAL MELTDOWN"
+4. **16–21 s:** a shielded boss core is destroyed. "BREAK THE BOSS REACTOR"
+5. **21–26 s:** the endless flood. "∞ OVERLOAD MODE" · "HOW LONG CAN YOU HOLD?"
+6. **26–30 s:** logo end card: "CRITICAL MASS · One tap. Total chain reaction."
 
 ## SDK integration (for the reviewer)
 - **Order:** `SDK.init()` → `loadingStart()` → save read from the Data Module → `loadingStop()`.
