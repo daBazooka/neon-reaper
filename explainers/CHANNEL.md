@@ -74,7 +74,8 @@ Post the same episode to all three platforms; A/B test only the first 3 seconds 
 ## Files
 | File | What |
 |---|---|
-| `episode-01-zipper.html` | the animation source (open in Chrome, or `?t=15.8` to freeze a frame) |
+| `episode-01-zipper.html`, `episode-02-breaker.html` | the animation sources (open in Chrome, or add `?t=15.8` to freeze a frame) |
+| `EPISODE-STANDARD.md` | the quality bar every new episode must beat |
 | `vo/script.json` | narration script + start times |
 | `tools/make-voice.py` | text → voice-over (Kokoro) + subtitle timing |
 | `tools/make-video.js` | renders frames + music bed |
