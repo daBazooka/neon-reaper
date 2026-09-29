@@ -1,0 +1,9 @@
+const { chromium } = require('playwright'); const fs=require('fs'), path=require('path');
+(async()=>{
+ const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium',args:['--no-sandbox']});
+ const p=await b.newPage({viewport:{width:1280,height:720}});
+ p.on('pageerror',e=>{console.log('ERR',e.message);process.exit(1)});
+ await p.goto('file://'+path.resolve(__dirname,'thumbs.html'));
+ for(const k of ['A','B','C']){const d=await p.evaluate(k=>make(k),k);const f=path.join(__dirname,'thumbs',`thumbnail-${k}.jpg`);fs.writeFileSync(f,Buffer.from(d.split(',')[1],'base64'));console.log(k,fs.statSync(f).size)}
+ await b.close();
+})();

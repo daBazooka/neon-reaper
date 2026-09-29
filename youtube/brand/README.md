@@ -37,3 +37,13 @@ A whole block of lit windows, each with a silhouette watching, seen at night. On
 > Bulletin 01 hides 4 messages. Post what you find, with timestamps.
 
 Regenerate: `NODE_PATH=$(npm root -g) node make.js` (needs Playwright + Chromium). Edit `brand.html` to change text or layout.
+
+## Thumbnails for Bulletin 01 (`thumbs/`, 1280x720 JPG, about 0.2 MB each)
+Upload all three and use YouTube's Test & Compare.
+| File | Text | Idea | Why |
+|---|---|---|---|
+| `thumbnail-A.jpg` | STILL WATCHING? | The giant "Are you still watching?" prompt, with a faint NO button, over a silhouette | Instantly relatable; readable at any size; the tiny hidden "look up" at the top edge rewards a close look |
+| `thumbnail-B.jpg` | ONE STOOD UP. | A block of watchers; one warm window with a standing figure | Strongest curiosity gap; the only warm colour draws the eye |
+| `thumbnail-C.jpg` | 04:12:33 / DON'T COUNT. | Giant watch-time counter over a faint clock | Simple, numeric, high contrast |
+Rules followed: one focal point, 1–3 huge words, high contrast, series tag at top-left (clear of the bottom-right timestamp), and every thumbnail matches something the video actually shows.
+Regenerate: `NODE_PATH=$(npm root -g) node makethumbs.js`.
