@@ -160,16 +160,17 @@ function crash(why, x, y){
 
 /* ---------------- landing ---------------- */
 function land(){
-  const b = G.b, sh = G.ship, flips = Math.round(Math.abs(b.rot) / TAU), rel = b.vy - G.surfV;
+  const b = G.b, sh = G.ship, flips = Math.round(Math.abs(b.rot) / TAU), fall = b.vy, rel = fall - Math.max(G.surfV, G.downV || 0);
   splash(G.x, G.surf, rel > 700 ? 26 : 12, rel > 700 ? 1.2 : .7);
   G.rings.push({ x:G.x, y:G.surf, r:10, R:rel > 700 ? 120 : 70, t:0 });
-  b.air = false; b.ang = angNorm(b.ang) * .5; b.av = 0; b.rot = 0;
+  b.air = false; b.ang = angNorm(b.ang) * .5; b.av = 0; b.rot = 0; b.landT = G.rt;
+  b.vy = Math.max(G.surfV, Math.min(b.vy, G.surfV + 220));   // the sea absorbs the fall
   if(b.hurt){ b.hurt = false; b.ang = 0; AU.splash(.6); return; }
   if(b.airT > G.maxAir) G.maxAir = b.airT;
   if(b.airT < .5){ AU.splash(.4); missionTick(); return; }
   if(flips){ G.bestFlip = Math.max(G.bestFlip, flips); save.stats.flips += flips; }
   const label = flips >= 3 ? 'TRIPLE FLIP!' : flips === 2 ? 'DOUBLE FLIP!' : flips === 1 ? 'FLIP!' : '';
-  if(rel < Math.max(420, b.vy * .55) * sh.land){
+  if(rel < Math.max(480, fall * .6) * sh.land){
     // PERFECT CATCH: the sea met the boat softly
     G.perfects++; G.perfRow++; save.stats.perfects++;
     G.boost = 240; G.flash = .12;
@@ -219,6 +220,8 @@ function update(rdt){
   const want = clamp((G.target - G.surf) * 16, -tmax, tmax);
   const acc = 14000 * dt; G.surfV += clamp(want - G.surfV, -acc, acc);
   G.surf += G.surfV * dt;
+  // how fast you've been pulling the sea down lately (a catch counts for a quarter second)
+  G.downV = Math.max(G.surfV, (G.downV || 0) - 1600 * dt);
   // how far the sea has travelled upward in this one motion: a real flick is a long, fast stroke
   if(G.surfV < -150){ G.stroke = (G.stroke || 0) - G.surfV * dt; G.peakV = Math.min(G.peakV || 0, G.surfV); }
   else if(G.surfV > -40){ G.stroke = Math.max(0, (G.stroke || 0) - 1200 * dt); if(!G.stroke) G.peakV = 0; }
@@ -276,7 +279,8 @@ function update(rdt){
     // sea floor rock faces
     const front = bedAt(G.x + WORLD.HALF - 4);
     if(front < b.y + WORLD.DRAFT - 12) crash('rock', G.x + WORLD.HALF, front);
-    if(b.ground && !b.air){ G.speed = Math.max(90, G.speed - 260 * dt); if(G.combo > 1 && G.rt - (G.scrapeT || 0) > .6){ G.scrapeT = G.rt; G.combo = Math.max(1, G.combo - 1); pop('SCRAPE', G.x, b.y - 50, '#ffb070', 14); AU.scrape(); } }
+    G.groundT = b.ground && !b.air ? (G.groundT || 0) + dt : 0;
+    if(G.groundT > .3){ G.speed = Math.max(90, G.speed - 260 * dt); if(G.combo > 1 && G.rt - (G.scrapeT || 0) > .6 && G.rt - (b.landT || 0) > .6){ G.scrapeT = G.rt; G.combo = Math.max(1, G.combo - 1); pop('SCRAPE', G.x, b.y - 50, '#ffb070', 14); AU.scrape(); } }
     // cave ceilings
     for(const c of G.ceil){
       if(c.x0 > G.x + WORLD.HALF || c.x1 < G.x - WORLD.HALF){ if(!c.passed && c.x1 < G.x - WORLD.HALF){ c.passed = true; if(!c.hit){ G.cavesRun++; save.stats.caves++; missionAdd('caves', 1); if(c.close){ pop('CLOSE SHAVE!', G.x, b.y - 60, '#7dd8ff', 18); addCombo(1); } } } continue; }

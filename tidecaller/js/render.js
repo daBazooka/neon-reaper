@@ -240,10 +240,10 @@ function render(){
   cx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if(G.biome !== curBiome){ prevBiome = curBiome; curBiome = G.biome; }
   const sh = G.shake;
-  V.camX = G.x - (W / V.s) * (W < H ? .24 : .3);
+  V.camX = G.x - (W / V.s) * (V.camFrac || (W < H ? .24 : .3));
   // the camera rises with big jumps so the boat never leaves the screen
   const halfH = H / 2 / V.s, want = Math.min(330, G.b.y - 150 + halfH);
-  V.cy = V.cy === undefined ? want : lerp(V.cy, want, Math.min(1, (G.rt - (V.lt || G.rt)) * (want < V.cy ? 7 : 3))); V.lt = G.rt;
+  V.cy = V.lockCy !== undefined ? V.lockCy : V.cy === undefined ? want : lerp(V.cy, want, Math.min(1, (G.rt - (V.lt || G.rt)) * (want < V.cy ? 7 : 3))); V.lt = G.rt;
   V.oy = H / 2 - V.cy * V.s;
   drawSky();
   cx.save(); cx.translate(rnd(-sh, sh), rnd(-sh, sh));
