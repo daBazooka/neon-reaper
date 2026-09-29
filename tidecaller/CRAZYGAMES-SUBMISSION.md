@@ -46,6 +46,19 @@ Cartoon and non-violent: a little boat, the sea and a friendly-looking Kraken. N
 
 ## Assets to upload
 - **Game build:** `tidecaller/dist/index.html` (zip it)
+- **Covers:** `tidecaller/promo/cover-1920x1080.png`, `tidecaller/promo/cover-800x1200.png`, `tidecaller/promo/cover-800x800.png`
+- **Video:** `tidecaller/promo/trailer-1920x1080.mp4` (a vertical `tidecaller/promo/trailer-1080x1920.mp4` is included for social media)
+
+## Marketing assets
+The covers are drawn by the game's own renderer: at sunset over the Coral Reef, the little red boat flies nose-up out of a plume of spray, over a floating mine and past a Kraken tentacle, toward a trail of coins and a gem. The big TIDECALLER logo and "You don't steer the boat. You ARE the ocean." sit on clear sky so they read at thumbnail size.
+
+The trailer is real gameplay captured frame by frame, with the game's own synthesized music and sound:
+1. **0–5 s:** the boat sails on its own. "YOU DON'T STEER THE BOAT..." · "...YOU ARE THE OCEAN"
+2. **5–9 s:** the tide rises over a reef and drops under a sea cave. "RAISE IT OVER REEFS ↑" · "DROP IT UNDER CAVES ↓"
+3. **9–14 s:** a flick launches the boat over a mine, and the sea catches it. "FLICK IT INTO THE SKY!" · "CATCH IT SOFTLY: PERFECT CATCH!"
+4. **14–20 s:** a storm, and the Kraken's arms rise. "THE KRAKEN RISES!" · "FLY OVER ITS ARMS"
+5. **20–26 s:** Frozen North, Moonlit Deep and Volcano Isles. "6 WILD SEAS" · "7 SHIPS · MISSIONS · SECRETS IN BOTTLES" · "HOW FAR CAN YOU SAIL?"
+6. **26–30 s:** logo end card: "TIDECALLER · You don't steer the boat. You ARE the ocean."
 
 ## SDK integration (for the reviewer)
 - **Order:** `SDK.init()` → `loadingStart()` → save read from the Data Module → `loadingStop()`.
