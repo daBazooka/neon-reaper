@@ -26,6 +26,14 @@ def ambient():
     dr=ma(dr,40)*(.6+.4*np.sin(2*np.pi*.07*t))
     shim=(np.sin(2*np.pi*440*t)+np.sin(2*np.pi*442.2*t)+np.sin(2*np.pi*659.3*t)*.5)*(.5+.5*np.sin(2*np.pi*.05*t+2))
     y=brown*.05*(.4+L)+hiss*(.010+.016*L)*wow+hum*(.5+.5*L)+dr*.12*L**1.4+shim*.006*L**2
+    cr=interp(ev['crowd'],t) if ev.get('crowd') else None
+    if cr is not None and cr.max()>0:
+        mur=np.zeros(N)
+        for k in range(7):
+            w=rng.standard_normal(N); bp=ma(w,int(SR/(400+k*230)))-ma(w,int(SR/(120+k*70)))
+            am=(.5+.5*np.sin(2*np.pi*(2.6+k*.63)*t+k*1.9))**2*(.6+.4*np.sin(2*np.pi*(.31+k*.07)*t))
+            mur+=bp*am
+        mur/=max(1e-9,np.abs(mur).max()); y=y+mur*cr**1.3*.20
     return y
 # ---------- one-shots ----------
 def env(n,a,dec): t=np.arange(n)/SR; return np.minimum(1,t/a)*np.exp(-t/dec)
@@ -68,14 +76,23 @@ def door():
 def tapestop():
     t=T(1.6); f=700*np.exp(-t*2.6)+25; y=np.sin(2*np.pi*np.cumsum(f)/SR)*np.exp(-t*1.4)*.45
     n=rng.standard_normal(len(t)); n=ma(n,int(3+t.size*0)) *np.exp(-t*2.2)*.9; return y+n
+def swipe():
+    t=T(.18); n=rng.standard_normal(len(t)); n=ma(n,max(3,int(40-t.size*0)))*np.sin(np.pi*t/.18)**2; return n*2.2
+def ping():
+    t=T(.5); return (np.sin(2*np.pi*1760*t)+.5*np.sin(2*np.pi*2640*t))*np.exp(-t*9)*.35
+def warm():
+    d=9.0; t=T(d); y=np.zeros(len(t))
+    for f in (174.6,220,261.6,329.6,392): y+=np.sin(2*np.pi*f*t)+.5*np.sin(2*np.pi*f*2.003*t)
+    e=np.minimum(1,t/3.5)*np.minimum(1,(d-t)/2.5); return y*e*.06
 def key():
     t=T(.012); return (rng.standard_normal(len(t))*np.exp(-t*500)*.6+np.sin(2*np.pi*1300*t)*np.exp(-t*400)*.4)
 FONT={'L':['#....','#....','#....','#....','#....','#....','#####'],'O':['.###.','#...#','#...#','#...#','#...#','#...#','.###.'],
  'K':['#...#','#..#.','#.#..','##...','#.#..','#..#.','#...#'],'U':['#...#','#...#','#...#','#...#','#...#','#...#','.###.'],
- 'P':['####.','#...#','#...#','####.','#....','#....','#....'],' ':['.....']*7}
-def spec(d):  # writes "LOOK UP" into the spectrogram (5..12 kHz), very quiet — visible in Audacity/Sonic Visualiser
+ 'P':['####.','#...#','#...#','####.','#....','#....','#....'],'I':['#####','..#..','..#..','..#..','..#..','..#..','#####'],'S':['.####','#....','#....','.###.','....#','....#','####.'],'T':['#####','..#..','..#..','..#..','..#..','..#..','..#..'],
+ 'E':['#####','#....','#....','####.','#....','#....','#####'],'N':['#...#','##..#','##..#','#.#.#','#..##','#..##','#...#'],' ':['.....']*7}
+def spec(d,word='LOOK UP'):  # writes the word into the spectrogram (5..12 kHz), very quiet — visible in Audacity/Sonic Visualiser
     cols=[]
-    for ch in "LOOK UP":
+    for ch in word:
         g=FONT[ch]
         for cx in range(5): cols.append([g[r][cx]=='#' for r in range(7)])
         cols.append([False]*7)
@@ -93,6 +110,9 @@ for t,n in ev['snd']:
     elif n=='thunk': put(M,t,thunk(),.8)
     elif n=='swell': put(M,t,swell(),.55)
     elif n=='door': put(M,t,door(),.7)
+    elif n=='swipe': put(M,t,swipe(),.45)
+    elif n=='ping': put(M,t,ping(),.6)
+    elif n=='warm': put(M,t,warm(),1.0)
 for t in ev['clicks']: put(M,t,click(),.5)
 for a,b in ev['ticks']:
     tt=a; k=0
@@ -103,7 +123,7 @@ for t,ch,cps,kind in ev['typ']:
     g=.05 if kind in('rule','plain','adv') else .04
     for i in range(int(ch)):
         if rng.random()<.85: put(M,t+i/cps,key(),g)
-for a,b in ev['spec']: put(M,a,spec(min(8,b-a)),1.0)
+for a,b,*rest in ev['spec']: put(M,a,spec(min(8,b-a),rest[0] if rest else 'LOOK UP'),1.0)
 # tape stop: everything decays, then the stop sound
 stops=[t for t,n in ev['snd'] if n=='tapestop']
 if stops:

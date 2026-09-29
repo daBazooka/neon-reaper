@@ -7,5 +7,5 @@ FF=$(python3 -c "import imageio_ffmpeg;print(imageio_ffmpeg.get_ffmpeg_exe())")
 node $HERE/render.js $P $O events $WORK
 for i in 0 1 2 3; do node $HERE/render.js $P $O $FPS $WORK $i 4 & done; wait
 python3 $HERE/audio.py $WORK/events.json $WORK/a.wav
-$FF -loglevel error -y -framerate $FPS -i $WORK/f%06d.jpg -i $WORK/a.wav -c:v libx264 -pix_fmt yuv420p ${ENC:--crf 21 -preset medium} -c:a aac -b:a 160k -shortest -movflags +faststart $OUT
+$FF -loglevel error -y -framerate $FPS -i $WORK/f%06d.jpg -i $WORK/a.wav -c:v libx264 -pix_fmt yuv420p ${ENC:--crf 21 -preset medium} -c:a aac -b:a ${AB:-160k} -shortest -movflags +faststart $OUT
 echo built $OUT
