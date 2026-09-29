@@ -3,7 +3,7 @@ usage: python3 mix.py <workdir with video.mp4 & music.raw> <vo dir (line*.wav + 
 import json, subprocess, sys, glob, os, imageio_ffmpeg
 work, vo, out = sys.argv[1:4]
 ff = imageio_ffmpeg.get_ffmpeg_exe()
-timing = json.load(open(f'{vo}/timing.json')); wavs = sorted(glob.glob(f'{vo}/line*.wav'))
+timing = json.load(open(f'{vo}/timing.json')); wavs = [f'{vo}/line{i:02d}.wav' for i in range(len(timing))]
 LOOP = 18 * 4 * 60 / 110
 cmd = [ff, '-y', '-i', f'{work}/video.mp4', '-f', 's16le', '-ar', '44100', '-ac', '2', '-i', f'{work}/music.raw']
 for w in wavs: cmd += ['-i', w]
