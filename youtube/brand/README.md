@@ -33,7 +33,7 @@ A whole block of lit windows, each with a silhouette watching, seen at night. On
 
 ## Channel "About" text (suggested)
 > Recovered household safety bulletins. Please stay tuned.
-> New bulletin every Friday. Fiction. Contains low light, tape noise and slow flicker; no rapid flashing.
+> A new tape every day. Fiction. Contains low light, tape noise and slow flicker; no rapid flashing.
 > Bulletin 01 hides 4 messages. Post what you find, with timestamps.
 
 Regenerate: `NODE_PATH=$(npm root -g) node make.js` (needs Playwright + Chromium). Edit `brand.html` to change text or layout.

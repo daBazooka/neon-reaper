@@ -7,8 +7,8 @@ The Bureau of Household Attention issues home safety bulletins for a world that 
 Each tape is a recovered piece of 1990s public-information film: calm narration, simple rules, and a warm blue glow that asks only one thing of you. Behind the instructions is a story about screens, attention, and the people sitting next to us.
 
 ▶ Start here: Bulletin 01, "The Glow"
-▶ A new bulletin every Friday
-▶ Shorts between tapes: one rule, under a minute
+▶ A new tape every day: a Short daily, a full bulletin every week
+▶ Shorts: one rule, under a minute
 
 Every bulletin hides messages in the picture, the numbers and the sound. Find one? Comment it with the timestamp. Correct finds get pinned.
 
@@ -18,11 +18,11 @@ Please stay tuned.
 
 Business: [your email]
 ```
-Only keep "A new bulletin every Friday" if you can commit to it. Replace [your email] with a business address, or delete the line.
+Only keep the "every day" promise if you can sustain it. Replace [your email] with a business address, or delete the line.
 
 ## Short bio for social profiles (85 characters)
 ```
-Recovered home safety bulletins. Fiction. A new tape every Friday. Please stay tuned.
+Recovered home safety bulletins. Fiction. A new tape every day. Please stay tuned.
 ```
 
 ## Channel tagline (56 characters)

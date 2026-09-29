@@ -31,7 +31,7 @@ Chapters
 
 This tape hides messages in the picture, the numbers and the sound. Found one? Comment it with the timestamp. Correct finds get pinned.
 
-A new bulletin every Friday. Shorts between tapes.
+A new tape every day: a Short daily, a full bulletin every week.
 
 A work of fiction. This film contains low light, tape noise and slow flicker. There is no rapid flashing, no gore and no jump scares.
 
@@ -53,7 +53,7 @@ analog horror, lost tape, vhs horror, psychological horror, liminal, found foota
 - Language: English; recording date: today
 - Altered or synthetic content question: answer according to YouTube's current definition. The video is stylised procedural animation with no realistic depiction of real people or events, so it is normally "No"; read the on-screen wording in Studio before you choose.
 - Age restriction: leave as is. The content has no gore or children; if it is restricted anyway, appeal.
-- Publish: **Friday evening** in your main audience's time zone (schedule it rather than publishing instantly, so the Shorts can follow).
+- Publish: **7 pm in your main audience's time zone** (schedule it rather than publishing instantly). Use the same time every day.
 
 ### End screen (last 20 seconds; the end card runs from 3:44)
 Two elements over the two dashed boxes: left = subscribe or the "Bulletins" playlist; right = "Best for viewer" or, later, Bulletin 02.
@@ -65,10 +65,16 @@ This tape contains 4 hidden messages. Post what you find, with the timestamp. Co
 ### Reply to early comments
 Reply to the first 20 comments quickly. Never confirm or deny a guess; write "Keep looking" or "Timestamp?".
 
-## Shorts (post one per day after the long video)
-1. **`If your screen asks if you're still watching…`** — `short-1-still-watching.mp4`
-2. **`Your neighbours are watching too.`** — `short-2-neighbours.mp4`
-3. **`Say "one minute." Then do not stop.`** — `short-3-one-minute.mp4`
+## Shorts
+| # | Title | File |
+|---|---|---|
+| 1 | `If your screen asks if you're still watching…` | `short-1-still-watching.mp4` |
+| 2 | `Your neighbours are watching too.` | `short-2-neighbours.mp4` |
+| 3 | `Say "one minute." Then do not stop.` | `short-3-one-minute.mp4` |
+| 4 | `The glow is warm. Sit closer.` | `short-4-sit-closer.mp4` |
+| 5 | `Do not count the hours.` | `short-5-watch-time.mp4` |
+| 6 | `Do not look up.` | `short-6-do-not-look-up.mp4` |
+| 7 | `This bulletin ends when you stop watching.` | `short-7-next-bulletin.mp4` |
 
 Description (same for each):
 ```
@@ -79,16 +85,20 @@ Full tape on the channel. A work of fiction: low light, tape noise, slow flicker
 Pinned comment for each: `There is another way out. Watch the full tape on the channel.`
 Do not paste the long video's chapters into Shorts.
 
-## Schedule
-| Day | Post |
-|---|---|
-| Fri | Bulletin 01 (long), pinned comment, thumbnail A/B/C test |
-| Sat | Short 1 |
-| Sun | Short 2 |
-| Mon | Short 3 |
-| Tue | Community post: "Bulletin 01 hides 4 messages. Found any?" |
-| Wed–Thu | Read comments, pin correct finds, note which timestamps people mention (they show where attention is) |
-| Next Fri | Bulletin 02 |
+## Daily schedule (one upload every day at the same time, e.g. 7 pm)
+| Day | Upload | Also do |
+|---|---|---|
+| 1 | **Bulletin 01 (long)** | Pin the comment; thumbnail A/B/C test runs |
+| 2 | Short 1 (still watching) | Reply to comments |
+| 3 | Short 2 (neighbours) | Community post: "Bulletin 01 hides 4 messages. Found any?" |
+| 4 | Short 3 (one minute) | Pin the first correct find, with credit |
+| 5 | Short 4 (sit closer) | Reply to comments |
+| 6 | Short 5 (watch time) | Community post: poll "Which rule scared you most?" |
+| 7 | Short 6 (do not look up) | Review the week's numbers |
+| 8 | Short 7 (next bulletin) | Announce Bulletin 02 date |
+| 9+ | New Short every day, and **Bulletin 02 (long) on Day 15** | Keep the same time |
+
+You have 8 days of finished content. To keep posting daily after Day 8 you need new material: ask me for Bulletin 02 and 10 more Shorts before Day 6. One Short a day plus one long bulletin a week is sustainable; two long videos a week probably is not for a series this detailed.
 
 ## What to check after 48 hours
 - Retention at 0:30 and at the drop-offs near 1:10 and 2:16.
