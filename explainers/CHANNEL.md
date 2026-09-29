@@ -1,18 +1,24 @@
-# Channel: EVERYDAY ENGINEERED
+# Channel: CUTAWAY
 
-> **Everyday things, engineered simply.** One hidden mechanism. Forty seconds.
+> **Everything has an inside.** Cut open one everyday thing. Understand it in a minute.
 
-*(Name availability isn't verified. Check YouTube / TikTok / Instagram handles and trademarks before you commit.
-Backups: **Plainly Mechanical**, **Hidden Mechanics**, **The Everyday Lab**, **Quiet Engineering**.)*
+**Why the name:** a *cutaway* is the engineering drawing that slices an object open to show how it works, which is exactly what every video does. One word, easy to say, easy to remember, and it is the visual signature (every episode opens the object up).
+
+*(Availability of the name/handles isn't verified. Check YouTube, TikTok and Instagram plus trademarks before committing. If `@cutaway` is taken, try `@cutawayhq`, `@watchcutaway` or `@cutaway.explained`. Backup names: **Inner Workings**, **Hidden Machinery**, **Open It Up**, **Under the Surface**.)*
 
 ## Identity
 | | |
 |---|---|
-| **Handle** | `@everydayengineered` (same on YouTube, TikTok, Instagram) |
-| **Bio (150 chars)** | `Everyday things, engineered simply. One hidden mechanism, explained in 40 seconds. New one daily.` |
-| **Voice of the brand** | Calm, precise, curious. Like a great engineer explaining it to a friend. No hype, no shouting, no "guys". |
-| **Logo** | Amber rounded square with three offset bars (interlocking teeth). Avatar = the logo on charcoal (`assets/avatar.png`). |
-| **Series name** | `Episode NN · The {Thing}` (top-left HUD on every video) |
+| **Name** | **CUTAWAY** |
+| **Tagline** | Everything has an inside. |
+| **Handle** | `@cutaway` (or a variant above), same on all platforms |
+| **Bio (150 chars)** | `We cut open everyday things to show how they really work. One hidden mechanism per video. New one daily.` |
+| **Voice of the brand** | Calm, precise, curious. Like a great engineer explaining it to a friend. No hype, no shouting. |
+| **Logo** | A steel dial with one quarter cut away, exposing an amber gear. The cut = the channel's promise. |
+| **Series format** | `Episode NN · The {Thing}` in the video HUD |
+| **Assets** | `brand/avatar.png` (800×800 profile pic), `brand/banner.png` (2560×1440 YouTube banner, text inside the 1546×423 safe area), `brand/logo-lockup.png` (transparent, mark + wordmark + tagline). Rebuild with `tools/make-brand.js`. |
+
+*Note: EP 01 and EP 02 were rendered under the working name "Everyday Engineered". Re-render them with the CUTAWAY HUD before publishing (change the HUD text/logo in the two HTML files, then re-run the video tools).*
 
 ## Look (brand kit)
 | Token | Hex | Use |
