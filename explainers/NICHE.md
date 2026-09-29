@@ -1,6 +1,8 @@
-# NOTHING'S MAGIC — the niche playbook
+# EVERYDAY ENGINEERED — the niche playbook
 
-**Tagline:** *Everything you touch, decoded in 40 seconds.*
+> Branding, look, voice and upload settings live in [`CHANNEL.md`](CHANNEL.md). The section below on visuals is superseded by it: the channel uses a calm, professional charcoal + amber look with a voice-over (the first neon version is kept as `episode-01-zipper-neon-v1.*`).
+
+**Tagline:** *Everyday things, engineered simply. One hidden mechanism, forty seconds.*
 
 **Niche:** short-form (Shorts / Reels / TikTok, 9:16) explainers of everyday objects and life skills.
 How a zipper works, why a straw sucks, why toast always lands butter-side down, how to fold a fitted sheet.
