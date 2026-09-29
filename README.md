@@ -15,6 +15,7 @@ This repo holds ten standalone HTML5 games, plus BO KATA, a mobile game project.
 | **ORBITOPIA** | `orbitopia/` | A physics merge-idle game: fling stardust into orbit, merge twins into moons, planets, stars and black holes, grow life and go Supernova. See `orbitopia/CRAZYGAMES-SUBMISSION.md`. |
 | **TIMBERFALL** | `timberfall/` | A lumberjack night-survival game where every tree is a weapon: chop, aim the fall and crush creatures in domino chains until dawn. See `timberfall/CRAZYGAMES-SUBMISSION.md`. |
 | **UNDERNEATH** | `underneath/` | A satisfying scrub-and-discover game: clean the grime off a painting, find treasure, creatures and 12 hidden secrets, then dive into the painting beneath the painting. See `underneath/CRAZYGAMES-SUBMISSION.md`. |
+| **CRITICAL MASS** | `criticalmass/` | A one-tap chain reaction game: set off one blast, watch every popped atom blast the next, and wipe the whole screen. 10 atom types, boss reactors, upgrades, an endless OVERLOAD mode and a Daily Reactor. See `criticalmass/CRAZYGAMES-SUBMISSION.md`. |
 
 Run any of them locally with any static server, for example
-`npx http-server .`, then open `/`, `/chainfling/`, `/digfort/`, `/growblade/`, `/lumibloom/`, `/echolegion/`, `/scorchway/`, `/orbitopia/`, `/timberfall/` or `/underneath/`. Each game's `dist/index.html` is a single-file build (for TIMBERFALL and UNDERNEATH, rebuild it with that folder's `build.py`).
+`npx http-server .`, then open `/`, `/chainfling/`, `/digfort/`, `/growblade/`, `/lumibloom/`, `/echolegion/`, `/scorchway/`, `/orbitopia/`, `/timberfall/`, `/underneath/` or `/criticalmass/`. Each game's `dist/index.html` is a single-file build (for TIMBERFALL, UNDERNEATH and CRITICAL MASS, rebuild it with that folder's `build.py`).

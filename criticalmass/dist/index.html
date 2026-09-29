@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d24">
+<meta name="description" content="CRITICAL MASS: one tap, total chain reaction. Set off a blast, watch the atoms pop each other and wipe the whole screen.">
+<title>CRITICAL MASS</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%227%22 fill=%22%230b0d24%22/%3E%3Ccircle cx=%228%22 cy=%228%22 r=%223%22 fill=%22%233ff0ff%22/%3E%3Ccircle cx=%223.5%22 cy=%224%22 r=%221.5%22 fill=%22%23ff5ad9%22/%3E%3Ccircle cx=%2212.5%22 cy=%2211%22 r=%221.5%22 fill=%22%23ffd23c%22/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0b0d24; --cyan:#3ff0ff; --pink:#ff5ad9; --gold:#ffd23c; --green:#7dff5a; --txt:#f4f6ff; --dim:#a8b0d8;
+  --panel:rgba(18,16,44,.94); --line:rgba(120,140,255,.25);
+  --f:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--f);overscroll-behavior:none;touch-action:none}
+body{position:fixed;inset:0;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+canvas#cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+.hidden{display:none!important}
+button{font-family:var(--f);color:inherit;border:0;background:none;cursor:pointer}
+
+/* ---------- HUD ---------- */
+#hud{position:absolute;left:0;right:0;top:0;height:70px;padding:calc(8px + var(--sat)) 10px 0;display:flex;align-items:flex-start;gap:10px;pointer-events:none;z-index:10}
+#hL{display:flex;flex-direction:column;min-width:0;flex:0 0 auto;max-width:30%}
+#lvTxt{font:900 16px/1.1 var(--f);letter-spacing:2px;white-space:nowrap}
+#wTxt{font:700 11px/1.3 var(--f);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hC{flex:1;max-width:460px;margin:0 auto}
+#goalRow{display:flex;justify-content:space-between;align-items:center;gap:8px;font:900 13px/1 var(--f);letter-spacing:1px}
+#goalTxt{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tapDots{display:flex;gap:5px;flex:0 0 auto}
+#tapDots i{width:12px;height:12px;border-radius:50%;border:2px solid #fff;opacity:.35}
+#tapDots i.on{background:#fff;opacity:1;box-shadow:0 0 10px #fff}
+#goalBar,#meterBar{position:relative;margin-top:7px;height:10px;border-radius:5px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15)}
+#goalBar i{display:block;height:100%;width:0;border-radius:5px;background:linear-gradient(90deg,#3ff0ff,#7dff5a);box-shadow:0 0 12px rgba(63,240,255,.6);transition:width .1s}
+#goalBar .st{position:absolute;top:50%;transform:translate(-50%,-50%);font-style:normal;font-size:18px;color:rgba(255,255,255,.25);text-shadow:0 0 4px #000}
+#goalBar .st.on{color:var(--gold);text-shadow:0 0 10px var(--gold)}
+#meterBar i{display:block;height:100%;width:0;border-radius:5px;background:linear-gradient(90deg,#ffd23c,#ff2e6a)}
+#meterBar span{position:absolute;right:4px;top:14px;font:900 9px/1 var(--f);letter-spacing:2px;color:#ff8aa8}
+#hR{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+#energy{font:900 18px/1 var(--f);color:var(--gold);text-shadow:0 0 12px rgba(255,210,60,.5)}
+#energy::before{content:'⚡';margin-right:3px}
+.icoBtn{pointer-events:auto;width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);font-size:18px}
+#tip{position:absolute;left:50%;bottom:calc(20px + var(--sab));transform:translateX(-50%);width:max-content;max-width:90vw;text-align:center;padding:10px 16px;border-radius:12px;background:var(--panel);border:1px solid var(--line);font:700 14px/1.35 var(--f);z-index:12;pointer-events:none}
+#tip b{color:var(--gold)}
+
+/* ---------- logo over the live level ---------- */
+#logoOv{position:absolute;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;transition:opacity .5s,transform .5s}
+#logoOv.gone{opacity:0;transform:scale(1.15)}
+#logo{font:italic 900 clamp(46px,12vw,110px)/.88 var(--f);text-align:center;letter-spacing:.02em;color:#fff;text-shadow:0 0 30px rgba(63,240,255,.8),0 6px 0 rgba(5,3,14,.8)}
+#logo span{color:transparent;background:linear-gradient(90deg,#3ff0ff,#ff5ad9,#ffd23c);-webkit-background-clip:text;background-clip:text;text-shadow:none;filter:drop-shadow(0 0 18px rgba(255,90,217,.6)) drop-shadow(0 6px 0 rgba(5,3,14,.8))}
+.tapHint{margin-top:22px;font:900 clamp(14px,3.6vw,20px)/1.2 var(--f);letter-spacing:3px;animation:pulse 1.1s ease-in-out infinite;text-shadow:0 2px 8px #000}
+.tapHint b{color:var(--cyan)}
+
+/* ---------- result sheet ---------- */
+.sheet{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:min(620px,100%);z-index:20;padding:16px 14px calc(14px + var(--sab));border-radius:22px 22px 0 0;background:linear-gradient(rgba(24,20,60,.97),rgba(12,10,32,.98));border:1px solid var(--line);border-bottom:0;box-shadow:0 -10px 40px rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:center;gap:8px}
+.sheet.in{animation:sheetIn .35s cubic-bezier(.2,1.2,.4,1)}
+#rTitle{font:italic 900 30px/1 var(--f);letter-spacing:2px}
+#rTitle.good{color:var(--green);text-shadow:0 0 18px rgba(125,255,90,.5)}
+#rTitle.bad{color:#ff8aa8}
+#rTitle.gold{color:var(--gold)}
+#rTitle.melt{background:linear-gradient(90deg,#3ff0ff,#ff5ad9,#ffd23c);-webkit-background-clip:text;background-clip:text;color:transparent;animation:pulse .7s ease-in-out infinite}
+#rStars{display:flex;gap:10px;font-size:40px;line-height:1}
+#rStars i{font-style:normal;color:rgba(255,255,255,.15);transition:transform .2s}
+#rStars i.on{color:var(--gold);text-shadow:0 0 18px var(--gold);animation:starIn .35s cubic-bezier(.2,1.8,.4,1)}
+#rStat{font:700 14px/1.3 var(--f);color:var(--dim)}
+#rStat b{color:#fff}
+#rEnergy{font:900 26px/1 var(--f);color:var(--gold);text-shadow:0 0 14px rgba(255,210,60,.5)}
+#upRow{display:flex;gap:8px;width:100%;overflow-x:auto;padding:4px 2px 6px;touch-action:pan-x;scrollbar-width:thin}
+.up{position:relative;flex:0 0 118px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 6px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);opacity:.6;text-align:center}
+.up.can{opacity:1;border-color:var(--gold);background:rgba(255,210,60,.1);box-shadow:0 0 14px rgba(255,210,60,.25)}
+.up.max{opacity:.4}
+.up .ui{font-size:22px;line-height:1}
+.up b{font:900 12px/1.1 var(--f)}
+.up small{font:600 10px/1.2 var(--f);color:var(--dim);min-height:24px}
+.up em{font:900 12px/1 var(--f);font-style:normal;color:var(--gold)}
+.up .lv{position:absolute;top:4px;right:6px;font:900 10px/1 var(--f);font-style:normal;color:var(--cyan)}
+.up.shake{animation:shake .3s}
+.rBtns{display:flex;gap:8px;width:100%;align-items:stretch}
+.btn{position:relative;padding:13px 16px;border-radius:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);font:900 14px/1 var(--f);letter-spacing:2px}
+.btn:active{transform:translateY(2px)}
+.btn:disabled{opacity:.35;pointer-events:none}
+.btn small{font-size:10px;letter-spacing:1px;opacity:.85}
+.btn.primary{background:linear-gradient(135deg,#3ff0ff,#7d6aff);color:#0a0614;border:0;box-shadow:0 0 20px rgba(63,240,255,.4)}
+.btn.big{flex:1;font-size:20px;padding:16px}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--dim)}
+.btn.wide{width:100%}
+.btn.special{background:linear-gradient(135deg,#ff5ad9,#7d2aff);border:0}
+.btn.daily{background:linear-gradient(135deg,#ffd23c,#ff8a3a);color:#1a0e04;border:0}
+
+/* ---------- screens ---------- */
+.screen{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:calc(16px + var(--sat)) 16px calc(16px + var(--sab));overflow-y:auto;touch-action:pan-y}
+.screen.dim{background:rgba(6,5,20,.88)}
+h2{font:italic 900 28px/1 var(--f);letter-spacing:3px}
+.menuGrid{display:flex;flex-direction:column;gap:10px;width:min(340px,100%)}
+.menuGrid .big{width:100%}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hint{max-width:420px;text-align:center;font:600 12px/1.5 var(--f);color:var(--dim)}
+.hint b{color:#fff}
+#lvGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:8px;width:min(560px,100%);max-height:66vh;overflow-y:auto;padding:4px}
+.lvB{--c:#3ff0ff;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 2px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14)}
+.lvB b{font:900 18px/1 var(--f);color:var(--c)}
+.lvB span{font-size:10px;color:var(--gold);letter-spacing:-1px}
+.lvB span i{font-style:normal;color:rgba(255,255,255,.2)}
+.lvB.cur{border-color:var(--c);box-shadow:0 0 12px var(--c)}
+.lvB.boss{background:rgba(255,90,217,.12)}
+.list{display:flex;flex-direction:column;gap:8px;width:min(480px,100%);max-height:66vh;overflow-y:auto}
+.item{display:flex;align-items:center;gap:12px;padding:10px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.item.locked{opacity:.6}
+.item .ii{width:40px;height:40px;flex:0 0 40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:900 18px/1 var(--f);box-shadow:0 0 14px rgba(255,255,255,.2)}
+.item .it b{display:block;font:900 14px/1.2 var(--f)}
+.item .it span{display:block;font:600 12px/1.35 var(--f);color:var(--dim);margin-top:2px}
+.setRow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.06);font:800 14px/1 var(--f);cursor:pointer}
+.setRow input{display:none}
+.sw{width:46px;height:26px;border-radius:13px;background:rgba(255,255,255,.14);position:relative;transition:.2s;flex:0 0 46px}
+.sw::after{content:'';position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s}
+.setRow input:checked+.sw{background:#3ff0ff}
+.setRow input:checked+.sw::after{left:23px}
+.seg{display:flex;gap:4px}
+.seg button{padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.08);font:900 10px/1 var(--f);letter-spacing:1px;color:var(--dim)}
+.seg button.on{background:#3ff0ff;color:#0a0614}
+.naCard{display:flex;flex-direction:column;align-items:center;gap:8px;padding:22px 26px;border-radius:20px;background:var(--panel);border:1px solid var(--line);max-width:320px;text-align:center;animation:starIn .4s cubic-bezier(.2,1.5,.4,1)}
+.naTag{font:900 12px/1 var(--f);letter-spacing:4px;color:var(--gold)}
+#naName{font:italic 900 26px/1 var(--f)}
+#naDesc{font:600 14px/1.4 var(--f);color:var(--dim);margin-bottom:6px}
+#boot{position:absolute;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .4s}
+#boot.gone{opacity:0;pointer-events:none}
+.bootLogo{font:italic 900 32px/1 var(--f);letter-spacing:3px;color:#fff;text-shadow:0 0 20px var(--cyan)}
+.bootBar{width:160px;height:6px;background:rgba(255,255,255,.1);overflow:hidden;border-radius:3px}
+.bootBar i{display:block;height:100%;width:40%;background:var(--cyan);animation:load 1s ease-in-out infinite}
+@media (max-width:520px){#lvTxt{font-size:13px;letter-spacing:1px}#goalRow{font-size:12px}#tapDots i{width:10px;height:10px}#wTxt{display:none}#energy{font-size:15px}#rTitle{font-size:24px}#rStars{font-size:34px}.up{flex-basis:104px}}
+@keyframes load{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+@keyframes pulse{50%{opacity:.55;transform:scale(1.04)}}
+@keyframes sheetIn{from{transform:translate(-50%,100%)}}
+@keyframes starIn{from{transform:scale(0) rotate(-40deg)}}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<!-- ============ HUD ============ -->
+<div id="hud">
+  <div id="hL"><b id="lvTxt">LEVEL 1</b><span id="wTxt">The Lab</span></div>
+  <div id="hC">
+    <div id="goalRow"><span id="goalTxt">0 / 7</span><span id="tapDots"></span></div>
+    <div id="goalBar"><i></i><em class="st s1">★</em><em class="st s2">★</em><em class="st s3">★</em></div>
+    <div id="meterBar" class="hidden"><i></i><span>OVERLOAD</span></div>
+  </div>
+  <div id="hR"><div id="energy">0</div><button id="menuBtn" class="icoBtn" aria-label="Menu">☰</button></div>
+</div>
+<div id="logoOv"><h1 id="logo">CRITICAL<br><span>MASS</span></h1><div class="tapHint">TAP TO SET OFF A <b>CHAIN REACTION</b></div></div>
+<div id="tip" class="hidden"></div>
+
+<!-- ============ RESULT ============ -->
+<div id="result" class="sheet hidden">
+  <div id="rTitle">LEVEL COMPLETE</div>
+  <div id="rStars"><i>★</i><i>★</i><i>★</i></div>
+  <div id="rStat"></div>
+  <div id="rEnergy">+0</div>
+  <div id="upRow"></div>
+  <div class="rBtns">
+    <button id="rMenu" class="btn ghost">☰</button>
+    <button id="rRetry" class="btn">↻ RETRY</button>
+    <button id="rNext" class="btn primary big">NEXT ▶</button>
+  </div>
+</div>
+
+<!-- ============ NEW ATOM ============ -->
+<div id="newAtom" class="screen dim hidden">
+  <div class="naCard"><div class="naTag">NEW ATOM!</div><canvas id="naCv" width="160" height="160"></canvas><b id="naName">Heavy</b><span id="naDesc"></span><button id="naOk" class="btn primary">GOT IT</button></div>
+</div>
+
+<!-- ============ MENU ============ -->
+<div id="menu" class="screen dim hidden">
+  <h2>CRITICAL MASS</h2>
+  <div class="menuGrid">
+    <button id="mPlay" class="btn primary big">▶ CONTINUE</button>
+    <button id="mLevels" class="btn wide">LEVELS</button>
+    <button id="mEndless" class="btn wide special">∞ OVERLOAD <small id="eLock"></small></button>
+    <button id="mDaily" class="btn wide daily">☀ DAILY REACTOR <small id="dLock"></small></button>
+    <div class="row2"><button id="mAtoms" class="btn">ATOMS</button><button id="mSet" class="btn">SETTINGS</button></div>
+  </div>
+  <div id="mStats" class="hint"></div>
+  <button class="btn ghost closeBtn">CLOSE</button>
+</div>
+
+<div id="levels" class="screen dim hidden">
+  <h2>LEVELS</h2>
+  <div id="lvGrid"></div>
+  <button class="btn ghost closeBtn">BACK</button>
+</div>
+
+<div id="atoms" class="screen dim hidden">
+  <h2>ATOMS</h2>
+  <div id="atomList" class="list"></div>
+  <button class="btn ghost closeBtn">BACK</button>
+</div>
+
+<div id="settings" class="screen dim hidden">
+  <h2>SETTINGS</h2>
+  <div class="list">
+    <label class="setRow"><span>Sound effects</span><input type="checkbox" data-opt="sfx"><i class="sw"></i></label>
+    <label class="setRow"><span>Music</span><input type="checkbox" data-opt="music"><i class="sw"></i></label>
+    <div class="setRow"><span>Effects</span><div class="seg" data-opt="fx"><button data-v="low">LOW</button><button data-v="high">HIGH</button></div></div>
+  </div>
+  <button class="btn ghost closeBtn">BACK</button>
+</div>
+
+<div id="boot"><div class="bootLogo">CRITICAL MASS</div><div class="bootBar"><i></i></div></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   CrazyGames SDK v3 wrapper.
+   - Documented order: SDK.init() -> loadingStart() -> (load) -> loadingStop()
+   - gameplayStart/Stop are de-duplicated so the portal never sees two
+     starts (or two stops) in a row.
+   - Every call is wrapped: off-portal (localhost, itch, file://) the game
+     runs identically with the SDK absent.
+   - ADS_ENABLED stays false during Basic Launch: CrazyGames does not allow
+     ads in Basic Launch, so no ad API is touched at all while it's false.
+     Flip it to true once the dashboard shows Full Implementation.
+   ===================================================================== */
+const ADS_ENABLED = false;
+
+const SDK = {
+  cg: null, env: 'none', playing: false, lastAd: 0, adBusy: false,
+  onMute: null,
+
+  async init(){
+    await new Promise(res => {
+      let done = false; const fin = () => { if(!done){ done = true; res(); } };
+      try{
+        const s = document.createElement('script');
+        s.src = 'https://sdk.crazygames.com/crazygames-sdk-v3.js';
+        s.onload = fin; s.onerror = fin;
+        document.head.appendChild(s);
+      }catch(e){ fin(); }
+      setTimeout(fin, 4000);
+    });
+    try{
+      const sdk = window.CrazyGames && window.CrazyGames.SDK;
+      if(!sdk) return;
+      await Promise.race([sdk.init(), new Promise((_, rej) => setTimeout(() => rej(new Error('sdk timeout')), 5000))]);
+      this.env = sdk.environment || 'crazygames';
+      if(this.env === 'disabled') return;   // not on a CrazyGames domain
+      this.cg = sdk;
+      try{
+        this.applySettings(sdk.game.settings);
+        sdk.game.addSettingsChangeListener(s => this.applySettings(s));
+      }catch(e){}
+    }catch(e){ this.cg = null; }
+  },
+  applySettings(s){
+    if(!s) return;
+    if(this.onMute) this.onMute(!!s.muteAudio);
+  },
+  data(){ try{ return this.cg && this.cg.data ? this.cg.data : null; }catch(e){ return null; } },
+
+  loadingStart(){ try{ this.cg && this.cg.game.loadingStart(); }catch(e){} },
+  loadingStop(){ try{ this.cg && this.cg.game.loadingStop(); }catch(e){} },
+  gameplayStart(){ if(this.playing) return; this.playing = true; try{ this.cg && this.cg.game.gameplayStart(); }catch(e){} },
+  gameplayStop(){ if(!this.playing) return; this.playing = false; try{ this.cg && this.cg.game.gameplayStop(); }catch(e){} },
+  happytime(){ try{ this.cg && this.cg.game.happytime(); }catch(e){} },
+
+  canRewarded(){ return ADS_ENABLED && !!this.cg && !this.adBusy; },
+
+  /* rewarded ad: cb(true) only when the ad finished */
+  rewarded(cb){
+    if(!this.canRewarded()){ cb(false); return; }
+    this._ad('rewarded', cb);
+  },
+  /* midgame ad at natural breaks, self-limited to one per 3 minutes */
+  midgame(cb){
+    if(!ADS_ENABLED || !this.cg || this.adBusy || Date.now() - this.lastAd < 180000){ cb(); return; }
+    this._ad('midgame', () => cb());
+  },
+  _ad(type, cb){
+    this.adBusy = true; this.gameplayStop();
+    let fin = false;
+    const end = ok => { if(fin) return; fin = true; this.adBusy = false; this.lastAd = Date.now(); AU.adMute(false); cb(ok); };
+    try{
+      this.cg.ad.requestAd(type, {
+        adStarted: () => AU.adMute(true),
+        adFinished: () => end(true),
+        adError: () => end(false)
+      });
+    }catch(e){ end(false); }
+  }
+};
+
+</script>
+<script>
+'use strict';
+/* ---------------- utils ---------------- */
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[(Math.random() * a.length) | 0];
+const $ = id => document.getElementById(id);
+const SUF = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
+function fmt(n){
+  n = Math.floor(n);
+  if(n < 100000) return n.toLocaleString('en-US');
+  let i = 0; while(n >= 1000 && i < SUF.length - 1){ n /= 1000; i++; }
+  return (n >= 100 ? n.toFixed(0) : n >= 10 ? n.toFixed(1) : n.toFixed(2)) + SUF[i];
+}
+function mulberry32(s){ return function(){ s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function hashStr(s){ let h = 2166136261; for(let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function todayKey(){ const d = new Date(); return d.getUTCFullYear() + '-' + (d.getUTCMonth() + 1) + '-' + d.getUTCDate(); }
+function rgba(hex, a){ const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
+
+/* ---------------- atoms ----------------
+   r: body radius · blast: blast radius multiplier · val: energy multiplier · from: first level it can appear */
+const ATOMS = {
+  basic:  { name:'Atom',      col:'#3ff0ff', r:11, blast:1,    val:1,  from:1,  desc:'Pops and blasts everything it touches.' },
+  big:    { name:'Heavy',     col:'#ffb020', r:15, blast:1.55, val:2,  from:4,  desc:'A heavy atom with a much bigger blast.' },
+  split:  { name:'Splitter',  col:'#7dff5a', r:12, blast:.7,   val:2,  from:7,  desc:'Bursts into three shards that fly out and blast.' },
+  magnet: { name:'Magnet',    col:'#c07aff', r:12, blast:1.1,  val:2,  from:11, desc:'Pulls nearby atoms into its blast.' },
+  zap:    { name:'Lightning', col:'#fff35a', r:11, blast:.8,   val:2,  from:14, desc:'Zaps the three nearest atoms instantly.' },
+  armor:  { name:'Armored',   col:'#dfe6f0', r:13, blast:1,    val:3,  from:17, desc:'Needs two hits to crack.', hp:2 },
+  time:   { name:'Chrono',    col:'#5a8cff', r:12, blast:1,    val:2,  from:21, desc:'Slows time and makes every blast last longer.' },
+  gold:   { name:'Golden',    col:'#ffd23c', r:12, blast:1.2,  val:12, from:3,  desc:'Worth twelve times more energy.' },
+  void:   { name:'Void',      col:'#ff2e6a', r:14, blast:0,    val:0,  from:25, desc:'Swallows any blast that touches it. Only lightning breaks it.' },
+  nuke:   { name:'Nova',      col:'#ff5ad9', r:14, blast:3.1,  val:5,  from:9,  desc:'A rare atom with an enormous blast.' },
+};
+const ATOM_IDS = Object.keys(ATOMS);
+
+/* ---------------- worlds (10 levels each, then they cycle and grow) ---------------- */
+const WORLDS = [
+  { name:'The Lab',       bg:['#0b0d24', '#1c1446'], grid:'#3ff0ff', accent:'#3ff0ff' },
+  { name:'Solar Furnace', bg:['#1e0c0a', '#48160e'], grid:'#ff8a3a', accent:'#ffb020' },
+  { name:'Toxic Vats',    bg:['#07180e', '#123a1c'], grid:'#7dff5a', accent:'#7dff5a' },
+  { name:'Cryo Chamber',  bg:['#061426', '#0c2e4e'], grid:'#8ad8ff', accent:'#8ad8ff' },
+  { name:'The Void',      bg:['#14061c', '#2e0c38'], grid:'#ff5ad9', accent:'#ff5ad9' },
+];
+
+/* ---------------- upgrades ---------------- */
+const UPG = [
+  { id:'size',  icon:'◎', name:'Blast Size',   base:25,   k:1.45, max:40, eff:l => `Blasts ${Math.round(blastMul(l) * 100)}% size` },
+  { id:'time',  icon:'⏱', name:'Blast Time',   base:40,   k:1.55, max:25, eff:l => `Blasts last ${holdT(l).toFixed(2)}s` },
+  { id:'tap',   icon:'☝', name:'Tap Power',    base:60,   k:1.6,  max:20, eff:l => `Your tap blast ${Math.round(tapR(l))} wide` },
+  { id:'value', icon:'⚡', name:'Energy Value', base:90,   k:2,    max:40, eff:l => `Energy x${Math.pow(1.22, l).toFixed(2)}` },
+  { id:'crit',  icon:'✸', name:'Overcharge',   base:200,  k:1.75, max:20, eff:l => `${(l * 1.5).toFixed(1).replace('.0', '')}% of pops blast double` },
+  { id:'luck',  icon:'★', name:'Rare Atoms',   base:350,  k:1.85, max:15, eff:l => `+${l * 10}% special atoms` },
+  { id:'extra', icon:'✚', name:'Extra Tap',    base:25000, k:20,  max:2,  eff:l => `${1 + l} tap${l ? 's' : ''} per round` },
+];
+const blastMul = l => 1 + .04 * l;
+const holdT = l => .9 + .05 * l;
+const tapR = l => 70 * (1 + .09 * l);
+const upCost = (u, l) => Math.ceil(u.base * Math.pow(u.k, l));
+
+/* ---------------- levels ---------------- */
+function levelSpec(lv){
+  const R = mulberry32(hashStr('cm-level-' + lv)), world = ((lv - 1) / 10 | 0) % WORLDS.length, boss = lv % 10 === 0;
+  const count = Math.min(130, Math.round(34 + lv * 1.3 + (lv > 30 ? (lv - 30) * .4 : 0)));
+  const clusters = lv <= 3 ? 1 : lv < 8 ? 0 : Math.min(7, 2 + (lv / 8 | 0)), spread = lv <= 3 ? .45 : lv < 8 ? 0 : clamp(.3 + lv * .011, .3, .8);
+  const goalFrac = clamp(.2 + lv * .011, .2, .85);
+  const pool = ATOM_IDS.filter(k => ATOMS[k].from <= lv && k !== 'basic' && k !== 'gold' && k !== 'nuke' && k !== 'void');
+  const speed = 24 + Math.min(40, lv * .8);
+  return { lv, world, boss, count, goal:boss ? 0 : Math.ceil(count * goalFrac), pool, speed, seed:(R() * 4294967296) >>> 0, voids:lv >= 25 ? Math.min(9, 2 + (lv - 25) / 5 | 0) : 0, clusters, spread, coreHp:boss ? Math.max(5, Math.round(count * (lv <= 10 ? .12 : .16))) : 0, react:1 / (1 + .022 * (lv - 1)) };
+}
+const TIPS = [
+  'Tap where the atoms are <b>thickest</b>. One good tap is worth a hundred bad ones.',
+  'Wait a moment before tapping. Atoms drift into <b>better clusters</b>.',
+  '<b>Splitters</b> fling shards across gaps. Great for reaching lonely atoms.',
+  'Energy is kept even when you fail. <b>Every try makes you stronger.</b>',
+  '<b>Chrono</b> atoms slow time and stretch every blast.',
+  'Only <b>lightning</b> can break a Void atom.',
+  'Pop <b>every</b> atom for a TOTAL MELTDOWN and three stars.',
+];
+
+/* ---------------- save ---------------- */
+const SAVE_KEY = 'criticalmass_save_v1';
+function defSave(){
+  return {
+    v:1, energy:0, earned:0, level:1, maxLevel:1, stars:{}, up:{ size:0, time:0, tap:0, value:0, crit:0, luck:0, extra:0 },
+    seen:{ basic:1 }, best:{ chain:0, endless:0 }, stats:{ pops:0, rounds:0, melts:0, bosses:0 },
+    daily:{ key:'', done:false }, streak:{ lv:0, n:0 }, tut:0, opt:{ sfx:true, music:true, fx:'high' },
+  };
+}
+let save = defSave();
+function mergeInto(base, src){
+  for(const k in src){
+    if(!(k in base)){ base[k] = src[k]; continue; }
+    const b = base[k], s = src[k];
+    if(b && typeof b === 'object' && !Array.isArray(b) && s && typeof s === 'object' && !Array.isArray(s)) mergeInto(b, s);
+    else if(s !== undefined && s !== null && typeof s === typeof b) base[k] = s;
+  }
+  return base;
+}
+// On CrazyGames the SDK Data Module is the only store; LocalStorage is the off-portal fallback.
+function loadSave(){
+  let raw = null; const d = SDK.data();
+  try{ if(d) raw = d.getItem(SAVE_KEY); }catch(e){}
+  if(!raw && !d){ try{ raw = localStorage.getItem(SAVE_KEY); }catch(e){} }
+  if(raw){ try{ save = mergeInto(defSave(), JSON.parse(raw)); }catch(e){ save = defSave(); } }
+}
+function writeSave(){
+  const s = JSON.stringify(save), d = SDK.data();
+  if(d){ try{ d.setItem(SAVE_KEY, s); }catch(e){} return; }
+  try{ localStorage.setItem(SAVE_KEY, s); }catch(e){}
+}
+let _saveT = 0;
+function persist(){ clearTimeout(_saveT); _saveT = setTimeout(writeSave, 300); }
+
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   All audio is synthesized with Web Audio: no files.
+   Every pop plays the NEXT note of an original melody, so a chain
+   reaction literally plays a song. The beat underneath builds as the
+   chain grows.
+   ===================================================================== */
+const MELODY = [0, 2, 4, 7, 9, 7, 4, 2, 4, 7, 9, 12, 9, 7, 4, 7, 9, 12, 14, 12, 9, 7, 9, 12, 14, 16, 14, 12, 9, 12, 14, 19];
+const AU = {
+  ctx:null, master:null, sfx:null, mus:null, rev:null, noiseBuf:null,
+  portalMute:false, adMuted:false, hidden:false, last:{}, mi:0, step:0, nextT:0, timer:null, energy:0, root:60,
+
+  init(){
+    if(this.ctx) return;
+    try{ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return; this.ctx = new AC(); }catch(e){ return; }
+    const c = this.ctx;
+    const comp = c.createDynamicsCompressor(); comp.threshold.value = -18; comp.knee.value = 10; comp.ratio.value = 10; comp.attack.value = .002; comp.release.value = .2;
+    const pre = c.createGain(); pre.gain.value = .6;
+    const lim = c.createWaveShaper(), curve = new Float32Array(2048);
+    for(let i = 0; i < curve.length; i++){ const x = i / (curve.length - 1) * 2 - 1; curve[i] = Math.tanh(x * 2) * .98; }
+    lim.curve = curve;
+    this.master = c.createGain(); this.master.connect(comp); comp.connect(pre); pre.connect(lim); lim.connect(c.destination);
+    const rl = c.sampleRate * 1.8 | 0, ir = c.createBuffer(2, rl, c.sampleRate);
+    for(let ch = 0; ch < 2; ch++){ const d = ir.getChannelData(ch); for(let i = 0; i < rl; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / rl, 2.5); }
+    this.rev = c.createConvolver(); this.rev.buffer = ir; const rg = c.createGain(); rg.gain.value = .4; this.rev.connect(rg); rg.connect(this.master);
+    this.sfx = c.createGain(); this.sfx.connect(this.master);
+    this.mus = c.createGain(); this.mus.connect(this.master);
+    const len = c.sampleRate; this.noiseBuf = c.createBuffer(1, len, c.sampleRate);
+    const d = this.noiseBuf.getChannelData(0); for(let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this.apply(); this.startMusic();
+  },
+  resume(){ try{ if(this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(() => {}); }catch(e){} },
+  apply(){
+    if(!this.ctx) return;
+    const on = !this.portalMute && !this.adMuted && !this.hidden, t = this.ctx.currentTime;
+    this.master.gain.setTargetAtTime(on ? 1 : 0, t, .03);
+    this.sfx.gain.setTargetAtTime(save.opt.sfx ? .55 : 0, t, .02);
+    this.mus.gain.setTargetAtTime(save.opt.music ? .3 : 0, t, .05);
+  },
+  setPortalMute(m){ this.portalMute = m; this.apply(); },
+  adMute(m){ this.adMuted = m; this.apply(); },
+  setHidden(h){ this.hidden = h; this.apply(); },
+  gate(k, gap){ const t = this.ctx.currentTime; if(t - (this.last[k] || -1) < gap) return false; this.last[k] = t; return true; },
+  mf(m){ return 440 * Math.pow(2, (m - 69) / 12); },
+
+  tone(f, d, type, v, f2, delay, wet){
+    const c = this.ctx; if(!c) return;
+    const t = c.currentTime + (delay || 0), o = c.createOscillator(), g = c.createGain();
+    o.type = type || 'sine'; o.frequency.setValueAtTime(f, t);
+    if(f2) o.frequency.exponentialRampToValueAtTime(Math.max(20, f2), t + d);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+    o.connect(g); g.connect(this.sfx); if(wet) g.connect(this.rev); o.start(t); o.stop(t + d + .05);
+  },
+  noise(d, freq, v, type, f2, delay, q, wet){
+    const c = this.ctx; if(!c) return;
+    const t = c.currentTime + (delay || 0), s = c.createBufferSource(); s.buffer = this.noiseBuf;
+    const f = c.createBiquadFilter(); f.type = type || 'bandpass'; f.frequency.setValueAtTime(freq, t); f.Q.value = q || 1;
+    if(f2) f.frequency.exponentialRampToValueAtTime(Math.max(30, f2), t + d);
+    const g = c.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .003); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+    s.connect(f); f.connect(g); g.connect(this.sfx); if(wet) g.connect(this.rev); s.start(t, Math.random() * .5); s.stop(t + d + .05);
+  },
+
+  /* ---------- the chain is a song ---------- */
+  pop(chain, type){
+    if(!this.ctx) return;
+    this.energy = Math.min(1, this.energy + .06);
+    if(!this.gate('pop', .045)) return;
+    const n = MELODY[this.mi % MELODY.length] + 12 * Math.min(2, (this.mi / MELODY.length) | 0); this.mi++;
+    const f = this.mf(this.root + n), big = type === 'big' || type === 'nuke';
+    this.tone(f, .28, 'triangle', .1, 0, 0, 1);
+    this.tone(f * 2, .12, 'sine', .04, 0, .005);
+    this.noise(.06, big ? 600 : 2400, big ? .22 : .1, big ? 'lowpass' : 'bandpass', big ? 120 : 900, 0, 1.2);
+    if(type === 'gold') this.tone(f * 3, .3, 'sine', .05, 0, .03, 1);
+  },
+  resetSong(){ this.mi = 0; },
+  tap(){ if(!this.ctx) return; this.resetSong(); this.noise(.35, 900, .45, 'lowpass', 80, 0, 1, 1); this.tone(110, .35, 'sine', .4, 40); this.tone(this.mf(this.root - 12), .5, 'triangle', .12, 0, 0, 1); },
+  crack(){ if(!this.ctx || !this.gate('crack', .05)) return; this.noise(.08, 3200, .2, 'bandpass', 1200, 0, 3); this.tone(900, .05, 'square', .04, 500); },
+  zap(){ if(!this.ctx || !this.gate('zap', .06)) return; this.noise(.18, 5000, .2, 'highpass', 2000); this.tone(1400, .15, 'sawtooth', .05, 300); },
+  slow(){ if(!this.ctx) return; this.tone(600, .9, 'sine', .12, 150, 0, 1); },
+  nuke(){ if(!this.ctx) return; this.noise(1.2, 700, .7, 'lowpass', 40, 0, 1, 1); this.tone(70, 1, 'sine', .5, 25); },
+  swallow(){ if(!this.ctx || !this.gate('sw', .08)) return; this.tone(300, .3, 'sine', .15, 60); },
+  milestone(m){ if(!this.ctx) return; const ch = m >= 100 ? [0, 4, 7, 11, 14, 19] : m >= 50 ? [0, 4, 7, 12, 16] : [0, 7, 12]; ch.forEach((k, i) => this.tone(this.mf(this.root + 12 + k), .7, 'triangle', .08, 0, i * .04, 1)); this.noise(.5, 6000, .12, 'highpass', 9000, 0, 1, 1); },
+  coreHit(){ if(!this.ctx || !this.gate('core', .06)) return; this.tone(160, .12, 'square', .08, 90); this.noise(.1, 800, .2, 'bandpass', 300, 0, 2); },
+  coreDown(){ if(!this.ctx) return; this.nuke(); [0, 4, 7, 12, 16, 19, 24].forEach((k, i) => this.tone(this.mf(this.root + k), .8, 'triangle', .1, 0, .2 + i * .07, 1)); },
+  charge(){ if(!this.ctx) return; this.tone(this.mf(this.root + 19), .15, 'sine', .08); this.tone(this.mf(this.root + 24), .2, 'sine', .08, 0, .06); },
+  star(n){ if(!this.ctx) return; this.tone(this.mf(this.root + 12 + [0, 4, 7][n]), .5, 'triangle', .12, 0, 0, 1); this.tone(this.mf(this.root + 24 + [0, 4, 7][n]), .3, 'sine', .05); },
+  win(){ if(!this.ctx) return; [0, 4, 7, 12].forEach((k, i) => this.tone(this.mf(this.root + k + 12), .5, 'triangle', .1, 0, i * .08, 1)); },
+  lose(){ if(!this.ctx) return; [7, 4, 0].forEach((k, i) => this.tone(this.mf(this.root + k), .4, 'triangle', .08, 0, i * .12, 1)); },
+  melt(){ if(!this.ctx) return; for(let i = 0; i < 10; i++) this.tone(this.mf(this.root + MELODY[i * 3 % MELODY.length] + 12), .6, 'triangle', .08, 0, i * .06, 1); this.noise(1, 3000, .15, 'highpass', 8000, 0, 1, 1); },
+  overload(){ if(!this.ctx) return; this.noise(1.5, 400, .5, 'lowpass', 60, 0, 1, 1); this.tone(220, 1.2, 'sawtooth', .1, 55); },
+  buy(){ if(!this.ctx) return; [0, 7, 12].forEach((k, i) => this.tone(this.mf(this.root + 12 + k), .15, 'triangle', .08, 0, i * .04)); },
+  deny(){ if(!this.ctx) return; this.tone(200, .15, 'square', .06, 130); },
+  ui(){ if(!this.ctx) return; this.tone(this.mf(this.root + 19), .06, 'triangle', .06); },
+  count(){ if(!this.ctx || !this.gate('cnt', .05)) return; this.tone(this.mf(this.root + 24 + ((Math.random() * 3) | 0) * 2), .05, 'square', .025); },
+  setWorld(w){ this.root = [60, 57, 62, 64, 55][w % 5]; },
+
+  /* ---------- music: a pulse that builds with the chain ---------- */
+  startMusic(){ if(!this.ctx || this.timer) return; this.nextT = this.ctx.currentTime + .1; this.step = 0; this.timer = setInterval(() => this.sched(), 30); },
+  mt(f, t, d, type, v, cut){
+    const c = this.ctx, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .01); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+    if(cut){ const fl = c.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.setValueAtTime(cut, t); o.connect(fl); fl.connect(g); } else o.connect(g);
+    g.connect(this.mus); o.start(t); o.stop(t + d + .05);
+  },
+  kick(t, v){ const c = this.ctx, o = c.createOscillator(), g = c.createGain(); o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(42, t + .15); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + .22); o.connect(g); g.connect(this.mus); o.start(t); o.stop(t + .25); },
+  hat(t, v){ const c = this.ctx, s = c.createBufferSource(); s.buffer = this.noiseBuf; const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 8000; const g = c.createGain(); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + .04); s.connect(f); f.connect(g); g.connect(this.mus); s.start(t, Math.random() * .5); s.stop(t + .06); },
+  sched(){
+    const c = this.ctx; if(!c || c.state !== 'running'){ if(c) this.nextT = c.currentTime + .05; return; }
+    const sp = 60 / 112 / 4;
+    while(this.nextT < c.currentTime + .15){
+      const st = this.step, t = this.nextT, s16 = st % 16, bar = (st / 16 | 0) % 4, e = this.energy;
+      const roots = [0, -3, -7, -5], r = this.root - 24 + roots[bar];
+      if(s16 === 0) [0, 7, 12, 16].forEach(k => this.mt(this.mf(r + 12 + k), t, sp * 15, 'sine', .018));
+      if(s16 % 8 === 0) this.mt(this.mf(r), t, sp * 6, 'triangle', .1, 600);
+      if(e > .15 && s16 % 4 === 0) this.kick(t, .25 + e * .3);
+      if(e > .35 && s16 % 2 === 1) this.hat(t, .02 + e * .04);
+      if(e > .6 && s16 % 4 === 2) this.mt(this.mf(r + 12 + [0, 7, 12, 7][bar]), t, sp * 2, 'square', .02, 1800);
+      this.energy = Math.max(0, this.energy - .012);
+      this.nextT += sp; this.step++;
+    }
+  },
+};
+
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   CRITICAL MASS simulation.
+   Atoms drift in a chamber. You get one tap (more with upgrades). Your
+   blast pops the atoms it touches; every popped atom blasts too. One
+   good tap can wipe the whole screen.
+   ===================================================================== */
+const G = {
+  state:'title', mode:'level', spec:null, W:960, H:600,
+  atoms:[], blasts:[], shards:[], zaps:[], parts:[], pops:[], rings:[], pend:[], core:null,
+  taps:1, tapsLeft:1, chain:0, popped:0, total:0, goal:0, energyRun:0, t:0, rt:0,
+  slowT:0, shake:0, flash:0, bid:1, endT:0, milestone:0, lastPopT:0,
+  // endless
+  meter:0, spawnAcc:0, charge:0, score:0,
+};
+const tmp = [];
+
+const lvlVal = lv => Math.pow(1.075, lv - 1);
+const valMul = () => Math.pow(1.22, save.up.value);
+function popValue(type){ return ATOMS[type].val * lvlVal(G.spec ? G.spec.lv : 1) * valMul() * (G.mode === 'daily' ? 3 : 1); }
+
+/* ---------------- round setup ---------------- */
+function mkAtom(type, x, y, spd){
+  const d = ATOMS[type], a = rnd(0, TAU), s = spd * rnd(.6, 1.2);
+  return { type, x, y, vx:Math.cos(a) * s, vy:Math.sin(a) * s, r:d.r, hp:d.hp || 1, alive:true, ph:rnd(0, TAU), immune:0, pull:null };
+}
+function startLevel(lv, mode){
+  const spec = levelSpec(lv), R = mulberry32(spec.seed ^ (mode === 'daily' ? hashStr(todayKey()) : 0));
+  resetRound(); G.mode = mode || 'level'; G.spec = spec;
+  const luck = 1 + save.up.luck * .1, m = 60;
+  const pickType = () => {
+    const r = R();
+    if(r < .02 * luck && lv >= ATOMS.gold.from) return 'gold';
+    if(r < .028 * luck && lv >= ATOMS.nuke.from) return 'nuke';
+    if(spec.pool.length && r < .3 * luck) return spec.pool[(R() * spec.pool.length) | 0];
+    return 'basic';
+  };
+  // later levels group atoms into islands with empty space between them
+  const cen = spec.boss ? [{ x:G.W / 2, y:G.H / 2 }] : [];
+  for(let k = 0; k < spec.clusters; k++){ let best = null, bd = -1; for(let tries = 0; tries < 12; tries++){ const c = { x:m + 40 + R() * (G.W - m * 2 - 80), y:m + 40 + R() * (G.H - m * 2 - 80) }; const d = cen.length ? Math.min(...cen.map(o => Math.hypot(o.x - c.x, o.y - c.y))) : 1e9; if(d > bd){ bd = d; best = c; } } cen.push(best); }
+  for(let i = 0; i < spec.count; i++){
+    const t = pickType(); let x, y;
+    if(spec.boss && R() < .4){ const an = R() * TAU, rr = 78 + R() * 70; x = G.W / 2 + Math.cos(an) * rr; y = G.H / 2 + Math.sin(an) * rr; }
+    else if(cen.length && R() < spec.spread){ const c = cen[(R() * cen.length) | 0], an = R() * TAU, rr = Math.sqrt(R()) * 75; x = clamp(c.x + Math.cos(an) * rr, m * .5, G.W - m * .5); y = clamp(c.y + Math.sin(an) * rr, m * .5, G.H - m * .5); }
+    else { x = m + R() * (G.W - m * 2); y = m + R() * (G.H - m * 2); }
+    G.atoms.push(mkAtom(t, x, y, spec.speed));
+  }
+  for(let i = 0; i < spec.voids; i++) G.atoms.push(mkAtom('void', m + R() * (G.W - m * 2), m + R() * (G.H - m * 2), spec.speed * .5));
+  if(spec.boss) G.core = { x:G.W / 2, y:G.H / 2, r:58, hp:spec.coreHp, max:spec.coreHp, hitBy:new Set(), hurt:0, dead:false };
+  G.total = G.atoms.filter(a => a.type !== 'void').length;
+  // a losing streak on one level lowers its goal a little each time
+  G.mercy = G.mode === 'level' && save.streak.lv === lv ? Math.min(8, save.streak.n) : 0;
+  G.goal = Math.ceil(spec.goal * (1 - .06 * G.mercy));
+  G.taps = G.tapsLeft = 1 + save.up.extra;
+  G.state = 'aim';
+  for(const a of G.atoms) if(!save.seen[a.type]){ save.seen[a.type] = 1; G.newAtom = a.type; }
+}
+function startEndless(){
+  resetRound(); G.mode = 'endless'; G.spec = { lv:Math.max(5, save.maxLevel), world:4, boss:false, pool:ATOM_IDS.filter(k => ATOMS[k].from <= Math.max(5, save.maxLevel) && !['basic', 'gold', 'nuke', 'void'].includes(k)), speed:40, react:.72 };
+  for(let i = 0; i < 40; i++) spawnEndless();
+  G.taps = 3; G.tapsLeft = 3; G.charge = 0; G.meter = 0; G.score = 0; G.state = 'run';
+}
+function spawnEndless(){
+  const sp = G.spec, r = Math.random(), vo = Math.min(.2, Math.max(0, G.t - 20) / 500);
+  const t = r < vo ? 'void' : r < vo + .03 ? 'gold' : r < vo + .045 ? 'nuke' : r < vo + .3 && sp.pool.length ? pick(sp.pool) : 'basic';
+  const side = (Math.random() * 4) | 0, x = side === 0 ? 20 : side === 1 ? G.W - 20 : rnd(20, G.W - 20), y = side === 2 ? 20 : side === 3 ? G.H - 20 : rnd(20, G.H - 20);
+  const a = mkAtom(t, x, y, sp.speed * (t === 'void' ? .5 : 1)); a.born = .4; G.atoms.push(a);
+}
+function resetRound(){
+  Object.assign(G, { atoms:[], blasts:[], shards:[], zaps:[], parts:[], pops:[], rings:[], pend:[], core:null, chain:0, popped:0, energyRun:0, t:0, slowT:0, endT:0, milestone:0, newAtom:null, result:null, coreHits:0 });
+}
+
+/* ---------------- blasts ---------------- */
+function addBlast(x, y, R, col, src, gen){
+  const b = { id:G.bid++, x, y, r:0, R, col, t:0, grow:.2, hold:holdT(save.up.time) * (src === 'tap' ? 1.25 : 1) + (G.slowT > 0 ? .4 : 0), fade:.3, src, gen:gen || 0 };
+  G.blasts.push(b);
+  G.rings.push({ x, y, r:R * .3, R:R * 1.4, t:0, col });
+  return b;
+}
+function tap(x, y){
+  if(G.tapsLeft <= 0) return false;
+  if(G.state !== 'aim' && G.state !== 'run') return false;
+  G.tapsLeft--; G.state = 'run'; G.endT = 0;
+  addBlast(x, y, tapR(save.up.tap), '#ffffff', 'tap', 0);
+  AU.tap(); G.shake = Math.max(G.shake, 4);
+  for(let i = 0; i < 18; i++){ const a = rnd(0, TAU), s = rnd(80, 300); G.parts.push({ x, y, vx:Math.cos(a) * s, vy:Math.sin(a) * s, l:rnd(.3, .6), c:'#ffffff', s:rnd(2, 4) }); }
+  return true;
+}
+function popAtom(a, via){
+  if(!a.alive) return;
+  if(a.type === 'void' && via !== 'zap') return;
+  if(a.hp > 1){ a.hp--; a.immune = .35; a.crack = 1; AU.crack(); burst(a.x, a.y, '#ffffff', 8); return; }
+  a.alive = false;
+  const d = ATOMS[a.type];
+  if(a.type !== 'void') G.popped++; G.chain++; G.lastPopT = G.t; save.stats.pops++;
+  const endless = G.mode === 'endless', v = popValue(a.type) * (1 + Math.min(G.chain, endless ? 40 : 300) * .01) * (endless ? .12 : 1);
+  G.energyRun += v; if(endless) G.score += Math.round(10 * (1 + Math.min(G.chain, 100) * .05));
+  AU.pop(G.chain, a.type);
+  burst(a.x, a.y, d.col, a.type === 'nuke' ? 40 : 12);
+  if(a.type === 'gold'){ pop('+' + fmt(v), a.x, a.y - 16, '#ffd23c', 18); for(let i = 0; i < 16; i++) G.parts.push({ x:a.x, y:a.y, vx:rnd(-80, 80), vy:rnd(-200, -60), g:300, l:rnd(.6, 1), c:'#ffd23c', s:rnd(2, 4), k:'star' }); }
+  // milestones
+  const ms = [10, 25, 50, 100, 150, 200, 300];
+  for(const m of ms) if(G.chain === m){ G.milestone = m; milestoneFx(m); }
+  // the atom's own reaction, a heartbeat later
+  const crit = Math.random() < save.up.crit * .015;
+  if(d.blast > 0) G.pend.push({ t:.05, fn:() => { const b = addBlast(a.x, a.y, 56 * (G.spec.react || 1) * d.blast * blastMul(save.up.size) * (crit ? 2 : 1), d.col, a.type, 1); if(crit) pop('CRIT!', a.x, a.y - 20, '#ffffff', 14); } });
+  switch(a.type){
+    case 'split': for(let k = 0; k < 3; k++){ const an = rnd(0, TAU) + k * TAU / 3; G.shards.push({ x:a.x, y:a.y, vx:Math.cos(an) * 300, vy:Math.sin(an) * 300, t:0, col:d.col }); } break;
+    case 'magnet': for(const o of G.atoms){ if(!o.alive || o === a) continue; const dx = a.x - o.x, dy = a.y - o.y, dd = Math.hypot(dx, dy); if(dd < 170 && dd > 1) o.pull = { x:a.x, y:a.y, t:.55 }; } G.rings.push({ x:a.x, y:a.y, r:170, R:10, t:0, col:d.col, inward:1 }); break;
+    case 'zap': {
+      const near = G.atoms.filter(o => o.alive && o !== a).map(o => [o, Math.hypot(o.x - a.x, o.y - a.y)]).filter(p => p[1] < 280).sort((p, q) => p[1] - q[1]).slice(0, 3);
+      for(const [o] of near){ G.zaps.push({ x1:a.x, y1:a.y, x2:o.x, y2:o.y, t:0 }); G.pend.push({ t:.08, fn:() => { if(o.hp > 1) o.hp = 1; popAtom(o, 'zap'); } }); }
+      if(near.length) AU.zap();
+      break;
+    }
+    case 'time': G.slowT = 1.8; for(const b of G.blasts) b.hold += .5; AU.slow(); pop('SLOW-MO', a.x, a.y - 18, '#8ab4ff', 16); break;
+    case 'nuke': G.shake = 14; G.flash = .5; AU.nuke(); break;
+  }
+}
+function milestoneFx(m){
+  G.shake = Math.max(G.shake, 6 + Math.min(12, m / 12)); G.flash = Math.max(G.flash, .18);
+  AU.milestone(m);
+  G.bigText = { txt:m >= 100 ? 'MELTDOWN ×' + m : m >= 50 ? 'CRITICAL ×' + m : 'CHAIN ×' + m, t:0 };
+  if(m >= 50) G.slowT = Math.max(G.slowT, .6);
+}
+function burst(x, y, c, n){ const lim = save.opt.fx === 'low' ? 200 : 480; for(let i = 0; i < n && G.parts.length < lim; i++){ const a = rnd(0, TAU), s = rnd(60, 260); G.parts.push({ x, y, vx:Math.cos(a) * s, vy:Math.sin(a) * s, l:rnd(.25, .6), c, s:rnd(1.5, 3.5) }); } }
+function pop(txt, x, y, c, s){ G.pops.push({ txt, x, y, c, s:s || 16, t:0, d:.9 }); if(G.pops.length > 40) G.pops.shift(); }
+
+/* ---------------- update ---------------- */
+function update(rdt){
+  G.rt += rdt;
+  if(G.slowT > 0) G.slowT -= rdt;
+  const dt = rdt * (G.slowT > 0 ? .42 : 1);
+  G.t += dt;
+  if(G.bigText){ G.bigText.t += rdt; if(G.bigText.t > 1.3) G.bigText = null; }
+  // atoms drift and bounce
+  for(const a of G.atoms){
+    if(!a.alive) continue;
+    if(a.born > 0) a.born -= dt;
+    if(a.immune > 0) a.immune -= dt;
+    if(a.pull){ a.pull.t -= dt; const dx = a.pull.x - a.x, dy = a.pull.y - a.y, d = Math.hypot(dx, dy) || 1; a.x += dx / d * 220 * dt; a.y += dy / d * 220 * dt; if(a.pull.t <= 0) a.pull = null; }
+    a.x += a.vx * dt; a.y += a.vy * dt; a.ph += dt * 3;
+    if(a.x < a.r){ a.x = a.r; a.vx = Math.abs(a.vx); } if(a.x > G.W - a.r){ a.x = G.W - a.r; a.vx = -Math.abs(a.vx); }
+    if(a.y < a.r){ a.y = a.r; a.vy = Math.abs(a.vy); } if(a.y > G.H - a.r){ a.y = G.H - a.r; a.vy = -Math.abs(a.vy); }
+    if(G.core && !G.core.dead){ const c = G.core, dx = a.x - c.x, dy = a.y - c.y, d = Math.hypot(dx, dy); if(d < c.r + a.r && d > .1){ a.x = c.x + dx / d * (c.r + a.r); a.y = c.y + dy / d * (c.r + a.r); const dot = a.vx * dx / d + a.vy * dy / d; a.vx -= 2 * dot * dx / d; a.vy -= 2 * dot * dy / d; } }
+  }
+  // pending reactions
+  for(const p of G.pend){ p.t -= dt; if(p.t <= 0){ p.done = true; p.fn(); } }
+  G.pend = G.pend.filter(p => !p.done);
+  // blasts grow, hold, fade, and catch atoms
+  for(const b of G.blasts){
+    b.t += dt;
+    const T = b.t; b.r = T < b.grow ? b.R * Math.sin(T / b.grow * Math.PI / 2) : T < b.grow + b.hold ? b.R : b.R * Math.max(0, 1 - (T - b.grow - b.hold) / b.fade);
+    if(b.r <= 0 && T > b.grow){ b.done = true; continue; }
+    for(const a of G.atoms){
+      if(!a.alive || a.immune > 0 || a.born > 0) continue;
+      const dx = a.x - b.x, dy = a.y - b.y, rr = b.r + a.r;
+      if(dx * dx + dy * dy < rr * rr){
+        if(a.type === 'void'){ if(!b.eaten){ b.eaten = true; b.t = Math.max(b.t, b.grow + b.hold); b.fade = .12; G.rings.push({ x:a.x, y:a.y, r:a.r * 3, R:a.r, t:0, col:'#ff2e6a', inward:1 }); AU.swallow(); } continue; }
+        popAtom(a, 'blast');
+      }
+    }
+    if(G.core && !G.core.dead && !G.core.hitBy.has(b.id)){ const c = G.core, d = Math.hypot(c.x - b.x, c.y - b.y); if(d < b.r + c.r){ c.hitBy.add(b.id); G.coreHits = (G.coreHits || 0) + 1; hitCore(1, b.x, b.y); } }
+  }
+  G.blasts = G.blasts.filter(b => !b.done);
+  // shards
+  for(const s of G.shards){
+    s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt;
+    if(s.x < 0 || s.x > G.W) s.vx *= -1; if(s.y < 0 || s.y > G.H) s.vy *= -1;
+    let hit = s.t > .5;
+    if(!hit) for(const a of G.atoms){ if(a.alive && a.type !== 'void' && Math.hypot(a.x - s.x, a.y - s.y) < a.r + 6){ hit = true; break; } }
+    if(hit){ s.done = true; addBlast(s.x, s.y, 30 * (G.spec.react || 1) * blastMul(save.up.size), s.col, 'shard', 2); }
+  }
+  G.shards = G.shards.filter(s => !s.done);
+  for(const z of G.zaps) z.t += rdt; G.zaps = G.zaps.filter(z => z.t < .25);
+  for(const r of G.rings) r.t += rdt; G.rings = G.rings.filter(r => r.t < .45);
+  for(const p of G.parts){ p.x += p.vx * dt; p.y += p.vy * dt; if(p.g) p.vy += p.g * dt; p.vx *= .96; p.vy *= p.g ? 1 : .96; p.l -= dt; }
+  G.parts = G.parts.filter(p => p.l > 0);
+  for(const p of G.pops){ p.t += rdt; p.y -= 30 * rdt; } G.pops = G.pops.filter(p => p.t < p.d);
+  if(G.core && G.core.hurt > 0) G.core.hurt -= dt;
+  G.atoms = G.atoms.filter(a => a.alive);
+  G.shake *= Math.pow(.015, rdt); if(G.flash > 0) G.flash = Math.max(0, G.flash - rdt * 2);
+  // endless: atoms keep flooding in; taps recharge
+  if(G.mode === 'endless' && G.state === 'run'){
+    G.spawnAcc += dt * (1.4 + G.t / 25); while(G.spawnAcc >= 1){ G.spawnAcc--; spawnEndless(); }
+    if(G.tapsLeft < 3){ G.charge += dt / 3.2; if(G.charge >= 1){ G.charge = 0; G.tapsLeft++; AU.charge(); } }
+    const cap = 150;
+    const load = G.atoms.length + G.atoms.filter(a => a.type === 'void').length * 2; G.load = load / cap;
+    G.meter = clamp(G.meter + (load > cap * .75 ? (load / cap - .75) * dt * 1.2 : -dt * .08), 0, 1);
+    if(G.meter >= 1){ G.state = 'done'; G.endT = 0; finishEndless(); }
+    if(G.blasts.length === 0 && G.pend.length === 0 && G.shards.length === 0) G.chain = 0;
+    return;
+  }
+  // level rounds end when everything is quiet
+  if(G.state === 'run'){
+    const active = G.blasts.length || G.pend.length || G.shards.length;
+    const cleared = G.atoms.every(a => a.type === 'void') && (!G.core || G.core.dead);
+    if(!active){
+      G.endT += rdt;
+      if(cleared || (G.tapsLeft <= 0 && G.endT > .5) || (G.core && G.core.dead && G.endT > .6)){ G.state = 'done'; finishLevel(); }
+      else if(G.tapsLeft > 0 && G.endT > .25){ G.state = 'aim'; G.chain = 0; }
+    } else G.endT = 0;
+  }
+}
+function hitCore(n, x, y){
+  const c = G.core; c.hp -= n; c.hurt = .15; AU.coreHit(); burst(x + (c.x - x) * .5, y + (c.y - y) * .5, '#ff5ad9', 6);
+  if(c.hp <= 0 && !c.dead){
+    c.dead = true; G.flash = .8; G.shake = 18; G.slowT = 1; AU.coreDown();
+    G.bigText = { txt:'CORE DESTROYED!', t:0 };
+    addBlast(c.x, c.y, 260, '#ff5ad9', 'core', 1);
+    for(let i = 0; i < 80; i++){ const a = rnd(0, TAU), s = rnd(100, 500); G.parts.push({ x:c.x, y:c.y, vx:Math.cos(a) * s, vy:Math.sin(a) * s, l:rnd(.5, 1.2), c:pick(['#ff5ad9', '#ffffff', '#ffd23c']), s:rnd(2, 5) }); }
+    save.stats.bosses++;
+  }
+}
+
+/* ---------------- results ---------------- */
+function starsFor(){
+  if(G.core) return !G.core.dead ? 0 : 1 + (G.popped >= G.total * .6 ? 1 : 0) + (G.popped >= G.total ? 1 : 0);
+  if(G.popped < G.goal) return 0;
+  return 1 + (G.popped >= G.goal + (G.total - G.goal) * .5 ? 1 : 0) + (G.popped >= G.total ? 1 : 0);
+}
+function finishLevel(){
+  const st = starsFor(), lv = G.spec.lv, win = st > 0;
+  const bonus = st * 12 * lvlVal(lv) * valMul() * (G.mode === 'daily' ? 3 : 1);
+  const total = G.energyRun + bonus;
+  save.energy += total; save.earned += total; save.stats.rounds++;
+  if(G.popped >= G.total && !G.core) save.stats.melts++;
+  const newBest = G.chain > save.best.chain; save.best.chain = Math.max(save.best.chain, G.popped);
+  const prevStars = save.stars[lv] || 0;
+  if(G.mode === 'level'){
+    if(win) save.streak = { lv:0, n:0 }; else save.streak = { lv, n:save.streak.lv === lv ? save.streak.n + 1 : 1 };
+    if(win){ save.stars[lv] = Math.max(prevStars, st); if(lv === save.level){ save.level++; save.maxLevel = Math.max(save.maxLevel, save.level); } }
+  } else if(G.mode === 'daily'){ save.daily.done = true; }
+  G.result = { win, st, energy:total, runE:G.energyRun, bonus, popped:G.popped, total:G.total, goal:G.goal, chain:G.popped, melt:G.popped >= G.total && !G.core, newStar:win && st > prevStars, boss:!!G.core };
+  if(st === 3 || (G.core && G.core.dead) || (G.result.melt)) SDK.happytime();
+  persist();
+  setTimeout(() => showResult(), G.result.melt ? 900 : 650);
+}
+function finishEndless(){
+  const e = G.energyRun; save.energy += e; save.earned += e;
+  const best = G.score > save.best.endless; save.best.endless = Math.max(save.best.endless, G.score);
+  G.result = { endless:true, score:G.score, best, energy:e };
+  if(best) SDK.happytime();
+  persist(); AU.overload();
+  setTimeout(() => showResult(), 900);
+}
+
+</script>
+<script>
+'use strict';
+const cv = $('cv'), cx = cv.getContext('2d', { alpha:false });
+let W = 0, H = 0, DPR = 1;
+const V = { s:1, x:0, y:0 };
+const TOP = 70, BOT = 12;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, save.opt.fx === 'low' ? 1 : 2);
+  W = innerWidth; H = innerHeight; cv.width = W * DPR | 0; cv.height = H * DPR | 0;
+  const aw = W - 16, ah = H - TOP - BOT, s = Math.min(aw, ah) / 600;
+  const nW = aw / s, nH = ah / s;
+  if(G.atoms.length && G.W && (Math.abs(nW - G.W) > 1 || Math.abs(nH - G.H) > 1)){ const kx = nW / G.W, ky = nH / G.H; for(const a of G.atoms){ a.x *= kx; a.y *= ky; } if(G.core){ G.core.x *= kx; G.core.y *= ky; } }
+  G.W = nW; G.H = nH; V.s = s; V.x = 8; V.y = TOP;
+  bgCache = null;
+}
+addEventListener('resize', resize);
+const toWorld = (px, py) => [(px - V.x) / V.s, (py - V.y) / V.s];
+
+const glowC = new Map();
+function glowSpr(col){
+  let c = glowC.get(col); if(c) return c;
+  c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, rgba(col, .95)); gr.addColorStop(.3, rgba(col, .4)); gr.addColorStop(.65, rgba(col, .1)); gr.addColorStop(1, rgba(col, 0));
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64); glowC.set(col, c); return c;
+}
+function glow(x, y, r, col, a){ cx.globalAlpha = Math.min(1, a); cx.drawImage(glowSpr(col), x - r, y - r, r * 2, r * 2); cx.globalAlpha = 1; }
+
+let bgCache = null, bgWorld = -1;
+function drawBg(){
+  const w = G.spec ? G.spec.world : 0, Wd = WORLDS[w];
+  if(!bgCache || bgWorld !== w){
+    bgWorld = w; bgCache = document.createElement('canvas'); bgCache.width = W * DPR; bgCache.height = H * DPR;
+    const g = bgCache.getContext('2d'); g.scale(DPR, DPR);
+    const gr = g.createRadialGradient(W / 2, H * .45, 30, W / 2, H / 2, Math.max(W, H) * .8); gr.addColorStop(0, Wd.bg[1]); gr.addColorStop(1, Wd.bg[0]);
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    // chamber
+    const x0 = V.x, y0 = V.y, x1 = V.x + G.W * V.s, y1 = V.y + G.H * V.s, step = 40 * V.s;
+    g.strokeStyle = rgba(Wd.grid, .07); g.lineWidth = 1;
+    for(let x = x0; x <= x1; x += step){ g.beginPath(); g.moveTo(x, y0); g.lineTo(x, y1); g.stroke(); }
+    for(let y = y0; y <= y1; y += step){ g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke(); }
+    g.strokeStyle = rgba(Wd.grid, .35); g.lineWidth = 2; g.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    g.fillStyle = rgba(Wd.grid, .5); for(const [x, y] of [[x0, y0], [x1, y0], [x0, y1], [x1, y1]]){ g.fillRect(x - 5, y - 5, 10, 10); }
+  }
+  cx.drawImage(bgCache, 0, 0, W, H);
+}
+
+const SYM = { big:'●', split:'✦', magnet:'◉', zap:'ϟ', armor:'⬢', time:'◷', gold:'$', void:'✕', nuke:'✸' };
+function drawAtom(a){
+  const d = ATOMS[a.type], s = V.s, x = V.x + a.x * s, y = V.y + a.y * s, r = a.r * s * (1 + Math.sin(a.ph) * .06) * (a.born > 0 ? 1 - a.born / .4 : 1);
+  if(r <= 0) return;
+  if(a.type === 'void'){
+    cx.fillStyle = '#05010a'; cx.beginPath(); cx.arc(x, y, r * 1.1, 0, TAU); cx.fill();
+    cx.strokeStyle = d.col; cx.lineWidth = 2.5; cx.beginPath(); cx.arc(x, y, r * 1.1, a.ph, a.ph + TAU * .75); cx.stroke();
+    cx.strokeStyle = rgba(d.col, .4); cx.beginPath(); cx.arc(x, y, r * 1.6, -a.ph, -a.ph + TAU * .5); cx.stroke();
+    return;
+  }
+  cx.globalCompositeOperation = 'lighter'; glow(x, y, r * 3.2, d.col, a.type === 'gold' || a.type === 'nuke' ? .9 : .55); cx.globalCompositeOperation = 'source-over';
+  const k = r * 1.5; cx.drawImage(atomSpr(a.type, a.crack), x - k, y - k, k * 2, k * 2);
+}
+// atom bodies are drawn once per type into a sprite (the symbol text is the slow part)
+const atomSprC = {};
+function atomSpr(type, crack){
+  const key = type + (crack ? 'c' : '');
+  if(atomSprC[key]) return atomSprC[key];
+  const S = 96, h = S / 2, r = S / 3, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), d = ATOMS[type];
+  g.fillStyle = d.col; g.beginPath(); g.arc(h, h, r, 0, TAU); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.arc(h - r * .3, h - r * .3, r * .38, 0, TAU); g.fill();
+  if(type === 'armor'){ g.strokeStyle = crack ? '#ff5a5a' : '#7a8898'; g.lineWidth = 6; g.beginPath(); g.arc(h, h, r + 4, 0, TAU); g.stroke(); if(crack){ g.beginPath(); g.moveTo(h - r * .6, h - r * .2); g.lineTo(h, h + r * .1); g.lineTo(h + r * .5, h - r * .5); g.stroke(); } }
+  const sym = SYM[type];
+  if(sym){ g.fillStyle = 'rgba(10,6,20,.8)'; g.font = `900 ${Math.round(r * 1.2)}px system-ui,sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(sym, h, h + 2); }
+  return atomSprC[key] = c;
+}
+function drawCore(c){
+  const s = V.s, x = V.x + c.x * s, y = V.y + c.y * s, r = c.r * s, t = G.rt;
+  if(c.dead) return;
+  cx.globalCompositeOperation = 'lighter'; glow(x, y, r * 2.6, '#ff5ad9', .7 + Math.sin(t * 4) * .15); cx.globalCompositeOperation = 'source-over';
+  cx.save(); cx.translate(x, y); cx.rotate(t * .4);
+  for(let k = 0; k < 3; k++){ cx.strokeStyle = rgba(['#ff5ad9', '#3ff0ff', '#ffd23c'][k], .7); cx.lineWidth = 3; cx.beginPath(); cx.ellipse(0, 0, r * 1.25, r * .45, k * TAU / 3 + t, 0, TAU); cx.stroke(); }
+  cx.restore();
+  const g = cx.createRadialGradient(x - r * .3, y - r * .3, r * .1, x, y, r); g.addColorStop(0, c.hurt > 0 ? '#ffffff' : '#ffc8f0'); g.addColorStop(.5, '#ff5ad9'); g.addColorStop(1, '#6a1050');
+  cx.fillStyle = g; cx.beginPath(); cx.arc(x, y, r, 0, TAU); cx.fill();
+  // health ring
+  cx.strokeStyle = 'rgba(0,0,0,.5)'; cx.lineWidth = 8; cx.beginPath(); cx.arc(x, y, r + 14, 0, TAU); cx.stroke();
+  cx.strokeStyle = '#ffd23c'; cx.lineWidth = 6; cx.beginPath(); cx.arc(x, y, r + 14, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0, c.hp / c.max)); cx.stroke();
+  cx.fillStyle = '#fff'; cx.font = `900 ${Math.round(r * .5)}px system-ui,sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(Math.max(0, c.hp), x, y + 2);
+}
+
+// a blast is a soft disc with a bright rim, drawn once per colour and scaled
+const blastSprC = {};
+function blastSpr(col){
+  if(blastSprC[col]) return blastSprC[col];
+  const S = 160, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), h = S / 2;
+  const gr = g.createRadialGradient(h, h, 0, h, h, h); gr.addColorStop(0, rgba(col, .08)); gr.addColorStop(.75, rgba(col, .22)); gr.addColorStop(.97, rgba(col, .55)); gr.addColorStop(1, rgba(col, 0));
+  g.fillStyle = gr; g.fillRect(0, 0, S, S);
+  g.strokeStyle = rgba(col, .85); g.lineWidth = 3; g.beginPath(); g.arc(h, h, h - 2.5, 0, TAU); g.stroke();
+  return blastSprC[col] = c;
+}
+function render(){
+  cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const sh = G.shake, ox = rnd(-sh, sh), oy = rnd(-sh, sh);
+  drawBg();
+  cx.save(); cx.translate(ox, oy);
+  const s = V.s, X = x => V.x + x * s, Y = y => V.y + y * s;
+  // blasts: soft fill + bright rim
+  cx.globalCompositeOperation = 'lighter';
+  for(const b of G.blasts){
+    if(b.r <= 0) continue;
+    const x = X(b.x), y = Y(b.y), r = b.r * s, fade = b.t > b.grow + b.hold ? Math.max(0, b.r / b.R) : 1;
+    cx.globalAlpha = fade; cx.drawImage(blastSpr(b.col), x - r, y - r, r * 2, r * 2);
+    if(r > 60){ cx.strokeStyle = rgba(b.col, .85 * fade); cx.lineWidth = 2.5; cx.beginPath(); cx.arc(x, y, r - 1, 0, TAU); cx.stroke(); }
+  }
+  for(const r of G.rings){ const k = r.t / .45, rr = lerp(r.r, r.R, r.inward ? k : 1 - Math.pow(1 - k, 3)) * s; cx.strokeStyle = rgba(r.col, .6 * (1 - k)); cx.lineWidth = 3 * (1 - k) + 1; cx.beginPath(); cx.arc(X(r.x), Y(r.y), Math.max(1, rr), 0, TAU); cx.stroke(); }
+  cx.globalAlpha = 1; cx.globalCompositeOperation = 'source-over';
+  if(G.core) drawCore(G.core);
+  for(const a of G.atoms) drawAtom(a);
+  // shards and lightning
+  cx.globalCompositeOperation = 'lighter';
+  for(const sd of G.shards){ const x = X(sd.x), y = Y(sd.y); glow(x, y, 16, sd.col, .9); cx.strokeStyle = sd.col; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x - sd.vx * .04 * s, y - sd.vy * .04 * s); cx.stroke(); }
+  for(const z of G.zaps){ cx.strokeStyle = rgba('#fff35a', 1 - z.t / .25); cx.lineWidth = 3; cx.beginPath(); cx.moveTo(X(z.x1), Y(z.y1)); for(let k = 1; k < 6; k++){ const t = k / 6; cx.lineTo(X(lerp(z.x1, z.x2, t)) + rnd(-8, 8), Y(lerp(z.y1, z.y2, t)) + rnd(-8, 8)); } cx.lineTo(X(z.x2), Y(z.y2)); cx.stroke(); }
+  for(const p of G.parts){ cx.globalAlpha = Math.min(1, p.l * 3); cx.fillStyle = p.c; const x = X(p.x), y = Y(p.y), ps = p.s * Math.max(.7, s); if(p.k === 'star'){ cx.fillRect(x - ps / 2, y - ps * 1.5, ps, ps * 3); cx.fillRect(x - ps * 1.5, y - ps / 2, ps * 3, ps); } else cx.fillRect(x - ps / 2, y - ps / 2, ps, ps); }
+  cx.globalAlpha = 1; cx.globalCompositeOperation = 'source-over';
+  // aiming ring
+  const P = PTR;
+  if((G.state === 'aim' || (G.mode === 'endless' && G.state === 'run')) && G.tapsLeft > 0 && P.in){
+    const r = tapR(save.up.tap) * s, t = G.rt;
+    cx.strokeStyle = 'rgba(255,255,255,.55)'; cx.lineWidth = 2; cx.setLineDash([8, 7]); cx.lineDashOffset = -t * 30; cx.beginPath(); cx.arc(P.x, P.y, r, 0, TAU); cx.stroke(); cx.setLineDash([]);
+    cx.fillStyle = 'rgba(255,255,255,.06)'; cx.beginPath(); cx.arc(P.x, P.y, r, 0, TAU); cx.fill();
+  }
+  // floating text
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  for(const p of G.pops){ const k = p.t / p.d; cx.globalAlpha = k > .6 ? (1 - k) / .4 : 1; cx.font = `900 ${Math.round(p.s * Math.max(.9, s))}px system-ui,sans-serif`; cx.lineWidth = 4; cx.strokeStyle = 'rgba(5,3,14,.85)'; cx.strokeText(p.txt, X(p.x), Y(p.y)); cx.fillStyle = p.c; cx.fillText(p.txt, X(p.x), Y(p.y)); }
+  cx.globalAlpha = 1;
+  cx.restore();
+  // the live chain counter
+  if(G.chain >= 3 && (G.state === 'run' || G.state === 'done')){
+    const k = Math.min(1, G.chain / 120), sz = Math.round(Math.min(W, H) * (.07 + k * .06)), pulse = 1 + Math.max(0, .25 - (G.t - G.lastPopT)) * 1.2;
+    cx.save(); cx.translate(W / 2, V.y + Math.min(W, H) * .16); cx.scale(pulse, pulse);
+    cx.font = `italic 900 ${sz}px system-ui,sans-serif`; cx.lineWidth = Math.max(4, sz * .12); cx.strokeStyle = 'rgba(5,3,14,.85)';
+    const col = G.chain >= 100 ? '#ff5ad9' : G.chain >= 50 ? '#ffd23c' : G.chain >= 25 ? '#7dff5a' : '#3ff0ff';
+    cx.globalAlpha = .92; cx.strokeText('×' + G.chain, 0, 0); cx.fillStyle = col; cx.fillText('×' + G.chain, 0, 0); cx.restore(); cx.globalAlpha = 1;
+  }
+  if(G.bigText){
+    const k = G.bigText.t / 1.3, sc = k < .12 ? .5 + k / .12 * .6 : 1.1 - (k - .12) * .1, sz = Math.round(Math.min(W, H) * .085);
+    cx.font = `italic 900 ${sz}px system-ui,sans-serif`; const fit = Math.min(1, W * .82 / (cx.measureText(G.bigText.txt).width * 1.12));
+    cx.save(); cx.translate(W / 2, H * .5); cx.scale(sc * fit, sc * fit); cx.rotate(-.05); cx.globalAlpha = k > .75 ? (1 - k) / .25 : 1;
+    cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.lineWidth = sz * .14; cx.strokeStyle = 'rgba(5,3,14,.9)'; cx.strokeText(G.bigText.txt, 0, 0);
+    const g = cx.createLinearGradient(0, -sz / 2, 0, sz / 2); g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#ffd23c'); cx.fillStyle = g; cx.fillText(G.bigText.txt, 0, 0);
+    cx.restore(); cx.globalAlpha = 1;
+  }
+  if(G.flash > 0){ cx.fillStyle = `rgba(255,255,255,${G.flash * .5})`; cx.fillRect(0, 0, W, H); }
+  if(G.slowT > 0){ cx.fillStyle = `rgba(90,140,255,${Math.min(.12, G.slowT * .1)})`; cx.fillRect(0, 0, W, H); }
+}
+
+</script>
+<script>
+'use strict';
+const show = id => $(id).classList.remove('hidden');
+const hide = id => $(id).classList.add('hidden');
+const SCREENS = ['menu', 'levels', 'atoms', 'settings', 'newAtom'];
+function onTap(id, fn){ const el = typeof id === 'string' ? $(id) : id; el.addEventListener('click', e => { e.stopPropagation(); AU.init(); AU.resume(); AU.ui(); fn(e); }); }
+let tipHtml = null;
+function tip(html){ if(html === tipHtml) return; tipHtml = html; const t = $('tip'); if(!html){ t.classList.add('hidden'); return; } t.innerHTML = html; t.classList.remove('hidden'); }
+
+/* ---------------- HUD ---------------- */
+const hudC = {};
+function setH(k, v, fn){ if(hudC[k] === v) return; hudC[k] = v; fn(v); }
+function updateHUD(){
+  if(!G.spec && G.mode !== 'endless') return;
+  const endless = G.mode === 'endless', sp = G.spec;
+  setH('lv', G.mode + (sp ? sp.lv : 0), () => { $('lvTxt').textContent = endless ? 'OVERLOAD' : G.mode === 'daily' ? 'DAILY REACTOR' : (sp.boss ? 'BOSS ' : 'LEVEL ') + sp.lv; $('wTxt').textContent = endless ? 'Survive the flood' : WORLDS[sp.world].name; });
+  setH('energy', fmt(save.energy + (G.state !== 'result' ? 0 : 0)), v => $('energy').textContent = v);
+  if(endless){
+    setH('goal', 'S' + G.score, () => $('goalTxt').textContent = 'SCORE ' + fmt(G.score));
+    $('goalBar').classList.add('hidden'); $('meterBar').classList.remove('hidden');
+    $('meterBar').firstElementChild.style.width = (G.meter * 100) + '%';
+  } else {
+    $('goalBar').classList.remove('hidden'); $('meterBar').classList.add('hidden');
+    const tot = G.total || 1, boss = !!G.core;
+    setH('goal', G.popped + '/' + G.goal + (boss ? 'b' + G.core.hp : ''), () => {
+      $('goalTxt').textContent = boss ? (G.core.dead ? 'CORE DESTROYED' : 'BREAK THE CORE · ' + G.popped) : G.popped + ' / ' + G.goal + (G.popped >= G.goal ? ' ✓' : '');
+      $('goalBar').firstElementChild.style.width = Math.min(100, G.popped / tot * 100) + '%';
+      const g1 = boss ? 0 : G.goal / tot, g2 = boss ? .6 : (G.goal + (tot - G.goal) * .5) / tot;
+      const st = starsFor();
+      document.querySelectorAll('#goalBar .st').forEach((e, i) => { e.style.left = ([g1, g2, 1][i] * 100) + '%'; e.classList.toggle('on', st > i); e.style.display = boss && i === 0 ? 'none' : ''; });
+    });
+  }
+  setH('taps', G.tapsLeft + '/' + G.taps + (endless ? Math.round(G.charge * 10) : ''), () => { let h = ''; for(let i = 0; i < G.taps; i++) h += `<i class="${i < G.tapsLeft ? 'on' : ''}"></i>`; $('tapDots').innerHTML = h; });
+}
+
+/* ---------------- flow ---------------- */
+let firstTap = true, playing = false;
+function beginPlay(){ if(!playing){ playing = true; SDK.gameplayStart(); } }
+function endPlay(){ if(playing){ playing = false; SDK.gameplayStop(); } }
+function goLevel(lv, mode){
+  hide('result'); SCREENS.forEach(hide);
+  for(const k in hudC) delete hudC[k];
+  if(mode === 'endless') startEndless(); else startLevel(lv, mode);
+  AU.setWorld(G.spec.world); AU.resetSong(); bgCache = null;
+  if(G.newAtom) introAtom(G.newAtom);
+  else if(!firstTap) beginPlay();
+  tutorialTip();
+}
+function tutorialTip(){
+  if(G.mode === 'level' && G.spec.lv === 1 && save.tut < 1) tip(null);
+  else if(G.mode === 'level' && G.spec.lv === 2 && save.tut < 2){ tip('Pop the <b>goal number</b> of atoms to clear a level. Pop them <b>all</b> for three stars!'); save.tut = 2; }
+  else if(G.mode === 'level' && G.mercy) tip('Reactor unstable! Goal lowered to <b>' + G.goal + '</b>. You\'ve got this.');
+  else if(G.mode === 'endless') tip('Atoms keep flooding in. Taps <b>recharge</b>. Don\'t let the chamber <b>overload</b>!');
+  else tip(null);
+}
+function introAtom(type){
+  G.state = 'intro'; endPlay();
+  const c = $('naCv'), g = c.getContext('2d'); g.clearRect(0, 0, 160, 160);
+  const d = ATOMS[type]; g.save(); g.translate(80, 80);
+  const gr = g.createRadialGradient(0, 0, 0, 0, 0, 70); gr.addColorStop(0, rgba(d.col, .8)); gr.addColorStop(1, rgba(d.col, 0)); g.fillStyle = gr; g.fillRect(-80, -80, 160, 160);
+  g.fillStyle = type === 'void' ? '#05010a' : d.col; g.beginPath(); g.arc(0, 0, 34, 0, TAU); g.fill();
+  if(type === 'void'){ g.strokeStyle = d.col; g.lineWidth = 5; g.beginPath(); g.arc(0, 0, 34, 0, TAU * .75); g.stroke(); }
+  else { g.fillStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.arc(-10, -10, 12, 0, TAU); g.fill(); }
+  if(SYM[type]){ g.fillStyle = type === 'void' ? d.col : 'rgba(10,6,20,.85)'; g.font = '900 40px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(SYM[type], 0, 2); }
+  g.restore();
+  $('naName').textContent = d.name; $('naName').style.color = d.col; $('naDesc').textContent = d.desc;
+  show('newAtom'); AU.win();
+}
+
+/* ---------------- results ---------------- */
+function showResult(){
+  const r = G.result; if(!r) return;
+  G.state = 'result'; endPlay(); tip(null);
+  const el = $('result');
+  if(r.endless){
+    $('rTitle').textContent = r.best ? 'NEW RECORD!' : 'OVERLOAD!'; $('rTitle').className = r.best ? 'gold' : 'bad';
+    $('rStars').style.display = 'none';
+    $('rStat').innerHTML = `Score <b>${fmt(r.score)}</b> · Best <b>${fmt(save.best.endless)}</b>`;
+    $('rNext').textContent = '↻ AGAIN'; $('rRetry').style.display = 'none';
+  } else {
+    $('rStars').style.display = '';
+    $('rTitle').textContent = r.melt ? 'TOTAL MELTDOWN!' : r.boss && r.win ? 'CORE DESTROYED!' : r.win ? (G.mode === 'daily' ? 'DAILY COMPLETE!' : 'LEVEL COMPLETE') : 'SO CLOSE!';
+    $('rTitle').className = r.melt ? 'melt' : r.win ? 'good' : 'bad';
+    [...$('rStars').children].forEach((s, i) => { s.className = ''; if(i < r.st) setTimeout(() => { s.className = 'on'; AU.star(i); }, 250 + i * 260); });
+    $('rStat').innerHTML = r.boss ? `Popped <b>${r.popped}</b> of ${r.total}` : `Popped <b>${r.popped}</b> of ${r.total} · Goal ${r.goal}`;
+    const canNext = r.win && G.mode === 'level';
+    $('rNext').textContent = canNext ? 'NEXT ▶' : G.mode === 'daily' ? 'CONTINUE ▶' : '↻ TRY AGAIN';
+    $('rRetry').style.display = canNext ? '' : 'none';
+    if(r.melt) AU.melt(); else if(r.win) AU.win(); else AU.lose();
+  }
+  // count the energy up
+  const target = r.energy, t0 = performance.now(), dur = 700;
+  (function tick(){ const k = Math.min(1, (performance.now() - t0) / dur); $('rEnergy').textContent = '+' + fmt(target * (1 - Math.pow(1 - k, 3))) + ' ⚡'; if(k < 1){ AU.count(); requestAnimationFrame(tick); } })();
+  buildUpgrades();
+  el.classList.remove('hidden'); el.classList.remove('in'); void el.offsetWidth; el.classList.add('in');
+  for(const k in hudC) delete hudC[k];
+}
+function nextFromResult(){
+  const r = G.result; AU.init();
+  if(r && r.endless) return goLevel(0, 'endless');
+  if(G.mode === 'daily') return goLevel(save.level, 'level');
+  if(r && r.win && G.mode === 'level') goLevel(save.level, 'level'); else goLevel(G.spec.lv, 'level');
+}
+function buildUpgrades(){
+  const row = $('upRow'); row.innerHTML = '';
+  for(const u of UPG){
+    const l = save.up[u.id], max = l >= u.max, cost = upCost(u, l), can = !max && save.energy >= cost;
+    const b = document.createElement('button'); b.className = 'up' + (can ? ' can' : '') + (max ? ' max' : '');
+    b.innerHTML = `<span class="ui">${u.icon}</span><b>${u.name}</b><small>${u.eff(l)}</small><em>${max ? 'MAX' : '⚡ ' + fmt(cost)}</em>${l ? `<i class="lv">${l}</i>` : ''}`;
+    b.addEventListener('click', e => { e.stopPropagation(); AU.init(); if(max || save.energy < cost){ AU.deny(); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); return; } save.energy -= cost; save.up[u.id]++; AU.buy(); persist(); buildUpgrades(); for(const k in hudC) delete hudC[k]; });
+    row.appendChild(b);
+  }
+}
+
+/* ---------------- menus ---------------- */
+function openMenu(){
+  if(G.state === 'aim' || G.state === 'run'){ G.prevState = G.state; G.state = 'pause'; }
+  endPlay();
+  $('eLock').textContent = save.maxLevel >= 8 ? (save.best.endless ? 'BEST ' + fmt(save.best.endless) : '') : '· LEVEL 8';
+  $('mEndless').disabled = save.maxLevel < 8;
+  const today = save.daily.key === todayKey() && save.daily.done;
+  $('dLock').textContent = save.maxLevel < 5 ? '· LEVEL 5' : today ? '✓ DONE TODAY' : '· ENERGY x3';
+  $('mDaily').disabled = save.maxLevel < 5 || today;
+  $('mStats').innerHTML = `Level <b>${save.level}</b> · Best chain <b>${save.best.chain}</b> · Atoms popped <b>${fmt(save.stats.pops)}</b> · Meltdowns <b>${save.stats.melts}</b>`;
+  show('menu');
+}
+function closeMenus(){
+  SCREENS.forEach(hide);
+  if(G.state === 'pause'){ G.state = G.prevState || 'aim'; if(!firstTap) beginPlay(); }
+}
+function openLevels(){
+  SCREENS.forEach(hide); const g = $('lvGrid'); g.innerHTML = '';
+  for(let lv = 1; lv <= save.maxLevel; lv++){
+    const st = save.stars[lv] || 0, b = document.createElement('button'), boss = lv % 10 === 0;
+    b.className = 'lvB' + (boss ? ' boss' : '') + (lv === save.level ? ' cur' : '');
+    b.style.setProperty('--c', WORLDS[((lv - 1) / 10 | 0) % WORLDS.length].accent);
+    b.innerHTML = `<b>${boss ? '☢' : lv}</b><span>${'★'.repeat(st)}<i>${'★'.repeat(3 - st)}</i></span>`;
+    onTap(b, () => { firstTap = false; hideLogo(); goLevel(lv, 'level'); });
+    g.appendChild(b);
+  }
+  show('levels');
+}
+function openAtoms(){
+  SCREENS.forEach(hide); const L = $('atomList'); L.innerHTML = '';
+  for(const id of ATOM_IDS){ const d = ATOMS[id], seen = save.seen[id]; L.insertAdjacentHTML('beforeend', `<div class="item${seen ? '' : ' locked'}"><div class="ii" style="background:${seen ? d.col : '#222'};color:#0a0614">${seen ? (SYM[id] || '') : '?'}</div><div class="it"><b style="color:${seen ? d.col : '#888'}">${seen ? d.name : '???'}</b><span>${seen ? d.desc : 'Appears from level ' + d.from}</span></div></div>`); }
+  show('atoms');
+}
+function syncSettings(){
+  document.querySelectorAll('#settings input[data-opt]').forEach(i => i.checked = !!save.opt[i.dataset.opt]);
+  document.querySelectorAll('#settings .seg').forEach(s => s.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === save.opt[s.dataset.opt])));
+}
+function hideLogo(){ $('logoOv').classList.add('gone'); }
+
+/* ---------------- input: press to aim, release to fire ---------------- */
+const PTR = { x:0, y:0, in:false, down:false, id:-1 };
+function inArena(px, py){ const [x, y] = toWorld(px, py); return x >= 0 && y >= 0 && x <= G.W && y <= G.H; }
+function wire(){
+  onTap('menuBtn', openMenu);
+  onTap('mPlay', closeMenus);
+  onTap('mLevels', openLevels);
+  onTap('mAtoms', openAtoms);
+  onTap('mSet', () => { hide('menu'); syncSettings(); show('settings'); });
+  onTap('mEndless', () => { firstTap = false; hideLogo(); goLevel(0, 'endless'); });
+  onTap('mDaily', () => { firstTap = false; hideLogo(); save.daily = { key:todayKey(), done:false }; goLevel(save.maxLevel + 2, 'daily'); });
+  document.querySelectorAll('.closeBtn').forEach(b => onTap(b, () => { const inSub = ['levels', 'atoms', 'settings'].some(id => !$(id).classList.contains('hidden')); SCREENS.forEach(hide); if(inSub && G.state === 'pause') openMenu(); else closeMenus(); }));
+  onTap('naOk', () => { hide('newAtom'); G.state = 'aim'; if(!firstTap) beginPlay(); });
+  onTap('rNext', nextFromResult);
+  onTap('rRetry', () => goLevel(G.spec.lv, 'level'));
+  onTap('rMenu', () => { hide('result'); goLevel(save.level, 'level'); openMenu(); });
+  document.querySelectorAll('#settings input[data-opt]').forEach(i => i.addEventListener('change', () => { save.opt[i.dataset.opt] = i.checked; AU.apply(); persist(); }));
+  document.querySelectorAll('#settings .seg').forEach(s => s.querySelectorAll('button').forEach(b => onTap(b, () => { save.opt[s.dataset.opt] = b.dataset.v; persist(); syncSettings(); resize(); })));
+
+  cv.addEventListener('pointermove', e => { PTR.x = e.clientX; PTR.y = e.clientY; if(e.pointerType === 'mouse') PTR.in = inArena(PTR.x, PTR.y); else if(PTR.down) PTR.in = inArena(PTR.x, PTR.y); });
+  cv.addEventListener('pointerleave', e => { if(e.pointerType === 'mouse') PTR.in = false; });
+  cv.addEventListener('pointerdown', e => {
+    AU.init(); AU.resume(); e.preventDefault();
+    PTR.x = e.clientX; PTR.y = e.clientY; PTR.down = true; PTR.id = e.pointerId; PTR.in = inArena(PTR.x, PTR.y);
+    try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  const release = e => {
+    if(!PTR.down || e.pointerId !== PTR.id) return;
+    PTR.down = false; PTR.x = e.clientX; PTR.y = e.clientY;
+    if(e.pointerType !== 'mouse') setTimeout(() => { if(!PTR.down) PTR.in = false; }, 60);
+    if(!inArena(PTR.x, PTR.y)) return;
+    if(G.state === 'aim' || (G.mode === 'endless' && G.state === 'run')){
+      const [x, y] = toWorld(PTR.x, PTR.y);
+      if(tap(x, y)){ if(firstTap){ firstTap = false; hideLogo(); } beginPlay(); if(save.tut < 1){ save.tut = 1; persist(); } }
+      else if(G.mode === 'endless') AU.deny();
+    }
+  };
+  addEventListener('pointerup', release); addEventListener('pointercancel', e => { PTR.down = false; });
+  addEventListener('contextmenu', e => e.preventDefault());
+  addEventListener('keydown', e => {
+    AU.init(); AU.resume();
+    if(e.key === 'Escape'){ if(!$('menu').classList.contains('hidden')) closeMenus(); else if(G.state === 'aim' || G.state === 'run') openMenu(); }
+    else if((e.key === 'Enter' || e.key === ' ') && G.state === 'result'){ e.preventDefault(); nextFromResult(); }
+    else if(e.key === ' ' && G.state === 'intro'){ e.preventDefault(); $('naOk').click(); }
+  });
+  document.addEventListener('visibilitychange', () => { AU.setHidden(document.hidden); if(document.hidden){ writeSave(); if(G.state === 'aim' || G.state === 'run') openMenu(); } else AU.resume(); });
+  addEventListener('pagehide', () => writeSave());
+}
+
+/* ---------------- loop ---------------- */
+let last = 0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  let dt = last ? (ts - last) / 1000 : 1 / 60; last = ts;
+  if(dt <= 0) return; if(dt > .05) dt = .05;
+  try{
+    if(G.state === 'aim' || G.state === 'run' || G.state === 'done' || G.state === 'result') update(dt);
+    else G.rt += dt;
+    render();
+    updateHUD();
+  }catch(err){ console.error(err); }
+}
+addEventListener('error', e => { try{ console.error(e.error || e.message); }catch(_){} });
+addEventListener('unhandledrejection', e => { try{ e.preventDefault(); console.error(e.reason); }catch(_){} });
+
+/* ---------------- boot ---------------- */
+(async function boot(){
+  resize();
+  requestAnimationFrame(frame);
+  SDK.onMute = m => AU.setPortalMute(m);
+  await SDK.init();              // must resolve before the save is read (SDK Data Module)
+  SDK.loadingStart();
+  loadSave();
+  resize();
+  wire();
+  goLevel(save.level, 'level');
+  if(save.level > 1){ $('logoOv').querySelector('.tapHint').innerHTML = `LEVEL ${save.level} · TAP TO <b>REACT</b>`; }
+  SDK.loadingStop();
+  $('boot').classList.add('gone'); setTimeout(() => { if($('boot')) $('boot').remove(); }, 450);
+})();
+
+</script>
+</body>
+</html>
