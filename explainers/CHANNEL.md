@@ -4,21 +4,19 @@
 
 **Why the name:** a *cutaway* is the engineering drawing that slices an object open to show how it works, which is exactly what every video does. One word, easy to say, easy to remember, and it is the visual signature (every episode opens the object up).
 
-*(Availability of the name/handles isn't verified. Check YouTube, TikTok and Instagram plus trademarks before committing. If `@cutaway` is taken, try `@cutawayhq`, `@watchcutaway` or `@cutaway.explained`. Backup names: **Inner Workings**, **Hidden Machinery**, **Open It Up**, **Under the Surface**.)*
+*
 
 ## Identity
 | | |
 |---|---|
 | **Name** | **CUTAWAY** |
 | **Tagline** | Everything has an inside. |
-| **Handle** | `@cutaway` (or a variant above), same on all platforms |
+| **Handle** | `@cutaway68` (use the same handle on YouTube, TikTok and Instagram if free) |
 | **Bio (150 chars)** | `We cut open everyday things to show how they really work. One hidden mechanism per video. New one daily.` |
 | **Voice of the brand** | Calm, precise, curious. Like a great engineer explaining it to a friend. No hype, no shouting. |
 | **Logo** | A steel dial with one quarter cut away, exposing an amber gear. The cut = the channel's promise. |
 | **Series format** | `Episode NN · The {Thing}` in the video HUD |
 | **Assets** | `brand/avatar.png` (800×800 profile pic), `brand/banner.png` (2560×1440 YouTube banner, text inside the 1546×423 safe area), `brand/logo-lockup.png` (transparent, mark + wordmark + tagline). Rebuild with `tools/make-brand.js`. |
-
-*Note: EP 01 and EP 02 were rendered under the working name "Everyday Engineered". Re-render them with the CUTAWAY HUD before publishing (change the HUD text/logo in the two HTML files, then re-run the video tools).*
 
 ## Look (brand kit)
 | Token | Hex | Use |
@@ -81,6 +79,7 @@ Post the same episode to all three platforms; A/B test only the first 3 seconds 
 | File | What |
 |---|---|
 | `episode-01-zipper.html`, `episode-02-breaker.html` | the animation sources (open in Chrome, or add `?t=15.8` to freeze a frame) |
+| `UPLOAD.md` | ready-to-paste titles, descriptions, tags, captions for EP 01 and EP 02 |
 | `EPISODE-STANDARD.md` | the quality bar every new episode must beat |
 | `vo/script.json` | narration script + start times |
 | `tools/make-voice.py` | text → voice-over (Kokoro) + subtitle timing |
