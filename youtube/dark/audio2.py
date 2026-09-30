@@ -86,6 +86,12 @@ def warm():
     e=np.minimum(1,t/3.5)*np.minimum(1,(d-t)/2.5); return y*e*.06
 def key():
     t=T(.012); return (rng.standard_normal(len(t))*np.exp(-t*500)*.6+np.sin(2*np.pi*1300*t)*np.exp(-t*400)*.4)
+def select():
+    t=T(.35); return (np.sin(2*np.pi*(660+900*np.minimum(t/.08,1))*t)*np.exp(-t*14)*.45+np.sin(2*np.pi*90*t)*np.exp(-t*30)*.5)
+def lock():
+    t=T(1.1); return np.sin(2*np.pi*np.cumsum(48+40*np.exp(-t*12))/SR)*np.exp(-t*4.5)*.95+ma(rng.standard_normal(len(t)),6)*np.exp(-t*40)*.9
+def scan(d=2.4):
+    t=T(d); f=400+2600*(t/d)**1.5; return np.sin(2*np.pi*np.cumsum(f)/SR)*.12*np.sin(np.pi*t/d)**2
 FONT={'L':['#....','#....','#....','#....','#....','#....','#####'],'O':['.###.','#...#','#...#','#...#','#...#','#...#','.###.'],
  'K':['#...#','#..#.','#.#..','##...','#.#..','#..#.','#...#'],'U':['#...#','#...#','#...#','#...#','#...#','#...#','.###.'],
  'P':['####.','#...#','#...#','####.','#....','#....','#....'],'I':['#####','..#..','..#..','..#..','..#..','..#..','#####'],'S':['.####','#....','#....','.###.','....#','....#','####.'],'T':['#####','..#..','..#..','..#..','..#..','..#..','..#..'],
@@ -210,7 +216,7 @@ def choir(dur,lvl):
 
 # ------------------------- build the buses -------------------------
 AMB=np.stack([ambient(),ambient()]); SFX=np.zeros((2,N)); MUS=np.zeros((2,N)); DRY=np.zeros((2,N))
-SND={'jingle':(lambda:jingle(False),.55,0),'jingleBad':(lambda:jingle(True),.6,0),'thunk':(thunk,.8,0),'swell':(swell,.55,0),'door':(door,.7,-.5),'swipe':(swipe,.45,0),'ping':(ping,.6,.3),'warm':(warm,1.0,0),'modem':(modem,.5,0),'knock':(knock,.9,-.6),'ring':(ring,.55,.45),'buzz':(buzz,.6,-.5),'paper':(paper,.5,-.5),'riser':(riser,.55,0),'hit':(hit,.85,0),'wind':(wind,.5,-.3),'chair':(chair,.6,.4),'foot':(foot,.5,.2),'creak':(creak,.5,-.5),'birds':(birds,.6,.3),'whirr':(whirr,.45,.3),'pickup':(pickup,.6,.3),'rewind':(rewind,.6,0)}
+SND={'jingle':(lambda:jingle(False),.55,0),'jingleBad':(lambda:jingle(True),.6,0),'thunk':(thunk,.8,0),'swell':(swell,.55,0),'door':(door,.7,-.5),'swipe':(swipe,.45,0),'ping':(ping,.6,.3),'warm':(warm,1.0,0),'modem':(modem,.5,0),'knock':(knock,.9,-.6),'ring':(ring,.55,.45),'buzz':(buzz,.6,-.5),'paper':(paper,.5,-.5),'riser':(riser,.55,0),'hit':(hit,.85,0),'wind':(wind,.5,-.3),'chair':(chair,.6,.4),'foot':(foot,.5,.2),'select':(select,.55,0),'lock':(lock,.8,0),'scan':(scan,.6,.2),'creak':(creak,.5,-.5),'birds':(birds,.6,.3),'whirr':(whirr,.45,.3),'pickup':(pickup,.6,.3),'rewind':(rewind,.6,0)}
 for t,n in ev['snd']:
     if n in SND:
         fn,g,p=SND[n]; put2(SFX,t,fn(),g,p)
@@ -226,6 +232,12 @@ for t,ch,cps,kind in ev['typ']:
 for a,b,cps in ev.get('keys',[]):
     tt=a
     while tt<b: put2(SFX,tt,key(),.16,rng.uniform(-.35,.35)); tt+=(1/cps)*rng.uniform(.5,1.7)
+hm=ev.get('hum') or []
+if hm and max(v for _,v in hm)>0:
+    tt_=np.arange(N)/SR; lv=np.interp(tt_,[p[0] for p in hm],[p[1] for p in hm])
+    for ch in (0,1):
+        AMB[ch]+=(np.sin(2*np.pi*(60+ch*.3)*tt_)+.5*np.sin(2*np.pi*120*tt_)+.3*np.sin(2*np.pi*180.4*tt_))*.03*lv
+    del tt_,lv
 nat=ev.get('nature') or []
 if nat and max(v for _,v in nat)>0:
     tt_=np.arange(N)/SR; lv=np.interp(tt_,[p[0] for p in nat],[p[1] for p in nat])
