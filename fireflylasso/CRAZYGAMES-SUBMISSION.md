@@ -56,6 +56,20 @@ Gentle and non-violent: fireflies, a moonlit meadow and cartoon wasps that fly a
 
 ## Assets to upload
 - **Game build:** `fireflylasso/dist/index.html` (zip it)
+- **Covers:** `fireflylasso/promo/cover-1920x1080.png`, `fireflylasso/promo/cover-800x1200.png`, `fireflylasso/promo/cover-800x800.png`
+- **Video:** `fireflylasso/promo/trailer-1920x1080.mp4` (a vertical `fireflylasso/promo/trailer-1080x1920.mp4` is included for social media)
+
+## Marketing assets
+The covers are drawn by the game's own renderer: under a full moon, a glowing lasso is just about to close around a big rainbow swarm of fireflies, with a finger at its tip, a "RAINBOW x2" bonus and a wasp buzzing nearby. The big FIREFLY LASSO logo and "Draw a loop. Catch the light." sit on the dark sky so they read at thumbnail size.
+
+The trailer is real gameplay captured frame by frame, with the game's own synthesized music and sound:
+1. **0–5 s:** a finger draws loops around fireflies in the Moonlit Meadow. "DRAW A LOOP..." · "...CATCH THE LIGHT"
+2. **5–9 s:** bigger and bigger loops. "BIGGER LOOPS = BIGGER LIGHT"
+3. **9–13 s:** a swarm gathers and a rainbow MEGA LOOP catches it. "RAINBOW LOOPS · SWARMS"
+4. **13–16 s:** the Whispering Woods, with wasps and a swooping bat. "DODGE WASPS & BATS"
+5. **16–20 s:** the Firefly Queen flies in and is caught. "CATCH THE FIREFLY QUEEN 👑"
+6. **20–26 s:** the Misty Marsh and the rainy Starfall Peaks, a chain of loops and a secret Moonmoth. "40 NIGHTS · 12 FIREFLIES · 2 SECRETS" · "HOW BIG CAN YOUR LOOP GET?"
+7. **26–30 s:** logo end card: "FIREFLY LASSO · Draw a loop. Catch the light."
 
 ## SDK integration (for the reviewer)
 - **Order:** `SDK.init()` → `loadingStart()` → save read from the Data Module → `loadingStop()`.
