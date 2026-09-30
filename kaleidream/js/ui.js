@@ -296,7 +296,7 @@ function wire(){
   onTap('pauseBtn', pauseGame); onTap('resBtn', resumeGame); onTap('quitBtn', () => { hide('pause'); G.state = 'over'; G.endT = 9; G.shown = true; finishResults(false); });
   onTap('contYes', () => { if(save.shards < 3) return; save.shards -= 3; persist(); hide('contBox'); show('hud'); continueRun(); });
   onTap('contNo', () => finishResults(false));
-  onTap('rNext', play); onTap('rHome', toTitle); onTap('rCaps', () => { hide('results'); toTitle(); openCapsules(); });
+  onTap('rNext', () => SDK.midgame(play)); onTap('rHome', toTitle); onTap('rCaps', () => { hide('results'); toTitle(); openCapsules(); });
   onTap('oSfx', () => { save.opt.sfx = !save.opt.sfx; AU.apply(); persist(); refreshSett(); });
   onTap('oMus', () => { save.opt.music = !save.opt.music; AU.apply(); persist(); refreshSett(); });
   onTap('oFx', () => { save.opt.fx = save.opt.fx === 'high' ? 'low' : 'high'; resize(); persist(); refreshSett(); });
