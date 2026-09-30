@@ -104,7 +104,7 @@ def spec(d,word='LOOK UP'):  # writes the word into the spectrogram (5..12 kHz),
     return y*.05
 
 
-FONT.update({'C':['.####','#....','#....','#....','#....','#....','.####'],'A':['.###.','#...#','#...#','#####','#...#','#...#','#...#'],'H':['#...#','#...#','#...#','#####','#...#','#...#','#...#'],'M':['#...#','##.##','#.#.#','#...#','#...#','#...#','#...#']})
+FONT.update({'D':['####.','#...#','#...#','#...#','#...#','#...#','####.'],'Y':['#...#','#...#','.#.#.','..#..','..#..','..#..','..#..'],'G':['.###.','#...#','#....','#.###','#...#','#...#','.###.'],'C':['.####','#....','#....','#....','#....','#....','.####'],'A':['.###.','#...#','#...#','#####','#...#','#...#','#...#'],'H':['#...#','#...#','#...#','#####','#...#','#...#','#...#'],'M':['#...#','##.##','#.#.#','#...#','#...#','#...#','#...#']})
 
 # ------------------------- stereo helpers -------------------------
 def pan_g(p): a=(p+1)*np.pi/4; return np.cos(a),np.sin(a)
@@ -147,6 +147,38 @@ def buzz():
 def paper():
     t=np.arange(int(1.4*SR))/SR; n=ma(rng.standard_normal(len(t)),18)*np.sin(np.pi*t/1.4)**1.5; return n*3.0
 
+
+def riser(d=4.2):
+    t=np.arange(int(d*SR))/SR; f=300*(20**(t/d)); s=np.sin(2*np.pi*np.cumsum(f)/SR)*.25+ma(rng.standard_normal(len(t)),max(2,4))*1.6*(t/d)
+    return s*(t/d)**2*np.minimum(1,(d-t)/.05)*.9
+def hit():
+    t=np.arange(int(1.6*SR))/SR; return np.sin(2*np.pi*np.cumsum(62*np.exp(-t*2.2)+34)/SR)*np.exp(-t*2.6)*.95+ma(rng.standard_normal(len(t)),10)*np.exp(-t*14)*1.6
+def wind(d=4.5):
+    t=np.arange(int(d*SR))/SR; return ma(rng.standard_normal(len(t)),38)*(np.sin(np.pi*t/d)**2)*(0.6+0.4*np.sin(2*np.pi*.9*t))*5
+def chair():
+    t=np.arange(int(.7*SR))/SR; return ma(rng.standard_normal(len(t)),14)*np.exp(-t*4)*np.minimum(1,t/.03)*4.5
+def foot():
+    t=np.arange(int(.16*SR))/SR; return np.sin(2*np.pi*88*t)*np.exp(-t*30)*.8+ma(rng.standard_normal(len(t)),22)*np.exp(-t*40)*2
+def creak(d=2.6):
+    t=np.arange(int(d*SR))/SR; f=190+70*np.sin(2*np.pi*.55*t)+25*np.sin(2*np.pi*7.3*t); y=np.sin(2*np.pi*np.cumsum(f)/SR)+.5*np.sin(4*np.pi*np.cumsum(f)/SR)
+    return (y*.22+ma(rng.standard_normal(len(t)),20)*.7)*np.sin(np.pi*t/d)**1.4*(.6+.4*np.sign(np.sin(2*np.pi*13*t)))
+def birds(d=3.2):
+    y=np.zeros(int(d*SR)); r=np.random.default_rng(int(d*1000))
+    for k in range(7):
+        st=r.uniform(0,d-1); f0=3000+r.uniform(0,1800)
+        for j in range(r.integers(2,5)):
+            t=np.arange(int(.1*SR))/SR; ch=np.sin(2*np.pi*np.cumsum(f0*(1+.45*t/.1)+np.sin(t*80)*120)/SR)*np.hanning(len(t))*.12; put(y,st+j*.14,ch,1)
+    return y
+def whirr():
+    t=np.arange(int(.8*SR))/SR; return ma(rng.standard_normal(len(t)),6)*np.sin(np.pi*t/.8)*1.1+np.sin(2*np.pi*np.cumsum(300+500*t/.8)/SR)*.08*np.sin(np.pi*t/.8)
+def pickup():
+    t=np.arange(int(.3*SR))/SR; return np.sin(2*np.pi*140*t)*np.exp(-t*28)*.7+(np.sin(2*np.pi*2400*t)*np.exp(-t*160))*.35
+def rewind():
+    t=np.arange(int(.95*SR))/SR; return (ma(rng.standard_normal(len(t)),5)*(.5+.5*np.sin(2*np.pi*28*t))*1.3+np.sin(2*np.pi*np.cumsum(1200+1200*t/.95)/SR)*.12)*np.sin(np.pi*t/.95)**.6
+def heart():
+    y=np.zeros(int(.6*SR)); t=np.arange(int(.22*SR))/SR; th=np.sin(2*np.pi*np.cumsum(70*np.exp(-t*14)+42)/SR)*np.exp(-t*16)
+    put(y,0,th,1); put(y,.2,th,.7); return y
+
 # ------------------------- composed score -------------------------
 def mbox(dur,lvl,seed=3):
     r=np.random.default_rng(seed); n=int(dur*SR)+SR; out=np.zeros((2,n)); bpm=58; step=60/bpm/2
@@ -178,7 +210,7 @@ def choir(dur,lvl):
 
 # ------------------------- build the buses -------------------------
 AMB=np.stack([ambient(),ambient()]); SFX=np.zeros((2,N)); MUS=np.zeros((2,N)); DRY=np.zeros((2,N))
-SND={'jingle':(lambda:jingle(False),.55,0),'jingleBad':(lambda:jingle(True),.6,0),'thunk':(thunk,.8,0),'swell':(swell,.55,0),'door':(door,.7,-.5),'swipe':(swipe,.45,0),'ping':(ping,.6,.3),'warm':(warm,1.0,0),'modem':(modem,.5,0),'knock':(knock,.9,-.6),'ring':(ring,.55,.45),'buzz':(buzz,.6,-.5),'paper':(paper,.5,-.5)}
+SND={'jingle':(lambda:jingle(False),.55,0),'jingleBad':(lambda:jingle(True),.6,0),'thunk':(thunk,.8,0),'swell':(swell,.55,0),'door':(door,.7,-.5),'swipe':(swipe,.45,0),'ping':(ping,.6,.3),'warm':(warm,1.0,0),'modem':(modem,.5,0),'knock':(knock,.9,-.6),'ring':(ring,.55,.45),'buzz':(buzz,.6,-.5),'paper':(paper,.5,-.5),'riser':(riser,.55,0),'hit':(hit,.85,0),'wind':(wind,.5,-.3),'chair':(chair,.6,.4),'foot':(foot,.5,.2),'creak':(creak,.5,-.5),'birds':(birds,.6,.3),'whirr':(whirr,.45,.3),'pickup':(pickup,.6,.3),'rewind':(rewind,.6,0)}
 for t,n in ev['snd']:
     if n in SND:
         fn,g,p=SND[n]; put2(SFX,t,fn(),g,p)
@@ -194,6 +226,21 @@ for t,ch,cps,kind in ev['typ']:
 for a,b,cps in ev.get('keys',[]):
     tt=a
     while tt<b: put2(SFX,tt,key(),.16,rng.uniform(-.35,.35)); tt+=(1/cps)*rng.uniform(.5,1.7)
+nat=ev.get('nature') or []
+if nat and max(v for _,v in nat)>0:
+    tt_=np.arange(N)/SR; lv=np.interp(tt_,[p[0] for p in nat],[p[1] for p in nat])
+    for ch in (0,1):
+        cr=np.zeros(N)
+        for k in range(5):
+            f=4100+k*230+ch*40; gate=(np.sin(2*np.pi*(.83+k*.11+ch*.03)*tt_+k*1.7+ch)>.55)*(.5+.5*np.sign(np.sin(2*np.pi*(36+k*2.7)*tt_)))
+            cr+=np.sin(2*np.pi*f*tt_)*gate
+        wd=ma(rng.standard_normal(N),44)*(.5+.5*np.sin(2*np.pi*.07*tt_+ch*2))*6
+        AMB[ch]+=(cr*.012+wd*.05)*lv
+    del tt_,lv
+for a,b,bpm0,bpm1,lvl in ev.get('pulse',[]):
+    tt=a
+    while tt<b:
+        put2(SFX,tt,heart(),lvl,0); bpm=bpm0+(bpm1-bpm0)*(tt-a)/max(1e-9,(b-a)); tt+=60/bpm
 for a,b,st,lvl in ev.get('music',[]):
     m=(mbox(b-a,lvl,seed=int(a)) if st=='mbox' else choir(b-a,lvl)); i=int(a*SR); m=m[:,:MUS.shape[1]-i]; MUS[:,i:i+m.shape[1]]+=m
 for a,b,*rest in ev['spec']:
@@ -203,7 +250,7 @@ if stops:
     ts=stops[0]; tt=np.arange(N)/SR; ramp=np.where(tt<ts,1.0,np.clip(1-(tt-ts)/1.4,0,1)**1.5)
     for b in (AMB,SFX,MUS,DRY): b*=ramp
     put2(SFX,ts,tapestop(),.9,0)
-mix=AMB*.9+reverb(SFX,1.7,.30)+reverb(MUS,3.6,.55)*.9+DRY
+mix=AMB*.75+reverb(SFX,1.7,.30)*.9+reverb(MUS,3.6,.55)*.55+DRY
 f=int(.5*SR); e=int(DUR*SR); mix=mix[:,:e]; mix[:,:f]*=np.linspace(0,1,f); mix[:,-f:]*=np.linspace(1,0,f)
-mix=np.tanh(mix*1.25)/np.tanh(1.25); mix=mix/max(1e-9,np.abs(mix).max())*.9
+mix=np.tanh(mix*1.0)/np.tanh(1.0); mix=mix/max(1e-9,np.abs(mix).max())*.88
 w=wave.open(out,'wb'); w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes((mix.T*32767).astype(np.int16).tobytes()); w.close()
