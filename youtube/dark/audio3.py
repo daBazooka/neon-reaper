@@ -153,6 +153,17 @@ def reverb(bus, sec, wet):
 mix = MUS + reverb(MUS, 2.2, .18) + SFX + reverb(SFX, 1.6, .25)
 del MUS, SFX
 e = int(DUR * SR); mix = mix[:, :e]
+import os
+if os.environ.get('VOICE'):
+    wv = wave.open(os.environ['VOICE']); vs = np.frombuffer(wv.readframes(wv.getnframes()), dtype=np.int16).astype(np.float32) / 32768
+    vs = np.pad(vs, (0, max(0, e - len(vs))))[:e]
+    vs = fft_filter(vs, lo=85)
+    venv = np.clip(smooth(np.abs(vs), int(.22 * SR)) / .05, 0, 1)
+    duck = 1 - .55 * smooth(venv, int(.35 * SR))          # music and effects sit about 7 dB lower under the voice
+    mix = mix * duck[None, :].astype(np.float32)
+    vb = np.stack([vs, vs]); vb = vb + reverb(np.pad(vb, ((0, 0), (0, 0))), 1.0, .06)
+    mix = mix + vb * 1.25
+    print('voice mixed; voice rms dBFS %.1f' % (20 * np.log10(np.sqrt((vs ** 2).mean()) + 1e-9)))
 for c_ in (0, 1):
     mix[c_] = fft_filter(fft_filter(mix[c_], lo=55), hi=9000)
 f_in = int(.6 * SR); f_out = int(1.6 * SR)
