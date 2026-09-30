@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b1640">
+<meta name="description" content="FIREFLY LASSO: draw a loop, catch the light. Every firefly in a loop multiplies the others.">
+<title>FIREFLY LASSO</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%223%22 fill=%22%230b1640%22/%3E%3Ccircle cx=%228%22 cy=%228%22 r=%225%22 fill=%22none%22 stroke=%22%23fff0a8%22 stroke-width=%221.4%22/%3E%3Ccircle cx=%227%22 cy=%228%22 r=%221.6%22 fill=%22%23ffe25a%22/%3E%3Ccircle cx=%2210%22 cy=%227%22 r=%221%22 fill=%22%237dff9a%22/%3E%3C/svg%3E">
+<style>
+:root{--f:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--gold:#ffe25a;--warm:#fff0a8;--ink:#050618;--dim:#9aa6d8;--sat:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#0b1640;color:#fff;font-family:var(--f);touch-action:none;overscroll-behavior:none}
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+button{font-family:var(--f);cursor:pointer;border:0;color:inherit}
+.hidden{display:none !important}
+
+/* HUD */
+#hud{position:fixed;left:0;right:0;top:0;height:62px;padding:calc(8px + var(--sat)) 10px 0;display:flex;align-items:flex-start;gap:10px;pointer-events:none;z-index:10}
+#hL{display:flex;flex-direction:column;flex:0 0 auto;max-width:26%}
+#nTxt{font:900 16px/1.1 var(--f);letter-spacing:2px;white-space:nowrap}
+#pTxt{font:700 11px/1.3 var(--f);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hC{flex:1;max-width:440px;margin:0 auto}
+#lightRow{display:flex;align-items:baseline;gap:6px;font:900 14px/1 var(--f)}
+#lightTxt{font-size:20px;color:var(--warm);text-shadow:0 0 12px rgba(255,240,168,.6)}
+#goalTxt{color:var(--dim);flex:1}
+#timeTxt{font-size:18px;min-width:34px;text-align:right}
+#timeTxt.low{color:#ff8a8a;animation:tp .5s infinite alternate}
+@keyframes tp{to{transform:scale(1.15)}}
+#bar,#lanternBar{position:relative;margin-top:6px;height:10px;border-radius:5px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15)}
+#bar i{display:block;height:100%;width:0;border-radius:5px;background:linear-gradient(90deg,#ffe25a,#fff6c0);box-shadow:0 0 14px rgba(255,226,90,.7);transition:width .15s}
+#bar .st{position:absolute;top:50%;transform:translate(-50%,-50%);font-style:normal;font-size:17px;color:rgba(255,255,255,.25);text-shadow:0 0 4px #000}
+#bar .st.on{color:var(--gold);text-shadow:0 0 10px var(--gold)}
+#lanternBar i{display:block;height:100%;width:100%;border-radius:5px;background:linear-gradient(90deg,#ff7a3a,#ffe25a)}
+#lanternBar span{position:absolute;right:4px;top:13px;font:900 9px/1 var(--f);letter-spacing:2px;color:#ffc88a}
+#hR{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+#chain{font:900 11px/1 var(--f);letter-spacing:1px;color:#9af0ff;text-shadow:0 0 10px #4ad0ff;animation:cp .3s}
+#chain b{font-size:17px;display:block}
+@keyframes cp{from{transform:scale(1.5)}}
+#jar{width:30px;height:40px;border:2px solid rgba(255,240,168,.8);border-top-width:5px;box-shadow:0 0 10px rgba(255,226,90,.25);border-radius:6px 6px 10px 10px;position:relative;overflow:hidden;background:rgba(255,255,255,.06)}
+#jar::after{content:'';position:absolute;left:4px;top:4px;width:4px;height:14px;border-radius:2px;background:rgba(255,255,255,.35)}
+#jar i{position:absolute;left:0;right:0;bottom:0;height:6%;background:linear-gradient(0deg,#ffe25a,#fff6c0);box-shadow:0 0 18px #ffe25a;transition:height .2s}
+#jar.bump{animation:jb .3s}
+@keyframes jb{50%{transform:scale(1.25)}}
+.icoBtn{pointer-events:auto;width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);font-size:18px}
+#bottleBtn{background:rgba(160,130,255,.3);border-color:#c8a8ff;animation:bt 1.2s infinite alternate}
+@keyframes bt{to{box-shadow:0 0 16px #c8a8ff}}
+
+#tip{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:12;max-width:min(92vw,560px);padding:10px 16px;border-radius:14px;background:rgba(10,12,40,.82);border:1px solid rgba(255,255,255,.18);font:700 15px/1.35 var(--f);text-align:center;pointer-events:none}
+#tip b{color:var(--gold)}
+#toasts{position:fixed;left:50%;top:calc(76px + var(--sat));transform:translateX(-50%);z-index:13;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:min(92vw,400px)}
+.toast{background:linear-gradient(90deg,#2a1a5a,#4a2a8a);border:2px solid #c8a8ff;border-radius:14px;padding:9px 14px;box-shadow:0 6px 20px rgba(0,0,0,.4);animation:toast 3.4s ease-out forwards}
+.toast b{display:block;font:900 11px/1 var(--f);letter-spacing:2px;color:#e0d0ff}
+.toast span{display:block;font:800 15px/1.25 var(--f);margin-top:3px}
+@keyframes toast{0%{opacity:0;transform:translateY(-20px)}8%{opacity:1;transform:none}85%{opacity:1}100%{opacity:0}}
+
+/* title */
+#title{position:fixed;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;transition:opacity .5s,transform .5s}
+#title.gone{opacity:0;transform:scale(1.1)}
+#logo{font:italic 900 clamp(46px,11vw,108px)/.9 var(--f);text-align:center;color:#fff;text-shadow:0 0 30px rgba(255,240,168,.8),0 6px 0 rgba(5,6,24,.8)}
+#logo span{display:block;color:var(--gold);text-shadow:0 0 40px rgba(255,226,90,.9),0 6px 0 rgba(5,6,24,.8)}
+.tag{margin-top:12px;font:800 clamp(15px,2.8vw,24px)/1.2 var(--f);color:#dfe4ff;text-shadow:0 2px 6px #000}
+.tag b{color:var(--warm)}
+.drag{margin-top:34px;font:900 clamp(12px,2.2vw,16px)/1 var(--f);letter-spacing:2px;color:var(--warm);display:flex;align-items:center;gap:10px;animation:pulse 1.6s ease-in-out infinite}
+.hand{font-size:1.8em;display:inline-block;animation:circ 1.6s linear infinite}
+@keyframes circ{0%{transform:translate(10px,0)}25%{transform:translate(0,10px)}50%{transform:translate(-10px,0)}75%{transform:translate(0,-10px)}100%{transform:translate(10px,0)}}
+@keyframes pulse{50%{opacity:.6}}
+#tInfo{margin-top:12px;font:700 13px/1 var(--f);color:var(--dim)}
+
+/* buttons */
+.btn{padding:12px 18px;border-radius:14px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);font:900 15px/1 var(--f);letter-spacing:1px;transition:transform .08s}
+.btn:active{transform:scale(.96)}
+.btn.primary{background:linear-gradient(180deg,#fff0a8,#ffc83a);color:#3a2400;border:0;box-shadow:0 0 24px rgba(255,210,80,.45)}
+.btn.special{background:linear-gradient(90deg,#ff7a3a,#c84a8a);border:0}
+.btn.big{padding:16px 22px;font-size:18px}
+.btn.ghost{background:transparent}
+.btn.wide{width:100%}
+.btn:disabled{opacity:.4;pointer-events:none}
+.btn small{font-size:10px;opacity:.85;margin-left:4px}
+
+/* sheets and screens */
+.sheet{position:fixed;left:50%;bottom:0;transform:translateX(-50%);z-index:20;width:min(100vw,640px);max-height:88vh;overflow:auto;background:linear-gradient(180deg,rgba(16,20,60,.97),rgba(8,10,34,.99));border:1px solid rgba(255,255,255,.14);border-bottom:0;border-radius:24px 24px 0 0;padding:16px 16px calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:9px;align-items:center;animation:up .35s ease-out}
+@keyframes up{from{transform:translate(-50%,100%)}}
+#rTitle{font:italic 900 26px/1 var(--f);color:var(--gold);text-shadow:0 0 20px rgba(255,226,90,.5)}
+#rTitle.fail{color:#ff9a9a;text-shadow:none}
+#rStars{font-size:40px;letter-spacing:6px}
+#rStars i{font-style:normal;color:rgba(255,255,255,.18);display:inline-block}
+#rStars i.on{color:var(--gold);text-shadow:0 0 18px var(--gold);animation:star .4s ease-out backwards}
+@keyframes star{from{transform:scale(2.2) rotate(-40deg);opacity:0}}
+#rLight{font:900 32px/1 var(--f);color:var(--warm);text-shadow:0 0 16px rgba(255,240,168,.6)}
+#rStat{font:700 13px/1.4 var(--f);color:var(--dim);text-align:center}
+#rStat b{color:#fff}
+#rNew{font:800 13px/1.3 var(--f);color:#e0d0ff;background:rgba(160,120,255,.18);border:1px solid rgba(200,168,255,.5);border-radius:10px;padding:8px 12px;text-align:center}
+#upRow{display:flex;gap:8px;overflow-x:auto;width:100%;padding:2px 2px 6px;scrollbar-width:none}
+#upRow::-webkit-scrollbar{display:none}
+.up{flex:0 0 116px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:9px 7px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.up .ic{font-size:21px}
+.up b{font:900 12px/1.1 var(--f)}
+.up span{font:700 10px/1.25 var(--f);color:var(--dim);min-height:25px}
+.up .c{font:900 13px/1 var(--f);color:var(--gold)}
+.up.can{border-color:var(--gold);background:rgba(255,226,90,.1);cursor:pointer;animation:can 1.2s ease-in-out infinite alternate}
+@keyframes can{to{box-shadow:0 0 14px rgba(255,226,90,.4)}}
+.up.max{opacity:.45}
+.rBtns{display:flex;gap:8px;width:100%}
+.rBtns .big{flex:1}
+.screen{position:fixed;inset:0;z-index:25;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(5,6,24,.84);backdrop-filter:blur(3px);padding:18px}
+.screen h2{font:italic 900 26px/1 var(--f);letter-spacing:1px;display:flex;align-items:center;gap:10px}
+.screen h2 small{font:800 13px/1 var(--f);color:var(--dim);font-style:normal}
+.money{color:var(--gold) !important}
+.menuGrid{display:flex;flex-direction:column;gap:10px;width:min(90vw,360px)}
+.row2{display:flex;gap:10px}.row2 .btn{flex:1}
+.hint{font:700 13px/1.4 var(--f);color:var(--dim);text-align:center;max-width:360px}
+.hint b{color:#fff}
+.list{display:flex;flex-direction:column;gap:8px;width:min(92vw,480px);max-height:66vh;overflow:auto}
+.item{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px 12px}
+.item canvas{flex:0 0 46px;width:46px;height:46px}
+.item .it{flex:1}
+.item b{font:900 15px/1.1 var(--f)}
+.item span{display:block;font:600 12px/1.35 var(--f);color:var(--dim);margin-top:3px}
+.item .n{font:900 13px/1 var(--f);color:var(--warm)}
+.item.locked{opacity:.6}
+.item .btn{padding:9px 12px;font-size:13px;min-width:84px}
+.pips{display:flex;gap:3px;margin-top:5px;flex-wrap:wrap}
+.pips i{width:8px;height:5px;border-radius:2px;background:rgba(255,255,255,.15)}
+.pips i.on{background:var(--gold)}
+#nGrid{display:grid;grid-template-columns:repeat(8,1fr);gap:7px;width:min(94vw,520px);max-height:66vh;overflow:auto;padding:4px}
+.nB{aspect-ratio:1;border-radius:11px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.nB b{font:900 15px/1 var(--f)}
+.nB span{font-size:8px;color:var(--gold);letter-spacing:1px}
+.nB span i{color:rgba(255,255,255,.2);font-style:normal}
+.nB.boss{border-color:#ffd6a0;background:rgba(255,214,160,.1)}
+.nB.cur{border-color:var(--gold);box-shadow:0 0 12px rgba(255,226,90,.5)}
+.setRow{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.06);border-radius:12px;padding:12px 14px;font:800 15px/1 var(--f)}
+.setRow input{display:none}
+.sw{width:46px;height:26px;border-radius:13px;background:rgba(255,255,255,.2);position:relative;transition:.2s}
+.sw::after{content:'';position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s}
+.setRow input:checked+.sw{background:#c8a83a}
+.setRow input:checked+.sw::after{left:23px}
+.seg{display:flex;gap:4px}
+.seg button{padding:7px 12px;border-radius:8px;background:rgba(255,255,255,.15);font:900 12px/1 var(--f)}
+.seg button.on{background:#fff;color:var(--ink)}
+.closeBtn{margin-top:4px}
+#boot{position:fixed;inset:0;z-index:50;background:#0b1640;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .4s}
+.bootLogo{font:italic 900 40px/1 var(--f);color:var(--warm);text-shadow:0 0 30px rgba(255,240,168,.7)}
+.bootBar{width:200px;height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden}
+.bootBar i{display:block;height:100%;width:30%;background:var(--gold);animation:boot 1s ease-in-out infinite alternate}
+@keyframes boot{to{width:100%}}
+@media (max-width:520px){#nTxt{font-size:13px}#pTxt{display:none}#lightTxt{font-size:16px}#timeTxt{font-size:15px}#nGrid{grid-template-columns:repeat(5,1fr)}#rStars{font-size:34px}#chain{display:none}}
+@media (max-height:480px){.sheet{max-height:96vh;gap:6px;padding-top:10px}#rStars{font-size:28px}#rLight{font-size:24px}}
+
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<!-- ============ HUD ============ -->
+<div id="hud" class="hidden">
+  <div id="hL"><b id="nTxt">NIGHT 1</b><span id="pTxt">Moonlit Meadow</span></div>
+  <div id="hC">
+    <div id="lightRow"><span id="lightTxt">0</span><span id="goalTxt">/ 100</span><span id="timeTxt">45</span></div>
+    <div id="bar"><i></i><em class="st s1">★</em><em class="st s2">★</em><em class="st s3">★</em></div>
+    <div id="lanternBar" class="hidden"><i></i><span>LANTERN</span></div>
+  </div>
+  <div id="hR">
+    <div id="chain" class="hidden">CHAIN <b>x1.5</b></div>
+    <button id="bottleBtn" class="icoBtn hidden" aria-label="Time Bottle">⏳</button>
+    <div id="jar"><i></i></div>
+    <button id="menuBtn" class="icoBtn" aria-label="Menu">☰</button>
+  </div>
+</div>
+<div id="tip" class="hidden"></div>
+<div id="toasts"></div>
+
+<!-- ============ TITLE ============ -->
+<div id="title">
+  <h1 id="logo">FIREFLY<span>LASSO</span></h1>
+  <div class="tag">Draw a loop. <b>Catch the light.</b></div>
+  <div class="drag"><span class="hand">☝</span> DRAW A CIRCLE AROUND THE FIREFLIES</div>
+  <div id="tInfo"></div>
+</div>
+
+<!-- ============ RESULT ============ -->
+<div id="result" class="sheet hidden">
+  <div id="rTitle">NIGHT COMPLETE</div>
+  <div id="rStars"><i>★</i><i>★</i><i>★</i></div>
+  <div id="rLight">0</div>
+  <div id="rStat"></div>
+  <div id="rNew" class="hidden"></div>
+  <div id="upRow"></div>
+  <div class="rBtns">
+    <button id="rMenu" class="btn ghost">☰</button>
+    <button id="rRetry" class="btn">↻ RETRY</button>
+    <button id="rNext" class="btn primary big">NEXT NIGHT ▶</button>
+  </div>
+</div>
+
+<!-- ============ MENU ============ -->
+<div id="menu" class="screen hidden">
+  <h2>FIREFLY LASSO</h2>
+  <div class="menuGrid">
+    <button id="mPlay" class="btn primary big">▶ CONTINUE</button>
+    <button id="mNights" class="btn wide">🌙 NIGHTS</button>
+    <button id="mHunt" class="btn wide special">🏮 MIDNIGHT HUNT <small id="hLock"></small></button>
+    <div class="row2"><button id="mCodex" class="btn">📖 CODEX</button><button id="mShop" class="btn">✨ UPGRADES</button></div>
+    <button id="mSet" class="btn ghost wide">SETTINGS</button>
+  </div>
+  <div id="mStats" class="hint"></div>
+  <button class="btn ghost closeBtn">CLOSE</button>
+</div>
+<div id="nights" class="screen hidden"><h2>NIGHTS</h2><div id="nGrid"></div><button class="btn ghost closeBtn">BACK</button></div>
+<div id="codex" class="screen hidden"><h2>FIREFLY CODEX <small id="cxN"></small></h2><div id="cxList" class="list"></div><button class="btn ghost closeBtn">BACK</button></div>
+<div id="shop" class="screen hidden"><h2>UPGRADES <small id="sGlow" class="money"></small></h2><div id="shopList" class="list"></div><button class="btn ghost closeBtn">BACK</button></div>
+<div id="settings" class="screen hidden">
+  <h2>SETTINGS</h2>
+  <div class="list">
+    <label class="setRow"><span>Sound effects</span><input type="checkbox" data-opt="sfx"><i class="sw"></i></label>
+    <label class="setRow"><span>Music</span><input type="checkbox" data-opt="music"><i class="sw"></i></label>
+    <div class="setRow"><span>Effects</span><div class="seg" data-opt="fx"><button data-v="low">LOW</button><button data-v="high">HIGH</button></div></div>
+  </div>
+  <button class="btn ghost closeBtn">BACK</button>
+</div>
+
+<div id="boot"><div class="bootLogo">FIREFLY LASSO</div><div class="bootBar"><i></i></div></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   CrazyGames SDK v3 wrapper.
+   - Documented order: SDK.init() -> loadingStart() -> (load) -> loadingStop()
+   - gameplayStart/Stop are de-duplicated so the portal never sees two
+     starts (or two stops) in a row.
+   - Every call is wrapped: off-portal (localhost, itch, file://) the game
+     runs identically with the SDK absent.
+   - ADS_ENABLED stays false during Basic Launch: CrazyGames does not allow
+     ads in Basic Launch, so no ad API is touched at all while it's false.
+     Flip it to true once the dashboard shows Full Implementation.
+   ===================================================================== */
+const ADS_ENABLED = false;
+
+const SDK = {
+  cg: null, env: 'none', playing: false, lastAd: 0, adBusy: false,
+  onMute: null,
+
+  async init(){
+    await new Promise(res => {
+      let done = false; const fin = () => { if(!done){ done = true; res(); } };
+      try{
+        const s = document.createElement('script');
+        s.src = 'https://sdk.crazygames.com/crazygames-sdk-v3.js';
+        s.onload = fin; s.onerror = fin;
+        document.head.appendChild(s);
+      }catch(e){ fin(); }
+      setTimeout(fin, 4000);
+    });
+    try{
+      const sdk = window.CrazyGames && window.CrazyGames.SDK;
+      if(!sdk) return;
+      await Promise.race([sdk.init(), new Promise((_, rej) => setTimeout(() => rej(new Error('sdk timeout')), 5000))]);
+      this.env = sdk.environment || 'crazygames';
+      if(this.env === 'disabled') return;   // not on a CrazyGames domain
+      this.cg = sdk;
+      try{
+        this.applySettings(sdk.game.settings);
+        sdk.game.addSettingsChangeListener(s => this.applySettings(s));
+      }catch(e){}
+    }catch(e){ this.cg = null; }
+  },
+  applySettings(s){
+    if(!s) return;
+    if(this.onMute) this.onMute(!!s.muteAudio);
+  },
+  data(){ try{ return this.cg && this.cg.data ? this.cg.data : null; }catch(e){ return null; } },
+
+  loadingStart(){ try{ this.cg && this.cg.game.loadingStart(); }catch(e){} },
+  loadingStop(){ try{ this.cg && this.cg.game.loadingStop(); }catch(e){} },
+  gameplayStart(){ if(this.playing) return; this.playing = true; try{ this.cg && this.cg.game.gameplayStart(); }catch(e){} },
+  gameplayStop(){ if(!this.playing) return; this.playing = false; try{ this.cg && this.cg.game.gameplayStop(); }catch(e){} },
+  happytime(){ try{ this.cg && this.cg.game.happytime(); }catch(e){} },
+
+  canRewarded(){ return ADS_ENABLED && !!this.cg && !this.adBusy; },
+
+  /* rewarded ad: cb(true) only when the ad finished */
+  rewarded(cb){
+    if(!this.canRewarded()){ cb(false); return; }
+    this._ad('rewarded', cb);
+  },
+  /* midgame ad at natural breaks, self-limited to one per 3 minutes */
+  midgame(cb){
+    if(!ADS_ENABLED || !this.cg || this.adBusy || Date.now() - this.lastAd < 180000){ cb(); return; }
+    this._ad('midgame', () => cb());
+  },
+  _ad(type, cb){
+    this.adBusy = true; this.gameplayStop();
+    let fin = false;
+    const end = ok => { if(fin) return; fin = true; this.adBusy = false; this.lastAd = Date.now(); AU.adMute(false); cb(ok); };
+    try{
+      this.cg.ad.requestAd(type, {
+        adStarted: () => AU.adMute(true),
+        adFinished: () => end(true),
+        adError: () => end(false)
+      });
+    }catch(e){ end(false); }
+  }
+};
+
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   FIREFLY LASSO core: utilities, species, places, nights, upgrades, save.
+   Draw a loop. Catch the light.
+   ===================================================================== */
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[(Math.random() * a.length) | 0];
+const $ = id => document.getElementById(id);
+function fmt(n){
+  n = Math.floor(n);
+  if(n < 10000) return n.toLocaleString('en-US');
+  const u = ['K', 'M', 'B', 'T', 'Qa']; let i = -1;
+  while(n >= 1000 && i < u.length - 1){ n /= 1000; i++; }
+  return (n < 100 ? n.toFixed(1).replace(/\.0$/, '') : Math.floor(n)) + u[i];
+}
+function mulberry32(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function hashStr(s){ let h = 2166136261; for(let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function rgba(hex, a){ const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${n >> 8 & 255},${n & 255},${a})`; }
+function mix(h1, h2, t){ const a = parseInt(h1.slice(1), 16), b = parseInt(h2.slice(1), 16); const r = lerp(a >> 16, b >> 16, t) | 0, g = lerp(a >> 8 & 255, b >> 8 & 255, t) | 0, bl = lerp(a & 255, b & 255, t) | 0; return '#' + ((1 << 24) | (r << 16) | (g << 8) | bl).toString(16).slice(1); }
+
+/* ---------------- firefly species ---------------- */
+// hue: colour family used for PURE / RAINBOW bonuses
+const SPECIES = {
+  glow:   { name:'Glowbug',   col:'#ffe25a', hue:'gold',   val:1,   r:5,   spd:38,  from:1,  desc:'The friendliest light in the meadow.' },
+  mint:   { name:'Mintfly',   col:'#7dff9a', hue:'green',  val:1,   r:5,   spd:26,  from:2,  desc:'Slow and sociable. Mintflies love a crowd.' },
+  blue:   { name:'Bluewing',  col:'#6ad0ff', hue:'blue',   val:2,   r:5,   spd:70,  from:3,  desc:'Quick as a thought. Worth two.' },
+  rose:   { name:'Rosepair',  col:'#ff7ad0', hue:'pink',   val:2,   r:5,   spd:40,  from:5,  desc:'Always in pairs. Catch both together for a heart bonus.' },
+  gold:   { name:'Goldie',    col:'#ffb020', hue:'gold',   val:10,  r:6,   spd:90,  from:4,  desc:'Rare, shy and darting. Worth ten.', shy:1 },
+  blink:  { name:'Blinker',   col:'#f4f0ff', hue:'white',  val:4,   r:5,   spd:45,  from:8,  desc:'Vanishes every other second. Only catchable while shining.' },
+  ember:  { name:'Emberfly',  col:'#ff7a3a', hue:'orange', val:3,   r:5,   spd:50,  from:21, desc:'Found in the Misty Marsh. Leaves a warm trail.' },
+  frost:  { name:'Frostfly',  col:'#bff4ff', hue:'blue',   val:3,   r:5,   spd:34,  from:31, desc:'Lives up in Starfall Peaks. Cold, calm, bright.' },
+  star:   { name:'Starling',  col:'#ffffff', hue:'rainbow',val:5,   r:6,   spd:55,  from:12, desc:'Shimmers every colour. Counts as any colour for a Rainbow.', rare:1 },
+  moth:   { name:'Moonmoth',  col:'#c8a8ff', hue:'purple', val:15,  r:8,   spd:30,  from:0,  desc:'A secret. It only comes when your loops are on fire.', secret:'Reach a x4 chain.' },
+  shadow: { name:'Shadowfly', col:'#8a5aff', hue:'purple', val:20,  r:6,   spd:60,  from:0,  desc:'A secret of the deepest midnight.', secret:'Survive 90 seconds of Midnight Hunt.' },
+  queen:  { name:'Firefly Queen', col:'#ffd6a0', hue:'gold', val:120, r:22, spd:60,  from:0,  desc:'The heart of every tenth night. Loop her to crown the night.', boss:1 },
+};
+const SP_IDS = Object.keys(SPECIES);
+
+/* ---------------- places (10 nights each) ---------------- */
+const PLACES = [
+  { id:'meadow', name:'Moonlit Meadow',   sky:['#0b1640', '#1f2d6a'], hill:['#0d1a2e', '#12243a'], grass:'#16324a', moon:'#fff6d6', fog:0,   key:62 },
+  { id:'woods',  name:'Whispering Woods', sky:['#080f24', '#1a2250'], hill:['#081420', '#0c1c2c'], grass:'#10283a', moon:'#e8f0ff', fog:0,   key:57, trees:1 },
+  { id:'marsh',  name:'Misty Marsh',      sky:['#0d1424', '#253044'], hill:['#0c1a1a', '#10241f'], grass:'#153428', moon:'#ffe8c0', fog:.35, key:60, water:1 },
+  { id:'peaks',  name:'Starfall Peaks',   sky:['#05051a', '#241a4a'], hill:['#0c0c24', '#161634'], grass:'#1c1c40', moon:'#ffffff', fog:0,   key:65, snow:1 },
+];
+
+/* ---------------- nights ---------------- */
+// the goal is how much light fills the jar; stars at goal, x1.8 and x3
+function nightSpec(n){
+  const place = ((n - 1) / 10 | 0) % PLACES.length, boss = n % 10 === 0, loop = (n - 1) / 40 | 0;
+  const d = Math.min(1, (n - 1) / 45);
+  const pool = SP_IDS.filter(k => SPECIES[k].from > 0 && SPECIES[k].from <= n && !SPECIES[k].secret && !SPECIES[k].boss && (k !== 'ember' || place === 2 || n > 40) && (k !== 'frost' || place === 3 || n > 40));
+  return {
+    n, place, boss, pool, time:45,
+    pop:Math.round((16 + d * 14) * (typeof G !== 'undefined' && G.W && G.H ? clamp(G.W * G.H / 576000, .85, 1.5) : 1)),
+    goal:Math.round((480 + 132 * (n - 1)) * (place === 2 ? .68 : 1) * (1 + loop * .5) / 10) * 10,
+    wasps:n < 4 ? 0 : Math.min(5, 1 + (n - 4) / 7 | 0),
+    bats:place === 1 || n > 40 ? Math.min(3, 1 + (n - 11) / 5 | 0) : 0,
+    webs:place === 2 || n > 40 ? Math.min(4, 1 + (n - 21) / 4 | 0) : 0,
+    wind:place === 3 || n > 40 ? .5 + (n % 10) * .06 : 0,
+    rain:place === 3 && n % 3 === 0,
+    seed:hashStr('ffl-night-' + n),
+  };
+}
+
+/* ---------------- upgrades ---------------- */
+const UPG = [
+  { id:'rope',  icon:'〰', name:'Longer Lasso',  base:500,  k:1.55, max:12, eff:l => `Lasso ${Math.round(ropeLen(l))} long` },
+  { id:'lure',  icon:'✨', name:'Firefly Lure',  base:700,  k:1.6,  max:10, eff:l => `+${l * 10}% fireflies` },
+  { id:'value', icon:'💡', name:'Brighter Light',base:900,  k:1.5,  max:30, eff:l => `Light x${lightMul(l).toFixed(2)}` },
+  { id:'time',  icon:'🌙', name:'Longer Nights', base:2500, k:1.9,  max:6,  eff:l => `Nights last ${45 + l * 3}s` },
+  { id:'luck',  icon:'🍀', name:'Lucky Charm',   base:3000, k:1.8,  max:8,  eff:l => `Rare fireflies x${(1 + l * .2).toFixed(1)}` },
+  { id:'bottle',icon:'⏳', name:'Time Bottle',   base:2000, k:2.2,  max:5,  eff:l => l ? `Slow time for ${2 + l}s once a night` : 'Unlock slow-motion once a night' },
+];
+const ropeLen = l => 760 + l * 85;
+const lightMul = l => 1 + l * .2;
+const upCost = (u, l) => Math.ceil(u.base * Math.pow(u.k, l) / 5) * 5;
+
+const TIPS = [
+  'Every firefly in a loop multiplies the others. <b>Big loops pay big.</b>',
+  'Loop <b>one colour only</b> for a PURE x1.5 bonus, or <b>three colours</b> for a RAINBOW x2.',
+  'Loop again within 2 seconds to build a <b>chain</b>.',
+  '<b>Wasps</b> snap your lasso. Loop a wasp to shoo it away.',
+  'Fireflies gather into <b>swarms</b>. Wait for one, then loop it.',
+  'Your glow is kept even when you miss the goal. <b>Every night makes you brighter.</b>',
+];
+
+/* ---------------- save ---------------- */
+const SAVE_KEY = 'fireflylasso_save_v1';
+let _saveT = 0;
+function defSave(){
+  return {
+    v:1, glow:0, earned:0, night:1, maxNight:1, stars:{}, up:{ rope:0, lure:0, value:0, time:0, luck:0, bottle:0 },
+    codex:{}, best:{ loop:0, hunt:0, huntT:0 }, stats:{ caught:0, loops:0, nights:0, rainbows:0, queens:0 },
+    tut:0, opt:{ sfx:true, music:true, fx:'high' },
+  };
+}
+let save = defSave();
+function mergeInto(base, src){
+  for(const k in src){
+    if(!(k in base)){ base[k] = src[k]; continue; }
+    const b = base[k], s = src[k];
+    if(b && typeof b === 'object' && !Array.isArray(b) && s && typeof s === 'object' && !Array.isArray(s)) mergeInto(b, s);
+    else if(s !== undefined && s !== null && typeof s === typeof b) base[k] = s;
+  }
+  return base;
+}
+function loadSave(){
+  let raw = null; const d = SDK.data();
+  try{ if(d) raw = d.getItem(SAVE_KEY); }catch(e){}
+  if(!raw && !d){ try{ raw = localStorage.getItem(SAVE_KEY); }catch(e){} }
+  if(raw){ try{ save = mergeInto(defSave(), JSON.parse(raw)); }catch(e){ save = defSave(); } }
+}
+function writeSave(){
+  const s = JSON.stringify(save), d = SDK.data();
+  if(d){ try{ d.setItem(SAVE_KEY, s); }catch(e){} return; }
+  try{ localStorage.setItem(SAVE_KEY, s); }catch(e){}
+}
+function persist(){ clearTimeout(_saveT); _saveT = setTimeout(writeSave, 300); }
+
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   FIREFLY LASSO audio: everything synthesized.
+   - night: crickets and a soft pad
+   - music: a music-box lullaby in pentatonic, a heartbeat joins with the chain
+   - every caught firefly rings the next note up a pentatonic scale
+   ===================================================================== */
+const AU = {
+  ctx:null, master:null, sfx:null, mus:null, rev:null, noiseBuf:null,
+  portalMute:false, adMuted:false, hidden:false, last:{}, step:0, nextT:0, timer:null, key:62, heat:0,
+  init(){
+    if(this.ctx) return;
+    try{ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return; this.ctx = new AC(); }catch(e){ return; }
+    const c = this.ctx;
+    const comp = c.createDynamicsCompressor(); comp.threshold.value = -16; comp.knee.value = 8; comp.ratio.value = 8; comp.attack.value = .003; comp.release.value = .25;
+    this.master = c.createGain(); this.master.connect(comp); comp.connect(c.destination);
+    const rl = c.sampleRate * 2.4 | 0, ir = c.createBuffer(2, rl, c.sampleRate);
+    for(let ch = 0; ch < 2; ch++){ const d = ir.getChannelData(ch); for(let i = 0; i < rl; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / rl, 2.4); }
+    this.rev = c.createConvolver(); this.rev.buffer = ir; const rg = c.createGain(); rg.gain.value = .5; this.rev.connect(rg); rg.connect(this.master);
+    this.sfx = c.createGain(); this.sfx.connect(this.master);
+    this.mus = c.createGain(); this.mus.connect(this.master); this.mus.connect(this.rev);
+    const len = c.sampleRate; this.noiseBuf = c.createBuffer(1, len, c.sampleRate);
+    const d = this.noiseBuf.getChannelData(0); for(let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this.apply(); this.startMusic();
+  },
+  resume(){ try{ if(this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(() => {}); }catch(e){} },
+  apply(){
+    if(!this.ctx) return;
+    const on = !this.portalMute && !this.adMuted && !this.hidden, t = this.ctx.currentTime;
+    this.master.gain.setTargetAtTime(on ? 1 : 0, t, .03);
+    this.sfx.gain.setTargetAtTime(save.opt.sfx ? .6 : 0, t, .02);
+    this.mus.gain.setTargetAtTime(save.opt.music ? .3 : 0, t, .05);
+  },
+  setPortalMute(m){ this.portalMute = m; this.apply(); },
+  adMute(m){ this.adMuted = m; this.apply(); },
+  setHidden(h){ this.hidden = h; this.apply(); },
+  gate(k, gap){ const t = this.ctx.currentTime; if(t - (this.last[k] || -1) < gap) return false; this.last[k] = t; return true; },
+  mf(m){ return 440 * Math.pow(2, (m - 69) / 12); },
+  tone(f, d, type, v, f2, delay, wet){
+    const c = this.ctx; if(!c) return;
+    const t = c.currentTime + (delay || 0), o = c.createOscillator(), g = c.createGain();
+    o.type = type || 'sine'; o.frequency.setValueAtTime(f, t); if(f2) o.frequency.exponentialRampToValueAtTime(Math.max(20, f2), t + d);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+    o.connect(g); g.connect(this.sfx); if(wet) g.connect(this.rev); o.start(t); o.stop(t + d + .05);
+  },
+  noise(d, freq, v, type, f2, delay, q, wet){
+    const c = this.ctx; if(!c) return;
+    const t = c.currentTime + (delay || 0), s = c.createBufferSource(); s.buffer = this.noiseBuf;
+    const f = c.createBiquadFilter(); f.type = type || 'lowpass'; f.frequency.setValueAtTime(freq, t); if(f2) f.frequency.exponentialRampToValueAtTime(Math.max(30, f2), t + d); f.Q.value = q || 1;
+    const g = c.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .01); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+    s.connect(f); f.connect(g); g.connect(this.sfx); if(wet) g.connect(this.rev); s.start(t, Math.random() * .5); s.stop(t + d + .05);
+  },
+  PENTA:[0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28, 31, 33, 36],
+  draw(){ if(!this.ctx || !this.gate('draw', .09)) return; this.tone(this.mf(this.key + 36 + ((Math.random() * 3) | 0) * 7), .12, 'sine', .012, 0, 0, 1); },
+  catch(n, rainbow, pure){
+    if(!this.ctx) return;
+    this.heat = Math.min(1, this.heat + .12 + n * .03);
+    const k = Math.min(this.PENTA.length, 2 + n);
+    for(let i = 0; i < k; i++) this.tone(this.mf(this.key + 12 + this.PENTA[i]), .5, 'triangle', .07, 0, i * .045, 1);
+    this.tone(this.mf(this.key + 24 + this.PENTA[k - 1]), .9, 'sine', .05, 0, k * .045, 1);
+    if(rainbow) [0, 4, 7, 11, 14, 19].forEach((s, i) => this.tone(this.mf(this.key + 24 + s), 1.1, 'sine', .04, 0, .2 + i * .06, 1));
+    else if(pure) [0, 7, 12].forEach((s, i) => this.tone(this.mf(this.key + 24 + s), .8, 'triangle', .04, 0, .15 + i * .05, 1));
+    this.noise(.4, 7000, .03 + Math.min(.06, n * .005), 'highpass', 11000, 0, 1, 1);
+  },
+  snap(){ if(!this.ctx || !this.gate('snap', .1)) return; this.noise(.12, 2500, .25, 'bandpass', 600, 0, 2); this.tone(300, .18, 'square', .05, 90); this.heat = 0; },
+  shoo(){ if(!this.ctx) return; this.tone(500, .25, 'sawtooth', .04, 1400); this.noise(.3, 1200, .08, 'bandpass', 3000, 0, 2); },
+  swarm(){ if(!this.ctx) return; for(let i = 0; i < 8; i++) this.tone(this.mf(this.key + 24 + this.PENTA[(i * 3) % 10]), .3, 'sine', .03, 0, i * .03, 1); },
+  bat(){ if(!this.ctx) return; this.tone(4200, .06, 'square', .02, 6000); this.tone(4800, .06, 'square', .02, 7000, .1); this.noise(.5, 600, .06, 'bandpass', 250, .15, 1.5); },
+  queenIn(){ if(!this.ctx) return; [0, 4, 7, 12, 16].forEach((s, i) => this.tone(this.mf(this.key + s), 1.4, 'sine', .07, 0, i * .12, 1)); },
+  queen(){ if(!this.ctx) return; [0, 4, 7, 12, 16, 19, 24, 28].forEach((s, i) => this.tone(this.mf(this.key + 12 + s), 1.2, 'triangle', .08, 0, i * .07, 1)); this.noise(1.4, 8000, .08, 'highpass', 12000, .1, 1, 1); },
+  discover(){ if(!this.ctx) return; [12, 16, 19, 24, 28].forEach((s, i) => this.tone(this.mf(this.key + 12 + s), .9, 'sine', .06, 0, .1 + i * .09, 1)); },
+  tick(){ if(!this.ctx) return; this.tone(this.mf(this.key + 31), .08, 'square', .03); },
+  star(i){ if(!this.ctx) return; this.tone(this.mf(this.key + 24 + [0, 4, 7][i]), .6, 'triangle', .1, 0, 0, 1); this.tone(this.mf(this.key + 36 + [0, 4, 7][i]), .4, 'sine', .04); },
+  win(){ if(!this.ctx) return; [0, 4, 7, 12, 16].forEach((s, i) => this.tone(this.mf(this.key + 12 + s), .7, 'triangle', .08, 0, i * .09, 1)); },
+  lose(){ if(!this.ctx) return; [7, 4, 0].forEach((s, i) => this.tone(this.mf(this.key + s), .6, 'triangle', .07, 0, i * .15, 1)); },
+  bottle(){ if(!this.ctx) return; this.tone(900, 1.2, 'sine', .08, 200, 0, 1); this.noise(1, 3000, .06, 'bandpass', 400, 0, 3, 1); },
+  buy(){ if(!this.ctx) return; [0, 7, 12].forEach((s, i) => this.tone(this.mf(this.key + 12 + s), .2, 'triangle', .07, 0, i * .05, 1)); },
+  deny(){ if(!this.ctx) return; this.tone(200, .15, 'square', .05, 130); },
+  ui(){ if(!this.ctx) return; this.tone(this.mf(this.key + 24), .07, 'triangle', .05); },
+  count(){ if(!this.ctx || !this.gate('cnt', .05)) return; this.tone(this.mf(this.key + 24 + this.PENTA[(Math.random() * 5) | 0]), .06, 'triangle', .025); },
+  setPlace(i){ this.key = PLACES[i % PLACES.length].key; },
+
+  /* ---------- night music: 72 bpm, eighth notes ---------- */
+  startMusic(){ if(!this.ctx || this.timer) return; this.nextT = this.ctx.currentTime + .1; this.step = 0; this.timer = setInterval(() => this.sched(), 30); },
+  mt(f, t, d, type, v, cut){
+    const c = this.ctx, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + (type === 'sine' && d > 2 ? .6 : .008)); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+    if(cut){ const fl = c.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.setValueAtTime(cut, t); o.connect(fl); fl.connect(g); } else o.connect(g);
+    g.connect(this.mus); o.start(t); o.stop(t + d + .05);
+  },
+  chirp(t, v){ const c = this.ctx; for(let k = 0; k < 3; k++){ const o = c.createOscillator(), g = c.createGain(), tt = t + k * .045; o.frequency.setValueAtTime(4300 + Math.random() * 300, tt); g.gain.setValueAtTime(.0001, tt); g.gain.exponentialRampToValueAtTime(v, tt + .005); g.gain.exponentialRampToValueAtTime(.0001, tt + .03); o.connect(g); g.connect(this.mus); o.start(tt); o.stop(tt + .05); } },
+  beat(t, v){ const c = this.ctx, o = c.createOscillator(), g = c.createGain(); o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(40, t + .18); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + .25); o.connect(g); g.connect(this.mus); o.start(t); o.stop(t + .3); },
+  sched(){
+    const c = this.ctx; if(!c || c.state !== 'running'){ if(c) this.nextT = c.currentTime + .05; return; }
+    const sp = 60 / 72 / 2;
+    const prog = [[0, 4, 7], [-3, 0, 4], [-7, -3, 0], [-5, -1, 2]];
+    const TUNE = [12, 9, 7, 9, 12, 14, 16, 14, 12, 9, 7, 4, 7, 9, 7, 4];
+    while(this.nextT < c.currentTime + .15){
+      const st = this.step, t = this.nextT, s8 = st % 8, bar = (st / 8 | 0) % 4, ch = prog[bar], r = this.key - 12, h = this.heat;
+      if(s8 === 0){ ch.forEach(k => this.mt(this.mf(r + k), t, sp * 8.5, 'sine', .022)); this.mt(this.mf(r - 12 + ch[0]), t, sp * 7, 'triangle', .06, 400); }
+      // music box
+      const ar = [0, 2, 1, 2, 0, 2, 1, 2][s8]; if(s8 % 2 === 0 || h > .3) this.mt(this.mf(r + 24 + ch[ar]), t, sp * 3, 'triangle', .02 + h * .01, 3200);
+      if(h > .35 && s8 % 2 === 0){ const n = TUNE[(st / 2 | 0) % TUNE.length]; this.mt(this.mf(r + 24 + n), t, sp * 2.2, 'sine', .018 + h * .016); }
+      if(h > .55 && (s8 === 0 || s8 === 3)) this.beat(t, .12 + h * .12);
+      if(Math.random() < .09) this.chirp(t + Math.random() * sp, .006 + Math.random() * .006);
+      this.heat = Math.max(0, this.heat - .004);
+      this.nextT += sp; this.step++;
+    }
+  },
+};
+
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   FIREFLY LASSO simulation.
+   Your finger leaves a glowing rope. When the rope crosses itself it
+   closes a loop, and every firefly inside is caught. Each firefly in a
+   loop multiplies the others, so bigger loops are worth far more.
+   ===================================================================== */
+const G = {
+  state:'title', mode:'night', spec:null, W:960, H:600, t:0, rt:0, time:45, timeLeft:45,
+  light:0, shown:0, flies:[], wasps:[], bats:[], webs:[], trail:[], trailLen:0, drawing:false,
+  snapT:0, streak:0, streakT:0, bestLoop:0, loops:0, caughtN:0, pops:[], parts:[], rings:[], fx:[], shards:[],
+  slowT:0, bottleUsed:false, swarmT:6, batT:5, gust:0, windPh:0, lantern:1, queen:null, queenDone:false,
+  newSpecies:[], result:null, mothDone:false, shadowDone:false, catches:0,
+};
+const PTR = { x:0, y:0, wx:0, wy:0, down:false, id:-1, in:false };
+
+/* ---------------- spawning ---------------- */
+function pickSpecies(){
+  const sp = G.spec, luck = 1 + save.up.luck * .2;
+  const w = sp.pool.map(k => [k, k === 'gold' ? .05 * luck : k === 'star' ? .035 * luck : k === 'glow' ? 1.2 : k === 'mint' ? .7 : k === 'rose' ? .35 : .45]);
+  let s = 0; for(const [, v] of w) s += v; let r = Math.random() * s;
+  for(const [k, v] of w){ r -= v; if(r <= 0) return k; } return 'glow';
+}
+function mkFly(k, x, y){
+  const S = SPECIES[k], a = rnd(0, TAU);
+  const f = { sp:k, x, y, vx:Math.cos(a) * S.spd, vy:Math.sin(a) * S.spd, wa:a, ph:rnd(0, TAU), fade:0, alive:true, vis:1, age:0 };
+  G.flies.push(f); return f;
+}
+function spawnFly(near){
+  const k = pickSpecies(); let x, y, g = 0;
+  do { x = rnd(40, G.W - 40); y = rnd(40, G.H - 40); g++; } while(g < 12 && (Math.hypot(x - PTR.wx, y - PTR.wy) < 160 || G.webs.some(w => Math.hypot(x - w.x, y - w.y) < w.r + 20)));
+  if(near){ x = near.x + rnd(-40, 40); y = near.y + rnd(-40, 40); }
+  const f = mkFly(k, x, y);
+  if(k === 'rose'){ const m = mkFly('rose', x + 12, y); f.mate = m; m.mate = f; }
+  return f;
+}
+function spawnSwarm(){
+  const cx = rnd(140, G.W - 140), cy = rnd(120, G.H - 120), n = 10 + (Math.random() * 7 | 0) + (G.spec.n > 10 ? 3 : 0);
+  const mono = Math.random() < .5 ? pickSpecies() : null;
+  const sw = { x:cx, y:cy, t:7 };
+  for(let i = 0; i < n; i++){ const a = rnd(0, TAU), r = Math.sqrt(Math.random()) * 55; const f = mkFly(mono || pickSpecies(), cx + Math.cos(a) * r, cy + Math.sin(a) * r); f.swarm = sw; }
+  G.rings.push({ x:cx, y:cy, r:140, R:40, t:0, col:'#fff6c0', inward:1 });
+  pop('SWARM!', cx, cy - 70, '#fff6c0', 22); AU.swarm();
+}
+
+/* ---------------- rounds ---------------- */
+function resetRound(){
+  Object.assign(G, { flies:[], wasps:[], bats:[], webs:[], trail:[], trailLen:0, pops:[], parts:[], rings:[], fx:[], shards:[], light:0, shown:0, t:0, snapT:0, streak:0, streakT:0, bestLoop:0, loops:0, caughtN:0, slowT:0, bottleUsed:false, queen:null, queenDone:false, newSpecies:[], result:null, mothDone:false, shadowDone:false, catches:0, lantern:1, gust:0, caughtFx:[], ghost:null });
+}
+function startNight(n){
+  resetRound();
+  G.mode = 'night'; G.spec = nightSpec(n);
+  const R = mulberry32(G.spec.seed);
+  G.time = G.timeLeft = G.spec.time + save.up.time * 3;
+  for(let i = 0; i < G.spec.webs; i++) G.webs.push({ x:lerp(160, G.W - 160, R()), y:lerp(130, G.H - 130, R()), r:38 + R() * 22, rot:R() * TAU });
+  for(let i = 0; i < popTarget(); i++) spawnFly();
+  for(let i = 0; i < G.spec.wasps; i++) spawnWasp(true);
+  G.swarmT = 5; G.batT = 6;
+  G.state = 'play';
+}
+function startHunt(){
+  resetRound();
+  G.mode = 'hunt'; G.spec = nightSpec(Math.max(12, save.maxNight)); G.spec.webs = 0; G.spec.bats = 1; G.spec.wind = 0; G.spec.place = 0;
+  G.spec.pool = SP_IDS.filter(k => SPECIES[k].from > 0 && SPECIES[k].from <= 40 && !SPECIES[k].secret && !SPECIES[k].boss);
+  G.time = G.timeLeft = 1e9;
+  for(let i = 0; i < popTarget(); i++) spawnFly();
+  G.swarmT = 4; G.batT = 12; G.lantern = 1;
+  G.state = 'play';
+}
+const popTarget = () => Math.round(G.spec.pop * (1 + save.up.lure * .1));
+function spawnWasp(first){
+  const side = Math.random() < .5, x = first ? rnd(80, G.W - 80) : side ? -30 : G.W + 30, y = rnd(60, G.H - 60);
+  G.wasps.push({ x, y, vx:0, vy:0, tx:rnd(60, G.W - 60), ty:rnd(60, G.H - 60), r:13, ph:rnd(0, TAU), gone:0, spd:70 + Math.min(60, G.spec.n * 1.5) });
+}
+
+/* ---------------- geometry ---------------- */
+function segX(a, b, c, d){ // intersection point of segments ab and cd, or null
+  const r1 = b.x - a.x, r2 = b.y - a.y, s1 = d.x - c.x, s2 = d.y - c.y, den = r1 * s2 - r2 * s1;
+  if(Math.abs(den) < 1e-9) return null;
+  const t = ((c.x - a.x) * s2 - (c.y - a.y) * s1) / den, u = ((c.x - a.x) * r2 - (c.y - a.y) * r1) / den;
+  return t > 0 && t < 1 && u > 0 && u < 1 ? { x:a.x + r1 * t, y:a.y + r2 * t } : null;
+}
+function inPoly(x, y, P){ let c = false; for(let i = 0, j = P.length - 1; i < P.length; j = i++){ const a = P[i], b = P[j]; if((a.y > y) !== (b.y > y) && x < (b.x - a.x) * (y - a.y) / (b.y - a.y) + a.x) c = !c; } return c; }
+function polyArea(P){ let s = 0; for(let i = 0, j = P.length - 1; i < P.length; j = i++) s += (P[j].x + P[i].x) * (P[j].y - P[i].y); return Math.abs(s / 2); }
+function segDist(px, py, a, b){ const dx = b.x - a.x, dy = b.y - a.y, l = dx * dx + dy * dy; let t = l ? ((px - a.x) * dx + (py - a.y) * dy) / l : 0; t = clamp(t, 0, 1); return Math.hypot(px - a.x - dx * t, py - a.y - dy * t); }
+function polyEdgeDist(x, y, P){ let m = 1e9; for(let i = 0, j = P.length - 1; i < P.length; j = i++) m = Math.min(m, segDist(x, y, P[j], P[i])); return m; }
+
+/* ---------------- the lasso ---------------- */
+function trailAdd(x, y){
+  if(G.state !== 'play') return;
+  if(G.snapT > 0) return;
+  const T = G.trail, last = T[T.length - 1];
+  if(last && Math.hypot(x - last.x, y - last.y) < 7) return;
+  const p = { x, y, t:G.rt };
+  if(last){
+    // did this new piece of rope cross an older piece? then a loop just closed
+    for(let i = T.length - 3; i >= 1; i--){
+      const I = segX(T[i - 1], T[i], last, p);
+      if(I){ closeLoop([I].concat(T.slice(i, T.length)), I); G.trail = [I, p]; G.trailLen = Math.hypot(p.x - I.x, p.y - I.y); return; }
+    }
+    // forgiving: coming back close to an older part of the rope also closes the loop
+    for(let i = 0; i < T.length - 12; i++){
+      if(Math.hypot(p.x - T[i].x, p.y - T[i].y) < 22){ const P = T.slice(i).concat([p]); closeLoop(P, T[i]); G.trail = [p]; G.trailLen = 0; return; }
+    }
+    G.trailLen += Math.hypot(p.x - last.x, p.y - last.y);
+  }
+  T.push(p);
+  // the rope has a fixed length: the tail is pulled in as you draw
+  const L = ropeLen(save.up.rope);
+  while(G.trailLen > L && T.length > 2){ G.trailLen -= Math.hypot(T[1].x - T[0].x, T[1].y - T[0].y); T.shift(); }
+  AU.draw();
+}
+function snap(x, y, why){
+  if(G.trail.length < 2) return;
+  for(let i = 1; i < G.trail.length; i += 2){ const a = G.trail[i - 1], b = G.trail[i]; G.shards.push({ x1:a.x, y1:a.y, x2:b.x, y2:b.y, vx:rnd(-40, 40), vy:rnd(-60, 20), t:0 }); }
+  G.trail = []; G.trailLen = 0; G.snapT = .35;
+  if(G.streak > 1) pop('CHAIN LOST', x, y - 30, '#ff8a8a', 14);
+  G.streak = 0;
+  pop(why === 'web' ? 'TANGLED!' : why === 'bat' ? 'SWOOSH!' : 'SNAP!', x, y, '#ff5a5a', 20); AU.snap(); G.shake = 6;
+}
+function closeLoop(P, I){
+  const area = polyArea(P);
+  G.fx.push({ P:P.map(p => ({ x:p.x, y:p.y })), t:0, ok:false });
+  if(area < 700) return;
+  const got = [];
+  for(const f of G.flies){ if(f.alive && f.fade > .5 && f.vis > .5 && inPoly(f.x, f.y, P)) got.push(f); }
+  let shoo = 0;
+  for(const w of G.wasps){ if(!w.gone && inPoly(w.x, w.y, P)){ w.gone = 1; w.vx = (w.x - I.x) * 3; w.vy = -260; shoo++; } }
+  let queen = false;
+  const q = G.queen; if(q && !q.caught && inPoly(q.x, q.y, P) && polyEdgeDist(q.x, q.y, P) > SPECIES.queen.r * .6){ queen = true; q.caught = true; }
+  G.fx[G.fx.length - 1].ok = got.length > 0 || shoo > 0 || queen;
+  let cx = 0, cy = 0; for(const p of P){ cx += p.x; cy += p.y; } cx /= P.length; cy /= P.length;
+  if(shoo){ const v = 8 * shoo * lightMul(save.up.value); addLight(v); pop(shoo > 1 ? `SHOO x${shoo}! +${fmt(v)}` : `SHOO! +${fmt(v)}`, cx, cy + 26, '#ffb070', 16); AU.shoo(); }
+  if(!got.length && !queen) return;
+  // --- score the loop ---
+  const n = got.length + (queen ? 1 : 0);
+  let base = 0; const hues = new Set(); let wild = 0;
+  for(const f of got){ const S = SPECIES[f.sp]; base += S.val; if(S.hue === 'rainbow') wild++; else hues.add(S.hue); }
+  if(queen) base += SPECIES.queen.val;
+  const distinct = hues.size + wild;
+  const rainbow = distinct >= 3, pure = !rainbow && n >= 3 && hues.size <= 1;
+  let pairs = 0; for(const f of got) if(f.sp === 'rose' && f.mate && got.includes(f.mate)) pairs++;
+  pairs = pairs / 2 | 0;
+  // chain: loops that land quickly after each other
+  if(G.rt - G.streakT < 2.2) G.streak = Math.min(9, G.streak + 1); else G.streak = 1;
+  G.streakT = G.rt;
+  const sizeM = 1 + .25 * (Math.min(n, 21) - 1), chainM = Math.min(3, 1 + (G.streak - 1) * .25);
+  const mult = sizeM * (rainbow ? 2 : pure ? 1.5 : 1) * (pairs ? 1 + pairs * .5 : 1) * chainM;
+  const v = Math.max(1, Math.round(base * mult * lightMul(save.up.value)));
+  addLight(v);
+  // catch them: they fly to the jar
+  got.forEach((f, i) => { f.alive = false; G.caughtFx.push({ x:f.x, y:f.y, col:SPECIES[f.sp].col, t:-i * .03, sp:f.sp }); discover(f.sp); });
+  if(queen){ discover('queen'); G.queenDone = true; save.stats.queens++; G.flash = .6; G.slowT = Math.max(G.slowT, .8); pop('QUEEN CAUGHT!', q.x, q.y - 50, '#ffd6a0', 30, 2); burst(q.x, q.y, 70, ['#ffd6a0', '#ffffff', '#ffe25a'], 380); AU.queen(); SDK.happytime(); }
+  G.loops++; G.catches++; G.caughtN += n; G.bestLoop = Math.max(G.bestLoop, n); save.stats.loops++; save.stats.caught += n;
+  if(rainbow) save.stats.rainbows++;
+  // words
+  const label = n >= 20 ? 'LEGENDARY LOOP!' : n >= 12 ? 'MEGA LOOP!' : n >= 7 ? 'GREAT LOOP!' : n >= 4 ? 'NICE LOOP!' : '';
+  let y = cy - 10;
+  pop('+' + fmt(v), cx, y, '#fff6c0', 20 + Math.min(22, n * 1.4), 1.3); y -= 30;
+  if(n > 1) { pop('x' + sizeM.toFixed(2).replace(/\.?0+$/, ''), cx + 40 + n, y + 30, '#ffe25a', 16); }
+  if(label){ pop(label, cx, y, '#ffffff', 18 + Math.min(10, n)); y -= 24; }
+  if(rainbow){ pop('RAINBOW x2', cx, y, '#ff7ad0', 18, 1.3); y -= 22; }
+  else if(pure){ pop('PURE x1.5', cx, y, SPECIES[got[0].sp].col, 17, 1.3); y -= 22; }
+  if(pairs) { pop('LOVE ♥ x' + (1 + pairs * .5).toFixed(1), cx, y, '#ff7ad0', 16, 1.2); y -= 22; }
+  if(G.streak > 1){ pop('CHAIN x' + chainM.toFixed(2).replace(/\.?0+$/, ''), cx, y, '#7df0ff', 16, 1.2); }
+  if(n >= 7){ G.shake = Math.max(G.shake, 4 + Math.min(8, n / 3)); G.flash = Math.max(G.flash, .08 + Math.min(.2, n / 80)); }
+  if(n >= 12) SDK.happytime();
+  AU.catch(n, rainbow, pure);
+  // secrets
+  if(G.streak >= 4 && !G.mothDone){ G.mothDone = true; const m = mkFly('moth', rnd(120, G.W - 120), rnd(100, G.H - 100)); m.fade = 0; pop('A MOONMOTH APPEARS...', m.x, m.y - 30, '#c8a8ff', 16, 2); AU.discover(); }
+}
+function addLight(v){
+  G.light += v;
+  if(G.mode === 'hunt') G.lantern = Math.min(1, G.lantern + Math.min(.35, v / (40 + G.t * 1.2)));
+}
+function discover(k){
+  const first = !save.codex[k];
+  save.codex[k] = (save.codex[k] || 0) + 1;
+  if(first){ G.newSpecies.push(k); showToast('NEW FIREFLY!', SPECIES[k].name + ' added to your Codex'); AU.discover(); }
+}
+G.caughtFx = [];
+
+/* ---------------- effects ---------------- */
+function pop(txt, x, y, c, s, d){ G.pops.push({ txt, x, y, c, s:s || 16, t:0, d:d || 1 }); if(G.pops.length > 40) G.pops.shift(); }
+function burst(x, y, n, cols, sp){ const lim = save.opt.fx === 'low' ? 180 : 500; for(let i = 0; i < n && G.parts.length < lim; i++){ const a = rnd(0, TAU), s = rnd(40, sp || 240); G.parts.push({ x, y, vx:Math.cos(a) * s, vy:Math.sin(a) * s, l:rnd(.4, .9), c:pick(cols), s:rnd(1.5, 3.5) }); } }
+
+/* ---------------- update ---------------- */
+function update(rdt){
+  G.rt += rdt;
+  if(G.slowT > 0) G.slowT -= rdt;
+  const dt = rdt * (G.slowT > 0 ? .35 : 1);
+  const play = G.state === 'play';
+  if(play) G.t += rdt;
+  if(G.snapT > 0) G.snapT -= rdt;
+  // --- the clock ---
+  if(play && G.mode === 'night'){
+    const was = Math.ceil(G.timeLeft);
+    G.timeLeft -= rdt;
+    if(Math.ceil(G.timeLeft) !== was && G.timeLeft < 5.5 && G.timeLeft > 0) AU.tick();
+    if(G.timeLeft <= 0){ G.timeLeft = 0; finishNight(); }
+  }
+  if(play && G.mode === 'hunt'){
+    G.lantern -= rdt * (.045 + G.t * .0006);
+    if(G.t > 90 && !G.shadowDone){ G.shadowDone = true; const s = mkFly('shadow', rnd(100, G.W - 100), rnd(100, G.H - 100)); pop('SOMETHING DARK FLUTTERS...', s.x, s.y - 30, '#8a5aff', 16, 2); AU.discover(); }
+    if(G.lantern <= 0){ G.lantern = 0; finishHunt(); }
+  }
+  // --- wind ---
+  G.windPh += dt * .35; G.gust = G.spec && G.spec.wind ? Math.sin(G.windPh) * Math.sin(G.windPh * 2.3 + 1) * 60 * G.spec.wind : 0;
+  // --- fireflies ---
+  const pw = PTR.down && play;
+  for(const f of G.flies){
+    if(!f.alive) continue;
+    const S = SPECIES[f.sp];
+    f.age += dt; f.fade = Math.min(1, f.fade + dt * 1.6); f.ph += dt * 3;
+    if(f.sp === 'blink') f.vis = Math.sin(f.age * 3.1 + f.ph * .1) > -.1 ? 1 : 0;
+    // wander
+    f.wa += rnd(-2.2, 2.2) * dt * (S.shy ? 2 : 1);
+    let ax = Math.cos(f.wa) * S.spd, ay = Math.sin(f.wa) * S.spd;
+    // gather with their own kind (this is what makes big loops possible)
+    if(f.swarm && f.swarm.t > 0){ ax += (f.swarm.x - f.x) * .9; ay += (f.swarm.y - f.y) * .9; }
+    else if(S.hue !== 'rainbow'){
+      let cxs = 0, cys = 0, cn = 0;
+      for(const o of G.flies){ if(o === f || !o.alive || o.sp !== f.sp) continue; const dx = o.x - f.x, dy = o.y - f.y, d2 = dx * dx + dy * dy; if(d2 < 9000){ cxs += o.x; cys += o.y; cn++; if(d2 < 200){ ax -= dx * 1.5; ay -= dy * 1.5; } } }
+      if(cn){ ax += (cxs / cn - f.x) * .35; ay += (cys / cn - f.y) * .35; }
+    }
+    if(f.mate && f.mate.alive){ const dx = f.mate.x - f.x, dy = f.mate.y - f.y; ax += dx * 1.2 - dy * .8; ay += dy * 1.2 + dx * .8; }
+    // shy ones dart away from your finger
+    if(S.shy && pw){ const dx = f.x - PTR.wx, dy = f.y - PTR.wy, d = Math.hypot(dx, dy); if(d < 120 && d > 1){ ax += dx / d * 260; ay += dy / d * 260; } }
+    // avoid webs, stay on screen
+    for(const w of G.webs){ const dx = f.x - w.x, dy = f.y - w.y, d = Math.hypot(dx, dy); if(d < w.r + 30 && d > 1){ ax += dx / d * 200; ay += dy / d * 200; } }
+    const m = 40; if(f.x < m) ax += (m - f.x) * 6; if(f.x > G.W - m) ax -= (f.x - G.W + m) * 6; if(f.y < m) ay += (m - f.y) * 6; if(f.y > G.H - m) ay -= (f.y - G.H + m) * 6;
+    ax += G.gust;
+    const k = Math.min(1, dt * 2.2); f.vx += (ax - f.vx) * k; f.vy += (ay - f.vy) * k;
+    const sp = Math.hypot(f.vx, f.vy), mx = S.spd * (S.shy && pw ? 2.6 : 1.6) + Math.abs(G.gust); if(sp > mx){ f.vx *= mx / sp; f.vy *= mx / sp; }
+    f.x += f.vx * dt; f.y += f.vy * dt;
+  }
+  G.flies = G.flies.filter(f => f.alive);
+  for(const sw of new Set(G.flies.map(f => f.swarm).filter(Boolean))) sw.t -= dt;
+  if(play){
+    // keep the meadow full
+    const cnt = G.flies.filter(f => !SPECIES[f.sp].secret && !SPECIES[f.sp].boss).length;
+    G.refill = (G.refill || 0) + dt * 1.3 * (1 + save.up.lure * .1); if(cnt < popTarget() && G.refill >= 1){ G.refill = 0; spawnFly(); } else if(G.refill > 1) G.refill = 1;
+    G.swarmT -= dt; if(G.swarmT <= 0){ G.swarmT = rnd(7, 11); spawnSwarm(); }
+    // the Queen visits boss nights
+    if(G.mode === 'night' && G.spec.boss && !G.queen && G.t > 8){ G.queen = { x:-40, y:G.H * .4, vx:60, vy:0, ph:0, caught:false, t:0 }; pop('THE FIREFLY QUEEN!', G.W / 2, 80, '#ffd6a0', 26, 2.2); AU.queenIn(); for(let i = 0; i < 10; i++){ const f = mkFly('glow', -20 - i * 8, G.H * .4 + rnd(-30, 30)); f.guard = true; } }
+  }
+  // queen
+  const q = G.queen;
+  if(q){
+    if(q.caught){ q.t += dt; }
+    else {
+      q.ph += dt; const tx = G.W / 2 + Math.cos(q.ph * .45) * G.W * .34, ty = G.H / 2 + Math.sin(q.ph * .9) * G.H * .28;
+      let ax = (tx - q.x) * 1.4, ay = (ty - q.y) * 1.4;
+      // she dodges your rope if it gets close
+      for(let i = 0; i < G.trail.length; i += 3){ const p = G.trail[i], dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy); if(d < 70 && d > 1){ ax += dx / d * 120; ay += dy / d * 120; } }
+      q.vx += (ax - q.vx) * Math.min(1, dt * 2); q.vy += (ay - q.vy) * Math.min(1, dt * 2);
+      q.x += q.vx * dt; q.y += q.vy * dt;
+      for(const f of G.flies) if(f.guard){ f.swarm = { x:q.x, y:q.y, t:1 }; }
+    }
+  }
+  // --- wasps ---
+  for(const w of G.wasps){
+    w.ph += dt * 30;
+    if(w.gone){ w.gone += dt; w.x += w.vx * dt; w.y += w.vy * dt; w.vy -= 200 * dt; continue; }
+    const dx = w.tx - w.x, dy = w.ty - w.y, d = Math.hypot(dx, dy);
+    if(d < 30){ w.tx = rnd(60, G.W - 60); w.ty = rnd(60, G.H - 60); }
+    w.vx += (dx / (d || 1) * w.spd - w.vx) * Math.min(1, dt * 1.5); w.vy += (dy / (d || 1) * w.spd - w.vy) * Math.min(1, dt * 1.5);
+    w.x += w.vx * dt + Math.sin(w.ph * .13) * .6; w.y += w.vy * dt + Math.cos(w.ph * .11) * .6;
+    // it snaps the rope it touches
+    if(play && G.trail.length > 1){ for(let i = 1; i < G.trail.length; i++){ if(segDist(w.x, w.y, G.trail[i - 1], G.trail[i]) < w.r + 2){ snap(w.x, w.y, 'wasp'); break; } } }
+  }
+  const gone = G.wasps.filter(w => w.gone > 2.5).length;
+  G.wasps = G.wasps.filter(w => w.gone <= 2.5);
+  for(let i = 0; i < gone; i++) setTimeout(() => { if(G.state === 'play') spawnWasp(false); }, 5000);
+  // --- bats swoop across ---
+  if(play && G.spec.bats){
+    G.batT -= dt;
+    if(G.batT <= 0){ G.batT = rnd(6, 10) / Math.max(1, G.spec.bats * .7); const l = Math.random() < .5, y0 = rnd(80, G.H - 80); G.bats.push({ x:l ? -60 : G.W + 60, y:y0, vx:l ? 420 : -420, y0, amp:rnd(40, 120), t:0, warn:.8 }); AU.bat(); }
+  }
+  for(const b of G.bats){
+    if(b.warn > 0){ b.warn -= dt; continue; }
+    b.t += dt; b.x += b.vx * dt; b.y = b.y0 + Math.sin(b.t * 3) * b.amp;
+    for(const f of G.flies){ if(f.alive && !SPECIES[f.sp].boss && Math.hypot(f.x - b.x, f.y - b.y) < 26){ f.alive = false; burst(f.x, f.y, 6, [SPECIES[f.sp].col], 80); } }
+    if(play && G.trail.length > 1){ for(let i = 1; i < G.trail.length; i++){ if(segDist(b.x, b.y, G.trail[i - 1], G.trail[i]) < 24){ snap(b.x, b.y, 'bat'); break; } } }
+  }
+  G.bats = G.bats.filter(b => b.x > -120 && b.x < G.W + 120);
+  // --- webs tangle the rope ---
+  if(play && G.webs.length && G.trail.length > 1){
+    const p = G.trail[G.trail.length - 1];
+    for(const w of G.webs) if(Math.hypot(p.x - w.x, p.y - w.y) < w.r){ snap(p.x, p.y, 'web'); break; }
+  }
+  // the rope fades away when you let go
+  if(!PTR.down && G.trail.length){ const cut = G.rt - .25; while(G.trail.length && G.trail[0].t < cut) G.trail.shift(); if(G.trail.length < 2){ G.trail = []; G.trailLen = 0; } }
+  if(G.streak > 0 && G.rt - G.streakT > 2.2){ G.streak = 0; }
+  // --- effects ---
+  for(const c of G.caughtFx) c.t += rdt; G.caughtFx = G.caughtFx.filter(c => c.t < .9);
+  for(const e of G.fx) e.t += rdt; G.fx = G.fx.filter(e => e.t < .7);
+  for(const s of G.shards){ s.t += rdt; s.vy += 300 * rdt; s.x1 += s.vx * rdt; s.x2 += s.vx * rdt; s.y1 += s.vy * rdt; s.y2 += s.vy * rdt; } G.shards = G.shards.filter(s => s.t < .6);
+  for(const p of G.parts){ p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .95; p.vy *= .95; p.l -= dt; } G.parts = G.parts.filter(p => p.l > 0);
+  for(const p of G.pops){ p.t += rdt; p.y -= 28 * rdt; } G.pops = G.pops.filter(p => p.t < p.d);
+  for(const r of G.rings) r.t += rdt; G.rings = G.rings.filter(r => r.t < .6);
+  G.shake = (G.shake || 0) * Math.pow(.01, rdt); if(G.flash > 0) G.flash = Math.max(0, G.flash - rdt * 2);
+  G.shown += (G.light - G.shown) * Math.min(1, rdt * 8);
+}
+
+/* ---------------- results ---------------- */
+function starsFor(light, goal){ return light >= goal * 3 ? 3 : light >= goal * 1.8 ? 2 : light >= goal ? 1 : 0; }
+function finishNight(){
+  if(G.state !== 'play') return;
+  G.state = 'done'; G.trail = [];
+  const n = G.spec.n, st = starsFor(G.light, G.spec.goal), win = st > 0, prev = save.stars[n] || 0;
+  const glow = Math.round(G.light);
+  save.glow += glow; save.earned += glow; save.stats.nights++;
+  save.best.loop = Math.max(save.best.loop, G.bestLoop);
+  if(win){ save.stars[n] = Math.max(prev, st); if(n === save.night){ save.night++; save.maxNight = Math.max(save.maxNight, save.night); } }
+  G.result = { mode:'night', n, win, st, prev, light:glow, goal:G.spec.goal, bestLoop:G.bestLoop, caught:G.caughtN, loops:G.loops, queen:G.queenDone, newSpecies:G.newSpecies.slice() };
+  if(st === 3 || (win && G.spec.boss)) SDK.happytime();
+  persist(); AU[win ? 'win' : 'lose']();
+  setTimeout(() => showResult(), 700);
+}
+function finishHunt(){
+  if(G.state !== 'play') return;
+  G.state = 'done'; G.trail = [];
+  const score = Math.round(G.light), best = score > save.best.hunt, glow = Math.round(Math.min(score * .2, nightSpec(save.maxNight).goal * 1.5));
+  save.best.hunt = Math.max(save.best.hunt, score); save.best.huntT = Math.max(save.best.huntT, Math.round(G.t));
+  save.glow += glow; save.earned += glow; save.best.loop = Math.max(save.best.loop, G.bestLoop);
+  G.result = { mode:'hunt', score, best, glow, t:Math.round(G.t), bestLoop:G.bestLoop, caught:G.caughtN, newSpecies:G.newSpecies.slice() };
+  if(best) SDK.happytime();
+  persist(); AU.lose();
+  setTimeout(() => showResult(), 700);
+}
+
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   FIREFLY LASSO renderer. A night scene drawn in code, lit by fireflies.
+   ===================================================================== */
+const cv = $('cv'); let cx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+const V = { s:1, x:0, y:0, TOP:62, jx:0, jy:0 };
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, save.opt.fx === 'low' ? 1 : 2);
+  W = innerWidth; H = innerHeight; cv.width = W * DPR | 0; cv.height = H * DPR | 0;
+  const aw = W, ah = H - V.TOP, s = Math.min(aw, ah) / 600;
+  const nW = aw / s, nH = ah / s;
+  if(G.flies.length && G.W && (Math.abs(nW - G.W) > 1 || Math.abs(nH - G.H) > 1)){ const kx = nW / G.W, ky = nH / G.H; for(const f of G.flies){ f.x *= kx; f.y *= ky; } for(const w of G.webs){ w.x *= kx; w.y *= ky; } for(const w of G.wasps){ w.x *= kx; w.y *= ky; } }
+  G.W = nW; G.H = nH; V.s = s; V.x = 0; V.y = V.TOP;
+  bgCache = null;
+  const j = $('jar'); if(j){ const r = j.getBoundingClientRect(); V.jx = r.left + r.width / 2; V.jy = r.top + r.height / 2; }
+}
+const SX = x => V.x + x * V.s, SY = y => V.y + y * V.s;
+const toWorld = (px, py) => [(px - V.x) / V.s, (py - V.y) / V.s];
+
+const glowC = {};
+function glowSpr(c){ if(glowC[c]) return glowC[c]; const s = 64, cn = document.createElement('canvas'); cn.width = cn.height = s; const g = cn.getContext('2d'), gr = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2); gr.addColorStop(0, rgba(c, 1)); gr.addColorStop(.25, rgba(c, .45)); gr.addColorStop(1, rgba(c, 0)); g.fillStyle = gr; g.fillRect(0, 0, s, s); return glowC[c] = cn; }
+function glow(x, y, r, c, a){ if(a <= 0) return; cx.globalAlpha = Math.min(1, a); cx.drawImage(glowSpr(c), x - r, y - r, r * 2, r * 2); cx.globalAlpha = 1; }
+
+/* ---------------- the painted night (cached) ---------------- */
+let bgCache = null, bgKey = '';
+function placeIdx(){ return G.spec ? G.spec.place : 0; }
+function drawBg(){
+  const pi = placeIdx(), P = PLACES[pi], key = pi + ':' + W + 'x' + H;
+  if(!bgCache || bgKey !== key){
+    bgKey = key; bgCache = document.createElement('canvas'); bgCache.width = W * DPR | 0; bgCache.height = H * DPR | 0;
+    const g = bgCache.getContext('2d'); g.scale(DPR, DPR);
+    const R = mulberry32(99 + pi * 7);
+    const sk = g.createLinearGradient(0, 0, 0, H); sk.addColorStop(0, P.sky[0]); sk.addColorStop(1, P.sky[1]); g.fillStyle = sk; g.fillRect(0, 0, W, H);
+    // stars
+    for(let i = 0; i < 160; i++){ const x = R() * W, y = R() * H * .7, s = R() * 1.6 + .3; g.fillStyle = rgba('#ffffff', .3 + R() * .6); g.fillRect(x, y, s, s); }
+    if(pi === 3){ // a band of galaxy over the peaks
+      for(let i = 0; i < 400; i++){ const t = R(), x = t * W, y = H * .12 + Math.sin(t * 3) * H * .08 + (R() - .5) * 60; g.fillStyle = rgba(pick(['#ffffff', '#c8a8ff', '#8ad8ff']), R() * .5); g.fillRect(x, y, 1.2, 1.2); }
+    }
+    // the moon
+    const mx = W * .8, my = H * .18, mr = Math.min(W, H) * .06;
+    const halo = g.createRadialGradient(mx, my, mr, mx, my, mr * 5); halo.addColorStop(0, rgba(P.moon, .3)); halo.addColorStop(1, rgba(P.moon, 0)); g.fillStyle = halo; g.fillRect(0, 0, W, H);
+    g.fillStyle = P.moon; g.beginPath(); g.arc(mx, my, mr, 0, TAU); g.fill();
+    g.fillStyle = rgba('#000000', .08); for(const [dx, dy, r] of [[-.3, -.2, .22], [.25, .15, .16], [-.05, .35, .12]]){ g.beginPath(); g.arc(mx + dx * mr, my + dy * mr, r * mr, 0, TAU); g.fill(); }
+    // far hills and near hills
+    const hill = (base, amp, col, seed) => { g.fillStyle = col; g.beginPath(); g.moveTo(0, H); for(let x = 0; x <= W + 10; x += 10){ const y = base + Math.sin(x * .004 + seed) * amp + Math.sin(x * .011 + seed * 2) * amp * .4; g.lineTo(x, y); } g.lineTo(W, H); g.closePath(); g.fill(); };
+    if(pi === 3){
+      g.fillStyle = P.hill[0]; g.beginPath(); g.moveTo(0, H); let x = 0; while(x < W + 100){ const w = 120 + R() * 160, h = H * (.25 + R() * .25); g.lineTo(x + w / 2, H * .82 - h); g.lineTo(x + w, H * .82); x += w * .7; } g.lineTo(W, H); g.fill();
+      g.fillStyle = rgba('#ffffff', .5); x = 0; const R2 = mulberry32(99 + pi * 7);
+    } else hill(H * .72, H * .05, P.hill[0], 1 + pi);
+    hill(H * .84, H * .035, P.hill[1], 4 + pi);
+    // woods: tree silhouettes
+    if(P.trees){ for(let i = 0; i < 14; i++){ const x = R() * W, h = H * (.25 + R() * .3), w = 30 + R() * 50, b = H * .86; g.fillStyle = mix(P.hill[1], '#000000', .3); g.fillRect(x - 3, b - h * .3, 6, h * .3); g.beginPath(); g.moveTo(x - w, b - h * .25); g.lineTo(x, b - h); g.lineTo(x + w, b - h * .25); g.fill(); g.beginPath(); g.moveTo(x - w * .8, b - h * .5); g.lineTo(x, b - h * 1.1); g.lineTo(x + w * .8, b - h * .5); g.fill(); } }
+    // marsh: still water with the moon's reflection
+    if(P.water){ const wy = H * .86; const wg = g.createLinearGradient(0, wy, 0, H); wg.addColorStop(0, '#1a3040'); wg.addColorStop(1, '#0a1620'); g.fillStyle = wg; g.fillRect(0, wy, W, H - wy); g.fillStyle = rgba(P.moon, .25); for(let i = 0; i < 8; i++) g.fillRect(mx - 30 + R() * 20, wy + 6 + i * 7, 40 + R() * 30, 2); for(let i = 0; i < 20; i++){ const x = R() * W; g.strokeStyle = '#0f2a22'; g.lineWidth = 3; g.beginPath(); g.moveTo(x, wy + 4); g.quadraticCurveTo(x + 6, wy - 30, x + 2, wy - 50 - R() * 30); g.stroke(); g.fillStyle = '#3a2a1a'; g.fillRect(x, wy - 60 - R() * 20, 4, 14); } }
+    if(P.snow){ g.fillStyle = rgba('#ffffff', .12); g.fillRect(0, H * .88, W, H * .12); }
+  }
+  cx.drawImage(bgCache, 0, 0, W, H);
+  // twinkling stars on top of the cache
+  for(let i = 0; i < 24; i++){ const x = (i * 97.3 % 1) * W + (i * 37 % W), y = (i * 53 % 100) / 100 * H * .6, a = .5 + .5 * Math.sin(G.rt * (1.5 + i % 3) + i); cx.fillStyle = rgba('#ffffff', a * .8); cx.fillRect(x % W, y, 1.8, 1.8); }
+}
+function drawGrass(){
+  const P = PLACES[placeIdx()], base = H + 4, n = Math.ceil(W / 9), t = G.rt;
+  cx.fillStyle = P.grass;
+  cx.beginPath(); cx.moveTo(0, base);
+  for(let i = 0; i <= n; i++){ const x = i * 9, h = 22 + (Math.sin(i * 12.9898) * 43758.5453 % 1 + 1) % 1 * 34, sway = Math.sin(t * 1.3 + i * .4) * 5 + (G.gust || 0) * .08; cx.lineTo(x - 3, base - 4); cx.lineTo(x + sway, base - h); cx.lineTo(x + 4, base - 4); }
+  cx.lineTo(W, base); cx.closePath(); cx.fill();
+}
+
+/* ---------------- creatures ---------------- */
+const HUECOL = ['#ff5a5a', '#ffb020', '#ffe25a', '#7dff9a', '#6ad0ff', '#c8a8ff', '#ff7ad0'];
+function flyCol(f){ return f.sp === 'star' ? HUECOL[((G.rt * 4 + f.ph) | 0) % HUECOL.length] : SPECIES[f.sp].col; }
+function drawFly(f){
+  const S = SPECIES[f.sp], s = V.s, x = SX(f.x), y = SY(f.y), c = flyCol(f);
+  const pulse = .75 + .25 * Math.sin(f.ph * 1.7), a = f.fade * (f.sp === 'blink' ? (f.vis ? 1 : .12) : 1);
+  const r = S.r * s * 1.25 * (f.sp === 'moth' || f.sp === 'shadow' ? 1.2 : 1);
+  glow(x, y, (S.boss ? 90 : f.sp === 'gold' || f.sp === 'moth' ? 40 : 30) * s * pulse, c, a);
+  if(f.sp === 'moth' || f.sp === 'shadow'){
+    const fl = Math.sin(G.rt * 18 + f.ph) * .5 + .5; cx.globalAlpha = a * .8; cx.fillStyle = c;
+    cx.beginPath(); cx.ellipse(x - 6 * s, y, 9 * s, (4 + fl * 5) * s, -.5, 0, TAU); cx.fill(); cx.beginPath(); cx.ellipse(x + 6 * s, y, 9 * s, (4 + fl * 5) * s, .5, 0, TAU); cx.fill(); cx.globalAlpha = 1;
+  }
+  cx.globalAlpha = a; cx.fillStyle = '#ffffff'; cx.beginPath(); cx.arc(x, y, r * .55 * pulse + .8, 0, TAU); cx.fill();
+  cx.fillStyle = c; cx.globalAlpha = a * .7; cx.beginPath(); cx.arc(x, y, r * pulse, 0, TAU); cx.fill(); cx.globalAlpha = 1;
+}
+function drawQueen(q){
+  const s = V.s, x = SX(q.x), y = SY(q.y), c = SPECIES.queen.col, k = q.caught ? Math.max(0, 1 - q.t / .8) : 1;
+  if(k <= 0) return;
+  const pulse = .85 + .15 * Math.sin(G.rt * 3);
+  glow(x, y, 120 * s * pulse * (q.caught ? 1 + q.t * 2 : 1), c, .9 * k);
+  cx.globalAlpha = k;
+  const fl = Math.sin(G.rt * 12) * .5 + .5;
+  cx.fillStyle = rgba('#fff6e0', .55); cx.beginPath(); cx.ellipse(x - 16 * s, y - 6 * s, 20 * s, (8 + fl * 8) * s, -.6, 0, TAU); cx.fill(); cx.beginPath(); cx.ellipse(x + 16 * s, y - 6 * s, 20 * s, (8 + fl * 8) * s, .6, 0, TAU); cx.fill();
+  cx.fillStyle = '#ffffff'; cx.beginPath(); cx.arc(x, y, 11 * s, 0, TAU); cx.fill(); cx.fillStyle = c; cx.beginPath(); cx.ellipse(x, y + 12 * s, 9 * s, 14 * s, 0, 0, TAU); cx.fill();
+  // crown
+  cx.fillStyle = '#ffd23a'; cx.beginPath(); cx.moveTo(x - 10 * s, y - 10 * s); for(let i = 0; i <= 4; i++){ cx.lineTo(x - 10 * s + i * 5 * s, y - (i % 2 ? 14 : 22) * s); } cx.lineTo(x + 10 * s, y - 10 * s); cx.fill();
+  cx.globalAlpha = 1;
+}
+function drawWasp(w){
+  const s = V.s, x = SX(w.x), y = SY(w.y), dir = w.vx >= 0 ? 1 : -1, a = w.gone ? Math.max(0, 1 - w.gone / 2.5) : 1;
+  cx.save(); cx.translate(x, y); cx.scale(dir * s, s); cx.globalAlpha = a;
+  const fl = Math.sin(w.ph) > 0;
+  cx.fillStyle = 'rgba(220,235,255,.55)'; cx.beginPath(); cx.ellipse(-2, -10, 8, fl ? 12 : 4, fl ? -.3 : -.8, 0, TAU); cx.fill(); cx.beginPath(); cx.ellipse(4, -9, 7, fl ? 10 : 3, fl ? .2 : .6, 0, TAU); cx.fill();
+  cx.fillStyle = '#ffb020'; cx.beginPath(); cx.ellipse(-6, 2, 12, 8, 0, 0, TAU); cx.fill();
+  cx.fillStyle = '#1a1a1a'; for(const sx of [-10, -3]) cx.fillRect(sx, -6, 3, 16);
+  cx.beginPath(); cx.moveTo(-18, 2); cx.lineTo(-24, 4); cx.lineTo(-17, 5); cx.fill();
+  cx.fillStyle = '#ffb020'; cx.beginPath(); cx.arc(9, 0, 6, 0, TAU); cx.fill();
+  cx.fillStyle = '#ff3a3a'; cx.beginPath(); cx.arc(12, -2, 2.2, 0, TAU); cx.fill();
+  cx.restore(); cx.globalAlpha = 1;
+  if(!w.gone) glow(x, y, 26 * s, '#ff5a3a', .25);
+}
+function drawBat(b){
+  const s = V.s;
+  if(b.warn > 0){ const x = b.vx > 0 ? 18 : W - 18, y = SY(b.y0); cx.fillStyle = rgba('#ff5a5a', .5 + .5 * Math.sin(G.rt * 20)); cx.font = `900 ${Math.round(28 * s)}px system-ui,sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('!', x, y); return; }
+  const x = SX(b.x), y = SY(b.y), fl = Math.sin(b.t * 22);
+  cx.save(); cx.translate(x, y); cx.scale((b.vx > 0 ? 1 : -1) * s * 1.3, s * 1.3); cx.fillStyle = '#05050c';
+  cx.beginPath(); cx.moveTo(0, 0); cx.quadraticCurveTo(-14, -14 * fl - 4, -28, -6 * fl); cx.quadraticCurveTo(-18, 2, -8, 4); cx.quadraticCurveTo(0, 8, 8, 4); cx.quadraticCurveTo(18, 2, 28, -6 * fl); cx.quadraticCurveTo(14, -14 * fl - 4, 0, 0); cx.fill();
+  cx.beginPath(); cx.arc(0, 0, 6, 0, TAU); cx.fill(); cx.beginPath(); cx.moveTo(-4, -4); cx.lineTo(-3, -10); cx.lineTo(0, -5); cx.lineTo(3, -10); cx.lineTo(4, -4); cx.fill();
+  cx.fillStyle = '#ff4a4a'; cx.fillRect(1, -2, 2, 2); cx.restore();
+}
+function drawWeb(w){
+  const s = V.s, x = SX(w.x), y = SY(w.y), r = w.r * s;
+  cx.strokeStyle = 'rgba(220,230,255,.35)'; cx.lineWidth = 1.2;
+  for(let k = 0; k < 8; k++){ const a = w.rot + k / 8 * TAU; cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); cx.stroke(); }
+  for(let ring = 1; ring <= 4; ring++){ const rr = r * ring / 4.3; cx.beginPath(); for(let k = 0; k <= 8; k++){ const a = w.rot + k / 8 * TAU, px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr; if(k === 0) cx.moveTo(px, py); else cx.quadraticCurveTo(x + Math.cos(a - TAU / 16) * rr * .85, y + Math.sin(a - TAU / 16) * rr * .85, px, py); } cx.stroke(); }
+  cx.fillStyle = '#1a1420'; cx.beginPath(); cx.arc(x + r * .1, y - r * .1, 5 * s, 0, TAU); cx.fill();
+  for(let k = 0; k < 6; k++){ const a = w.rot + k * 1.1; cx.fillStyle = rgba('#dff0ff', .5 + .4 * Math.sin(G.rt * 2 + k)); cx.fillRect(x + Math.cos(a) * r * .6, y + Math.sin(a) * r * .6, 2, 2); }
+}
+
+/* ---------------- the lasso ---------------- */
+function drawTrail(){
+  const T = G.trail; if(T.length < 2) return;
+  const s = V.s, hot = G.streak >= 2, col = G.streak >= 4 ? '#ff9ae0' : hot ? '#9af0ff' : '#fff0a8';
+  cx.globalCompositeOperation = 'lighter'; cx.lineCap = 'round'; cx.lineJoin = 'round';
+  for(const [w, a] of [[14, .08], [7, .22], [2.5, .95]]){
+    cx.strokeStyle = rgba(col, a); cx.lineWidth = w * s;
+    cx.beginPath(); cx.moveTo(SX(T[0].x), SY(T[0].y)); for(let i = 1; i < T.length; i++) cx.lineTo(SX(T[i].x), SY(T[i].y)); cx.stroke();
+  }
+  // sparkles dance along the rope
+  for(let i = 0; i < T.length; i += 4){ const p = T[i], k = i / T.length; if(Math.sin(G.rt * 9 + i) > .3){ cx.fillStyle = rgba('#ffffff', .8 * k); cx.fillRect(SX(p.x) - 1, SY(p.y) - 1, 2, 2); } }
+  // the tip
+  const tp = T[T.length - 1]; glow(SX(tp.x), SY(tp.y), 22 * s, col, .9);
+  cx.globalCompositeOperation = 'source-over'; cx.lineCap = 'butt';
+}
+function drawLoopFx(){
+  for(const e of G.fx){
+    const k = e.t / .7, P = e.P; if(P.length < 3) continue;
+    cx.globalCompositeOperation = 'lighter';
+    cx.fillStyle = rgba(e.ok ? '#fff0a8' : '#8aa0c0', (e.ok ? .35 : .08) * (1 - k));
+    cx.beginPath(); cx.moveTo(SX(P[0].x), SY(P[0].y)); for(const p of P) cx.lineTo(SX(p.x), SY(p.y)); cx.closePath(); cx.fill();
+    if(e.ok){ cx.strokeStyle = rgba('#ffffff', .8 * (1 - k)); cx.lineWidth = (3 + k * 6) * V.s; cx.stroke(); }
+    cx.globalCompositeOperation = 'source-over';
+  }
+  for(const sh of G.shards){ const k = sh.t / .6; cx.strokeStyle = rgba('#fff0a8', .8 * (1 - k)); cx.lineWidth = 2 * V.s; cx.beginPath(); cx.moveTo(SX(sh.x1), SY(sh.y1)); cx.lineTo(SX(sh.x2), SY(sh.y2)); cx.stroke(); }
+}
+function drawCaught(){
+  for(const c of G.caughtFx){
+    if(c.t < 0) continue;
+    const k = Math.min(1, c.t / .75), e = k * k * (3 - 2 * k), x0 = SX(c.x), y0 = SY(c.y);
+    const x = lerp(x0, V.jx, e) + Math.sin(k * Math.PI) * 40, y = lerp(y0, V.jy, e) - Math.sin(k * Math.PI) * 80;
+    glow(x, y, 20 * (1 - k * .5) * V.s, c.col, 1); cx.fillStyle = '#ffffff'; cx.beginPath(); cx.arc(x, y, 2.5, 0, TAU); cx.fill();
+  }
+}
+
+/* ---------------- weather ---------------- */
+const WX = Array.from({ length:110 }, () => ({ x:Math.random(), y:Math.random(), s:rnd(.6, 1.4) }));
+function drawWeather(){
+  const P = PLACES[placeIdx()];
+  if(G.spec && G.spec.rain){ cx.strokeStyle = 'rgba(180,200,255,.35)'; cx.lineWidth = 1; for(const p of WX){ const x = ((p.x * W + G.rt * 60) % W), y = (p.y * H + G.rt * 700 * p.s) % H; cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x - 3, y + 14); cx.stroke(); } }
+  else if(P.snow){ cx.fillStyle = 'rgba(255,255,255,.6)'; for(const p of WX){ const x = ((p.x * W + G.rt * 20 * p.s + Math.sin(G.rt + p.y * 9) * 18 + (G.gust || 0) * G.rt * .02) % W + W) % W, y = (p.y * H + G.rt * 30 * p.s) % H; cx.fillRect(x, y, 1.8 * p.s, 1.8 * p.s); } }
+  if(P.fog){ for(let i = 0; i < 4; i++){ const x = ((i * .31 + G.rt * .012 * (i + 1)) % 1.4 - .2) * W, y = H * (.45 + i * .12); const g = cx.createRadialGradient(x, y, 0, x, y, W * .35); g.addColorStop(0, rgba('#c8d8e8', P.fog * .35)); g.addColorStop(1, rgba('#c8d8e8', 0)); cx.fillStyle = g; cx.fillRect(0, 0, W, H); } }
+}
+
+/* ---------------- frame ---------------- */
+function render(){
+  cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawBg();
+  const sh = G.shake || 0; cx.save(); cx.translate(rnd(-sh, sh), rnd(-sh, sh));
+  for(const w of G.webs) drawWeb(w);
+  drawLoopFx();
+  cx.globalCompositeOperation = 'lighter';
+  for(const f of G.flies) drawFly(f);
+  cx.globalCompositeOperation = 'source-over';
+  if(G.queen) drawQueen(G.queen);
+  for(const w of G.wasps) drawWasp(w);
+  for(const b of G.bats) drawBat(b);
+  drawTrail();
+  // sparks
+  cx.globalCompositeOperation = 'lighter';
+  for(const p of G.parts){ cx.globalAlpha = Math.min(1, p.l * 2); cx.fillStyle = p.c; cx.fillRect(SX(p.x) - p.s / 2, SY(p.y) - p.s / 2, p.s, p.s); }
+  cx.globalAlpha = 1;
+  for(const r of G.rings){ const k = r.t / .6, rr = lerp(r.r, r.R, r.inward ? k : 1 - Math.pow(1 - k, 3)) * V.s; cx.strokeStyle = rgba(r.col || '#ffffff', .5 * (1 - k)); cx.lineWidth = 2; cx.beginPath(); cx.arc(SX(r.x), SY(r.y), rr, 0, TAU); cx.stroke(); }
+  cx.globalCompositeOperation = 'source-over';
+  // tutorial: a ghost finger draws a loop around the nearest group
+  if(G.ghost){ const g = G.ghost, k = (G.rt % 2.4) / 2.4; if(k < .8){ const a = k / .8 * TAU * 1.08, x = SX(g.x + Math.cos(a) * g.r), y = SY(g.y + Math.sin(a) * g.r); cx.strokeStyle = rgba('#ffffff', .35); cx.lineWidth = 4; cx.setLineDash([2, 10]); cx.beginPath(); for(let i = 0; i <= 40; i++){ const aa = i / 40 * a; const px = SX(g.x + Math.cos(aa) * g.r), py = SY(g.y + Math.sin(aa) * g.r); if(i === 0) cx.moveTo(px, py); else cx.lineTo(px, py); } cx.stroke(); cx.setLineDash([]); cx.font = `${Math.round(34 * V.s)}px system-ui,sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('☝', x + 6, y + 18); } }
+  // floating words
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  for(const p of G.pops){ const k = p.t / p.d, sc = k < .12 ? .5 + k / .12 * .6 : 1.1 - (k - .12) * .1; cx.globalAlpha = k > .7 ? (1 - k) / .3 : 1; const sz = Math.round(p.s * Math.max(.85, V.s) * sc); cx.font = `italic 900 ${sz}px system-ui,sans-serif`; cx.lineWidth = Math.max(3, sz * .16); cx.strokeStyle = 'rgba(5,6,24,.85)'; cx.strokeText(p.txt, SX(p.x), SY(p.y)); cx.fillStyle = p.c; cx.fillText(p.txt, SX(p.x), SY(p.y)); }
+  cx.globalAlpha = 1;
+  cx.restore();
+  drawCaught();
+  drawGrass();
+  drawWeather();
+  if(G.slowT > 0){ cx.fillStyle = `rgba(140,120,255,${Math.min(.16, G.slowT * .1)})`; cx.fillRect(0, 0, W, H); }
+  if(G.flash > 0){ cx.fillStyle = `rgba(255,248,220,${G.flash * .5})`; cx.fillRect(0, 0, W, H); }
+  if(G.mode === 'hunt' && G.state === 'play' && G.lantern < .3){ const g = cx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .3, W / 2, H / 2, Math.max(W, H) * .7); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,10,${(.3 - G.lantern) * 2.4})`); cx.fillStyle = g; cx.fillRect(0, 0, W, H); }
+}
+
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   FIREFLY LASSO UI: HUD, flow, screens, input, boot.
+   ===================================================================== */
+const show = id => $(id).classList.remove('hidden');
+const hide = id => $(id).classList.add('hidden');
+const SCREENS = ['menu', 'nights', 'codex', 'shop', 'settings'];
+function onTap(el, fn){ el = typeof el === 'string' ? $(el) : el; el.addEventListener('click', e => { e.stopPropagation(); AU.init(); AU.resume(); AU.ui(); fn(e); }); }
+function showToast(head, txt){ const t = document.createElement('div'); t.className = 'toast'; t.innerHTML = `<b>${head}</b><span>${txt}</span>`; $('toasts').appendChild(t); setTimeout(() => t.remove(), 3500); }
+let tipT = 0;
+function tip(html, ms){ const t = $('tip'); clearTimeout(tipT); if(!html){ hide('tip'); return; } t.innerHTML = html; show('tip'); if(ms) tipT = setTimeout(() => hide('tip'), ms); }
+
+/* ---------------- HUD ---------------- */
+const hc = {};
+function setH(k, v, fn){ if(hc[k] === v) return; hc[k] = v; fn(v); }
+function updateHUD(){
+  if(G.state !== 'play' && G.state !== 'done') return;
+  const hunt = G.mode === 'hunt', sp = G.spec;
+  setH('n', G.mode + sp.n, () => { $('nTxt').textContent = hunt ? 'MIDNIGHT HUNT' : (sp.boss ? '👑 NIGHT ' : 'NIGHT ') + sp.n; $('pTxt').textContent = hunt ? 'Keep your lantern lit' : PLACES[sp.place].name; $('bar').classList.toggle('hidden', hunt); $('lanternBar').classList.toggle('hidden', !hunt); $('goalTxt').textContent = hunt ? 'light' : '/ ' + fmt(sp.goal); });
+  setH('l', Math.round(G.shown), v => { $('lightTxt').textContent = fmt(v); });
+  if(!hunt){
+    const g = sp.goal, max = g * 3, p = Math.min(1, G.shown / max);
+    setH('b', Math.round(p * 400), () => { $('bar').firstElementChild.style.width = p * 100 + '%'; const st = starsFor(G.shown, g); document.querySelectorAll('#bar .st').forEach((e, i) => { e.style.left = ([1 / 3, .6, 1][i] * 100) + '%'; e.classList.toggle('on', st > i); }); });
+    setH('j', Math.round(Math.min(1, G.shown / g) * 50), v => { $('jar').firstElementChild.style.height = v * 2 + '%'; });
+    setH('t', Math.ceil(G.timeLeft), v => { const e = $('timeTxt'); e.textContent = v; e.classList.toggle('low', v <= 5); });
+  } else {
+    setH('lt', Math.round(G.lantern * 200), () => { $('lanternBar').firstElementChild.style.width = G.lantern * 100 + '%'; });
+    setH('t', Math.floor(G.t), v => { $('timeTxt').textContent = v + 's'; $('timeTxt').classList.remove('low'); });
+    setH('j', Math.round(G.lantern * 50), v => { $('jar').firstElementChild.style.height = v * 2 + '%'; });
+  }
+  setH('c', G.streak > 1 ? G.streak : 0, v => { const c = $('chain'); if(!v) c.classList.add('hidden'); else { c.classList.remove('hidden'); c.querySelector('b').textContent = 'x' + Math.min(3, 1 + (v - 1) * .25).toFixed(2).replace(/\.?0+$/, ''); c.style.animation = 'none'; void c.offsetWidth; c.style.animation = ''; } });
+  setH('bo', save.up.bottle > 0 && !G.bottleUsed && G.state === 'play', v => $('bottleBtn').classList.toggle('hidden', !v));
+  setH('cf', G.caughtFx.length ? G.catches : -1, v => { if(v >= 0){ const j = $('jar'); j.classList.remove('bump'); void j.offsetWidth; j.classList.add('bump'); } });
+}
+
+/* ---------------- flow ---------------- */
+let playing = false, firstTouch = true;
+function beginPlay(){ if(!playing){ playing = true; SDK.gameplayStart(); } }
+function endPlay(){ if(playing){ playing = false; SDK.gameplayStop(); } }
+function titleScene(){
+  // the title floats over a live meadow; the first stroke starts the night
+  resetRound(); G.mode = 'night'; G.spec = nightSpec(save.night); G.state = 'title';
+  for(let i = 0; i < 26; i++) spawnFly();
+  bgCache = null; AU.setPlace(G.spec.place);
+  $('tInfo').textContent = save.maxNight > 1 ? `Night ${save.night}  ·  ${Object.keys(save.codex).length} / ${SP_IDS.length} fireflies found` : '';
+}
+function goNight(n){
+  hide('result'); SCREENS.forEach(hide); for(const k in hc) delete hc[k];
+  startNight(n); bgCache = null; AU.setPlace(G.spec.place);
+  show('hud'); beginPlay();
+  const t = save.tut;
+  if(n === 1 && t < 1) tip('Draw a <b>circle</b> around the fireflies to catch them!');
+  else if(n === 2 && t < 2){ tip(TIPS[0], 5000); save.tut = 2; }
+  else if(n === 3 && t < 3){ tip(TIPS[1], 5000); save.tut = 3; }
+  else if(n === 4 && t < 4){ tip(TIPS[3], 5500); save.tut = 4; }
+  else if(G.spec.boss) tip('👑 <b>The Firefly Queen</b> visits tonight. Loop her before she flies away!', 5000);
+  else if(G.spec.place === 1 && n === 11) tip('<b>Bats</b> swoop through the woods. Watch for the <b>!</b> warning.', 5000);
+  else if(G.spec.place === 2 && n === 21) tip('<b>Spider webs</b> tangle your lasso. Draw around them.', 5000);
+  else if(G.spec.place === 3 && n === 31) tip('Wind blows through the <b>Starfall Peaks</b>. Fireflies drift with it.', 5000);
+  else tip(null);
+}
+function goHunt(){ hide('result'); SCREENS.forEach(hide); for(const k in hc) delete hc[k]; startHunt(); bgCache = null; AU.setPlace(0); show('hud'); beginPlay(); tip('Your lantern fades. <b>Catch light to keep it burning!</b>', 4000); }
+
+/* ---------------- result ---------------- */
+function showResult(){
+  endPlay(); tip(null);
+  const r = G.result; if(!r) return;
+  show('result'); G.state = 'result';
+  const stars = $('rStars').children;
+  if(r.mode === 'hunt'){
+    $('rTitle').textContent = r.best ? 'NEW BEST HUNT!' : 'THE LANTERN WENT OUT'; $('rTitle').className = r.best ? '' : 'fail';
+    for(const s of stars) s.style.display = 'none';
+    countUp($('rLight'), r.score, ' light');
+    $('rStat').innerHTML = `Lasted <b>${r.t}s</b> · Best loop <b>${r.bestLoop}</b> · +<b>${fmt(r.glow)}</b> glow`;
+    $('rNext').textContent = 'HUNT AGAIN ▶'; $('rRetry').classList.add('hidden');
+  } else {
+    $('rTitle').textContent = r.win ? (r.st === 3 ? 'PERFECT NIGHT!' : 'NIGHT COMPLETE') : 'NOT ENOUGH LIGHT'; $('rTitle').className = r.win ? '' : 'fail';
+    [...stars].forEach((s, i) => { s.style.display = ''; s.classList.toggle('on', i < r.st); s.style.animationDelay = (.3 + i * .25) + 's'; if(i < r.st) setTimeout(() => AU.star(i), 300 + i * 250); });
+    countUp($('rLight'), r.light, ' light');
+    $('rStat').innerHTML = `Goal <b>${fmt(r.goal)}</b> · Caught <b>${r.caught}</b> in <b>${r.loops}</b> loops · Best loop <b>${r.bestLoop}</b>${r.queen ? ' · 👑 <b>Queen caught!</b>' : ''}<br>Your glow: <b>${fmt(save.glow)}</b>`;
+    $('rNext').textContent = r.win ? 'NEXT NIGHT ▶' : 'TRY AGAIN ▶'; $('rRetry').classList.toggle('hidden', !r.win);
+  }
+  if(r.newSpecies.length){ $('rNew').innerHTML = '📖 New in your Codex: <b>' + r.newSpecies.map(k => SPECIES[k].name).join(', ') + '</b>'; show('rNew'); } else hide('rNew');
+  buildUpRow();
+}
+function countUp(el, v, suffix){ const t0 = performance.now(); const f = () => { const k = Math.min(1, (performance.now() - t0) / 900); el.textContent = '+' + fmt(Math.round(v * (1 - Math.pow(1 - k, 3)))) + suffix; if(k < 1){ AU.count(); requestAnimationFrame(f); } }; f(); }
+function buildUpRow(){
+  const row = $('upRow'); row.innerHTML = '';
+  for(const u of UPG){
+    const l = save.up[u.id], max = l >= u.max, c = upCost(u, l), can = !max && save.glow >= c;
+    const d = document.createElement('div'); d.className = 'up' + (can ? ' can' : '') + (max ? ' max' : '');
+    d.innerHTML = `<div class="ic">${u.icon}</div><b>${u.name}</b><span>${u.eff(l)}</span><div class="c">${max ? 'MAX' : '✦ ' + fmt(c)}</div>`;
+    d.addEventListener('click', e => { e.stopPropagation(); AU.init(); if(!can){ AU.deny(); return; } save.glow -= c; save.up[u.id]++; AU.buy(); persist(); buildUpRow(); if($('rStat')) $('rStat').innerHTML = $('rStat').innerHTML.replace(/Your glow: <b>[^<]*<\/b>/, `Your glow: <b>${fmt(save.glow)}</b>`); });
+    row.appendChild(d);
+  }
+}
+function nextFromResult(){ const r = G.result; if(!r) return; if(r.mode === 'hunt') goHunt(); else goNight(r.win ? save.night : r.n); }
+
+/* ---------------- menus ---------------- */
+function openMenu(){
+  if(G.state === 'play'){ G.prevState = 'play'; G.state = 'pause'; }
+  endPlay(); SCREENS.forEach(hide);
+  $('hLock').textContent = save.maxNight >= 5 ? (save.best.hunt ? '· BEST ' + fmt(save.best.hunt) : '') : '· NIGHT 5';
+  $('mHunt').disabled = save.maxNight < 5;
+  $('mStats').innerHTML = `Night <b>${save.night}</b> · Glow <b>${fmt(save.glow)}</b> · Fireflies caught <b>${fmt(save.stats.caught)}</b> · Biggest loop <b>${save.best.loop}</b>`;
+  show('menu');
+}
+function closeMenus(){
+  SCREENS.forEach(hide);
+  if(G.state === 'pause'){ G.state = 'play'; beginPlay(); }
+  if(G.state === 'result') show('result');
+}
+function openNights(){
+  SCREENS.forEach(hide); const g = $('nGrid'); g.innerHTML = '';
+  for(let n = 1; n <= save.maxNight; n++){
+    const st = save.stars[n] || 0, boss = n % 10 === 0, b = document.createElement('button');
+    b.className = 'nB' + (boss ? ' boss' : '') + (n === save.night ? ' cur' : '');
+    b.innerHTML = `<b>${boss ? '👑' : n}</b><span>${'★'.repeat(st)}<i>${'★'.repeat(3 - st)}</i></span>`;
+    onTap(b, () => { hideTitle(); goNight(n); });
+    g.appendChild(b);
+  }
+  show('nights');
+}
+function iconCanvas(k, found){
+  const c = document.createElement('canvas'); c.width = c.height = 92; const g = c.getContext('2d'), S = SPECIES[k];
+  const gr = g.createRadialGradient(46, 46, 0, 46, 46, 44); gr.addColorStop(0, rgba(found ? S.col : '#445', .9)); gr.addColorStop(.3, rgba(found ? S.col : '#445', .35)); gr.addColorStop(1, rgba('#000000', 0));
+  g.fillStyle = gr; g.fillRect(0, 0, 92, 92); g.fillStyle = found ? '#fff' : '#667'; g.beginPath(); g.arc(46, 46, S.boss ? 12 : 7, 0, TAU); g.fill();
+  if(!found){ g.fillStyle = '#aab'; g.font = '900 26px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', 46, 48); }
+  return c;
+}
+function openCodex(){
+  SCREENS.forEach(hide); const L = $('cxList'); L.innerHTML = '';
+  let n = 0;
+  for(const k of SP_IDS){
+    const S = SPECIES[k], cnt = save.codex[k] || 0; if(cnt) n++;
+    const d = document.createElement('div'); d.className = 'item' + (cnt ? '' : ' locked');
+    const hint = S.secret ? 'Secret: ' + S.secret : S.boss ? 'Appears on every tenth night.' : `First seen around night ${S.from}.`;
+    d.appendChild(iconCanvas(k, cnt));
+    d.insertAdjacentHTML('beforeend', `<div class="it"><b>${cnt ? S.name : '???'}</b><span>${cnt ? S.desc + ' · worth ' + S.val : hint}</span></div><div class="n">${cnt ? '×' + fmt(cnt) : ''}</div>`);
+    L.appendChild(d);
+  }
+  $('cxN').textContent = n + ' / ' + SP_IDS.length;
+  show('codex');
+}
+function openShop(){
+  SCREENS.forEach(hide); const L = $('shopList'); L.innerHTML = ''; $('sGlow').textContent = '✦ ' + fmt(save.glow);
+  for(const u of UPG){
+    const l = save.up[u.id], max = l >= u.max, c = upCost(u, l);
+    const d = document.createElement('div'); d.className = 'item';
+    d.innerHTML = `<div style="font-size:26px;width:40px;text-align:center">${u.icon}</div><div class="it"><b>${u.name}</b><span>${u.eff(l)}${max ? '' : ' → ' + u.eff(l + 1)}</span><div class="pips">${Array.from({ length:u.max }, (_, i) => `<i class="${i < l ? 'on' : ''}"></i>`).join('')}</div></div>`;
+    const b = document.createElement('button'); b.className = 'btn primary'; b.textContent = max ? 'MAX' : '✦ ' + fmt(c); b.disabled = max || save.glow < c;
+    onTap(b, () => { if(save.glow < c || max){ AU.deny(); return; } save.glow -= c; save.up[u.id]++; AU.buy(); persist(); openShop(); });
+    d.appendChild(b); L.appendChild(d);
+  }
+  show('shop');
+}
+function openSettings(){
+  SCREENS.forEach(hide); show('settings');
+  document.querySelectorAll('#settings input[data-opt]').forEach(i => i.checked = !!save.opt[i.dataset.opt]);
+  document.querySelectorAll('#settings .seg').forEach(s => s.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === save.opt[s.dataset.opt])));
+}
+function hideTitle(){ if(!firstTouch) return; firstTouch = false; $('title').classList.add('gone'); setTimeout(() => hide('title'), 500); }
+
+/* ---------------- input ---------------- */
+function inArena(px, py){ return py > V.TOP * .6; }
+function wire(){
+  const c = $('cv');
+  const down = e => {
+    AU.init(); AU.resume();
+    if(!SCREENS.every(id => $(id).classList.contains('hidden'))) return;
+    if(G.state === 'result') return;
+    PTR.down = true; PTR.id = e.pointerId; PTR.x = e.clientX; PTR.y = e.clientY; [PTR.wx, PTR.wy] = toWorld(PTR.x, PTR.y);
+    if(G.state === 'title'){ hideTitle(); goNight(save.night); }
+    G.trail = []; G.trailLen = 0; trailAdd(PTR.wx, PTR.wy);
+  };
+  c.addEventListener('pointerdown', down);
+  $('title').addEventListener('pointerdown', down);
+  addEventListener('pointermove', e => {
+    if(!PTR.down || e.pointerId !== PTR.id) return;
+    let evs = e.getCoalescedEvents ? e.getCoalescedEvents() : null; if(!evs || !evs.length) evs = [e];
+    for(const ev of evs){ PTR.x = ev.clientX; PTR.y = ev.clientY; [PTR.wx, PTR.wy] = toWorld(PTR.x, PTR.y); trailAdd(PTR.wx, PTR.wy); }
+  });
+  const up = e => { if(e.pointerId === PTR.id) PTR.down = false; };
+  addEventListener('pointerup', up); addEventListener('pointercancel', up);
+  addEventListener('keydown', e => {
+    AU.init(); AU.resume();
+    if(e.key === 'Escape'){ if(!$('menu').classList.contains('hidden')) closeMenus(); else if(G.state === 'play') openMenu(); }
+    else if((e.key === 'Enter' || e.key === ' ') && G.state === 'result'){ e.preventDefault(); nextFromResult(); }
+    else if((e.key === 'b' || e.key === 'B') && G.state === 'play') useBottle();
+  });
+  onTap('menuBtn', openMenu); onTap('bottleBtn', useBottle);
+  onTap('mPlay', () => { if(G.state === 'pause' || G.state === 'result') closeMenus(); else { hideTitle(); goNight(save.night); } });
+  onTap('mNights', openNights); onTap('mCodex', openCodex); onTap('mShop', openShop); onTap('mSet', openSettings);
+  onTap('mHunt', () => { hideTitle(); goHunt(); });
+  onTap('rNext', nextFromResult); onTap('rRetry', () => goNight(G.result.n)); onTap('rMenu', () => { hide('result'); openMenu(); });
+  document.querySelectorAll('.closeBtn').forEach(b => onTap(b, () => { const inSub = !$('menu').classList.contains('hidden') ? false : ['nights', 'codex', 'shop', 'settings'].some(id => !$(id).classList.contains('hidden')); if(inSub && G.state !== 'title') openMenu(); else closeMenus(); }));
+  document.querySelectorAll('#settings input[data-opt]').forEach(i => i.addEventListener('change', () => { save.opt[i.dataset.opt] = i.checked; AU.apply(); persist(); }));
+  document.querySelectorAll('#settings .seg button').forEach(b => onTap(b, () => { save.opt[b.parentElement.dataset.opt] = b.dataset.v; resize(); persist(); openSettings(); }));
+  addEventListener('resize', resize);
+  document.addEventListener('visibilitychange', () => { AU.setHidden(document.hidden); if(document.hidden){ writeSave(); if(G.state === 'play') openMenu(); } else AU.resume(); });
+  SDK.onMute = m => AU.setPortalMute(m);
+}
+function useBottle(){ if(save.up.bottle < 1 || G.bottleUsed || G.state !== 'play') return; G.bottleUsed = true; G.slowT = 2 + save.up.bottle; AU.bottle(); pop('TIME SLOWS...', G.W / 2, G.H * .3, '#c8a8ff', 24, 1.6); }
+
+/* ---------------- tutorial ghost ---------------- */
+function tutorialTick(){
+  G.ghost = null;
+  if(G.state !== 'play' || G.mode !== 'night' || G.spec.n !== 1 || save.tut >= 1) return;
+  if(G.catches > 0){ save.tut = 1; persist(); tip('Wonderful! <b>Bigger loops</b> catch more, and every extra firefly multiplies the rest.', 4500); return; }
+  if(PTR.down) return;
+  // the densest little group
+  let best = null, bn = 0; for(const f of G.flies){ let n = 0; for(const o of G.flies) if(Math.hypot(o.x - f.x, o.y - f.y) < 70) n++; if(n > bn){ bn = n; best = f; } }
+  if(best) G.ghost = { x:best.x, y:best.y, r:75 };
+}
+
+/* ---------------- loop ---------------- */
+let last = 0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  let dt = last ? (ts - last) / 1000 : 1 / 60; last = ts;
+  if(dt <= 0) return; if(dt > .05) dt = .05;
+  try{
+    if(G.state !== 'pause') update(dt); else G.rt += dt;
+    tutorialTick();
+    render(); updateHUD();
+  }catch(err){ console.error(err); }
+}
+addEventListener('error', e => { try{ console.error(e.error || e.message); }catch(_){} });
+
+/* ---------------- boot ---------------- */
+(async () => {
+  resize();
+  await SDK.init();
+  SDK.loadingStart();
+  loadSave();
+  wire();
+  titleScene();
+  resize();
+  requestAnimationFrame(frame);
+  SDK.loadingStop();
+  const b = $('boot'); b.style.opacity = '0'; setTimeout(() => b.remove(), 450);
+})();
+
+</script>
+</body>
+</html>
