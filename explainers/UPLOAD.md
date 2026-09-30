@@ -1,6 +1,6 @@
 # CUTAWAY (@cutaway68): upload sheets
 
-Copy/paste ready. Post EP 01 first, EP 02 the next day (or 3-4 hours later the same day).
+Copy/paste ready. Post EP 01 first, EP 02 the next day, EP 03 the day after (or space them 3-4 hours apart).
 Use the same title and description on YouTube Shorts; use the short captions on TikTok / Instagram.
 
 ---------------------------------------------------------------------
@@ -111,6 +111,61 @@ Frame at **43 s** (`episode-02-breaker.html?t=43`): magnetic field glowing aroun
 
 ### Pinned comment
 `Save this one, you'll want it the next time a breaker trips. ⚡ Should I explain GFCI outlets next?`
+
+### Settings
+Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synthetic content: **yes for the AI voice** if asked · Category: Education / How-to & Style
+
+---------------------------------------------------------------------
+
+## VIDEO 3: The GFCI Outlet
+**File:** `episode-03-gfci-final.mp4` · 70 s · 1080×1920
+
+### Title (pick one; A is the default)
+- **A:** `This Outlet Counts Electrons to Save Your Life` (45 chars)
+- B: `Why Bathroom Outlets Have Two Buttons (TEST and RESET)`
+- C: `Why Your Circuit Breaker Can't Save You From Electric Shock`
+
+### Description
+```
+One outlet in your bathroom is quietly counting electrons, and it can save your life. Here's how a GFCI (ground-fault circuit interrupter) works, and why your circuit breaker can't do its job.
+
+00:00 The outlet that counts electrons
+00:11 The ledger: current out vs current back
+00:26 The leak: a hair dryer in the tub
+00:38 The trip: sense coil, solenoid, contacts
+00:46 Why not the breaker? (15 amps vs 0.1 amp)
+00:58 How to TEST your GFCI every month
+
+Key idea: a ring around the hot and neutral wires compares the current going out with the current coming back. Equal currents make opposite magnetic fields that cancel. If some current leaks away (for example through water and a person), the fields no longer cancel, the ring senses a difference of about 5 milliamps, and the outlet cuts power in as little as 1/40 of a second.
+
+Press TEST once a month. If the outlet doesn't click off, replace it.
+
+Simplified for clarity: trip times vary with the current and the device; the tub scene is a schematic. A GFCI protects against current leaking to ground; it does not protect you if you touch the hot and neutral wires at the same time. General information only, not electrical advice. Use a licensed electrician for electrical work.
+
+Subscribe to CUTAWAY: everything has an inside.
+
+Voice: AI-generated narration. Animation made for CUTAWAY.
+
+#shorts #howitworks #electricalsafety
+```
+
+### Hashtags
+`#shorts #howitworks #electricalsafety` + `#gfci #homesafety #engineering #electricity #diy`
+
+### Tags
+`how a gfci works, gfci outlet, gfci explained, ground fault circuit interrupter, gfci vs circuit breaker, why bathroom outlets have buttons, test reset button outlet, electrical safety, electric shock prevention, home safety, how things work, engineering explained, differential current transformer`
+
+### TikTok / Instagram caption
+```
+Your bathroom outlet counts electrons, and it can tell when electricity is going through YOU ⚡ Breakers protect the house. GFCIs protect people. Press TEST monthly 👇
+#gfci #electricalsafety #howitworks #homesafety #engineering
+```
+
+### Cover / thumbnail
+Frame at **34 s** (`episode-03-gfci.html?t=34`): the glowing red ring, the tipped scale and the 5 mA difference. Or 13 s for the clean "ledger" look.
+
+### Pinned comment
+`Try the TEST button on your GFCI today, then tell me: did it click? 👇 Which everyday thing should CUTAWAY cut open next?`
 
 ### Settings
 Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synthetic content: **yes for the AI voice** if asked · Category: Education / How-to & Style

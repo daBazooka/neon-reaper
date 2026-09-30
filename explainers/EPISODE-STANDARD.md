@@ -26,7 +26,7 @@ Every new episode must clear **all** of these before it ships, and beat the prev
 9. **Loop:** last frame matches first frame.
 
 ## Backlog ranked by importance
-1. GFCI outlet: how it saves you from electrocution (10 ms decisions)
+1. ~~GFCI outlet~~ (done: EP 03)
 2. Smoke / CO detector: why they chirp, why they expire
 3. Fridge: why food spoils, the 2-hour rule, the danger zone
 4. Bleach + ammonia: what actually happens (chemistry of chloramine gas)
@@ -34,3 +34,11 @@ Every new episode must clear **all** of these before it ships, and beat the prev
 6. Pressure cooker: why it's faster and why lids explode
 7. Antibiotics vs virus: why one doesn't work on the other
 8. How a lock works, and why cheap locks fail
+
+
+## EP 03 (GFCI) raised the bar by
+- **A running "ledger"**: live OUT / BACK / DIFFERENCE numbers (12.500 A vs 12.495 A) and a balance scale that tips when electrons go missing.
+- **A hidden idea made visible**: end-on view of the sensing ring with the two magnetic fields cancelling (net field gauge), then failing to cancel.
+- **A "wait, what?" twist**: the danger ladder shows the breaker trips at 15 A, 150× above the current that can stop a heart, so *breakers protect the house, GFCIs protect you*.
+- **A story with cause and effect in slow motion**: hair dryer drops, leak path lights up through the water, sense coil, solenoid, contacts, stopwatch, power cut.
+- **A game in the loop**: "spot the missing electrons".
