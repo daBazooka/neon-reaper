@@ -51,6 +51,20 @@ Cartoon fishing, non-violent. No chat and no text input. Suitable for all ages.
 
 ## Assets to upload
 - **Game build:** `abysshook/dist/index.html` (zip it)
+- **Covers:** `abysshook/promo/cover-1920x1080.png`, `abysshook/promo/cover-800x1200.png`, `abysshook/promo/cover-800x800.png`
+- **Video:** `abysshook/promo/trailer-1920x1080.mp4` (a vertical `abysshook/promo/trailer-1080x1920.mp4` is included for social media)
+
+## Marketing assets
+The covers are drawn by the game's own renderer. They show the whole ocean in one picture: the fishing boat on a sunny surface, the hook loaded with a bunch of fish, and the water turning from bright blue shallows to a dark abyss. A shiny Golden Koi swims near the top, a glowing anglerfish and a glass octopus lurk deeper, and the legendary Kraken rises from the trench rocks. The big ABYSS HOOK logo and "How deep will you go?" sit on the sky so they read at thumbnail size.
+
+The trailer is real gameplay captured frame by frame, with the game's own synthesized music and sound:
+1. **0–4.5 s:** the hook drops into the shallows, weaving between fish. "DROP THE HOOK..." · "DODGE THE FISH ON THE WAY DOWN"
+2. **4.5–9 s:** the line turns and rips up through a school of fish into FRENZY, with a shiny Golden Koi. "GRAB EVERYTHING ON THE WAY UP!"
+3. **9–12.5 s:** the catch explodes out of the water and gets tapped mid-air for combo coins. "TAP THEM MID-AIR FOR DOUBLE COINS!"
+4. **12.5–18 s:** a deep dive cuts through the Twilight Zone, the Abyss and the Sunken City. "DIVE DEEPER..." · "...AND DEEPER..." · "...INTO THE UNKNOWN"
+5. **18–24 s:** the Kraken bites and is reeled in at the surface, then flies out with the deep-sea catch. "HOOK LEGENDARY SEA MONSTERS!" · "TAP TAP TAP TO REEL IT IN!"
+6. **24–26.5 s:** the results screen with new species and the Kraken's Fishdex card. "72 FISH TO COLLECT"
+7. **26.5–30 s:** logo end card: "ABYSS HOOK · How deep will you go?"
 
 ## SDK integration (for the reviewer)
 - **Order:** `SDK.init()` → `loadingStart()` → save read from the Data Module → `loadingStop()`.
