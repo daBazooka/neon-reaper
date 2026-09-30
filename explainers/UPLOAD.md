@@ -1,6 +1,6 @@
 # CUTAWAY (@cutaway68): upload sheets
 
-Copy/paste ready. Post EP 01 first, EP 02 the next day, EP 03 the day after (or space them 3-4 hours apart).
+Copy/paste ready. Post EP 01 first, EP 02 the next day, EP 03 the day after, EP 04 the day after that (or space them 3-4 hours apart).
 Use the same title and description on YouTube Shorts; use the short captions on TikTok / Instagram.
 
 ---------------------------------------------------------------------
@@ -166,6 +166,64 @@ Frame at **34 s** (`episode-03-gfci.html?t=34`): the glowing red ring, the tippe
 
 ### Pinned comment
 `Try the TEST button on your GFCI today, then tell me: did it click? 👇 Which everyday thing should CUTAWAY cut open next?`
+
+### Settings
+Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synthetic content: **yes for the AI voice** if asked · Category: Education / How-to & Style
+
+---------------------------------------------------------------------
+
+## VIDEO 4: The Smoke Detector
+**File:** `episode-04-smoke-final.mp4` · 70 s · 1080×1920
+
+### Title (pick one; A is the default)
+- **A:** `Your Smoke Detector Doesn't Smell Smoke (Here's What It Does)` (60 chars)
+- B: `The 3 A.M. Smoke Detector Chirp, Explained`
+- C: `Radioactive Ions vs Light: How Smoke Detectors Really Work`
+
+### Description
+```
+Your smoke detector doesn't smell smoke. Inside are two completely different tricks: one uses a speck of radioactive metal, the other uses light. Here's how ionization and photoelectric smoke alarms work, which fires each one catches first, and why yours chirps at 3 a.m.
+
+00:00 It doesn't smell smoke
+00:12 Trick one: ionization (americium-241 and a tiny current)
+00:26 Trick two: photoelectric (an LED and a scattered beam)
+00:40 Which is better? Flaming vs smoldering fires
+00:53 The 3 a.m. chirp explained
+00:59 How to check your smoke alarm (test monthly, replace at 10 years)
+
+Key ideas:
+• Ionization: a sealed speck of americium-241 charges the air between two plates so a tiny current flows. Smoke particles grab the ions, the current drops, and the alarm sounds.
+• Photoelectric: an LED shines past a sensor that can't see it. Smoke scatters light onto the sensor and triggers the alarm.
+• Ionization tends to react fastest to flaming fires; photoelectric to slow, smoldering ones. The safest choice is both, or a dual-sensor alarm.
+• Low batteries chirp at night because cold weakens batteries and houses are coolest before dawn.
+• Press TEST every month. Smoke alarms expire after about 10 years: check the date on the back.
+
+Simplified for clarity: response times vary with the fire, the room and the alarm model, and the americium source is sealed and safe in normal use (never open an alarm). General information only; follow your local fire-safety guidance and the manufacturer's instructions.
+
+Subscribe to CUTAWAY: everything has an inside.
+
+Voice: AI-generated narration. Animation made for CUTAWAY.
+
+#shorts #howitworks #firesafety
+```
+
+### Hashtags
+`#shorts #howitworks #firesafety` + `#smokedetector #homesafety #engineering #science #diy`
+
+### Tags
+`how a smoke detector works, smoke alarm, ionization vs photoelectric, photoelectric smoke detector, ionization smoke detector, americium 241, why does my smoke detector chirp, smoke detector chirping at night, fire safety, home safety, how things work, engineering explained, dual sensor smoke alarm`
+
+### TikTok / Instagram caption
+```
+Your smoke detector doesn't smell smoke. It uses radioactive ions OR scattered light 🔥 And that 3 a.m. chirp? Now you know why. Check the date on yours 👇
+#smokedetector #firesafety #howitworks #homesafety #engineering
+```
+
+### Cover / thumbnail
+Frame at **36.5 s** (`episode-04-smoke.html?t=36.5`): smoke scattering the light beam in the chamber. Alternative: 24 s (smoke grabbing ions).
+
+### Pinned comment
+`Go check the date on the back of your smoke alarm right now. How old is yours? 👇 (Save this for the next time it chirps at 3 a.m.)`
 
 ### Settings
 Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synthetic content: **yes for the AI voice** if asked · Category: Education / How-to & Style
