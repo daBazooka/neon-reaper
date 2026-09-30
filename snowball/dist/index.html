@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#7ccaff">
+<meta name="description" content="SNOWBALL EFFECT: start as a snowflake, end as an ice planet. Roll down the mountain and swallow everything smaller than you.">
+<title>SNOWBALL EFFECT</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%223%22 fill=%22%237ccaff%22/%3E%3Ccircle cx=%228%22 cy=%229%22 r=%225.5%22 fill=%22%23fff%22 stroke=%22%239ac8ea%22/%3E%3Ccircle cx=%226%22 cy=%227.5%22 r=%221%22 fill=%22%23d0e6f6%22/%3E%3C/svg%3E">
+<style>
+:root{--f:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--ink:#12305a;--ice:#7df0ff;--gold:#ffd23a;--sat:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#7ccaff;color:#fff;font-family:var(--f);touch-action:none;overscroll-behavior:none}
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
+button{font-family:var(--f);cursor:pointer;border:0;color:inherit}
+.hidden{display:none !important}
+
+/* HUD */
+#hud{position:fixed;left:0;right:0;top:0;padding:calc(10px + var(--sat)) 12px 0;display:flex;align-items:flex-start;gap:10px;pointer-events:none;z-index:10}
+#hL,#hR{flex:0 0 90px;display:flex;align-items:center;gap:8px}
+#hR{justify-content:flex-end}
+#hC{flex:1;max-width:420px;margin:0 auto;text-align:center}
+#size{font:italic 900 34px/1 var(--f);color:#fff;-webkit-text-stroke:1.5px var(--ink);text-shadow:0 4px 0 var(--ink);transition:transform .15s}
+#size.bump{transform:scale(1.12)}
+#tierRow{display:flex;justify-content:space-between;gap:6px;white-space:nowrap;margin-top:6px;font:900 11px/1 var(--f);letter-spacing:2px;text-shadow:0 2px 0 var(--ink)}
+#nextTxt{opacity:.8}
+#tierBar,#avalBar{position:relative;margin-top:5px;height:10px;border-radius:5px;background:rgba(18,48,90,.35);border:2px solid rgba(255,255,255,.7);overflow:visible}
+#tierBar i{display:block;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,#ffffff,#bfe4ff)}
+#tierBar i.danger{background:linear-gradient(90deg,#ffb070,#ff6a3a)}
+#bestMark{position:absolute;top:-6px;width:3px;height:18px;margin-left:-1px;background:var(--gold);box-shadow:0 0 6px var(--gold);display:none}
+#bestMark::after{content:'BEST';position:absolute;top:-12px;left:50%;transform:translateX(-50%);font:900 8px/1 var(--f);color:var(--gold);letter-spacing:1px}
+#avalBar{height:8px;border-color:rgba(125,240,255,.8)}
+#avalBar i{display:block;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,#7df0ff,#ffffff)}
+#avalBar span{position:absolute;right:0;top:10px;font:900 8px/1 var(--f);letter-spacing:2px;color:#dff8ff;text-shadow:0 1px 0 var(--ink)}
+#avalBar.on{animation:av .25s infinite alternate}
+@keyframes av{to{box-shadow:0 0 18px #7df0ff}}
+#cry{font:900 20px/1 var(--f);color:#dff8ff;text-shadow:0 2px 0 var(--ink);padding:6px 10px;border-radius:14px;background:rgba(18,48,90,.35)}
+#cry::before{content:'❄ '}
+#streak{font:900 9px/1 var(--f);letter-spacing:2px;text-align:center;text-shadow:0 2px 0 var(--ink);animation:pop .25s}
+#streak b{display:block;font:italic 900 22px/1 var(--f);color:var(--gold)}
+@keyframes pop{from{transform:scale(1.6)}}
+.icoBtn{pointer-events:auto;width:42px;height:42px;border-radius:12px;background:rgba(18,48,90,.35);font:900 15px/1 var(--f)}
+
+#hint{position:fixed;left:0;right:0;top:30%;text-align:center;z-index:12;pointer-events:none;font:italic 900 clamp(22px,5vw,44px)/1.1 var(--f);-webkit-text-stroke:2px var(--ink);text-shadow:0 5px 0 var(--ink);animation:hintIn 2.8s ease-out forwards;padding:0 5vw}
+@keyframes hintIn{0%{opacity:0;transform:scale(1.4)}10%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
+#banner{position:fixed;left:0;right:0;top:40%;text-align:center;z-index:11;pointer-events:none;font:italic 900 clamp(30px,7vw,64px)/1 var(--f);color:#fff;-webkit-text-stroke:2.5px var(--ink);text-shadow:0 6px 0 var(--ink),0 0 40px rgba(255,255,255,.6);animation:bn 2.6s ease-out forwards}
+#banner small{display:block;font-size:.36em;letter-spacing:6px;color:var(--gold);margin-bottom:6px;-webkit-text-stroke:1px var(--ink)}
+@keyframes bn{0%{opacity:0;transform:scale(2)}12%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-20px)}}
+#toasts{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:13;display:flex;flex-direction:column;gap:6px;pointer-events:none;width:min(92vw,400px)}
+.toast{background:linear-gradient(90deg,#1e5aa8,#3a8ad8);border:2px solid #bfe4ff;border-radius:14px;padding:8px 14px;box-shadow:0 6px 20px rgba(0,0,0,.25);animation:toast 3s ease-out forwards}
+.toast b{display:block;font:900 10px/1 var(--f);letter-spacing:2px;color:#dff2ff}
+.toast span{display:block;font:800 16px/1.25 var(--f);margin-top:3px}
+.toast.gold{background:linear-gradient(90deg,#a86a10,#e8a21a);border-color:#ffe68a}
+@keyframes toast{0%{opacity:0;transform:translateY(20px)}8%{opacity:1;transform:none}85%{opacity:1}100%{opacity:0}}
+
+/* title */
+#title{position:fixed;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;padding-top:calc(7vh + var(--sat));pointer-events:none;transition:opacity .4s,transform .4s}
+#title.gone{opacity:0;transform:translateY(-30px)}
+#logo{font:italic 900 clamp(46px,11vw,112px)/.9 var(--f);text-align:center;color:#fff;-webkit-text-stroke:3px var(--ink);text-shadow:0 8px 0 var(--ink),0 0 40px rgba(255,255,255,.5)}
+#logo span{display:block;color:var(--ice)}
+.tag{margin-top:14px;font:800 clamp(15px,2.7vw,23px)/1.2 var(--f);text-shadow:0 2px 0 var(--ink);text-align:center;padding:0 16px}
+.tag b{color:var(--gold)}
+.tapGo{margin-top:auto;margin-bottom:10px;font:italic 900 clamp(20px,3.6vw,30px)/1 var(--f);letter-spacing:3px;-webkit-text-stroke:1.5px var(--ink);text-shadow:0 4px 0 var(--ink);animation:tg 1s ease-in-out infinite alternate}
+@keyframes tg{to{transform:scale(1.08)}}
+#tInfo{font:800 13px/1.3 var(--f);text-shadow:0 2px 0 var(--ink);margin-bottom:12px;text-align:center;min-height:14px}
+.tBtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:calc(18px + env(safe-area-inset-bottom,0px));pointer-events:auto;padding:0 10px}
+
+/* buttons */
+.btn{padding:12px 18px;border-radius:14px;background:#fff;color:var(--ink);font:900 15px/1 var(--f);letter-spacing:1px;box-shadow:0 5px 0 rgba(18,48,90,.55),0 8px 16px rgba(0,0,0,.2);transition:transform .08s}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(18,48,90,.55)}
+.btn.icon{width:46px;padding:12px 0;font-size:18px}
+.btn.primary{background:linear-gradient(180deg,#9af4ff,#3ac8f0);color:#06284a}
+.btn.gold{background:linear-gradient(180deg,#ffe066,#ff9a1a);color:#4a2a00;animation:glowB 1s ease-in-out infinite alternate}
+@keyframes glowB{to{box-shadow:0 5px 0 #8a4a0099,0 0 26px #ffd23a}}
+.btn.big{padding:16px 22px;font-size:19px}
+.btn.ghost{background:rgba(255,255,255,.18);color:#fff;box-shadow:none}
+.btn.wide{width:100%}
+.btn:disabled{opacity:.45;pointer-events:none}
+
+/* sheets and screens */
+.sheet{position:fixed;left:50%;bottom:0;transform:translateX(-50%);z-index:20;width:min(100vw,600px);max-height:92vh;overflow:auto;background:linear-gradient(180deg,#2a6fc0,#123a74);border:3px solid #bfe4ff;border-bottom:0;border-radius:26px 26px 0 0;padding:16px 16px calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;align-items:stretch;text-align:center;animation:up .35s ease-out}
+@keyframes up{from{transform:translate(-50%,100%)}}
+#rTitle{font:italic 900 22px/1 var(--f);letter-spacing:3px;color:#bfe4ff}
+#rTitle.best{color:var(--gold);font-size:30px;animation:pop .5s}
+#rSize{font:italic 900 56px/1 var(--f);-webkit-text-stroke:2px var(--ink);text-shadow:0 5px 0 var(--ink)}
+#rTier{font:900 15px/1 var(--f);letter-spacing:3px;color:var(--ice)}
+#rBest{font:700 13px/1 var(--f);color:#bfe4ff}
+#rCry{font:900 22px/1 var(--f);color:#dff8ff}
+#rNew{font:800 13px/1.4 var(--f);background:rgba(255,255,255,.12);border-radius:10px;padding:8px}
+.secT{font:900 11px/1 var(--f);letter-spacing:2px;color:#9adcff;margin-top:4px;display:flex;justify-content:space-between}
+.mis{display:flex;flex-direction:column;gap:6px;text-align:left}
+.mi{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.2);border-radius:12px;padding:8px 12px}
+.mi .ck{width:24px;height:24px;flex:0 0 24px;border-radius:50%;border:3px solid #7dd8ff66;display:flex;align-items:center;justify-content:center;font:900 14px/1 var(--f)}
+.mi.done .ck{background:#2ab86a;border-color:#7dff9a}
+.mi .mt{flex:1;font:800 14px/1.25 var(--f)}
+.mi .mp{font:800 11px/1 var(--f);color:#9adcff;margin-top:3px}
+.mi .bar{height:5px;border-radius:3px;background:rgba(255,255,255,.14);margin-top:4px;overflow:hidden}
+.mi .bar i{display:block;height:100%;background:linear-gradient(90deg,#7dd8ff,#7dff9a)}
+.mi.new{animation:newM .8s ease-out}
+@keyframes newM{0%{transform:scale(1.06);background:rgba(125,255,154,.4)}}
+#upRow{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none}
+#upRow::-webkit-scrollbar{display:none}
+.up{flex:0 0 112px;background:rgba(0,0,0,.2);border:2px solid transparent;border-radius:14px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.up .ic{font-size:20px}
+.up b{font:900 12px/1.1 var(--f)}
+.up span{font:700 10px/1.25 var(--f);color:#bfe4ff;min-height:25px}
+.up .c{font:900 13px/1 var(--f);color:#dff8ff}
+.up.can{border-color:var(--gold);background:rgba(255,210,58,.14);cursor:pointer;animation:can 1s ease-in-out infinite alternate}
+@keyframes can{to{box-shadow:0 0 14px rgba(255,210,58,.5)}}
+.up.max{opacity:.45}
+.rBtns{display:flex;gap:8px;margin-top:4px}
+.rBtns .big{flex:1}
+.screen{position:fixed;inset:0;z-index:25;display:flex;align-items:center;justify-content:center;background:rgba(10,30,60,.55);padding:12px;backdrop-filter:blur(3px)}
+.card{width:min(94vw,440px);max-height:94vh;overflow:auto;background:linear-gradient(180deg,#2a6fc0,#123a74);border:3px solid #bfe4ff;border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:10px;animation:cardIn .3s ease-out}
+.card.wide{width:min(96vw,640px)}
+@keyframes cardIn{from{transform:translateY(30px) scale(.95);opacity:0}}
+h2{font:italic 900 26px/1 var(--f);text-align:center;letter-spacing:1px;text-shadow:0 3px 0 var(--ink);display:flex;justify-content:center;align-items:center;gap:10px}
+h2 small{font:800 13px/1 var(--f);font-style:normal;color:#bfe4ff}
+.money{color:#dff8ff !important}
+.hint2{font:700 13px/1.35 var(--f);color:#bfe4ff;text-align:center}
+.rankLine{text-align:center;font:900 16px/1.2 var(--f);color:var(--gold)}
+.closeBtn{align-self:center}
+#gGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:8px}
+.gi{background:rgba(0,0,0,.2);border-radius:12px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.gi canvas{width:44px;height:44px}
+.gi b{font:800 10px/1.1 var(--f);text-align:center;min-height:22px}
+.gi span{font:700 9px/1 var(--f);color:#9adcff}
+.gi.no b{color:#6a88b0}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.2);border-radius:12px;padding:10px 12px}
+.item .ic{font-size:24px;width:34px;text-align:center}
+.item .it{flex:1}
+.item b{font:900 15px/1 var(--f)}
+.item span{display:block;font:700 12px/1.3 var(--f);color:#bfe4ff;margin-top:3px}
+.pips{display:flex;gap:3px;margin-top:5px;flex-wrap:wrap}
+.pips i{width:8px;height:5px;border-radius:2px;background:rgba(255,255,255,.18)}
+.pips i.on{background:var(--ice)}
+.item .btn{padding:10px 12px;font-size:13px;min-width:86px}
+.setRow{display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,.2);border-radius:12px;padding:12px 14px;font:800 15px/1 var(--f)}
+.setRow input{display:none}
+.sw{width:46px;height:26px;border-radius:13px;background:rgba(255,255,255,.2);position:relative;transition:.2s}
+.sw::after{content:'';position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s}
+.setRow input:checked+.sw{background:#2ab8e0}
+.setRow input:checked+.sw::after{left:23px}
+.seg{display:flex;gap:4px}
+.seg button{padding:7px 12px;border-radius:8px;background:rgba(255,255,255,.15);font:900 12px/1 var(--f)}
+.seg button.on{background:#fff;color:var(--ink)}
+#boot{position:fixed;inset:0;z-index:50;background:linear-gradient(180deg,#7ccaff,#e0f4ff);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .4s}
+.bootLogo{font:italic 900 40px/1 var(--f);-webkit-text-stroke:2px var(--ink);text-shadow:0 5px 0 var(--ink)}
+.bootBar{width:200px;height:10px;border-radius:5px;background:rgba(18,48,90,.3);overflow:hidden}
+.bootBar i{display:block;height:100%;width:30%;background:#fff;animation:boot 1s ease-in-out infinite alternate}
+@keyframes boot{to{width:100%}}
+@media (max-width:520px){#hL,#hR{flex-basis:64px}#tierRow{font-size:9px;letter-spacing:1px}.toast{padding:6px 10px}.toast span{font-size:13px}#size{font-size:26px}#cry{font-size:15px;padding:5px 7px}#streak b{font-size:17px}#rSize{font-size:44px}}
+@media (max-height:500px){#title{padding-top:3vh}#logo{font-size:60px}.sheet{max-height:98vh;gap:5px;padding-top:10px}#rSize{font-size:36px}}
+
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<!-- ============ HUD ============ -->
+<div id="hud" class="hidden">
+  <div id="hL"><div id="cry">0</div></div>
+  <div id="hC">
+    <div id="size">8 cm</div>
+    <div id="tierRow"><span id="tierTxt">SNOWFLAKE</span><span id="nextTxt"></span></div>
+    <div id="tierBar"><i></i><em id="bestMark"></em></div>
+    <div id="avalBar"><i></i><span>AVALANCHE</span></div>
+  </div>
+  <div id="hR"><div id="streak" class="hidden"><b>x10</b>STREAK</div><button id="pauseBtn" class="icoBtn" aria-label="Pause">❚❚</button></div>
+</div>
+<div id="hint" class="hidden"></div>
+<div id="banner" class="hidden"></div>
+<div id="toasts"></div>
+
+<!-- ============ TITLE ============ -->
+<div id="title">
+  <h1 id="logo">SNOWBALL<span>EFFECT</span></h1>
+  <div class="tag">Start as a snowflake. <b>End as an ice planet.</b></div>
+  <div class="tapGo">TAP TO ROLL</div>
+  <div id="tInfo"></div>
+  <div class="tBtns">
+    <button id="tGlobe" class="btn">🔮 SNOW GLOBE</button>
+    <button id="tShop" class="btn">⬆ UPGRADES</button>
+    <button id="tMis" class="btn">🎯 MISSIONS</button>
+    <button id="tSet" class="btn icon">⚙</button>
+  </div>
+</div>
+
+<!-- ============ RESULT ============ -->
+<div id="result" class="sheet hidden">
+  <div id="rTitle">MELTED!</div>
+  <div id="rSize">0 cm</div>
+  <div id="rTier"></div>
+  <div id="rBest"></div>
+  <div id="rCry">+0 ❄</div>
+  <div id="rNew" class="hidden"></div>
+  <div class="secT">MISSIONS <span id="rRank"></span></div>
+  <div id="rMis" class="mis"></div>
+  <button id="rRankUp" class="btn gold hidden">⭐ RANK UP! CLAIM REWARD</button>
+  <div id="upRow"></div>
+  <div class="rBtns">
+    <button id="rHome" class="btn ghost">⌂</button>
+    <button id="rGlobe" class="btn">🔮</button>
+    <button id="rAgain" class="btn primary big">ROLL AGAIN ▶</button>
+  </div>
+</div>
+
+<!-- ============ SCREENS ============ -->
+<div id="globe" class="screen hidden"><div class="card wide"><h2>SNOW GLOBE <small id="gN"></small></h2><div class="hint2">Everything you've ever swallowed. The dark shapes are still out there...</div><div id="gGrid"></div><button class="btn ghost closeBtn">BACK</button></div></div>
+<div id="shop" class="screen hidden"><div class="card"><h2>UPGRADES <small id="sCry" class="money"></small></h2><div id="shopList" class="list"></div><button class="btn ghost closeBtn">BACK</button></div></div>
+<div id="missions" class="screen hidden"><div class="card"><h2>MISSIONS</h2><div id="mRank" class="rankLine"></div><div id="mList" class="mis"></div><button id="mClaim" class="btn gold hidden">⭐ RANK UP! CLAIM REWARD</button><div class="hint2">Finish all three to rank up and earn crystals.</div><button class="btn ghost closeBtn">BACK</button></div></div>
+<div id="pause" class="screen hidden"><div class="card"><h2>PAUSED</h2><button id="pResume" class="btn primary big">▶ RESUME</button><button id="pSet" class="btn wide">SETTINGS</button><button id="pEnd" class="btn ghost wide">END RUN</button></div></div>
+<div id="settings" class="screen hidden"><div class="card"><h2>SETTINGS</h2>
+  <div class="list">
+    <label class="setRow"><span>Sound effects</span><input type="checkbox" data-opt="sfx"><i class="sw"></i></label>
+    <label class="setRow"><span>Music</span><input type="checkbox" data-opt="music"><i class="sw"></i></label>
+    <div class="setRow"><span>Effects</span><div class="seg" data-opt="fx"><button data-v="low">LOW</button><button data-v="high">HIGH</button></div></div>
+  </div>
+  <button class="btn ghost closeBtn">BACK</button></div></div>
+
+<div id="boot"><div class="bootLogo">SNOWBALL EFFECT</div><div class="bootBar"><i></i></div></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   CrazyGames SDK v3 wrapper.
+   - Documented order: SDK.init() -> loadingStart() -> (load) -> loadingStop()
+   - gameplayStart/Stop are de-duplicated so the portal never sees two
+     starts (or two stops) in a row.
+   - Every call is wrapped: off-portal (localhost, itch, file://) the game
+     runs identically with the SDK absent.
+   - ADS_ENABLED stays false during Basic Launch: CrazyGames does not allow
+     ads in Basic Launch, so no ad API is touched at all while it's false.
+     Flip it to true once the dashboard shows Full Implementation.
+   ===================================================================== */
+const ADS_ENABLED = false;
+
+const SDK = {
+  cg: null, env: 'none', playing: false, lastAd: 0, adBusy: false,
+  onMute: null,
+
+  async init(){
+    await new Promise(res => {
+      let done = false; const fin = () => { if(!done){ done = true; res(); } };
+      try{
+        const s = document.createElement('script');
+        s.src = 'https://sdk.crazygames.com/crazygames-sdk-v3.js';
+        s.onload = fin; s.onerror = fin;
+        document.head.appendChild(s);
+      }catch(e){ fin(); }
+      setTimeout(fin, 4000);
+    });
+    try{
+      const sdk = window.CrazyGames && window.CrazyGames.SDK;
+      if(!sdk) return;
+      await Promise.race([sdk.init(), new Promise((_, rej) => setTimeout(() => rej(new Error('sdk timeout')), 5000))]);
+      this.env = sdk.environment || 'crazygames';
+      if(this.env === 'disabled') return;   // not on a CrazyGames domain
+      this.cg = sdk;
+      try{
+        this.applySettings(sdk.game.settings);
+        sdk.game.addSettingsChangeListener(s => this.applySettings(s));
+      }catch(e){}
+    }catch(e){ this.cg = null; }
+  },
+  applySettings(s){
+    if(!s) return;
+    if(this.onMute) this.onMute(!!s.muteAudio);
+  },
+  data(){ try{ return this.cg && this.cg.data ? this.cg.data : null; }catch(e){ return null; } },
+
+  loadingStart(){ try{ this.cg && this.cg.game.loadingStart(); }catch(e){} },
+  loadingStop(){ try{ this.cg && this.cg.game.loadingStop(); }catch(e){} },
+  gameplayStart(){ if(this.playing) return; this.playing = true; try{ this.cg && this.cg.game.gameplayStart(); }catch(e){} },
+  gameplayStop(){ if(!this.playing) return; this.playing = false; try{ this.cg && this.cg.game.gameplayStop(); }catch(e){} },
+  happytime(){ try{ this.cg && this.cg.game.happytime(); }catch(e){} },
+
+  canRewarded(){ return ADS_ENABLED && !!this.cg && !this.adBusy; },
+
+  /* rewarded ad: cb(true) only when the ad finished */
+  rewarded(cb){
+    if(!this.canRewarded()){ cb(false); return; }
+    this._ad('rewarded', cb);
+  },
+  /* midgame ad at natural breaks, self-limited to one per 3 minutes */
+  midgame(cb){
+    if(!ADS_ENABLED || !this.cg || this.adBusy || Date.now() - this.lastAd < 180000){ cb(); return; }
+    this._ad('midgame', () => cb());
+  },
+  _ad(type, cb){
+    this.adBusy = true; this.gameplayStop();
+    let fin = false;
+    const end = ok => { if(fin) return; fin = true; this.adBusy = false; this.lastAd = Date.now(); AU.adMute(false); cb(ok); };
+    try{
+      this.cg.ad.requestAd(type, {
+        adStarted: () => AU.adMute(true),
+        adFinished: () => end(true),
+        adError: () => end(false)
+      });
+    }catch(e){ end(false); }
+  }
+};
+
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   SNOWBALL EFFECT core: utilities, tiers, objects, upgrades, missions, save.
+   Start as a snowflake. End as an ice planet.
+   ===================================================================== */
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[(Math.random() * a.length) | 0];
+const $ = id => document.getElementById(id);
+function fmt(n){
+  n = Math.floor(n);
+  if(n < 10000) return n.toLocaleString('en-US');
+  const u = ['K', 'M', 'B', 'T']; let i = -1;
+  while(n >= 1000 && i < u.length - 1){ n /= 1000; i++; }
+  return (n < 100 ? n.toFixed(1).replace(/\.0$/, '') : Math.floor(n)) + u[i];
+}
+// world unit = 1 cm; the ball's size is shown as its diameter
+function fmtSize(r){
+  const d = r * 2;
+  if(d < 100) return d.toFixed(d < 10 ? 1 : 0) + ' cm';
+  if(d < 100000) return (d / 100).toFixed(d < 1000 ? 2 : d < 10000 ? 1 : 0) + ' m';
+  return (d / 100000).toFixed(d < 1e6 ? 2 : 1) + ' km';
+}
+function rgba(hex, a){ const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${n >> 8 & 255},${n & 255},${a})`; }
+function mix(h1, h2, t){ const a = parseInt(h1.slice(1), 16), b = parseInt(h2.slice(1), 16); const r = lerp(a >> 16, b >> 16, t) | 0, g = lerp(a >> 8 & 255, b >> 8 & 255, t) | 0, bl = lerp(a & 255, b & 255, t) | 0; return '#' + ((1 << 24) | (r << 16) | (g << 8) | bl).toString(16).slice(1); }
+
+/* ---------------- tiers (by radius) ---------------- */
+const TIERS = [
+  { at:0,     name:'Snowflake',      sky:['#8fd4ff', '#e8f7ff'], hill:'#b8d8f0', far:'#d6ecff' },
+  { at:7,     name:'Snowball',       sky:['#7ccaff', '#e0f4ff'], hill:'#a8cdea', far:'#cfe6fa' },
+  { at:18,    name:'Big Snowball',   sky:['#6cc0ff', '#d8f0ff'], hill:'#98c2e4', far:'#c6e0f6' },
+  { at:45,    name:'Boulder',        sky:['#5ab4fa', '#cfeaff'], hill:'#88b6dc', far:'#bcd8f2' },
+  { at:120,   name:'Avalanche',      sky:['#4aa6f2', '#c4e2fb'], hill:'#7aa8d2', far:'#b0cfec' },
+  { at:320,   name:'Glacier',        sky:['#3d94e6', '#b4d8f6'], hill:'#6c98c6', far:'#a2c4e4' },
+  { at:900,   name:'Mountain Eater', sky:['#2f7ed6', '#a0c8ee'], hill:'#5e88b8', far:'#94b8dc' },
+  { at:2600,  name:'Sky Swallower',  sky:['#1e5aa8', '#7fb0e6'], hill:'#4c74a4', far:'#86a8d0' },
+  { at:8000,  name:'Ice Planet',     sky:['#0a1a44', '#2a4a8a'], hill:'#3a5a8a', far:'#50709e' },
+  { at:24000, name:'Cosmic Snowball',sky:['#02040f', '#10183a'], hill:'#2a3a64', far:'#34466e' },
+];
+function tierOf(r){ let t = 0; for(let i = 0; i < TIERS.length; i++) if(r >= TIERS[i].at) t = i; return t; }
+
+/* ---------------- things to swallow (emoji are system glyphs) ---------------- */
+// s: typical height in world units (cm). sky: floats above the slope.
+const THINGS = [
+  { id:'pebble',  e:'🪨', name:'Pebble',        s:2.2 },
+  { id:'mitten',  e:'🧤', name:'Mitten',        s:2.8 },
+  { id:'carrot',  e:'🥕', name:'Carrot',        s:3.2 },
+  { id:'acorn',   e:'🌰', name:'Chestnut',      s:2 },
+  { id:'scarf',   e:'🧣', name:'Scarf',         s:3.8 },
+  { id:'bucket',  e:'🪣', name:'Bucket',        s:4.5 },
+  { id:'gift',    e:'🎁', name:'Present',       s:5.5 },
+  { id:'lantern', e:'🏮', name:'Lantern',       s:6 },
+  { id:'sled',    e:'🛷', name:'Sled',          s:7 },
+  { id:'skis',    e:'🎿', name:'Skis',          s:9 },
+  { id:'snowman', e:'⛄', name:'Snowman',       s:12 },
+  { id:'wood',    e:'🪵', name:'Log',           s:10 },
+  { id:'xmas',    e:'🎄', name:'Festive Tree',  s:17 },
+  { id:'tent',    e:'⛺', name:'Tent',          s:20 },
+  { id:'pine',    e:'🌲', name:'Pine Tree',     s:28 },
+  { id:'car',     e:'🚗', name:'Car',           s:24 },
+  { id:'truck',   e:'🛻', name:'Pickup',        s:30 },
+  { id:'hut',     e:'🛖', name:'Hut',           s:40 },
+  { id:'bus',     e:'🚌', name:'Bus',           s:48 },
+  { id:'house',   e:'🏠', name:'House',         s:62 },
+  { id:'cottage', e:'🏡', name:'Cottage',       s:75 },
+  { id:'gondola', e:'🚠', name:'Cable Car',     s:70, sky:1 },
+  { id:'church',  e:'⛪', name:'Chapel',        s:120 },
+  { id:'school',  e:'🏫', name:'School',        s:150 },
+  { id:'hotel',   e:'🏨', name:'Ski Hotel',     s:190 },
+  { id:'factory', e:'🏭', name:'Factory',       s:240 },
+  { id:'castle',  e:'🏰', name:'Castle',        s:320 },
+  { id:'wheel',   e:'🎡', name:'Ferris Wheel',  s:380 },
+  { id:'stadium', e:'🏟️', name:'Stadium',       s:470 },
+  { id:'balloon', e:'🎈', name:'Balloon',       s:420, sky:1 },
+  { id:'tower',   e:'🗼', name:'Tower',         s:650 },
+  { id:'hill',    e:'⛰️', name:'Hill',          s:1000 },
+  { id:'heli',    e:'🚁', name:'Helicopter',    s:900, sky:1 },
+  { id:'peak',    e:'🏔', name:'Snowy Peak',    s:1700 },
+  { id:'plane',   e:'✈️', name:'Airliner',      s:2000, sky:1 },
+  { id:'cloud',   e:'☁️', name:'Cloud',         s:2800, sky:1 },
+  { id:'volcano', e:'🌋', name:'Volcano',       s:3400 },
+  { id:'fuji',    e:'🗻', name:'Great Mountain',s:5200 },
+  { id:'storm',   e:'⛈️', name:'Storm Cloud',   s:6500, sky:1 },
+  { id:'ufo',     e:'🛸', name:'UFO',           s:8000, sky:1 },
+  { id:'sat',     e:'🛰️', name:'Satellite',     s:11000, sky:1 },
+  { id:'rocket',  e:'🚀', name:'Rocket',        s:15000, sky:1 },
+  { id:'comet',   e:'☄️', name:'Comet',         s:26000, sky:1 },
+  { id:'moon',    e:'🌕', name:'The Moon',      s:42000, sky:1 },
+  { id:'saturn',  e:'🪐', name:'Ringed Planet', s:90000, sky:1 },
+];
+const THING = Object.fromEntries(THINGS.map(t => [t.id, t]));
+
+/* ---------------- upgrades ---------------- */
+const UPG = [
+  { id:'start',  icon:'❄', name:'Bigger Start',  base:60,  k:1.7,  max:15, eff:l => `Start at ${fmtSize(startR(l))}` },
+  { id:'frost',  icon:'🧊', name:'Frost Coat',    base:80,  k:1.75, max:15, eff:l => `Melt ${Math.round(meltMul(l) * 100)}% as fast` },
+  { id:'grow',   icon:'⬆', name:'Sticky Snow',   base:120, k:1.8,  max:15, eff:l => `Swallowing grows you ${Math.round(growMul(l) * 100)}%` },
+  { id:'aval',   icon:'🌪', name:'Avalanche Fuel',base:150, k:1.85, max:10, eff:l => `Avalanche meter fills in ${avalNeed(l)}` },
+  { id:'magnet', icon:'🧲', name:'Crystal Magnet',base:100, k:1.7,  max:10, eff:l => `Pulls crystals ${(2 + l * .6).toFixed(1)} balls away` },
+  { id:'value',  icon:'💎', name:'Crystal Value', base:200, k:1.9,  max:15, eff:l => `Crystals worth x${(1 + l * .25).toFixed(2)}` },
+];
+const startR = l => 4 * Math.pow(1.12, l);
+const meltMul = l => Math.pow(.93, l);
+const growMul = l => 1 + l * .06;
+const avalNeed = l => Math.max(30, 60 - l * 3);
+const upCost = (u, l) => Math.ceil(u.base * Math.pow(u.k, l) / 10) * 10;
+
+/* ---------------- missions ---------------- */
+const MTYPES = {
+  size:   { t:n => `Grow to ${fmtSize(n)} in one run`, run:true },
+  eat:    { t:n => `Swallow ${n} things in one run`, run:true },
+  hop:    { t:n => `Jump over ${n} big things`, run:false },
+  aval:   { t:n => n > 1 ? `Start ${n} Avalanches` : 'Start an Avalanche', run:false },
+  cry:    { t:n => `Collect ${n} crystals in one run`, run:true },
+  combo:  { t:n => `Reach a x${n} swallow streak`, run:true },
+  slam:   { t:n => `Slam-land ${n} times`, run:false },
+  thing:  { t:n => `Swallow a ${THINGS[n].name} ${THINGS[n].e}`, run:false },
+};
+function makeMission(rank, avoid){
+  const keys = Object.keys(MTYPES).filter(k => !avoid.includes(k));
+  const k = pick(keys);
+  let n;
+  switch(k){
+    case 'size': n = 10 * Math.pow(1.55, rank); break;
+    case 'eat': n = Math.round((30 + rank * 14) / 5) * 5; break;
+    case 'hop': n = 3 + Math.round(rank * 1.3); break;
+    case 'aval': n = 1 + Math.floor(rank / 3); break;
+    case 'cry': n = Math.round((25 + rank * 18) / 5) * 5; break;
+    case 'combo': n = Math.min(40, 8 + rank * 3); break;
+    case 'slam': n = 2 + rank; break;
+    case 'thing': { const r = 6 * Math.pow(1.5, rank) * 1.3; let best = 0; THINGS.forEach((t, i) => { if(!t.sky && t.s < r && t.s > THINGS[best].s) best = i; }); n = best; break; }
+  }
+  return { k, n, p:0, done:false };
+}
+const rankReward = r => Math.round(120 * Math.pow(1.35, r) / 10) * 10;
+const RANKS = ['Snowflake', 'Flurry', 'Drift', 'Blizzard', 'Avalanche', 'Glacier', 'Ice Age', 'Frost Giant', 'Winter King', 'Absolute Zero'];
+const rankName = r => RANKS[Math.min(RANKS.length - 1, (r / 3) | 0)] + ' ' + ['I', 'II', 'III'][r % 3];
+
+/* ---------------- save ---------------- */
+const SAVE_KEY = 'snowballeffect_save_v1';
+let _saveT = 0;
+function defSave(){
+  return {
+    v:1, cry:0, best:0, bestTier:0, up:{ start:0, frost:0, grow:0, aval:0, magnet:0, value:0 },
+    rank:0, missions:[], globe:{}, stats:{ runs:0, eaten:0, hops:0, avals:0, slams:0, cry:0 },
+    tut:0, opt:{ sfx:true, music:true, fx:'high' },
+  };
+}
+let save = defSave();
+function mergeInto(base, src){
+  for(const k in src){
+    if(!(k in base)){ base[k] = src[k]; continue; }
+    const b = base[k], s = src[k];
+    if(b && typeof b === 'object' && !Array.isArray(b) && s && typeof s === 'object' && !Array.isArray(s)) mergeInto(b, s);
+    else if(s !== undefined && s !== null && typeof s === typeof b && Array.isArray(b) === Array.isArray(s)) base[k] = s;
+  }
+  return base;
+}
+function fillMissions(){
+  save.missions = save.missions.filter(m => m && MTYPES[m.k]);
+  while(save.missions.length < 3) save.missions.push(makeMission(save.rank, save.missions.map(m => m.k)));
+}
+function loadSave(){
+  let raw = null; const d = SDK.data();
+  try{ if(d) raw = d.getItem(SAVE_KEY); }catch(e){}
+  if(!raw && !d){ try{ raw = localStorage.getItem(SAVE_KEY); }catch(e){} }
+  if(raw){ try{ save = mergeInto(defSave(), JSON.parse(raw)); }catch(e){ save = defSave(); } }
+  fillMissions();
+}
+function writeSave(){
+  const s = JSON.stringify(save), d = SDK.data();
+  if(d){ try{ d.setItem(SAVE_KEY, s); }catch(e){} return; }
+  try{ localStorage.setItem(SAVE_KEY, s); }catch(e){}
+}
+function persist(){ clearTimeout(_saveT); _saveT = setTimeout(writeSave, 300); }
+
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   SNOWBALL EFFECT audio: everything synthesized.
+   - music: a bouncy winter tune with bells; drums join as your streak grows,
+     and the Avalanche doubles the tempo feel
+   - swallows: a soft crunch plus a bell note that climbs with the streak
+   ===================================================================== */
+const AU = {
+  ctx:null, master:null, sfx:null, mus:null, rev:null, noiseBuf:null,
+  portalMute:false, adMuted:false, hidden:false, last:{}, step:0, nextT:0, timer:null, key:64, heat:0, aval:false,
+  init(){
+    if(this.ctx) return;
+    try{ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return; this.ctx = new AC(); }catch(e){ return; }
+    const c = this.ctx;
+    const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 8; comp.ratio.value = 8; comp.attack.value = .003; comp.release.value = .2;
+    this.master = c.createGain(); this.master.connect(comp); comp.connect(c.destination);
+    const rl = c.sampleRate * 1.6 | 0, ir = c.createBuffer(2, rl, c.sampleRate);
+    for(let ch = 0; ch < 2; ch++){ const d = ir.getChannelData(ch); for(let i = 0; i < rl; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / rl, 2.6); }
+    this.rev = c.createConvolver(); this.rev.buffer = ir; const rg = c.createGain(); rg.gain.value = .35; this.rev.connect(rg); rg.connect(this.master);
+    this.sfx = c.createGain(); this.sfx.connect(this.master);
+    this.mus = c.createGain(); this.mus.connect(this.master);
+    const len = c.sampleRate; this.noiseBuf = c.createBuffer(1, len, c.sampleRate);
+    const d = this.noiseBuf.getChannelData(0); for(let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this.apply(); this.startMusic();
+  },
+  resume(){ try{ if(this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(() => {}); }catch(e){} },
+  apply(){
+    if(!this.ctx) return;
+    const on = !this.portalMute && !this.adMuted && !this.hidden, t = this.ctx.currentTime;
+    this.master.gain.setTargetAtTime(on ? 1 : 0, t, .03);
+    this.sfx.gain.setTargetAtTime(save.opt.sfx ? .6 : 0, t, .02);
+    this.mus.gain.setTargetAtTime(save.opt.music ? .3 : 0, t, .05);
+  },
+  setPortalMute(m){ this.portalMute = m; this.apply(); },
+  adMute(m){ this.adMuted = m; this.apply(); },
+  setHidden(h){ this.hidden = h; this.apply(); },
+  gate(k, gap){ const t = this.ctx.currentTime; if(t - (this.last[k] || -1) < gap) return false; this.last[k] = t; return true; },
+  mf(m){ return 440 * Math.pow(2, (m - 69) / 12); },
+  tone(f, d, type, v, f2, delay, wet){
+    const c = this.ctx; if(!c) return;
+    const t = c.currentTime + (delay || 0), o = c.createOscillator(), g = c.createGain();
+    o.type = type || 'sine'; o.frequency.setValueAtTime(f, t); if(f2) o.frequency.exponentialRampToValueAtTime(Math.max(20, f2), t + d);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+    o.connect(g); g.connect(this.sfx); if(wet) g.connect(this.rev); o.start(t); o.stop(t + d + .05);
+  },
+  noise(d, freq, v, type, f2, delay, q, wet){
+    const c = this.ctx; if(!c) return;
+    const t = c.currentTime + (delay || 0), s = c.createBufferSource(); s.buffer = this.noiseBuf;
+    const f = c.createBiquadFilter(); f.type = type || 'lowpass'; f.frequency.setValueAtTime(freq, t); if(f2) f.frequency.exponentialRampToValueAtTime(Math.max(30, f2), t + d); f.Q.value = q || 1;
+    const g = c.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .008); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+    s.connect(f); f.connect(g); g.connect(this.sfx); if(wet) g.connect(this.rev); s.start(t, Math.random() * .5); s.stop(t + d + .05);
+  },
+  bell(m, v, d, delay){ const f = this.mf(m); this.tone(f, d || .6, 'sine', v, 0, delay, 1); this.tone(f * 2.76, (d || .6) * .5, 'sine', v * .35, 0, delay); this.tone(f * 5.4, (d || .6) * .25, 'sine', v * .15, 0, delay); },
+  SC:[0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28, 31],
+  eat(combo, rel){
+    if(!this.ctx) return;
+    this.heat = Math.min(1, this.heat + .04);
+    const big = rel > .45;
+    this.noise(big ? .22 : .08, big ? 900 : 2600, big ? .25 : .1, 'lowpass', big ? 200 : 700, 0, 1);
+    if(!this.gate('eat', .035)) return;
+    const n = this.SC[Math.min(this.SC.length - 1, combo % 12 + (combo >= 12 ? 2 : 0))];
+    this.bell(this.key + 12 + n, big ? .08 : .05, big ? .7 : .4);
+    if(big) this.tone(this.mf(this.key - 12), .25, 'sine', .15, this.mf(this.key - 24));
+  },
+  streak(n){ if(!this.ctx) return; [0, 4, 7, 12].forEach((k, i) => this.bell(this.key + 24 + k, .06, .6, i * .05)); },
+  crystal(){ if(!this.ctx || !this.gate('cry', .04)) return; this.bell(this.key + 31 + pick([0, 2, 4]), .045, .35); },
+  jump(){ if(!this.ctx) return; this.tone(260, .18, 'sine', .09, 620); this.noise(.12, 3000, .05, 'bandpass', 5000, 0, 2); },
+  slamDown(){ if(!this.ctx) return; this.tone(700, .2, 'sawtooth', .04, 120); },
+  slam(){ if(!this.ctx) return; this.noise(.45, 700, .45, 'lowpass', 60, 0, 1, 1); this.tone(90, .35, 'sine', .35, 35); },
+  land(){ if(!this.ctx || !this.gate('land', .2)) return; this.noise(.25, 900, .18, 'lowpass', 120, 0, 1); },
+  hop(){ if(!this.ctx) return; [7, 12].forEach((k, i) => this.bell(this.key + 24 + k, .06, .4, i * .06)); },
+  crash(){ if(!this.ctx) return; this.heat = 0; this.noise(.5, 1400, .5, 'lowpass', 90, 0, 1.3, 1); this.tone(140, .3, 'square', .1, 50); },
+  avalanche(){ if(!this.ctx) return; this.aval = true; this.noise(1.6, 300, .5, 'lowpass', 1500, 0, 1, 1); [0, 4, 7, 12, 16, 19, 24].forEach((k, i) => this.bell(this.key + 12 + k, .08, .8, i * .06)); },
+  avalEnd(){ this.aval = false; if(!this.ctx) return; [12, 7, 4].forEach((k, i) => this.bell(this.key + 12 + k, .05, .4, i * .08)); },
+  tier(n){ if(!this.ctx) return; [0, 4, 7, 12, 16, 19, 24].forEach((k, i) => this.bell(this.key + k, .09, 1, i * .07)); this.tone(this.mf(this.key - 12), 1.2, 'triangle', .12, 0, 0, 1); },
+  record(){ if(!this.ctx) return; [0, 7, 12, 16, 19, 24, 28].forEach((k, i) => this.bell(this.key + 12 + k, .08, .8, i * .06)); },
+  discover(){ if(!this.ctx) return; [12, 16, 19, 24].forEach((k, i) => this.bell(this.key + 12 + k, .06, .7, .05 + i * .08)); },
+  mission(){ if(!this.ctx) return; [0, 4, 7, 12].forEach((k, i) => this.tone(this.mf(this.key + 12 + k), .35, 'square', .04, 0, i * .07, 1)); },
+  melt(){ if(!this.ctx) return; this.noise(1.2, 4000, .1, 'highpass', 800, 0, 1, 1); [7, 4, 0, -5].forEach((k, i) => this.tone(this.mf(this.key + k), .5, 'triangle', .08, 0, i * .16, 1)); },
+  best(){ this.record(); },
+  rank(){ if(!this.ctx) return; [0, 4, 7, 12, 16, 19, 24, 28].forEach((k, i) => this.bell(this.key + k, .1, 1.1, i * .08)); },
+  buy(){ if(!this.ctx) return; [0, 7, 12].forEach((k, i) => this.bell(this.key + 12 + k, .06, .3, i * .04)); },
+  deny(){ if(!this.ctx) return; this.tone(200, .15, 'square', .05, 130); },
+  ui(){ if(!this.ctx) return; this.bell(this.key + 24, .04, .2); },
+  count(){ if(!this.ctx || !this.gate('cnt', .05)) return; this.tone(this.mf(this.key + 24 + pick([0, 2, 4, 7])), .05, 'square', .02); },
+
+  /* ---------- music: 132 bpm, sixteenth grid ---------- */
+  startMusic(){ if(!this.ctx || this.timer) return; this.nextT = this.ctx.currentTime + .1; this.step = 0; this.timer = setInterval(() => this.sched(), 30); },
+  mt(f, t, d, type, v, cut){
+    const c = this.ctx, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+    if(cut){ const fl = c.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.setValueAtTime(cut, t); o.connect(fl); fl.connect(g); } else o.connect(g);
+    g.connect(this.mus); o.start(t); o.stop(t + d + .05);
+  },
+  kick(t, v){ const c = this.ctx, o = c.createOscillator(), g = c.createGain(); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(45, t + .13); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + .2); o.connect(g); g.connect(this.mus); o.start(t); o.stop(t + .25); },
+  jingle(t, v){ const c = this.ctx; for(let k = 0; k < 3; k++){ const s = c.createBufferSource(); s.buffer = this.noiseBuf; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 7000 + k * 1500; f.Q.value = 6; const g = c.createGain(), tt = t + k * .012; g.gain.setValueAtTime(v, tt); g.gain.exponentialRampToValueAtTime(.0001, tt + .09); s.connect(f); f.connect(g); g.connect(this.mus); s.start(tt, Math.random() * .5); s.stop(tt + .12); } },
+  sched(){
+    const c = this.ctx; if(!c || c.state !== 'running'){ if(c) this.nextT = c.currentTime + .05; return; }
+    const sp = 60 / 132 / 4;
+    const prog = [[0, 4, 7], [5, 9, 12], [-3, 0, 4], [7, 11, 14]];
+    const TUNE = [12, -1, 16, 14, 12, -1, 7, -1, 9, 12, 14, -1, 12, -1, -1, -1, 16, -1, 19, 16, 14, -1, 12, -1, 11, 12, 14, -1, 7, -1, -1, -1];
+    while(this.nextT < c.currentTime + .15){
+      const st = this.step, t = this.nextT, s16 = st % 16, bar = (st / 16 | 0) % 4, ch = prog[bar], r = this.key - 12, h = this.aval ? 1 : this.heat;
+      if(s16 % 8 === 0) this.mt(this.mf(r - 12 + ch[0]), t, sp * 7, 'triangle', .1, 500);
+      if(s16 % 4 === 2) ch.forEach(k => this.mt(this.mf(r + 12 + k), t, sp * 1.5, 'square', .012, 1800));
+      const n = TUNE[(st % 32)]; if(n >= 0 && (h > .15 || st % 2 === 0)) this.mt(this.mf(r + 24 + n), t, sp * 2.5, 'sine', .03 + h * .015);
+      if(s16 % 4 === 0) this.kick(t, .14 + h * .18);
+      if(h > .25 && s16 % 2 === 1) this.jingle(t, .012 + h * .02);
+      if(this.aval && s16 % 2 === 0) this.mt(this.mf(r + 36 + ch[(st / 2 | 0) % 3]), t, sp * 1.2, 'triangle', .025, 5000);
+      this.heat = Math.max(0, this.heat - .003);
+      this.nextT += sp; this.step++;
+    }
+  },
+};
+
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   SNOWBALL EFFECT simulation.
+   The ball rolls down an endless slope. Anything smaller than you sticks
+   and makes you bigger; anything bigger knocks you back. Tap to jump,
+   tap again in the air to slam. The sun melts you, faster and faster.
+   Everything scales with the ball, so physics feel the same at 8 cm
+   and at 800 m, while the camera zooms out and the world grows.
+   ===================================================================== */
+const PHYS = { SPD:11, G:55, JUMP:23, SLAM:48, GROW:.13 };
+const G = {
+  state:'title', t:0, rt:0, x:0, y:0, vx:0, vy:0, R:4, R0:4, peak:4, rot:0, air:false, coyote:0, slam:false, inv:0,
+  pts:[], genX:0, things:[], cry:[], stuck:[], parts:[], pops:[], rings:[],
+  combo:0, comboT:0, maxCombo:0, meter:0, avalT:0, tier:0, tierRun:0, recordShown:false,
+  eatenRun:0, cryRun:0, hopsRun:0, slamsRun:0, avalsRun:0, newFound:[], result:null, shake:0, flash:0, slowT:0, hintDone:{},
+};
+
+/* ---------------- terrain ---------------- */
+function groundAt(x){
+  const P = G.pts; if(!P.length) return 0;
+  if(x <= P[0].x) return P[0].y;
+  let lo = 0, hi = P.length - 1;
+  if(x >= P[hi].x) return P[hi].y + (x - P[hi].x) * .3;
+  while(hi - lo > 1){ const m = (lo + hi) >> 1; if(P[m].x <= x) lo = m; else hi = m; }
+  const a = P[lo], b = P[hi], k = (x - a.x) / (b.x - a.x);
+  return a.y + (b.y - a.y) * k;
+}
+const lastPt = () => G.pts[G.pts.length - 1];
+function slopeTo(len, slope, step, bump){
+  const s = lastPt(), n = Math.max(1, Math.ceil(len / step));
+  for(let i = 1; i <= n; i++){ const x = s.x + len * i / n; G.pts.push({ x, y:s.y + slope * (x - s.x) + (bump ? Math.sin(i * 1.3 + x * .001) * bump : 0) }); }
+}
+function pickThing(target, sky){
+  let cand = THINGS.filter(t => !!t.sky === !!sky && t.s > target / 2.3 && t.s < target * 2.3);
+  if(!cand.length){ let best = null, bd = 1e9; for(const t of THINGS){ if(!!t.sky !== !!sky) continue; const d = Math.abs(Math.log(t.s / target)); if(d < bd){ bd = d; best = t; } } cand = best ? [best] : []; }
+  return cand.length ? pick(cand) : null;
+}
+function placeThing(x, target, sky, lift){
+  const T = pickThing(target, sky); if(!T) return;
+  const gy = groundAt(x), s = target;
+  G.things.push({ id:T.id, e:T.e, x, y:gy - s * .5 - (sky ? lift : 0), s, sky:!!sky, gone:false, hop:false, ph:Math.random() * TAU });
+}
+function crystalArc(x0, x1, h, n, Rg){ for(let i = 0; i < n; i++){ const k = n === 1 ? .5 : i / (n - 1), x = lerp(x0, x1, k); G.cry.push({ x, y:groundAt(x) - Rg * 1.2 - Math.sin(k * Math.PI) * h, got:false, gt:0 }); } }
+const SEG = {
+  field(Rg){
+    const x0 = lastPt().x, L = rnd(14, 22) * Rg; slopeTo(L, rnd(.26, .38), Rg * 1.4, Rg * .18);
+    for(let x = x0 + 3 * Rg; x < x0 + L - Rg; x += rnd(.9, 1.6) * Rg) placeThing(x, Rg * (Math.random() < .2 ? rnd(.55, .85) : rnd(.2, .5)));
+    if(Math.random() < .5) crystalArc(x0 + L * .3, x0 + L * .6, Rg, 4, Rg);
+  },
+  mixed(Rg){
+    const x0 = lastPt().x, L = rnd(18, 26) * Rg; slopeTo(L, rnd(.28, .36), Rg * 1.4, Rg * .12);
+    let bigDone = false;
+    for(let x = x0 + 4 * Rg; x < x0 + L - 2 * Rg; x += rnd(2.4, 4) * Rg){
+      if(!bigDone && Math.random() < .35){ placeThing(x, Rg * rnd(1.15, 1.7)); crystalArc(x - 2 * Rg, x + 2 * Rg, 3 * Rg, 3, Rg); bigDone = true; x += 3 * Rg; }
+      else placeThing(x, Rg * rnd(.45, .9));
+    }
+  },
+  big(Rg){
+    const x0 = lastPt().x, L = 18 * Rg; slopeTo(L, .26, Rg * 1.4);
+    for(let x = x0 + 2 * Rg; x < x0 + 8 * Rg; x += rnd(1, 1.6) * Rg) placeThing(x, Rg * rnd(.25, .5));
+    const bx = x0 + 11 * Rg; placeThing(bx, Rg * rnd(1.4, 2.4)); crystalArc(bx - 3 * Rg, bx + 3 * Rg, 3.8 * Rg, 5, Rg);
+  },
+  kicker(Rg){
+    slopeTo(4 * Rg, .3, Rg * 1.2); const x0 = lastPt().x;
+    slopeTo(3.5 * Rg, -.42, Rg * .8); slopeTo(7 * Rg, .95, Rg * 1.2); slopeTo(5 * Rg, .32, Rg * 1.4);
+    crystalArc(x0 + 3 * Rg, x0 + 12 * Rg, 3.5 * Rg, 6, Rg);
+    for(let x = x0 + 12 * Rg; x < x0 + 19 * Rg; x += 1.3 * Rg) placeThing(x, Rg * rnd(.25, .55));
+  },
+  sky(Rg){
+    const x0 = lastPt().x, L = 20 * Rg; slopeTo(L, .3, Rg * 1.4, Rg * .1);
+    for(let x = x0 + 4 * Rg; x < x0 + L - 2 * Rg; x += rnd(3.5, 5) * Rg){ if(pickThing(Rg * .6, true) && Math.random() < .8) placeThing(x, Rg * rnd(.45, .85), true, rnd(2.5, 4.2) * Rg); else placeThing(x, Rg * rnd(.3, .6)); }
+    crystalArc(x0 + 5 * Rg, x0 + 15 * Rg, 3 * Rg, 5, Rg);
+  },
+};
+const SEG_W = [['field', 3], ['mixed', 3.2], ['big', 1.3], ['kicker', 1.5], ['sky', 1.1]];
+function generate(){
+  while(G.genX < G.x + G.R * 80){
+    const Rg = Math.max(G.R, G.peak * .6);
+    const sw = tierOf(Rg) >= 7 ? 3.5 : 1.1, WS = SEG_W.map(w => w[0] === 'sky' ? ['sky', sw] : w);
+    let s = 0; for(const w of WS) s += w[1]; let r = Math.random() * s, seg = 'field';
+    for(const w of WS){ r -= w[1]; if(r <= 0){ seg = w[0]; break; } }
+    if(G.t < 4 && seg === 'big') seg = 'field';
+    SEG[seg](Rg);
+    G.genX = lastPt().x;
+  }
+}
+
+/* ---------------- run ---------------- */
+function resetWorld(r0){
+  Object.assign(G, { pts:[{ x:-400 * r0, y:-120 * r0 }], things:[], cry:[], stuck:[], parts:[], pops:[], rings:[], t:0, combo:0, comboT:0, maxCombo:0, meter:0, avalT:0, inv:0, slam:false, shake:0, flash:0, slowT:0 });
+  G.R = G.R0 = G.peak = r0; G.x = 0; G.vx = r0 * PHYS.SPD; G.vy = 0; G.air = false; G.rot = 0;
+  slopeTo(400 * r0 + 12 * r0, .3, r0 * 1.4);
+  G.genX = lastPt().x;
+  generate();
+  G.y = groundAt(G.x) - G.R;
+  G.tier = G.tierRun = tierOf(G.R);
+}
+function startRun(){
+  resetWorld(startR(save.up.start));
+  Object.assign(G, { state:'run', eatenRun:0, cryRun:0, hopsRun:0, slamsRun:0, avalsRun:0, newFound:[], result:null, recordShown:false, hintDone:{} });
+  save.stats.runs++;
+}
+
+/* ---------------- effects ---------------- */
+function pop(txt, x, y, c, s, d){ G.pops.push({ txt, x, y, c, s:s || 18, t:0, d:d || 1 }); if(G.pops.length > 26) G.pops.shift(); }
+function burst(x, y, n, cols, sp, g){ const lim = save.opt.fx === 'low' ? 150 : 400; for(let i = 0; i < n && G.parts.length < lim; i++){ const a = rnd(0, TAU), s = rnd(.3, 1) * sp; G.parts.push({ x, y, vx:Math.cos(a) * s, vy:Math.sin(a) * s - sp * .3, g:g ?? G.R * 30, l:rnd(.35, .8), c:pick(cols), s:rnd(.08, .2) * G.R }); } }
+
+/* ---------------- controls ---------------- */
+function press(){
+  if(G.state !== 'run') return;
+  if(!G.air || G.coyote > 0){ G.vy = -G.R * PHYS.JUMP; G.air = true; G.coyote = 0; G.slam = false; AU.jump(); burst(G.x, G.y + G.R, 8, ['#ffffff', '#dff2ff'], G.R * 8); }
+  else if(!G.slam){ G.slam = true; G.vy = Math.max(G.vy, G.R * PHYS.SLAM); AU.slamDown(); }
+}
+
+/* ---------------- swallowing ---------------- */
+function eat(o){
+  o.gone = true;
+  const T = THING[o.id];
+  const g = PHYS.GROW * growMul(save.up.grow) * (G.avalT > 0 ? 1.2 : 1);
+  G.R = Math.sqrt(G.R * G.R + g * o.s * o.s);
+  G.combo++; G.comboT = 0; G.maxCombo = Math.max(G.maxCombo, G.combo); G.eatenRun++; save.stats.eaten++;
+  if(G.avalT <= 0){ G.meter += o.s > G.R * .5 ? 2 : 1; if(G.meter >= avalNeed(save.up.aval)) startAval(); }
+  // it sticks to the ball where it touched
+  G.stuck.push({ e:o.e, a:Math.atan2(o.y - G.y, o.x - G.x) - G.rot, s:o.s });
+  if(G.stuck.length > 40) G.stuck.shift();
+  burst(o.x, o.y, o.s > G.R * .4 ? 14 : 6, ['#ffffff', '#e8f6ff', '#bfe4ff'], G.R * 9);
+  AU.eat(G.combo, o.s / G.R);
+  if(o.s > G.R * .45) pop('+' + T.name.toUpperCase(), o.x, o.y - o.s * .8, '#ffffff', 17);
+  if(!save.globe[o.id]){ save.globe[o.id] = 1; G.newFound.push(o.id); showToast('NEW IN YOUR SNOW GLOBE!', T.e + ' ' + T.name); AU.discover(); } else save.globe[o.id]++;
+  if(G.combo > 0 && G.combo % 10 === 0){ pop('STREAK x' + G.combo + '!', G.x, G.y - G.R * 2.6, '#ffd23a', 22, 1.2); AU.streak(G.combo); }
+  missionThing(o.id);
+}
+function crash(o){
+  if(G.inv > 0 || G.state !== 'run') return;
+  G.R *= .84; G.vx *= .25; G.vy = -G.R * 9; G.air = true; G.inv = 1; G.shake = 1.1; G.flash = .25;
+  G.combo = 0; G.meter = Math.max(0, G.meter - 4);
+  o.gone = true; o.smashed = true;
+  burst(o.x, o.y, 26, ['#ffffff', '#a0b4c8', '#ffb070', '#8a6a4a'], G.R * 14);
+  pop('CRASH!', G.x, G.y - G.R * 2.2, '#ff6a5a', 24);
+  AU.crash();
+}
+function startAval(){
+  G.avalT = 5 + save.up.aval * .2; G.meter = 0; G.avalsRun++; save.stats.avals++; missionAdd('aval', 1);
+  G.flash = .5; G.shake = 1.2; G.slowT = .35;
+  pop('AVALANCHE!', G.x + G.R * 3, G.y - G.R * 3, '#7df0ff', 34, 1.6);
+  AU.avalanche(); SDK.happytime();
+}
+
+/* ---------------- missions ---------------- */
+function missionVal(m){
+  switch(m.k){ case 'size': return G.peak; case 'eat': return G.eatenRun; case 'cry': return G.cryRun; case 'combo': return G.maxCombo; default: return m.p; }
+}
+function missionAdd(k, n){ for(const m of save.missions) if(!m.done && m.k === k) m.p += n; missionTick(); }
+function missionThing(id){ for(const m of save.missions) if(!m.done && m.k === 'thing' && THINGS[m.n].id === id) m.p = 1; }
+function missionTick(){
+  if(G.state !== 'run') return;
+  for(const m of save.missions){
+    if(m.done) continue;
+    const v = m.k === 'thing' ? m.p : missionVal(m), need = m.k === 'thing' ? 1 : m.n;
+    if(v >= need){ m.done = true; AU.mission(); showToast('MISSION COMPLETE ✓', MTYPES[m.k].t(m.n)); persist(); }
+  }
+}
+
+/* ---------------- update ---------------- */
+function update(rdt){
+  G.rt += rdt;
+  if(G.slowT > 0) G.slowT -= rdt;
+  const dt = rdt * (G.slowT > 0 ? .4 : 1);
+  const run = G.state === 'run', title = G.state === 'title', dying = G.state === 'dying';
+  if(run) G.t += dt;
+  const R = G.R;
+  // --- rolling ---
+  const aval = G.avalT > 0;
+  const want = (title ? R * 7 : R * PHYS.SPD * (aval ? 1.45 : 1)) * (dying ? .2 : 1);
+  G.vx += (want - G.vx) * Math.min(1, dt * (G.vx < want * .5 ? 1.2 : 2.2));
+  G.x += G.vx * dt;
+  G.rot += G.vx * dt / R;
+  const gy = groundAt(G.x) - R;
+  if(!G.air){
+    const ny = G.y + G.vy * dt + R * PHYS.G * dt * dt;
+    if(gy > ny + R * .05 && G.vy < R * 12){ G.air = true; G.coyote = .12; }
+    else { G.vy = (gy - G.y) / dt; G.vy = clamp(G.vy, -R * 40, R * 40); G.y = gy; }
+  }
+  if(G.air){
+    if(G.coyote > 0) G.coyote -= dt;
+    G.vy += R * PHYS.G * dt; G.y += G.vy * dt;
+    if(G.y >= gy){
+      G.y = gy; G.air = false;
+      const hard = G.vy > R * 30;
+      if(G.slam){ G.slam = false; G.slamsRun++; save.stats.slams++; missionAdd('slam', 1); G.shake = Math.max(G.shake, .8); G.rings.push({ x:G.x, y:G.y + R, r:R, R:R * 5, t:0 });
+        for(const o of G.things) if(!o.gone && o.s <= R * (aval ? 3.2 : .95) && Math.abs(o.x - G.x) < R * 4.5 && Math.abs(o.y - G.y) < R * 4) eat(o);
+        pop('SLAM!', G.x, G.y - R * 2, '#bfe4ff', 22); AU.slam(); }
+      else if(hard) AU.land();
+      burst(G.x, G.y + R, hard ? 16 : 6, ['#ffffff', '#dff2ff'], R * 10);
+      G.vy = 0;
+    }
+  }
+  if(run){
+    // --- sun melts you; the Avalanche doesn't care ---
+    if(!aval){ const m = (.012 + G.t * .0009) * meltMul(save.up.frost) * (1 + G.tierRun * .16); G.R *= 1 - m * dt; }
+    else { G.avalT -= dt; if(G.avalT <= 0) AU.avalEnd(); }
+    if(G.inv > 0) G.inv -= dt;
+    G.comboT += dt; if(G.comboT > 1.8) G.combo = 0;
+    // --- collisions ---
+    const Rn = G.R;
+    for(const o of G.things){
+      if(o.gone) continue;
+      const dx = o.x - G.x; if(dx > Rn + o.s) break;
+      if(dx < -Rn - o.s * 2){ if(!o.hop && o.s > Rn * .95 && !o.gone){ o.hop = true; if(o.sawAir){ G.hopsRun++; save.stats.hops++; missionAdd('hop', 1); G.meter += 2; pop('JUMPED!', G.x, G.y - Rn * 2, '#ffd23a', 20); AU.hop(); } } continue; }
+      if(G.air && Math.abs(dx) < Rn + o.s * .5) o.sawAir = true;
+      const d = Math.hypot(dx, o.y - G.y);
+      if(d < Rn + o.s * .42){ if(o.s <= Rn * .95 || (aval && o.s <= Rn * 3.2)) eat(o); else crash(o); }
+    }
+    // crystals
+    const mag = Rn * (2 + save.up.magnet * .6);
+    for(const c of G.cry){
+      if(c.got){ c.gt += rdt; continue; }
+      const dx = c.x - G.x, dy = c.y - G.y, d = Math.hypot(dx, dy);
+      if(d < mag){ c.x -= dx / d * Rn * 30 * dt; c.y -= dy / d * Rn * 30 * dt; }
+      if(d < Rn * 1.1){ c.got = true; const v = 1 + save.up.value * .25; G.cryRun += v; save.cry += v; save.stats.cry += v; AU.crystal(); }
+    }
+    // tiers and records
+    if(G.R > G.peak) G.peak = G.R;
+    const tr = tierOf(G.R);
+    if(tr > G.tierRun){ G.tierRun = tr; G.flash = .35; G.slowT = Math.max(G.slowT, .5); showBanner('TIER UP!', TIERS[tr].name); AU.tier(tr); if(tr >= 3) SDK.happytime(); }
+    if(save.best > 0 && !G.recordShown && G.R * 2 > save.best){ G.recordShown = true; pop('NEW RECORD!', G.x, G.y - G.R * 3.2, '#ffd23a', 28, 1.6); AU.record(); }
+    // tutorial nudges
+    if(save.tut < 1){
+      const big = G.things.find(o => !o.gone && o.s > G.R * .95 && o.x > G.x && o.x - G.x < G.R * 9);
+      if(big && !G.hintDone.jump){ G.hintDone.jump = 1; showHint('TAP TO JUMP OVER BIG THINGS!'); G.slowT = 1.1; }
+      if(G.hopsRun > 0 && !G.hintDone.slam){ G.hintDone.slam = 1; showHint('TAP AGAIN IN THE AIR TO SLAM!'); }
+    }
+    // melted away?
+    if(G.t > 2.5 && (G.R < G.peak * .38 || G.R < G.R0 * .72)) endRun();
+    missionTickSlow(dt);
+  }
+  if(dying){ G.dieT += rdt; G.R *= 1 - rdt * 1.2; if(G.dieT > 1.3) finishRun(); }
+  // world upkeep
+  generate();
+  if((G.rt * 60 | 0) % 20 === 0){
+    const cut = G.x - G.R * 40;
+    let i = 0; while(i < G.pts.length - 2 && G.pts[i + 1].x < cut) i++; if(i) G.pts.splice(0, i);
+    G.things = G.things.filter(o => o.x > cut && !(o.gone && o.x < G.x - G.R * 8));
+    G.cry = G.cry.filter(c => c.x > cut && !(c.got && c.gt > .5));
+  }
+  G.stuck = G.stuck.filter(s => s.s > G.R * .07);
+  for(const p of G.parts){ p.x += p.vx * dt; p.y += p.vy * dt; p.vy += p.g * dt; p.l -= dt; } G.parts = G.parts.filter(p => p.l > 0);
+  for(const p of G.pops){ p.t += rdt; p.y -= G.R * 1.5 * rdt; } G.pops = G.pops.filter(p => p.t < p.d);
+  for(const r of G.rings) r.t += rdt; G.rings = G.rings.filter(r => r.t < .5);
+  G.shake *= Math.pow(.02, rdt); if(G.flash > 0) G.flash = Math.max(0, G.flash - rdt * 2);
+  G.tier = tierOf(G.R);
+}
+let _mt = 0;
+function missionTickSlow(dt){ _mt += dt; if(_mt > .3){ _mt = 0; missionTick(); } }
+function endRun(){ if(G.state !== 'run') return; G.state = 'dying'; G.dieT = 0; AU.melt(); pop('MELTED!', G.x, G.y - G.R * 2.5, '#ff9a5a', 26, 1.4); }
+function finishRun(){
+  if(G.state === 'over') return;
+  G.state = 'over';
+  const size = G.peak * 2, best = size > save.best, prevBest = save.best;
+  save.best = Math.max(save.best, size); save.bestTier = Math.max(save.bestTier, G.tierRun);
+  if(save.tut < 1) save.tut = 1;
+  G.result = { size, best, prevBest, tier:G.tierRun, cry:Math.round(G.cryRun), eaten:G.eatenRun, newFound:G.newFound.slice(), allDone:save.missions.every(m => m.done) };
+  if(best) SDK.happytime();
+  persist();
+  setTimeout(() => showResult(), 250);
+}
+function rankUp(){ const reward = rankReward(save.rank); save.cry += reward; save.rank++; save.missions = []; fillMissions(); persist(); SDK.happytime(); return reward; }
+
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   SNOWBALL EFFECT renderer. The camera zooms out as the ball grows, so
+   the ball stays the same size on screen while the world shrinks away.
+   ===================================================================== */
+const cv = $('cv'); let cx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+const V = { z:1, camX:0, camY:0, skyT:0 };
+function resize(){ DPR = Math.min(window.devicePixelRatio || 1, save.opt.fx === 'low' ? 1 : 2); W = innerWidth; H = innerHeight; cv.width = W * DPR | 0; cv.height = H * DPR | 0; }
+const SX = x => (x - V.camX) * V.z, SY = y => (y - V.camY) * V.z + H * .5;
+const ballPx = () => W < H ? Math.min(W * .085, H * .05) : Math.min(W * .062, H * .058);
+
+/* ---------------- sprites ---------------- */
+const emoC = {};
+function emoSpr(e, dark){
+  const k = e + (dark ? '#' : ''); if(emoC[k]) return emoC[k];
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  g.font = '104px "Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(e, 64, 70);
+  if(dark){ g.globalCompositeOperation = 'source-in'; g.fillStyle = '#1a2a44'; g.fillRect(0, 0, 128, 128); }
+  return emoC[k] = c;
+}
+const glowC = {};
+function glowSpr(c){ if(glowC[c]) return glowC[c]; const s = 64, cn = document.createElement('canvas'); cn.width = cn.height = s; const g = cn.getContext('2d'), gr = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2); gr.addColorStop(0, rgba(c, 1)); gr.addColorStop(.3, rgba(c, .4)); gr.addColorStop(1, rgba(c, 0)); g.fillStyle = gr; g.fillRect(0, 0, s, s); return glowC[c] = cn; }
+function glow(x, y, r, c, a){ if(a <= 0) return; cx.globalAlpha = Math.min(1, a); cx.drawImage(glowSpr(c), x - r, y - r, r * 2, r * 2); cx.globalAlpha = 1; }
+
+/* ---------------- sky and far mountains (screen space) ---------------- */
+const STARS = Array.from({ length:140 }, () => ({ x:Math.random(), y:Math.random(), s:Math.random() * 1.6 + .4, p:Math.random() * TAU }));
+const FLAKES = Array.from({ length:70 }, () => ({ x:Math.random(), y:Math.random(), s:Math.random() * 1.2 + .5, p:Math.random() * TAU }));
+function drawSky(){
+  V.skyT += (G.tier - V.skyT) * .03;
+  const t0 = Math.floor(V.skyT), t1 = Math.min(TIERS.length - 1, t0 + 1), k = V.skyT - t0, A = TIERS[t0], B = TIERS[t1];
+  const g = cx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, mix(A.sky[0], B.sky[0], k)); g.addColorStop(1, mix(A.sky[1], B.sky[1], k));
+  cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+  const night = clamp(V.skyT - 6.8, 0, 1.5);
+  if(night > 0){ for(const s of STARS){ cx.globalAlpha = night * .6 * (.6 + .4 * Math.sin(G.rt * 2 + s.p)); cx.fillStyle = '#fff'; cx.fillRect(s.x * W, s.y * H * .8, s.s, s.s); } cx.globalAlpha = 1; }
+  // the sun: it grows hotter as the run goes on
+  const heat = G.state === 'run' ? clamp(G.t / 120, 0, 1) : 0, sx = W * .82, sy = H * .14, sr = Math.min(W, H) * (.05 + heat * .03);
+  glow(sx, sy, sr * (4 + heat * 3), heat > .5 ? '#ffb040' : '#fff4c0', .55 + heat * .3);
+  cx.fillStyle = mix('#fffbe0', '#ffc040', heat); cx.beginPath(); cx.arc(sx, sy, sr, 0, TAU); cx.fill();
+  // far peaks drift slowly
+  const far = mix(A.far, B.far, k), hill = mix(A.hill, B.hill, k), off = G.rt * 6;
+  for(const [col, base, amp, sp, seed] of [[far, .52, .2, .5, 1], [hill, .66, .12, 1, 3]]){
+    cx.fillStyle = col; cx.beginPath(); cx.moveTo(0, H);
+    for(let x = 0; x <= W + 20; x += 20){ const u = (x + off * sp) * .004; const y = H * (base - amp * Math.abs(Math.sin(u + seed) * Math.sin(u * 1.7 + seed * 2))); cx.lineTo(x, y); }
+    cx.lineTo(W, H); cx.fill();
+    if(sp < 1){ cx.fillStyle = rgba('#ffffff', .55); for(let x = 0; x <= W + 20; x += 20){ const u = (x + off * sp) * .004, v = Math.abs(Math.sin(u + seed) * Math.sin(u * 1.7 + seed * 2)); if(v > .75){ const y = H * (base - amp * v); cx.fillRect(x - 6, y, 12, 4); } } }
+  }
+}
+
+/* ---------------- world ---------------- */
+function drawSlope(){
+  const x0 = V.camX - 20 / V.z, x1 = V.camX + (W + 40) / V.z, P = G.pts;
+  let i = 0; while(i < P.length - 1 && P[i + 1].x < x0) i++;
+  const g = cx.createLinearGradient(0, H * .3, 0, H); g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#cfe6f8');
+  cx.fillStyle = g; cx.beginPath(); cx.moveTo(SX(P[i].x), H + 10);
+  for(let j = i; j < P.length && P[j].x <= x1 + 200 / V.z; j++) cx.lineTo(SX(P[j].x), SY(P[j].y));
+  cx.lineTo(W + 20, H + 10); cx.closePath(); cx.fill();
+  // blue shadow band and a crisp edge
+  cx.strokeStyle = 'rgba(140,190,230,.55)'; cx.lineWidth = Math.max(2, ballPx() * .12); cx.beginPath();
+  for(let j = i; j < P.length && P[j].x <= x1 + 200 / V.z; j++){ const X = SX(P[j].x), Y = SY(P[j].y) + cx.lineWidth * .8; if(j === i) cx.moveTo(X, Y); else cx.lineTo(X, Y); }
+  cx.stroke();
+  cx.strokeStyle = '#ffffff'; cx.lineWidth = 2; cx.beginPath();
+  for(let j = i; j < P.length && P[j].x <= x1 + 200 / V.z; j++){ const X = SX(P[j].x), Y = SY(P[j].y); if(j === i) cx.moveTo(X, Y); else cx.lineTo(X, Y); }
+  cx.stroke();
+}
+function drawThing(o){
+  const x = SX(o.x), s = o.s * V.z; if(x < -s || x > W + s || o.gone) return;
+  const bob = o.sky ? Math.sin(G.rt * 2 + o.ph) * o.s * .06 : 0, y = SY(o.y + bob);
+  if(s < 2) return;
+  // too big to swallow: a red warning ring
+  const big = o.s > G.R * .95 && !(G.avalT > 0 && o.s <= G.R * 3.2);
+  if(big && G.state === 'run'){ glow(x, y, s * .9, '#ff5a4a', .35 + .15 * Math.sin(G.rt * 8)); }
+  if(!o.sky){ cx.fillStyle = 'rgba(80,120,170,.18)'; cx.beginPath(); cx.ellipse(x, y + s * .48, s * .45, s * .08, 0, 0, TAU); cx.fill(); }
+  cx.drawImage(emoSpr(o.e), x - s * .5, y - s * .55, s, s);
+}
+function drawCrystals(){
+  for(const c of G.cry){
+    if(c.got && c.gt > .3) continue;
+    const x = SX(c.x), y = SY(c.y), r = G.R * .32 * V.z * (c.got ? 1 + c.gt * 3 : 1); if(x < -20 || x > W + 20) continue;
+    cx.globalAlpha = c.got ? 1 - c.gt / .3 : 1;
+    glow(x, y, r * 3, '#7df0ff', .6);
+    cx.fillStyle = '#bff6ff'; cx.beginPath(); cx.moveTo(x, y - r); cx.lineTo(x + r * .7, y); cx.lineTo(x, y + r); cx.lineTo(x - r * .7, y); cx.fill();
+    cx.fillStyle = '#ffffff'; cx.beginPath(); cx.moveTo(x, y - r); cx.lineTo(x + r * .25, y); cx.lineTo(x, y + r * .3); cx.lineTo(x - r * .25, y); cx.fill();
+    cx.globalAlpha = 1;
+  }
+}
+function drawBall(){
+  const x = SX(G.x), y = SY(G.y), r = G.R * V.z;
+  if(G.inv > 0 && Math.sin(G.rt * 40) > .3 && G.state === 'run') cx.globalAlpha = .5;
+  // the avalanche wave behind the ball
+  if(G.avalT > 0){
+    const k = Math.min(1, G.avalT), h = r * (2.4 + Math.sin(G.rt * 6) * .2);
+    cx.fillStyle = rgba('#ffffff', .85 * k); cx.beginPath(); cx.moveTo(x - r * 9, y + r);
+    for(let i = 0; i <= 20; i++){ const u = i / 20; cx.lineTo(x - r * 9 + u * r * 9.5, y + r - Math.sin(u * Math.PI * .5) * h - Math.sin(u * 14 + G.rt * 10) * r * .15); }
+    cx.lineTo(x + r * .5, y + r); cx.closePath(); cx.fill();
+    glow(x, y, r * 3, '#7df0ff', .45);
+  }
+  // shadow
+  const gy = SY(groundAt(G.x)); cx.fillStyle = 'rgba(70,110,160,.2)'; cx.beginPath(); cx.ellipse(x, gy, r * .9, r * .18, 0, 0, TAU); cx.fill();
+  // body
+  const g = cx.createRadialGradient(x - r * .35, y - r * .4, r * .1, x, y, r); g.addColorStop(0, '#ffffff'); g.addColorStop(.7, '#eef7ff'); g.addColorStop(1, '#bcd8f0');
+  cx.fillStyle = g; cx.beginPath(); cx.arc(x, y, r, 0, TAU); cx.fill();
+  // snow texture turns with the ball
+  cx.fillStyle = 'rgba(160,200,235,.35)';
+  for(let i = 0; i < 7; i++){ const a = G.rot + i * 2.4, d = r * (.35 + (i % 3) * .2); cx.beginPath(); cx.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, r * .09, 0, TAU); cx.fill(); }
+  // everything you've swallowed sticks out of the surface
+  for(const s of G.stuck){
+    const a = s.a + G.rot, sz = Math.min(s.s, G.R * .9) * V.z * .9, d = r * .86;
+    if(sz < 3) continue;
+    const px = x + Math.cos(a) * d, py = y + Math.sin(a) * d;
+    cx.save(); cx.translate(px, py); cx.rotate(a + Math.PI / 2); cx.drawImage(emoSpr(s.e), -sz / 2, -sz / 2, sz, sz); cx.restore();
+  }
+  cx.strokeStyle = 'rgba(120,170,215,.6)'; cx.lineWidth = Math.max(1.5, r * .04); cx.beginPath(); cx.arc(x, y, r, 0, TAU); cx.stroke();
+  cx.globalAlpha = 1;
+}
+
+/* ---------------- frame ---------------- */
+function render(){
+  cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  // camera: the ball stays the same size on screen; the world zooms out as it grows
+  const zt = ballPx() / G.R;
+  V.z = V.z === 1 && !V.init ? zt : V.z * Math.pow(zt / V.z, .08); V.init = 1;
+  V.camX = G.x - W * (W < H ? .28 : .3) / V.z;
+  const lookY = groundAt(G.x + W * .25 / V.z) - G.R * 3.5, want = Math.min(G.y, lookY + G.R) - G.R * .5;
+  V.camY = V.camY ? lerp(V.camY, want, .12) : want;
+  drawSky();
+  const sh = G.shake * ballPx() * .3; cx.save(); cx.translate(rnd(-sh, sh), rnd(-sh, sh));
+  drawSlope();
+  for(const o of G.things) drawThing(o);
+  drawCrystals();
+  // particles
+  for(const p of G.parts){ cx.globalAlpha = Math.min(1, p.l * 2.5); cx.fillStyle = p.c; const s = Math.max(1.5, p.s * V.z); cx.fillRect(SX(p.x) - s / 2, SY(p.y) - s / 2, s, s); }
+  cx.globalAlpha = 1;
+  for(const r of G.rings){ const k = r.t / .5; cx.strokeStyle = rgba('#ffffff', .8 * (1 - k)); cx.lineWidth = 4; cx.beginPath(); cx.ellipse(SX(r.x), SY(r.y), lerp(r.r, r.R, k) * V.z, lerp(r.r, r.R, k) * V.z * .3, 0, 0, TAU); cx.stroke(); }
+  if(G.state !== 'title' || true) drawBall();
+  // floating words
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  for(const p of G.pops){ const k = p.t / p.d, sc = k < .12 ? .5 + k / .12 * .6 : 1.1 - (k - .12) * .1; cx.globalAlpha = k > .7 ? (1 - k) / .3 : 1; const sz = Math.round(p.s * Math.max(.9, Math.min(W, H) / 700) * sc); cx.font = `italic 900 ${sz}px system-ui,sans-serif`; cx.lineWidth = Math.max(3, sz * .18); cx.strokeStyle = 'rgba(20,40,80,.85)'; cx.strokeText(p.txt, SX(p.x), SY(p.y)); cx.fillStyle = p.c; cx.fillText(p.txt, SX(p.x), SY(p.y)); }
+  cx.globalAlpha = 1;
+  cx.restore();
+  // falling snow in front
+  cx.fillStyle = 'rgba(255,255,255,.75)';
+  for(const f of FLAKES){ const x = ((f.x * W - G.rt * 40 * f.s + Math.sin(G.rt + f.p) * 20) % W + W) % W, y = (f.y * H + G.rt * 50 * f.s) % H; cx.beginPath(); cx.arc(x, y, f.s * 1.4, 0, TAU); cx.fill(); }
+  if(G.flash > 0){ cx.fillStyle = `rgba(255,255,255,${G.flash * .6})`; cx.fillRect(0, 0, W, H); }
+  if(G.slowT > 0){ cx.fillStyle = `rgba(160,220,255,${Math.min(.12, G.slowT * .15)})`; cx.fillRect(0, 0, W, H); }
+  // melting danger: warm edges
+  if(G.state === 'run'){ const danger = clamp(1 - (G.R / G.peak - .38) / .3, 0, 1); if(danger > 0){ const g = cx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.max(W, H) * .7); g.addColorStop(0, 'rgba(255,120,40,0)'); g.addColorStop(1, `rgba(255,110,30,${danger * (.25 + .08 * Math.sin(G.rt * 6))})`); cx.fillStyle = g; cx.fillRect(0, 0, W, H); } }
+}
+
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   SNOWBALL EFFECT UI: HUD, flow, screens, input, boot.
+   ===================================================================== */
+const show = id => $(id).classList.remove('hidden');
+const hide = id => $(id).classList.add('hidden');
+const SCREENS = ['globe', 'shop', 'missions', 'pause', 'settings'];
+function onTap(el, fn){ el = typeof el === 'string' ? $(el) : el; el.addEventListener('click', e => { e.stopPropagation(); AU.init(); AU.resume(); AU.ui(); fn(e); }); }
+function showToast(head, txt, gold){ const t = document.createElement('div'); t.className = 'toast' + (gold ? ' gold' : ''); t.innerHTML = `<b>${head}</b><span>${txt}</span>`; $('toasts').appendChild(t); while($('toasts').children.length > 2) $('toasts').firstChild.remove(); setTimeout(() => t.remove(), 3100); }
+let hintT = 0;
+function showHint(txt){ const h = $('hint'); h.textContent = txt; show('hint'); h.style.animation = 'none'; void h.offsetWidth; h.style.animation = ''; clearTimeout(hintT); hintT = setTimeout(() => hide('hint'), 2900); }
+function showBanner(small, big){ const b = $('banner'); b.innerHTML = `<small>${small}</small>${big}`; show('banner'); b.style.animation = 'none'; void b.offsetWidth; b.style.animation = ''; setTimeout(() => hide('banner'), 2700); }
+
+/* ---------------- HUD ---------------- */
+const hc = {};
+function setH(k, v, fn){ if(hc[k] === v) return; hc[k] = v; fn(v); }
+function updateHUD(){
+  if(G.state !== 'run' && G.state !== 'dying') return;
+  setH('s', fmtSize(G.R), v => { const e = $('size'); if(hc.sR && G.R > hc.sR * 1.02){ e.classList.remove('bump'); void e.offsetWidth; e.classList.add('bump'); setTimeout(() => e.classList.remove('bump'), 150); } hc.sR = G.R; e.textContent = v; });
+  const t = tierOf(G.R), nx = TIERS[t + 1];
+  setH('t', t, () => { $('tierTxt').textContent = TIERS[t].name.toUpperCase(); $('nextTxt').textContent = nx ? (innerWidth < 520 ? '→ ' : 'NEXT: ') + nx.name.toUpperCase() : 'MAX TIER'; });
+  // bar spans this tier in log scale; the best mark shows your record inside it
+  const lo = Math.max(1, TIERS[t].at || 3), hi = nx ? nx.at : lo * 3, k = clamp(Math.log(G.R / lo) / Math.log(hi / lo), 0, 1);
+  setH('tb', Math.round(k * 300), () => { const i = $('tierBar').firstElementChild; i.style.width = k * 100 + '%'; });
+  const danger = G.R < G.peak * .55;
+  setH('dg', danger, v => $('tierBar').firstElementChild.classList.toggle('danger', v));
+  const br = save.best / 2, bk = br > lo && br < hi ? Math.log(br / lo) / Math.log(hi / lo) : -1;
+  setH('bm', Math.round(bk * 300), () => { const m = $('bestMark'); if(bk < 0) m.style.display = 'none'; else { m.style.display = 'block'; m.style.left = bk * 100 + '%'; } });
+  const av = G.avalT > 0 ? G.avalT / (5 + save.up.aval * .2) : G.meter / avalNeed(save.up.aval);
+  setH('av', Math.round(av * 100) + (G.avalT > 0 ? 'a' : ''), () => { $('avalBar').firstElementChild.style.width = Math.min(100, av * 100) + '%'; $('avalBar').classList.toggle('on', G.avalT > 0); });
+  setH('c', Math.floor(save.cry), v => $('cry').textContent = fmt(v));
+  setH('k', G.combo >= 5 ? G.combo : 0, v => { const s = $('streak'); if(!v) s.classList.add('hidden'); else { s.classList.remove('hidden'); s.querySelector('b').textContent = 'x' + v; s.style.animation = 'none'; void s.offsetWidth; s.style.animation = ''; } });
+}
+
+/* ---------------- flow ---------------- */
+let playing = false;
+function beginPlay(){ if(!playing){ playing = true; SDK.gameplayStart(); } }
+function endPlay(){ if(playing){ playing = false; SDK.gameplayStop(); } }
+function toTitle(){
+  SCREENS.forEach(hide); hide('result'); hide('hud'); endPlay();
+  resetWorld(startR(save.up.start)); G.state = 'title';
+  $('title').classList.remove('hidden', 'gone');
+  const found = Object.keys(save.globe).length;
+  $('tInfo').innerHTML = save.best ? `BEST ${fmtSize(save.best / 2)} · ${TIERS[save.bestTier].name}<br>${found} / ${THINGS.length} in your Snow Globe · ${rankName(save.rank)}` + (save.missions.every(m => m.done) ? '<br>⭐ RANK UP READY!' : '') : '';
+}
+function roll(){
+  SCREENS.forEach(hide); hide('result');
+  $('title').classList.add('gone'); setTimeout(() => $('title').classList.add('hidden'), 400);
+  for(const k in hc) delete hc[k];
+  startRun(); show('hud'); beginPlay(); V.skyT = G.tier;
+  if(save.tut < 1) showHint('ROLL INTO SMALLER THINGS TO GROW!');
+}
+function pauseGame(){ if(G.state !== 'run') return; G.state = 'pause'; endPlay(); SCREENS.forEach(hide); show('pause'); }
+function resumeGame(){ SCREENS.forEach(hide); if(G.state === 'pause'){ G.state = 'run'; beginPlay(); } }
+
+/* ---------------- result ---------------- */
+function misRow(m, isNew){
+  const T = MTYPES[m.k]; let prog = '';
+  if(!m.done && !T.run && m.k !== 'thing'){ const v = Math.min(m.n, m.p); prog = `<div class="bar"><i style="width:${v / m.n * 100}%"></i></div><div class="mp">${fmt(v)} / ${fmt(m.n)}</div>`; }
+  return `<div class="mi${m.done ? ' done' : ''}${isNew ? ' new' : ''}"><div class="ck">${m.done ? '✓' : ''}</div><div class="mt">${T.t(m.n)}${prog}</div></div>`;
+}
+function showResult(){
+  endPlay(); hide('hud'); hide('hint');
+  const r = G.result; if(!r) return;
+  G.state = 'over';
+  $('rTitle').textContent = r.best ? 'NEW RECORD!' : 'MELTED!'; $('rTitle').className = r.best ? 'best' : '';
+  $('rTier').textContent = TIERS[r.tier].name.toUpperCase();
+  $('rBest').textContent = r.best ? (r.prevBest ? 'Beat your record of ' + fmtSize(r.prevBest / 2) : 'Your first record!') : 'Best ' + fmtSize(save.best / 2);
+  $('rCry').textContent = '+' + fmt(r.cry) + ' ❄  ·  ' + r.eaten + ' swallowed';
+  if(r.newFound.length){ $('rNew').innerHTML = '🔮 New in your Snow Globe: ' + r.newFound.map(id => THING[id].e).join(' '); show('rNew'); } else hide('rNew');
+  $('rRank').textContent = rankName(save.rank);
+  $('rMis').innerHTML = save.missions.map(m => misRow(m, m.done)).join('');
+  $('rRankUp').classList.toggle('hidden', !r.allDone);
+  buildUpRow();
+  show('result');
+  const el = $('rSize'), t0 = performance.now(), D = r.size / 2;
+  const tick = () => { const k = Math.min(1, (performance.now() - t0) / 900); el.textContent = fmtSize(D * (1 - Math.pow(1 - k, 3)) + .01); if(k < 1){ AU.count(); requestAnimationFrame(tick); } else if(r.best) AU.best(); };
+  tick();
+}
+function buildUpRow(){
+  const row = $('upRow'); row.innerHTML = '';
+  const list = UPG.map(u => ({ u, l:save.up[u.id] })).sort((a, b) => (a.l >= a.u.max) - (b.l >= b.u.max) || upCost(a.u, a.l) - upCost(b.u, b.l));
+  for(const { u, l } of list){
+    const max = l >= u.max, c = upCost(u, l), can = !max && save.cry >= c;
+    const d = document.createElement('div'); d.className = 'up' + (can ? ' can' : '') + (max ? ' max' : '');
+    d.innerHTML = `<div class="ic">${u.icon}</div><b>${u.name}</b><span>${u.eff(l)}</span><div class="c">${max ? 'MAX' : '❄ ' + fmt(c)}</div>`;
+    d.addEventListener('click', e => { e.stopPropagation(); AU.init(); if(!can){ AU.deny(); return; } save.cry -= c; save.up[u.id]++; AU.buy(); persist(); buildUpRow(); });
+    row.appendChild(d);
+  }
+}
+function claimRank(){
+  const reward = rankUp(); AU.rank();
+  showToast('RANK UP! ' + rankName(save.rank), '+' + fmt(reward) + ' ❄ crystals', true);
+  hide('rRankUp'); $('rRank').textContent = rankName(save.rank);
+  $('rMis').innerHTML = save.missions.map(m => misRow(m, true)).join('');
+  buildUpRow();
+}
+
+/* ---------------- screens ---------------- */
+function iconCanvas(e, dark){ const c = document.createElement('canvas'); c.width = c.height = 88; c.getContext('2d').drawImage(emoSpr(e, dark), 0, 0, 88, 88); return c; }
+function openGlobe(){
+  SCREENS.forEach(hide); const g = $('gGrid'); g.innerHTML = ''; let n = 0;
+  for(const T of THINGS){
+    const cnt = save.globe[T.id] || 0; if(cnt) n++;
+    const d = document.createElement('div'); d.className = 'gi' + (cnt ? '' : ' no');
+    d.appendChild(iconCanvas(T.e, !cnt));
+    d.insertAdjacentHTML('beforeend', `<b>${cnt ? T.name : '???'}</b><span>${cnt ? '×' + fmt(cnt) : fmtSize(T.s / 2)}</span>`);
+    g.appendChild(d);
+  }
+  $('gN').textContent = n + ' / ' + THINGS.length;
+  show('globe');
+}
+function openShop(){
+  SCREENS.forEach(hide); const L = $('shopList'); L.innerHTML = ''; $('sCry').textContent = '❄ ' + fmt(save.cry);
+  for(const u of UPG){
+    const l = save.up[u.id], max = l >= u.max, c = upCost(u, l);
+    const d = document.createElement('div'); d.className = 'item';
+    d.innerHTML = `<div class="ic">${u.icon}</div><div class="it"><b>${u.name}</b><span>${u.eff(l)}${max ? '' : ' → ' + u.eff(l + 1)}</span><div class="pips">${Array.from({ length:u.max }, (_, i) => `<i class="${i < l ? 'on' : ''}"></i>`).join('')}</div></div>`;
+    const b = document.createElement('button'); b.className = 'btn primary'; b.textContent = max ? 'MAX' : '❄ ' + fmt(c); b.disabled = max || save.cry < c;
+    onTap(b, () => { if(save.cry < c || max){ AU.deny(); return; } save.cry -= c; save.up[u.id]++; AU.buy(); persist(); openShop(); });
+    d.appendChild(b); L.appendChild(d);
+  }
+  show('shop');
+}
+function openMissions(){
+  SCREENS.forEach(hide); show('missions');
+  $('mRank').textContent = rankName(save.rank) + '  ·  reward ❄ ' + fmt(rankReward(save.rank));
+  $('mList').innerHTML = save.missions.map(m => misRow(m)).join('');
+  $('mClaim').classList.toggle('hidden', !save.missions.every(m => m.done));
+}
+function openSettings(){
+  const back = G.state === 'pause'; SCREENS.forEach(hide); show('settings'); $('settings').dataset.back = back ? 'pause' : '';
+  document.querySelectorAll('#settings input[data-opt]').forEach(i => i.checked = !!save.opt[i.dataset.opt]);
+  document.querySelectorAll('#settings .seg').forEach(s => s.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === save.opt[s.dataset.opt])));
+}
+function closeScreens(){
+  const toPause = !$('settings').classList.contains('hidden') && $('settings').dataset.back === 'pause';
+  SCREENS.forEach(hide);
+  if(toPause) show('pause');
+  else if(G.state === 'over'){ show('result'); buildUpRow(); }
+}
+
+/* ---------------- input: one button ---------------- */
+function anyScreen(){ return SCREENS.some(id => !$(id).classList.contains('hidden')) || !$('result').classList.contains('hidden'); }
+function wire(){
+  const down = e => {
+    AU.init(); AU.resume();
+    if(e.target.closest && e.target.closest('button')) return;
+    if(anyScreen()) return;
+    if(G.state === 'title'){ roll(); return; }
+    press();
+  };
+  $('cv').addEventListener('pointerdown', down);
+  $('title').addEventListener('pointerdown', down);
+  addEventListener('keydown', e => {
+    AU.init(); AU.resume();
+    if(e.repeat) return;
+    if(e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W'){
+      e.preventDefault();
+      if(G.state === 'title' && !anyScreen()) roll();
+      else if(G.state === 'over' && !$('result').classList.contains('hidden')) roll();
+      else press();
+    }
+    if(e.key === 'Enter' && G.state === 'over' && !$('result').classList.contains('hidden')) roll();
+    if(e.key === 'Escape' || e.key === 'p' || e.key === 'P'){ if(G.state === 'run') pauseGame(); else if(G.state === 'pause') resumeGame(); }
+  });
+  onTap('pauseBtn', pauseGame); onTap('pResume', resumeGame); onTap('pSet', openSettings); onTap('pEnd', () => { SCREENS.forEach(hide); G.state = 'run'; endRun(); });
+  onTap('tGlobe', openGlobe); onTap('tShop', openShop); onTap('tMis', openMissions); onTap('tSet', openSettings);
+  onTap('rAgain', roll); onTap('rHome', toTitle); onTap('rGlobe', () => { hide('result'); openGlobe(); }); onTap('rRankUp', claimRank);
+  onTap('mClaim', () => { claimRank(); openMissions(); });
+  document.querySelectorAll('.closeBtn').forEach(b => onTap(b, closeScreens));
+  document.querySelectorAll('#settings input[data-opt]').forEach(i => i.addEventListener('change', () => { save.opt[i.dataset.opt] = i.checked; AU.apply(); persist(); }));
+  document.querySelectorAll('#settings .seg button').forEach(b => onTap(b, () => { save.opt[b.parentElement.dataset.opt] = b.dataset.v; resize(); persist(); openSettings(); }));
+  addEventListener('resize', resize);
+  document.addEventListener('visibilitychange', () => { AU.setHidden(document.hidden); if(document.hidden){ writeSave(); pauseGame(); } else AU.resume(); });
+  SDK.onMute = m => AU.setPortalMute(m);
+}
+
+/* ---------------- loop ---------------- */
+let last = 0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  let dt = last ? (ts - last) / 1000 : 1 / 60; last = ts;
+  if(dt <= 0) return; if(dt > .05) dt = .05;
+  try{
+    if(G.state !== 'pause' && G.state !== 'over') update(dt); else G.rt += dt;
+    render(); updateHUD();
+  }catch(err){ console.error(err); }
+}
+addEventListener('error', e => { try{ console.error(e.error || e.message); }catch(_){} });
+
+/* ---------------- boot ---------------- */
+(async () => {
+  resize();
+  await SDK.init();
+  SDK.loadingStart();
+  loadSave();
+  for(const T of THINGS){ emoSpr(T.e); emoSpr(T.e, true); }   // draw every emoji once while loading, so the run never stutters
+  wire();
+  toTitle();
+  requestAnimationFrame(frame);
+  SDK.loadingStop();
+  const b = $('boot'); b.style.opacity = '0'; setTimeout(() => b.remove(), 450);
+})();
+
+</script>
+</body>
+</html>
