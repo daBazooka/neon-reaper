@@ -61,6 +61,20 @@ Cute, non-violent. Monsters are silly and get "hugged" or bonked by sparkles. No
 
 ## Assets to upload
 - **Game build:** `kaleidream/dist/index.html` (zip it)
+- **Covers:** `kaleidream/promo/cover-1920x1080.png`, `kaleidream/promo/cover-800x1200.png`, `kaleidream/promo/cover-800x800.png`
+- **Video:** `kaleidream/promo/trailer-1920x1080.mp4` (a vertical `kaleidream/promo/trailer-1080x1920.mp4` is included for social media)
+
+## Marketing assets
+The covers are drawn by the game's own renderer. Pip, a starry-eyed blue dreamer in a wizard hat, floats at the centre of a spinning kaleidoscope of stars, sweets, balloons and tiny houses, circled by friends Mochi, Zap and Luna. Disco beams sweep across, and The Alarm Clock nightmare peeks in from the corner. The rainbow KALEIDREAM logo and "Every second, the dream changes." sit at the top so they read at thumbnail size.
+
+The trailer is real gameplay captured frame by frame, with the game's own synthesized music and sound. Each shot folds into the next through the kaleidoscope transition:
+1. **0–3.5 s:** FLY! under a DISCO DREAM. "EVERY FEW SECONDS..."
+2. **3.5–7 s:** GIANT MODE! stomps a tiny town in CANDY RAIN. "...THE GAME BECOMES A DIFFERENT GAME"
+3. **7–11 s:** ORBIT! goes UPSIDE DOWN. "AND THEN THE WORLD FLIPS OVER"
+4. **11–14.5 s:** DANCE! while the JACKPOT slots spin. "24 CRAZY TWISTS"
+5. **14.5–18 s:** PAINT! the grey world, and a friend drops by with a gift. "SURPRISE FRIENDS & GIFTS"
+6. **18–26.5 s:** the final nightmare: the Captain Nope boss is blasted with sparkles on RAINBOW ROAD, then bursts into confetti. "BEAT THE NIGHTMARE!"
+7. **26.5–30 s:** logo end card: "KALEIDREAM · Every second, the dream changes. · 9 dream modes · 24 twists · 12 dreamers"
 
 ## SDK integration (for the reviewer)
 - **Order:** `SDK.init()` → `loadingStart()` → save read from the Data Module → `loadingStop()`.
