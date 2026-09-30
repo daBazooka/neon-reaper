@@ -217,14 +217,14 @@ function update(dt){
   // mob movement
   const spdMul = (1 + save.up.speed * 0.06) * (G.frenzy > 0 ? 1.5 : 1) * (G.squish ? 1.3 : 1);
   const maxV = 250 * spdMul;
-  const R = MR * Math.sqrt(Math.max(1, n)) * (G.squish ? 0.62 : 1.08) + (G.squish ? 4 : 10);
+  const FR = MR * Math.sqrt(Math.max(1, n)) * (G.squish ? 0.62 : 1.08) + (G.squish ? 4 : 10);
   const acc = Math.min(1, 7 * dt);
   for(const m of G.mob){
     if(m.dead) continue;
     let gx, gy, mv = maxV;
     if(m.st === 1 && m.tr){
       const tr = m.tr; gx = tr.x + Math.cos(m.slot) * (tr.r + 6); gy = tr.y + Math.sin(m.slot) * (tr.r + 6); mv = 600;
-    }else{ gx = G.tx + m.ox * R; gy = G.ty + m.oy * R; }
+    }else{ gx = G.tx + m.ox * FR; gy = G.ty + m.oy * FR; }
     const dx = gx - m.x, dy = gy - m.y, d = Math.hypot(dx, dy) || 1;
     const want = Math.min(mv, d * 5);
     m.vx += (dx / d * want - m.vx) * acc; m.vy += (dy / d * want - m.vy) * acc;
