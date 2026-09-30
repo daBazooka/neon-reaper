@@ -46,6 +46,19 @@ Cartoon and non-violent: a snowball rolling up snowmen, houses and mountains. No
 
 ## Assets to upload
 - **Game build:** `snowball/dist/index.html` (zip it)
+- **Covers:** `snowball/promo/cover-1920x1080.png`, `snowball/promo/cover-800x1200.png`, `snowball/promo/cover-800x800.png`
+- **Video:** `snowball/promo/trailer-1920x1080.mp4` (a vertical `snowball/promo/trailer-1080x1920.mp4` is included for social media)
+
+## Marketing assets
+The covers are drawn by the game's own renderer: a giant snowball covered in swallowed houses, cars, trees, snowmen and presents rides a curling avalanche wave down toward a village of houses, a chapel and a castle. The big SNOWBALL EFFECT logo and "Start as a snowflake. End as an ice planet." sit on the clear sky so they read at thumbnail size.
+
+The trailer is real gameplay captured frame by frame, with the game's own synthesized music and sound:
+1. **0–6 s:** a tiny snowball swallows pebbles, mittens and presents. "START AS A SNOWFLAKE..." · "SWALLOW ANYTHING SMALLER THAN YOU"
+2. **6–9 s:** jumping over snowmen and sleds. "JUMP THE BIG STUFF"
+3. **9–12 s:** an Avalanche wave eats buses and factories. "🌪 AVALANCHE MODE!"
+4. **12–21 s:** the camera zooms out and out. "HOUSES... CASTLES..." · "MOUNTAINS..." · "THE SKY..."
+5. **21–26 s:** under the stars, the snowball swallows the Moon. "...THE MOON?!"
+6. **26–30 s:** logo end card: "SNOWBALL EFFECT · Start as a snowflake. End as an ice planet."
 
 ## SDK integration (for the reviewer)
 - **Order:** `SDK.init()` → `loadingStart()` → save read from the Data Module → `loadingStop()`.

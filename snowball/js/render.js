@@ -36,8 +36,9 @@ function drawSky(){
   if(night > 0){ for(const s of STARS){ cx.globalAlpha = night * .6 * (.6 + .4 * Math.sin(G.rt * 2 + s.p)); cx.fillStyle = '#fff'; cx.fillRect(s.x * W, s.y * H * .8, s.s, s.s); } cx.globalAlpha = 1; }
   // the sun: it grows hotter as the run goes on
   const heat = G.state === 'run' ? clamp(G.t / 120, 0, 1) : 0, sx = W * .82, sy = H * .14, sr = Math.min(W, H) * (.05 + heat * .03);
-  glow(sx, sy, sr * (4 + heat * 3), heat > .5 ? '#ffb040' : '#fff4c0', .55 + heat * .3);
-  cx.fillStyle = mix('#fffbe0', '#ffc040', heat); cx.beginPath(); cx.arc(sx, sy, sr, 0, TAU); cx.fill();
+  const space = clamp(V.skyT - 7, 0, 1);
+  glow(sx, sy, sr * (4 + heat * 3) * (1 - space * .5), space > .5 ? '#c8d8ff' : heat > .5 ? '#ffb040' : '#fff4c0', (.55 + heat * .3) * (1 - space * .4));
+  cx.fillStyle = mix(mix('#fffbe0', '#ffc040', heat), '#ffd890', space); cx.beginPath(); cx.arc(sx, sy, sr * (1 - space * .3), 0, TAU); cx.fill();
   // far peaks drift slowly
   const far = mix(A.far, B.far, k), hill = mix(A.hill, B.hill, k), off = G.rt * 6;
   for(const [col, base, amp, sp, seed] of [[far, .52, .2, .5, 1], [hill, .66, .12, 1, 3]]){
@@ -90,16 +91,20 @@ function drawBall(){
   if(G.inv > 0 && Math.sin(G.rt * 40) > .3 && G.state === 'run') cx.globalAlpha = .5;
   // the avalanche wave behind the ball
   if(G.avalT > 0){
-    const k = Math.min(1, G.avalT), h = r * (2.4 + Math.sin(G.rt * 6) * .2);
-    cx.fillStyle = rgba('#ffffff', .85 * k); cx.beginPath(); cx.moveTo(x - r * 9, y + r);
-    for(let i = 0; i <= 20; i++){ const u = i / 20; cx.lineTo(x - r * 9 + u * r * 9.5, y + r - Math.sin(u * Math.PI * .5) * h - Math.sin(u * 14 + G.rt * 10) * r * .15); }
-    cx.lineTo(x + r * .5, y + r); cx.closePath(); cx.fill();
+    // a curling wave of snow chasing the ball, fading out behind it
+    const k = Math.min(1, G.avalT), h = r * (2.6 + Math.sin(G.rt * 6) * .2), back = r * 10;
+    const wg = cx.createLinearGradient(x - back, 0, x + r, 0); wg.addColorStop(0, rgba('#ffffff', 0)); wg.addColorStop(.55, rgba('#f4fbff', .75 * k)); wg.addColorStop(1, rgba('#ffffff', .95 * k));
+    cx.fillStyle = wg; cx.beginPath(); cx.moveTo(x - back, y + r);
+    for(let i = 0; i <= 24; i++){ const u = i / 24; cx.lineTo(x - back + u * (back + r * .2), y + r - Math.pow(u, 2.2) * h - Math.sin(u * 16 + G.rt * 12) * r * .12 * u); }
+    cx.quadraticCurveTo(x + r * 1.2, y + r - h * 1.05, x + r * .9, y + r - h * .55);
+    cx.lineTo(x + r * .6, y + r); cx.closePath(); cx.fill();
+    cx.strokeStyle = rgba('#9ad4f4', .6 * k); cx.lineWidth = Math.max(2, r * .05); cx.stroke();
     glow(x, y, r * 3, '#7df0ff', .45);
   }
   // shadow
   const gy = SY(groundAt(G.x)); cx.fillStyle = 'rgba(70,110,160,.2)'; cx.beginPath(); cx.ellipse(x, gy, r * .9, r * .18, 0, 0, TAU); cx.fill();
   // body
-  const g = cx.createRadialGradient(x - r * .35, y - r * .4, r * .1, x, y, r); g.addColorStop(0, '#ffffff'); g.addColorStop(.7, '#eef7ff'); g.addColorStop(1, '#bcd8f0');
+  const g = cx.createRadialGradient(x - r * .35, y - r * .4, r * .1, x, y, r); g.addColorStop(0, '#ffffff'); g.addColorStop(.6, '#e6f2fc'); g.addColorStop(1, '#9cc4e6');
   cx.fillStyle = g; cx.beginPath(); cx.arc(x, y, r, 0, TAU); cx.fill();
   // snow texture turns with the ball
   cx.fillStyle = 'rgba(160,200,235,.35)';
@@ -111,7 +116,7 @@ function drawBall(){
     const px = x + Math.cos(a) * d, py = y + Math.sin(a) * d;
     cx.save(); cx.translate(px, py); cx.rotate(a + Math.PI / 2); cx.drawImage(emoSpr(s.e), -sz / 2, -sz / 2, sz, sz); cx.restore();
   }
-  cx.strokeStyle = 'rgba(120,170,215,.6)'; cx.lineWidth = Math.max(1.5, r * .04); cx.beginPath(); cx.arc(x, y, r, 0, TAU); cx.stroke();
+  cx.strokeStyle = 'rgba(18,48,90,.6)'; cx.lineWidth = Math.max(2, r * .055); cx.beginPath(); cx.arc(x, y, r, 0, TAU); cx.stroke();
   cx.globalAlpha = 1;
 }
 
