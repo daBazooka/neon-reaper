@@ -30,9 +30,13 @@ Every bulletin from now on has one thing you can use. This one teaches you to fi
 
 General-information note: this is not medical advice. The description says so.
 
+## Narration (new)
+The video now has a calm synthetic narrator (Kokoro, Apache-2.0 licence, voice "af_heart") reading 46 lines timed to the scenes. The music ducks about 7 dB under the voice and swells back in the gaps. The narration script is `voice7.json` (long video) and `voice7s.json` (Short); `voice.py` regenerates it, and you can ask me to change the voice (male, British, slower) without re-rendering the picture.
+**YouTube disclosure:** in Studio's "altered or synthetic content" question, read YouTube's wording and answer honestly. The narrator is a generic synthetic voice, not a real person's voice, and the scenes are stylised animation, not realistic footage. Earlier tapes had no voice; this one does, so do not copy the answer from an older upload without reading the question.
+
 ## Files
 - **Upload this to YouTube:** `youtube/masters/bulletin-07-the-budget-1440p-hevc.mp4` (2560x1440 HEVC, on GitHub; see "Getting the master" in `UPLOAD-BULLETIN-04.md`, same steps).
-- **Watch it in chat:** `bulletin-07-the-budget-720p.mp4` (compressed preview).
+- **Watch it in chat:** `bulletin-07-the-budget-720p.mp4` (compressed preview, 6:06, with narration).
 - **Thumbnails (1920x1080):** `thumbnail-07-A.jpg` "61 DAYS A YEAR" (lead) · `thumbnail-07-B.jpg` "WHERE DO YOUR HOURS GO?" · `thumbnail-07-C.jpg` "FREE IS A PRICE."
 
 ## Title (use this)
