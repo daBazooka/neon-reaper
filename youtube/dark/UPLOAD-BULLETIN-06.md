@@ -1,15 +1,16 @@
 # Bulletin 06: THE SUGGESTION (Season Two opener) — everything to upload
 
-Same settings as before: **Audience: not made for kids. Paid promotion: No. AI use / altered content: No. Licence: Standard YouTube Licence. Language: English. Visibility: Public (or Schedule).** Add the end screen with **Import from video** (copy from an earlier bulletin), starting at **5:33**, and swap the video element for the newest upload.
+Same settings as before: **Audience: not made for kids. Paid promotion: No. AI use / altered content: No. Licence: Standard YouTube Licence. Language: English. Visibility: Public (or Schedule).** Add the end screen with **Import from video** (copy from an earlier bulletin), starting at **6:08**, and swap the video element for the newest upload.
 
 ## What is better than Bulletin 05 (checked against the files and stills)
 | | Bulletin 05 | **Bulletin 06** |
 |---|---|---|
-| Length | 5:58 | **6:09** |
+| Length | 5:58 | **6:20** |
 | Camera | flat 2D scenes with parallax layers | **a true one-point-perspective corridor of screens with a moving camera, plus a tunnel of 46 thumbnails flying at the viewer** |
 | Motion | camera punches | **real motion blur (3–4 sub-frame average) on the fast scenes** |
 | Interface design | one dialog | **a recommendation grid with an autoplay ring and a cursor that arrives after the choice, a dwell-time meter with a "more like this" counter, and a Cancel button that is fully visible (Bulletin 01 hid its "NO")** |
 | New set pieces | sunset | **dossier wall with red string and a scanning light, a cutaway building of 12 rooms, each with its own world, and a beam through the wall** |
+| Opening | 18 s of disclaimer and logo | **a 13-second cold open (the thumbnail tunnel and "you will watch one more") before the advisory** |
 | Story | closes the first arc | **opens Season Two with a new department, "Suggestion", and a new hidden phrase** |
 | New sound | nature bed, birds | **selection ticks, lock-in thumps, scanning sweeps and a mains-hum layer under the screens, all in stereo** |
 | Hidden layers | 11 | **9 (fewer, but the REF cipher, the audio spectrogram and the ghost text all carry over)** |
@@ -33,18 +34,19 @@ BULLETIN 06: THE SUGGESTION
 Season Two. The Bureau has a new department. It has already picked what you watch next. Here are six rules for living with it, and one button that was always visible.
 
 Chapters
-0:00 Viewer advisory
-0:18 The new department
-1:06 Rule 1
-1:38 Rule 2
-2:14 Rule 3
-2:46 Rule 4
-3:20 Four thousand thumbnails
-3:58 Rule 5
-4:32 Rule 6
-4:59 This bulletin ends
-5:33 Autoplay
-5:57 This tape has ended
+0:00 It knew first
+0:13 Viewer advisory
+0:29 The new department
+1:17 Rule 1
+1:49 Rule 2
+2:25 Rule 3
+2:57 Rule 4
+3:31 Four thousand thumbnails
+4:09 Rule 5
+4:43 Rule 6
+5:10 This bulletin ends
+5:44 Autoplay
+6:08 This tape has ended
 
 This tape hides messages in the picture, the numbers and the sound. Season Two has a new phrase. Found one? Comment it with the timestamp. Correct finds get pinned.
 
@@ -68,10 +70,10 @@ Community post the next day: `Season 1 ended with DAYLIGHT. Season 2 starts with
 | # | Where | Answer |
 |---|---|---|
 | H1 | "REF" numbers on Rules 1–6: 3, 8, 15, 15, 19, 5 | A1Z26 cipher: **C H O O S E** |
-| H2 | Audio spectrogram in the "Autoplay" scene (about 5:34) | **CHOOSE** written in the spectrum |
-| H3 | Rule 1: faint "choose" under the far doorway at the end of the corridor (about 1:18–1:28) | The word, in the picture |
+| H2 | Audio spectrogram in the "Autoplay" scene (about 5:45) | **CHOOSE** written in the spectrum |
+| H3 | Rule 1: faint "choose" under the far doorway at the end of the corridor (about 1:29–1:39) | The word, in the picture |
 | H4 | Rule 2: the counter reads **CHOICES MADE BY YOU: 0** in all four cycles | You chose nothing |
-| H5 | Rule 3: very faint text at the bottom left of the dossier, "all of them are you" (about 2:32–2:41) | The dossier describes everyone |
+| H5 | Rule 3: very faint text at the bottom left of the dossier, "all of them are you" (about 2:43–2:52) | The dossier describes everyone |
 | H6 | Rule 4: the dwell meter keeps counting; "more like this" climbs to 4,800 and every following card turns the same colour | The echo chamber |
 | H7 | Thumbnail tunnel: the last tile is labelled "SUGGESTED: YOU" | It was made for you |
 | H8 | Rule 5: two neighbours stand and their TVs both turn warm white; a beam crosses the wall | Breaking out of separate worlds |
