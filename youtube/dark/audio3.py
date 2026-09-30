@@ -30,7 +30,8 @@ def smooth(x, k):
     k = max(1, int(k)); cs = np.cumsum(np.insert(x, 0, 0)); y = (cs[k:] - cs[:-k]) / k
     return np.pad(y, (k // 2, len(x) - len(y) - k // 2), mode='edge')
 
-BPM = 76; BEAT = 60 / BPM; BAR = BEAT * 4
+import os
+BPM = float(os.environ.get('BPM', 76)); BEAT = 60 / BPM; BAR = BEAT * 4
 CH = [dict(bass=38, pad=[50, 57, 61, 66]),   # Dmaj7
       dict(bass=35, pad=[50, 54, 57, 61]),   # Bm9-ish
       dict(bass=43, pad=[50, 55, 59, 66]),   # Gmaj7
@@ -132,6 +133,23 @@ def swell():
     return (y * np.sin(np.pi * tt_ / d) ** 2 * .45).astype(np.float32)
 SND = {'chime': (chime, .10, 0), 'tick': (tick, .05, .1), 'coin': (coin, .05, .25), 'pop': (pop, .06, 0),
        'hit': (hit, .16, 0), 'riser': (riser, .05, 0), 'swell': (swell, .06, 0)}
+
+def ding(k):
+    m = [74, 76, 78, 81, 83, 86, 90, 93][k]; return bell(mtof(m), 1.1) * 1.1
+def pullfx():
+    n = rng.standard_normal(int(.35 * SR)).astype(np.float32); n = fft_filter(n, 300, 2200); tt_ = T(.35)
+    return (n * np.sin(np.pi * tt_ / .35) ** 2 * 1.6).astype(np.float32)
+def lose():
+    tt_ = T(.5); f = 330 - 110 * np.minimum(tt_ / .4, 1); return (np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-tt_ * 6) * .8).astype(np.float32)
+def jackpot():
+    y = np.zeros(int(2.4 * SR), dtype=np.float32)
+    for i, m in enumerate((74, 78, 81, 86, 90, 93)):
+        b_ = bell(mtof(m), 1.3); o = int(i * .07 * SR); y[o:o + len(b_)] += b_[:len(y) - o] * .8
+    for j in range(22):
+        c_ = coin(); o = int((.3 + j * .055 + rng.random() * .03) * SR); y[o:o + len(c_)] += c_[:len(y) - o] * .35
+    return y
+SND.update({'pull': (pullfx, .07, 0), 'lose': (lose, .07, 0), 'jackpot': (jackpot, .10, 0)})
+for k_ in range(8): SND['ding%d' % k_] = ((lambda kk=k_: ding(kk)), .07, .05 * (k_ % 3 - 1))
 for t, n in ev['snd']:
     if n in SND:
         fn, g, p = SND[n]; put(SFX, t, fn(), g, p)
