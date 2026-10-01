@@ -9,6 +9,7 @@ const [proj,orient,fps,out,a1,a2]=process.argv.slice(2);
  const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium',args:['--no-sandbox']});
  const p=await b.newPage({viewport:land?{width:1920,height:1080}:{width:1080,height:1920}});
  p.on('pageerror',e=>{console.log('PAGEERR',e.message);process.exit(1)});
+  if(process.env.WORDS)await p.addInitScript('window.WORDS='+fs.readFileSync(process.env.WORDS,'utf8'));
  await p.goto('file://'+path.resolve(__dirname,'engine.html'));
  const total=await p.evaluate(([n,l])=>setup(n,l),[proj,land]);
  const grab=async(T)=>{await p.evaluate(t=>frame(t),T);return await p.evaluate(()=>out.toDataURL('image/jpeg',.93))};

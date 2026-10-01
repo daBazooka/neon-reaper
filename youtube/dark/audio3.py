@@ -148,6 +148,10 @@ def jackpot():
     for j in range(22):
         c_ = coin(); o = int((.3 + j * .055 + rng.random() * .03) * SR); y[o:o + len(c_)] += c_[:len(y) - o] * .35
     return y
+def whoosh():
+    n = rng.standard_normal(int(.5 * SR)).astype(np.float32); n = fft_filter(n, 500, 3200); tt_ = T(.5)
+    return (n * np.sin(np.pi * tt_ / .5) ** 2 * 1.4).astype(np.float32)
+SND.update({'whoosh': (whoosh, .045, 0)})
 SND.update({'pull': (pullfx, .07, 0), 'lose': (lose, .07, 0), 'jackpot': (jackpot, .10, 0)})
 for k_ in range(8): SND['ding%d' % k_] = ((lambda kk=k_: ding(kk)), .07, .05 * (k_ % 3 - 1))
 for t, n in ev['snd']:
