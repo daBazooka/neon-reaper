@@ -1,6 +1,6 @@
 # CUTAWAY (@cutaway68): upload sheets
 
-Copy/paste ready. Post EP 01 first, EP 02 the next day, EP 03 the day after, EP 04 the day after that (or space them 3-4 hours apart).
+Copy/paste ready. Post EP 01 first, EP 02 the next day, EP 03 the day after, EP 04 the day after that, and so on (or space them 3-4 hours apart).
 Use the same title and description on YouTube Shorts; use the short captions on TikTok / Instagram.
 
 ---------------------------------------------------------------------
@@ -224,6 +224,70 @@ Frame at **36.5 s** (`episode-04-smoke.html?t=36.5`): smoke scattering the light
 
 ### Pinned comment
 `Go check the date on the back of your smoke alarm right now. How old is yours? 👇 (Save this for the next time it chirps at 3 a.m.)`
+
+### Settings
+Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synthetic content: **yes for the AI voice** if asked · Category: Education / How-to & Style
+
+---------------------------------------------------------------------
+
+## VIDEO 5: The 2-Hour Rule (food safety)
+**File:** `episode-05-fridge-final.mp4` · 70 s · 1080×1920
+
+### Title (pick one; A is the default)
+- **A:** `Why Food Left Out for 2 Hours Is Dangerous (The Math)` (54 chars)
+- B: `The 2-Hour Rule: How 1 Bacterium Becomes 16 Million`
+- C: `Why Reheating Leftovers Doesn't Always Make Them Safe`
+
+### Description
+```
+How long can food sit on the counter? Two hours, and the reason is pure math. Here's the "danger zone", how bacteria double every 20 minutes, why one bacterium can become millions, and what to do about it.
+
+00:00 The 2-hour rule
+00:05 The doubling: how bacteria multiply
+00:15 The danger zone: 40°F to 140°F (4°C to 60°C)
+00:33 The math: 2 hours, 4 hours, 8 hours
+00:44 Why reheating doesn't always save you
+00:51 The rules to follow
+
+Key ideas:
+• In warm food, some bacteria can double in as little as 20 minutes: 1 → 2 → 4 → 8 …
+• The danger zone is 40°F–140°F (4°C–60°C). Cold slows bacteria, a freezer pauses them, and high heat stops growth.
+• Two hours is six doublings: 1 becomes 64. Four hours is about 4,000. Eight hours is about 16 million.
+• You usually can't see, smell, or taste dangerous bacteria.
+• Some bacteria leave behind toxins that reheating can't destroy.
+
+The rules:
+1. Two hours at most at room temperature, one hour if it's hotter than 90°F (32°C).
+2. Keep the fridge at 40°F (4°C) or below.
+3. Cool leftovers in shallow containers.
+4. Thaw food in the fridge, never on the counter.
+
+Simplified for clarity: growth rates depend on the bacteria, the food and the temperature; the numbers show the best-case growth for a fast-doubling species. General food-safety information, not medical advice; follow your local food-safety guidance.
+
+Subscribe to CUTAWAY: everything has an inside.
+
+Voice: AI-generated narration. Animation made for CUTAWAY.
+
+#shorts #foodsafety #howitworks
+```
+
+### Hashtags
+`#shorts #foodsafety #howitworks` + `#leftovers #kitchentips #science #bacteria #health`
+
+### Tags
+`2 hour rule food safety, danger zone food 40 140, how fast do bacteria grow, bacteria doubling time, leftovers food safety, food left out overnight, can you reheat food left out, food poisoning prevention, fridge temperature, how to thaw food safely, how things work, science explained, kitchen safety`
+
+### TikTok / Instagram caption
+```
+Food left out for 2 hours? It's math: bacteria double every ~20 min, so 1 becomes 64 in 2 hours and 16 MILLION in 8. And reheating doesn't always fix it 🍕⏱️ Rules in the video 👇
+#foodsafety #leftovers #kitchentips #howitworks #science
+```
+
+### Cover / thumbnail
+Frame at **38 s** (`episode-05-fridge.html?t=38`): the dot grids showing 64 vs 4,096. Or 4.8 s for the clock + pizza (cleaner, curiosity hook).
+
+### Pinned comment
+`Be honest: what's the longest you've left leftovers out? 😅 Save this for next time! Which everyday mystery should CUTAWAY solve next?`
 
 ### Settings
 Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synthetic content: **yes for the AI voice** if asked · Category: Education / How-to & Style

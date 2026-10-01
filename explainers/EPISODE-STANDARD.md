@@ -28,7 +28,7 @@ Every new episode must clear **all** of these before it ships, and beat the prev
 ## Backlog ranked by importance
 1. ~~GFCI outlet~~ (done: EP 03)
 2. ~~Smoke detector~~ (done: EP 04). Next: CO detector
-3. Fridge: why food spoils, the 2-hour rule, the danger zone
+3. ~~Fridge / 2-hour rule~~ (done: EP 05). Next: how a fridge works
 4. Bleach + ammonia: what actually happens (chemistry of chloramine gas)
 5. Seat belt + airbag: the 30 ms sequence
 6. Pressure cooker: why it's faster and why lids explode
@@ -49,3 +49,10 @@ Every new episode must clear **all** of these before it ships, and beat the prev
 - **A relatable hook payoff**: the 3 a.m. chirp explained with a live temperature/battery-voltage chart.
 - **A concrete action**: read the manufacture date on the back; stamp EXPIRED at 10 years.
 - **Sound design**: Geiger-style clicks while ions form, real piezo T3 alarm beeps.
+
+## EP 05 (2-hour rule) raised the bar by
+- **Switching worlds**: the first non-electrical episode proves the format works for any topic (food safety, chemistry, biology).
+- **Visible exponential math**: a petri dish that really doubles, then dot grids (64 → 4,096 → 16 million) so the viewer *feels* the growth.
+- **A live thermometer** whose marker drives the bacteria's speed and doubling time in real time.
+- **A "wait, what?" twist**: reheating can't destroy some toxins (heat kills bacteria, not always their toxins).
+- **A four-rule checklist** the viewer can use tonight.
