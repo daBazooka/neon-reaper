@@ -53,11 +53,11 @@ function anyScreen(){ return SCREENS.some(id => !$(id).classList.contains('hidde
 function closeScreens(){ SCREENS.forEach(hide); }
 let backTo = null;
 function openScreen(id, from){ backTo = from || null; SCREENS.forEach(s => s !== id && hide(s)); show(id); }
-function hideTouch(){ hide('stick'); hide('stick2'); hide('driftBtn'); }
+function hideTouch(){ hide('stick'); hide('stick2'); hide('driftBtn'); hideTut(); }
 
 /* ---------------- flow ---------------- */
 function toTitle(){
-  endPlay(); closeScreens(); clearInput(); hideTouch();
+  endPlay(); closeScreens(); clearInput(); hideTouch(); hideTut();
   startDemo();
   AU.setStyle('title'); AU.eng = 0;
   hide('hud'); hide('vsHud'); hide('tip'); hide('banner'); show('title');
@@ -81,7 +81,7 @@ function play(){
     if(UI.touch) show('driftBtn');
     beginPlay();
     if(G.freeCards > 0){ G.state = 'pick'; UI.showPick(); $('pTitle').textContent = '🃏 HEAD START: CHOOSE AN UPGRADE'; G.round--; }
-    if(!save.tut) setTimeout(() => UI.tip(UI.touch ? 'Drag to steer. Turn hard to drift and swing your ball into cars!' : 'Drive with arrows / WASD. Hold SPACE to drift and swing your ball into cars!', 6000), 2400);
+    if(save.tut < 2) showTut();
   });
 }
 function playVs(){
@@ -103,7 +103,7 @@ function gameOver(){
   const newBest = G.round > save.best;
   if(newBest) save.best = G.round;
   missionTick({ round: G.round, combo: G.run.maxCombo });
-  if(!save.tut) save.tut = 1; persist();
+  hideTut(); save.tut = Math.min(2, save.tut + 1); persist();
   G.lastCoins = coins;
   $('oTitle').textContent = newBest && save.runs > 1 ? '🏆 NEW BEST!' : 'WRECKED!';
   $('oRound').textContent = 'ROUND ' + G.round;
@@ -255,7 +255,8 @@ function wire(){
     if(SDK.adBusy) return;
     AU.init();
     if(e.repeat){ K[e.code] = true; return; }
-    if(e.code === 'Escape' || e.code === 'KeyP'){ if(G.state === 'pause') resumeGame(); else if(G.state === 'play' && G.mode !== 'demo') pauseGame(); else if(anyScreen() && G.mode === 'demo') { closeScreens(); refreshTitle(); } return; }
+    // Escape is reserved by the browser (exits fullscreen), so pause is on P only
+    if(e.code === 'KeyP'){ if(G.state === 'pause') resumeGame(); else if(G.state === 'play' && G.mode !== 'demo') pauseGame(); return; }
     if(G.mode === 'demo' && !anyScreen() && (e.code === 'Space' || e.code === 'Enter')){ play(); return; }
     if(!$('over').classList.contains('hidden') && (e.code === 'Space' || e.code === 'Enter')){ $('oAgain').click(); return; }
     if(!$('vsOver').classList.contains('hidden') && (e.code === 'Space' || e.code === 'Enter')){ $('vAgain').click(); return; }
@@ -301,6 +302,28 @@ function wire(){
   SDK.onMute = m => AU.setPortalMute(m);
 }
 
+/* ---------------- onboarding (in gameplay, visual, skippable) ---------------- */
+const tut = { on: false, drive: 0, drift: 0, t: 0 };
+function showTut(){
+  const el = $('tut'); el.classList.toggle('touch', UI.touch);
+  el.innerHTML = UI.touch
+    ? '<div class="tRow"><span class="hand">👆</span><b>DRAG TO STEER</b></div><div class="tRow"><span class="kc wide">DRIFT</span><b>HOLD TO SWING</b></div><button id="tutSkip">SKIP ✕</button>'
+    : '<div class="tRow"><span class="kgrid"><i></i><span class="kc">↑</span><i></i><span class="kc">←</span><span class="kc">↓</span><span class="kc">→</span></span><b>DRIVE</b></div><div class="tRow"><span class="kc wide">SPACE</span><b>DRIFT TO SWING THE BALL</b></div><button id="tutSkip">SKIP ✕</button>';
+  $('tutSkip').addEventListener('pointerdown', e => { e.stopPropagation(); hideTut(); });
+  Object.assign(tut, { on: true, drive: 0, drift: 0, t: 0 });
+  show('tut');
+}
+function hideTut(){ tut.on = false; hide('tut'); }
+function tickTut(dt){
+  if(!tut.on || G.mode !== 'cup' || G.state !== 'play') return;
+  const I = G.inputs[0] || {}, p = G.players[0];
+  tut.t += dt;
+  if(Math.abs(I.thr || 0) > 0 || Math.abs(I.steer || 0) > 0) tut.drive += dt;
+  if(p && p.drifting && Math.hypot(p.vx, p.vy) > 150) tut.drift += dt;
+  $('tut').classList.toggle('done1', tut.drive > 1);
+  if((tut.drive > 1 && tut.drift > 0.6 && G.run.wrecks > 0) || tut.t > 20) hideTut();
+}
+
 /* ---------------- HUD ---------------- */
 function renderCards(){
   const h = [];
@@ -335,7 +358,7 @@ function frame(ts){
   requestAnimationFrame(frame);
   let dt = last ? (ts - last) / 1000 : 1 / 60; last = ts;
   if(dt <= 0) return; if(dt > 0.05) dt = 0.05;
-  try{ pollInput(); update(dt); R.draw(dt); updateHUD(); }catch(err){ console.error(err); }
+  try{ pollInput(); update(dt); R.draw(dt); updateHUD(); tickTut(dt); }catch(err){ console.error(err); }
 }
 (async () => {
   R.init();

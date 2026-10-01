@@ -121,6 +121,7 @@ function startCup(){
   resetWorld(); setArena(0);
   const p = playerCar(0, save.car, save.ball, AW / 2, AH / 2 + 80, -Math.PI / 2);
   G.cars.push(p); G.players = [p];
+  if(typeof R !== 'undefined'){ R.cam.x = p.x; R.cam.y = p.y; }
   if(save.perk.start > 0){ G.freeCards = save.perk.start; }
   else G.freeCards = 0;
   nextRound();
