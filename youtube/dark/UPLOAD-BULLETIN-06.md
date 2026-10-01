@@ -28,7 +28,7 @@ Alternatives: `You Didn't Pick This | Bulletin 06` · `It Was Suggested (Analog 
 
 ## Description
 ```
-Recovered household safety tape. Please stay tuned.
+Recovered household safety tape.
 
 BULLETIN 06: THE SUGGESTION
 Season Two. The Bureau has a new department. It has already picked what you watch next. Here are six rules for living with it, and one button that was always visible.
@@ -54,7 +54,7 @@ A new tape every day: a Short daily, a full bulletin every week.
 
 A work of fiction. This film contains low light, tape noise and slow flicker. There is no rapid flashing, no gore and no jump scares.
 
-Bureau of Household Attention. Please stay tuned.
+Bureau of Household Attention.
 
 #analoghorror #lostmedia #bulletin06
 ```
