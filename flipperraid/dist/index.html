@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0f1724">
+<meta name="description" content="FLIPPER RAID: pinball meets dungeon crawler. Smash monsters with your pinball, clear rooms, pick power cards and beat the bosses!">
+<title>FLIPPER RAID</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%223%22 fill=%22%230f1724%22/%3E%3Cpath d=%22M2 12L7 14M14 12L9 14%22 stroke=%22%23ffd23a%22 stroke-width=%222.4%22 stroke-linecap=%22round%22/%3E%3Ccircle cx=%228%22 cy=%226%22 r=%223%22 fill=%22%23fff%22/%3E%3C/svg%3E">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#05060c;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+body{font-family:"Arial Rounded MT Bold","Trebuchet MS",system-ui,sans-serif;color:#fff;font-weight:900}
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+button{font:inherit;color:inherit;border:0;cursor:pointer;background:none}
+.hidden{display:none!important}
+.coin::before{content:"";display:inline-block;width:.9em;height:.9em;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff6b0,#ffc21a 55%,#d98a00);box-shadow:0 0 0 2px #7a4200;margin-right:6px;vertical-align:-.1em}
+.chip{background:rgba(43,42,74,.8);padding:6px 12px;border-radius:14px;font-size:18px;text-shadow:0 2px 0 rgba(0,0,0,.25);white-space:nowrap}
+.chip.big{font-size:24px}
+.small{font-size:14px;opacity:.9}
+
+/* HUD */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:5}
+#hL,#hR{position:absolute;top:calc(10px + env(safe-area-inset-top));display:flex;gap:8px;align-items:center}
+#hL{left:calc(10px + env(safe-area-inset-left))}
+#hR{right:calc(10px + env(safe-area-inset-right));flex-direction:column;align-items:flex-end;gap:6px}
+#hC{position:absolute;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;width:min(46vw,380px)}
+#hud button{pointer-events:auto}
+.ico{width:44px;height:44px;border-radius:14px;background:rgba(43,42,74,.8);font-size:18px;box-shadow:inset 0 -4px 0 rgba(0,0,0,.25)}
+#timer.low{background:#e8413a;animation:pulse .5s infinite}
+@keyframes pop{50%{transform:scale(1.25)}}
+@keyframes pulse{50%{transform:scale(1.1)}}
+
+#banner{position:fixed;left:50%;top:26%;transform:translate(-50%,-50%);z-index:6;pointer-events:none;text-align:center;width:94%;animation:ban 2.4s ease both}
+#banner b{display:block;font-size:clamp(34px,7vw,66px);-webkit-text-stroke:3px #3a1d4a;paint-order:stroke fill;text-shadow:0 6px 0 #3a1d4a}
+#banner small{display:block;font-size:clamp(16px,2.6vw,22px);margin-top:4px;text-shadow:0 3px 0 rgba(0,0,0,.4)}
+@keyframes ban{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}18%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-62%)}}
+#tip{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:6;pointer-events:none;background:rgba(60,30,70,.78);padding:10px 20px;border-radius:18px;font-size:clamp(15px,2.4vw,21px);text-align:center;max-width:min(92%,640px);animation:tipIn .35s ease both}
+@keyframes tipIn{from{opacity:0;transform:translate(-50%,16px)}}
+
+/* title */
+#title{position:fixed;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;pointer-events:none;padding:16px}
+#title>*{pointer-events:auto}
+#title .tag,#title h1,#tHint{pointer-events:none}
+#tTop{position:absolute;top:calc(10px + env(safe-area-inset-top));right:12px;display:flex;gap:8px}
+#logo{display:flex;gap:.2em;font-size:clamp(40px,11.5vw,120px);line-height:1;letter-spacing:2px;animation:logo 2.4s ease-in-out infinite}
+#logo span{color:#ffd23a;-webkit-text-stroke:4px #1a0a00;paint-order:stroke fill;text-shadow:0 8px 0 #1a0a00,0 0 30px rgba(255,210,58,.6);display:inline-block}
+#logo span+span{color:#7dffb0;text-shadow:0 8px 0 #1a0a00,0 0 30px rgba(125,255,176,.6)}
+@keyframes logo{50%{transform:translateY(-6px) scale(1.02,.98)}}
+.tag{font-size:clamp(16px,2.6vw,22px);color:#fff;background:rgba(0,0,0,.55);padding:4px 14px;border-radius:12px}.tag b{color:#ffd23a}
+.tBtns{display:grid;grid-template-columns:repeat(4,auto);gap:10px}
+.tBtns .btn{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:14px;padding:10px 14px;position:relative}
+.tBtns .btn span{font-size:22px}
+.badge{position:absolute;top:-6px;right:-6px;background:#ff3f5a;border-radius:50%;width:22px;height:22px;font-style:normal;font-size:14px;line-height:22px}
+.hint2{font-size:14px;color:#fff;background:rgba(0,0,0,.55);padding:3px 10px;border-radius:10px}
+@media (max-width:560px){.tBtns{grid-template-columns:repeat(2,auto)}}
+
+/* screens */
+.screen{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:rgba(40,20,50,.5);padding:12px;animation:fade .2s ease both}
+@keyframes fade{from{opacity:0}}
+.card{background:linear-gradient(#2a2f5a,#161a38);border:2px solid #4a5aa8;border-radius:28px;padding:20px;width:min(430px,100%);max-height:100%;overflow:auto;text-align:center;box-shadow:0 10px 0 #0a0c1e,0 18px 40px rgba(0,0,0,.3);display:flex;flex-direction:column;gap:12px;animation:popIn .35s cubic-bezier(.3,1.6,.5,1) both}
+.card.wide{width:min(620px,100%)}
+@keyframes popIn{from{transform:scale(.7);opacity:0}}
+.ttl{font-size:32px;text-shadow:0 4px 0 rgba(0,0,0,.2)}
+.ttl small{font-size:18px;margin-left:8px}
+.btn{padding:13px 18px;border-radius:18px;font-size:19px;background:#8a5ae8;box-shadow:inset 0 -5px 0 rgba(0,0,0,.2),0 4px 0 rgba(0,0,0,.22)}
+.btn.go{background:linear-gradient(#6dff9a,#1fc760);color:#123d22}
+.btn.gold{background:linear-gradient(#ffd24a,#ff9a1a);color:#4a2400}
+.btn.ghost{background:rgba(255,255,255,.2)}
+.btn.big{font-size:30px;padding:16px 44px;border-radius:24px}
+.btn.big small{display:block;font-size:14px;opacity:.8}
+.btn.wide{width:100%}
+.btn:active,.ico:active{transform:scale(.94)}
+.btns{display:flex;gap:10px}
+.btns .btn{flex:1}
+.btns .btn.ghost,#rUp{flex:0 0 58px}
+.list{display:flex;flex-direction:column;gap:8px}
+.row{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.14);border-radius:16px;padding:10px 12px;text-align:left}
+.row .ic{font-size:28px;width:40px;text-align:center}
+.row .tx{flex:1;font-size:16px}
+.row .tx small{display:block;font-size:12px;opacity:.85;font-weight:700}
+.row .lv{display:flex;gap:2px;margin-top:4px}
+.row .lv i{width:8px;height:8px;border-radius:2px;background:rgba(0,0,0,.2)}
+.row .lv i.on{background:#ffe14d}
+.row button{padding:8px 12px;border-radius:12px;background:linear-gradient(#6dff9a,#1fc760);color:#123d22;font-size:15px;min-width:86px}
+.row button:disabled{background:rgba(0,0,0,.2);color:rgba(255,255,255,.6)}
+.bar{height:8px;border-radius:4px;background:rgba(0,0,0,.2);margin-top:5px;overflow:hidden}
+.bar i{display:block;height:100%;background:#ffe14d}
+#sGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+#sGrid button{border-radius:16px;background:rgba(0,0,0,.14);padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:13px}
+#sGrid canvas{width:64px;height:64px}
+#sGrid button.eq{box-shadow:0 0 0 3px #6dff9a inset;background:rgba(109,255,154,.25)}
+#sGrid .price{color:#ffe14d}
+@media (max-width:480px){#sGrid{grid-template-columns:repeat(3,1fr)}}
+.setRow{display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.14);border-radius:14px;padding:12px 14px;font-size:17px}
+.setRow b{background:#1fc760;border-radius:10px;padding:3px 10px;font-size:14px}
+.setRow b.off{background:rgba(0,0,0,.3)}
+#rStars{display:flex;justify-content:center;gap:10px;height:72px;align-items:center}
+#rStars i{width:60px;height:60px;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);background:rgba(0,0,0,.25)}
+#rStars i:nth-child(2){width:76px;height:76px}
+#rStars i.on{background:linear-gradient(#fff3a0,#ffc21a);animation:star .45s cubic-bezier(.3,1.8,.5,1) both}
+@keyframes star{from{transform:scale(0) rotate(-90deg)}}
+#rStats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#rStats div{background:rgba(0,0,0,.14);border-radius:12px;padding:6px 8px;font-size:14px}
+#rStats b{display:block;font-size:20px}
+.coin.big{font-size:34px;color:#ffe14d;text-shadow:0 3px 0 rgba(0,0,0,.3)}
+.qmini{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.qmini div{background:rgba(0,0,0,.12);border-radius:10px;padding:5px 8px;text-align:left}
+.qmini div.done{background:rgba(109,255,154,.3)}
+
+#toasts{position:fixed;left:50%;top:38%;transform:translateX(-50%);z-index:20;pointer-events:none;display:flex;flex-direction:column;gap:6px;align-items:center}
+.toast{background:rgba(60,30,70,.88);padding:10px 18px;border-radius:14px;font-size:18px;animation:toast 1.8s ease both;text-align:center}
+@keyframes toast{0%{opacity:0;transform:translateY(12px)}12%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
+#boot{position:fixed;inset:0;z-index:50;background:#0f1724;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .4s}
+.bootLogo{font-size:44px;color:#ffd23a;-webkit-text-stroke:3px #1a0a00;paint-order:stroke fill;text-shadow:0 6px 0 #1a0a00}
+.bootBar{width:200px;height:12px;border-radius:6px;background:rgba(0,0,0,.2);overflow:hidden}
+.bootBar i{display:block;height:100%;width:40%;background:#7dffb0;border-radius:6px;animation:boot 1s ease-in-out infinite alternate}
+@keyframes boot{to{transform:translateX(150%)}}
+@media (max-height:520px){.card{padding:12px;gap:8px}.ttl{font-size:24px}#rStars{height:52px}#rStars i{width:44px;height:44px}#rStars i:nth-child(2){width:56px;height:56px}.btn.big{font-size:24px;padding:12px 32px}#logo{font-size:64px}}
+@media (max-width:640px){
+  #hC{top:calc(62px + env(safe-area-inset-top));width:calc(100vw - 24px)}
+  #dayTxt{font-size:11px}
+  #hR{flex-direction:row-reverse;align-items:center}
+  .chip.big{font-size:20px}
+}
+body.touch #tip{bottom:calc(150px + env(safe-area-inset-bottom))}
+
+#hC{width:auto}
+#powers{display:flex;gap:6px;margin-top:4px}
+#powers span{background:rgba(43,42,74,.8);border-radius:12px;padding:3px 8px;font-size:15px}
+.chip.combo{background:#12b89a;animation:pulse .6s infinite}
+.btn.pink{background:linear-gradient(#ff9ec2,#ff5a8a)}
+#oRoom{font-size:54px;color:#ffe14d;-webkit-text-stroke:2px #2b2a4a;paint-order:stroke fill;text-shadow:0 4px 0 rgba(0,0,0,.3);line-height:1}
+#oStats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#oStats div{background:rgba(0,0,0,.14);border-radius:12px;padding:6px 8px;font-size:14px}
+#oStats b{display:block;font-size:20px}
+.tabs{display:flex;gap:6px}
+.tabs button{flex:1;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.15);font-size:15px}
+.tabs button.on{background:#ffe14d;color:#3b2a00}
+#sGrid .row{grid-column:1/-1}
+#banner b{-webkit-text-stroke:3px #2b2a4a;text-shadow:0 6px 0 #2b2a4a}
+#tip{background:rgba(43,42,74,.85)}
+#tip{bottom:calc(46px + env(safe-area-inset-bottom))}
+#banner small{text-shadow:0 2px 0 #2b2a4a,0 0 8px #2b2a4a,0 0 3px #2b2a4a}
+
+.gem::before{content:"💎";margin-right:6px}
+.gem.big{font-size:34px;color:#7df0ff;text-shadow:0 3px 0 rgba(0,0,0,.3)}
+#scoreTxt{font-size:clamp(28px,5vw,46px);color:#ffd23a;-webkit-text-stroke:3px #1a0a00;paint-order:stroke fill;text-shadow:0 4px 0 #1a0a00;line-height:1}
+#cardRow{display:flex;flex-wrap:wrap;gap:3px;max-width:160px;justify-content:flex-end}
+#cardRow span{background:rgba(0,0,0,.6);border-radius:8px;padding:1px 4px;font-size:15px}
+.tz{position:fixed;bottom:calc(10px + env(safe-area-inset-bottom));z-index:4;pointer-events:none;color:rgba(255,255,255,.35);font-size:16px;padding:8px 14px;border:2px dashed rgba(255,255,255,.2);border-radius:14px}
+#touchL{left:12px}#touchR{right:12px}
+#pCards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+#pCards button{border-radius:18px;padding:14px 8px;background:linear-gradient(#3a3f7a,#22264f);border:3px solid #6a7ad8;display:flex;flex-direction:column;align-items:center;gap:6px;animation:popIn .35s cubic-bezier(.3,1.6,.5,1) both}
+#pCards button:nth-child(2){animation-delay:.08s}#pCards button:nth-child(3){animation-delay:.16s}
+#pCards button:hover{transform:translateY(-4px);border-color:#ffd23a}
+#pCards .r2{border-color:#b98cff}#pCards .r3{border-color:#ffd23a;box-shadow:0 0 20px rgba(255,210,58,.5)}
+#pCards .ci{font-size:42px}#pCards .cn{font-size:16px}#pCards .cd{font-size:12px;opacity:.9;font-weight:700}
+#pCards .lv{font-size:11px;color:#7dffb0}
+#sGrid .row{grid-column:1/-1}
+#banner b{-webkit-text-stroke:3px #000;text-shadow:0 6px 0 #000,0 0 24px currentColor}
+#banner small{text-shadow:0 2px 0 #000,0 0 6px #000}
+@media (max-width:560px){#pCards{grid-template-columns:1fr}#pCards button{flex-direction:row;text-align:left;padding:10px}#pCards .ci{font-size:34px}}
+@media (min-aspect-ratio:5/4){
+  #hC{left:calc(50% - 47vh - 30px);top:38%;transform:translateX(-100%);align-items:flex-end}
+  #scoreTxt{font-size:clamp(32px,4.4vw,60px)}
+  #cardRow{max-width:24vw;gap:6px}
+  #cardRow span{font-size:22px;padding:3px 8px}
+}
+
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="hL"><button id="pauseBtn" class="ico" aria-label="Pause">❚❚</button><div class="chip" id="roomTxt">ROOM 1</div><div class="chip" id="ballsTxt">●●●</div></div>
+  <div id="hC"><div id="scoreTxt">0</div><div class="chip combo hidden" id="comboTxt">x3</div></div>
+  <div id="hR"><div class="chip coin" id="coinTxt">0</div><div id="cardRow"></div></div>
+</div>
+<div id="touchL" class="tz hidden">◀ FLIP</div><div id="touchR" class="tz hidden">FLIP ▶</div>
+<div id="banner" class="hidden"><b></b><small></small></div>
+<div id="tip" class="hidden"></div>
+
+<div id="title">
+  <div id="tTop"><div class="chip gem" id="tGems">0</div><div class="chip" id="tBest"></div></div>
+  <h1 id="logo"><span>FLIPPER</span><span>RAID</span></h1>
+  <div class="tag">Pinball meets dungeon crawler. <b>Smash every monster!</b></div>
+  <button id="playBtn" class="btn go big">⚔ RAID</button>
+  <div class="tBtns">
+    <button id="bShop" class="btn"><span>💎</span>UPGRADES<i class="badge hidden" id="shopBadge">!</i></button>
+    <button id="bMi" class="btn"><span>🎯</span>MISSIONS<i class="badge hidden" id="miBadge">!</i></button>
+    <button id="bSet" class="btn"><span>⚙</span>SETTINGS</button>
+  </div>
+  <div class="hint2" id="tHint"></div>
+</div>
+
+<div id="pick" class="screen hidden"><div class="card wide">
+  <div class="ttl" id="pTitle">CHOOSE A POWER</div>
+  <div id="pCards"></div>
+  <button id="pReroll" class="btn ghost">🎲 REROLL</button>
+</div></div>
+
+<div id="over" class="screen hidden"><div class="card">
+  <div class="ttl" id="oTitle">GAME OVER</div>
+  <div id="oRoom">ROOM 1</div>
+  <div id="oBest" class="small"></div>
+  <div id="oStats"></div>
+  <div id="oGems" class="gem big">+0</div>
+  <button id="oRevive" class="btn pink wide hidden">▶ +1 BALL</button>
+  <div id="oMiss" class="qmini"></div>
+  <div class="btns">
+    <button id="oHome" class="btn ghost" aria-label="Home">⌂</button>
+    <button id="oShop" class="btn">💎</button>
+    <button id="oDouble" class="btn gold hidden">▶ ×2</button>
+    <button id="oAgain" class="btn go">RAID AGAIN ▶</button>
+  </div>
+</div></div>
+
+<div id="shop" class="screen hidden"><div class="card wide">
+  <div class="ttl">UPGRADES <small class="gem" id="sGems"></small></div>
+  <div class="tabs"><button data-tab="perk" class="on">PERKS</button><button data-tab="ball">BALLS</button></div>
+  <div id="sGrid"></div>
+  <button class="btn ghost back">BACK</button>
+</div></div>
+<div id="missions" class="screen hidden"><div class="card">
+  <div class="ttl">MISSIONS</div>
+  <div id="mList" class="list"></div>
+  <div class="small" id="mStats"></div>
+  <button class="btn ghost back">BACK</button>
+</div></div>
+<div id="settings" class="screen hidden"><div class="card">
+  <div class="ttl">SETTINGS</div>
+  <div class="list">
+    <button class="setRow" data-opt="sfx"><span>Sound effects</span><b></b></button>
+    <button class="setRow" data-opt="music"><span>Music</span><b></b></button>
+    <button class="setRow" data-opt="shake"><span>Screen shake</span><b></b></button>
+  </div>
+  <button class="btn ghost back">BACK</button>
+</div></div>
+<div id="pause" class="screen hidden"><div class="card">
+  <div class="ttl">PAUSED</div>
+  <button id="pResume" class="btn go wide">▶ RESUME</button>
+  <button id="pSet" class="btn wide">⚙ SETTINGS</button>
+  <button id="pQuit" class="btn ghost wide">END RUN</button>
+</div></div>
+
+<div id="toasts"></div>
+<div id="boot"><div class="bootLogo">FLIPPER RAID</div><div class="bootBar"><i></i></div></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   CrazyGames SDK v3 wrapper.
+   - Documented order: SDK.init() -> loadingStart() -> (load) -> loadingStop()
+   - gameplayStart/Stop are de-duplicated so the portal never sees two
+     starts (or two stops) in a row.
+   - Every call is wrapped: off-portal (localhost, itch, file://) the game
+     runs identically with the SDK absent.
+   - ADS_ENABLED stays false during Basic Launch: CrazyGames does not allow
+     ads in Basic Launch, so no ad API is touched at all while it's false.
+     Flip it to true once the dashboard shows Full Implementation.
+   ===================================================================== */
+const ADS_ENABLED = false;
+
+const SDK = {
+  cg: null, env: 'none', playing: false, lastAd: 0, adBusy: false,
+  onMute: null,
+
+  async init(){
+    await new Promise(res => {
+      let done = false; const fin = () => { if(!done){ done = true; res(); } };
+      try{
+        const s = document.createElement('script');
+        s.src = 'https://sdk.crazygames.com/crazygames-sdk-v3.js';
+        s.onload = fin; s.onerror = fin;
+        document.head.appendChild(s);
+      }catch(e){ fin(); }
+      setTimeout(fin, 4000);
+    });
+    try{
+      const sdk = window.CrazyGames && window.CrazyGames.SDK;
+      if(!sdk) return;
+      await Promise.race([sdk.init(), new Promise((_, rej) => setTimeout(() => rej(new Error('sdk timeout')), 5000))]);
+      this.env = sdk.environment || 'crazygames';
+      if(this.env === 'disabled') return;   // not on a CrazyGames domain
+      this.cg = sdk;
+      try{
+        this.applySettings(sdk.game.settings);
+        sdk.game.addSettingsChangeListener(s => this.applySettings(s));
+      }catch(e){}
+    }catch(e){ this.cg = null; }
+  },
+  applySettings(s){
+    if(!s) return;
+    if(this.onMute) this.onMute(!!s.muteAudio);
+  },
+  data(){ try{ return this.cg && this.cg.data ? this.cg.data : null; }catch(e){ return null; } },
+
+  loadingStart(){ try{ this.cg && this.cg.game.loadingStart(); }catch(e){} },
+  loadingStop(){ try{ this.cg && this.cg.game.loadingStop(); }catch(e){} },
+  gameplayStart(){ if(this.playing) return; this.playing = true; try{ this.cg && this.cg.game.gameplayStart(); }catch(e){} },
+  gameplayStop(){ if(!this.playing) return; this.playing = false; try{ this.cg && this.cg.game.gameplayStop(); }catch(e){} },
+  happytime(){ try{ this.cg && this.cg.game.happytime(); }catch(e){} },
+
+  canRewarded(){ return ADS_ENABLED && !!this.cg && !this.adBusy; },
+
+  /* rewarded ad: cb(true) only when the ad finished */
+  rewarded(cb){
+    if(!this.canRewarded()){ cb(false); return; }
+    this._ad('rewarded', cb);
+  },
+  /* midgame ad at natural breaks, self-limited to one per 3 minutes */
+  midgame(cb){
+    if(!ADS_ENABLED || !this.cg || this.adBusy || Date.now() - this.lastAd < 180000){ cb(); return; }
+    this._ad('midgame', () => cb());
+  },
+  _ad(type, cb){
+    this.adBusy = true; this.gameplayStop();
+    let fin = false;
+    const end = ok => { if(fin) return; fin = true; this.adBusy = false; this.lastAd = Date.now(); AU.adMute(false); cb(ok); };
+    try{
+      this.cg.ad.requestAd(type, {
+        adStarted: () => AU.adMute(true),
+        adFinished: () => end(true),
+        adError: () => end(false)
+      });
+    }catch(e){ end(false); }
+  }
+};
+
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   FLIPPER RAID: data, save, cards, perks, skins, missions.
+   ===================================================================== */
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const $ = id => document.getElementById(id);
+const show = id => $(id).classList.remove('hidden');
+const hide = id => $(id).classList.add('hidden');
+
+const TW = 600, TH = 1000;   // table size in world units
+
+/* ---------------- dungeon floors (themes change every 5 rooms) ---------------- */
+const THEMES = [
+  { name: 'Mossy Dungeon', bg1: '#1d2a3a', bg2: '#0f1724', wall: '#6b8aa8', glow: '#7dffb0', acc: '#ffd23a' },
+  { name: 'Crystal Cave',  bg1: '#24164a', bg2: '#120a2a', wall: '#a98bff', glow: '#7df0ff', acc: '#ff7ad8' },
+  { name: 'Lava Forge',    bg1: '#3a1410', bg2: '#1a0806', wall: '#ff8a3a', glow: '#ffd23a', acc: '#ff4f3a' },
+  { name: 'Frost Keep',    bg1: '#123248', bg2: '#081a28', wall: '#9fe6ff', glow: '#ffffff', acc: '#5ad2ff' },
+  { name: 'Star Vault',    bg1: '#0c0f2e', bg2: '#04051a', wall: '#ffe14d', glow: '#ff7ab8', acc: '#7dffea' }
+];
+
+/* ---------------- monsters ---------------- */
+const MONSTERS = {
+  slime:  { name: 'Slime',        r: 26, hp: 30, col: '#5fe08a', pts: 100 },
+  bat:    { name: 'Bat',          r: 22, hp: 22, col: '#b07dff', pts: 150, move: 'fly' },
+  knight: { name: 'Shield Knight', r: 30, hp: 55, col: '#9fb4c8', pts: 250, shield: true },
+  bomb:   { name: 'Bomb Bug',     r: 24, hp: 25, col: '#ff6a3a', pts: 200, boom: true },
+  split:  { name: 'Splitter',     r: 32, hp: 45, col: '#5ad2ff', pts: 200, split: true },
+  ghost:  { name: 'Ghost',        r: 26, hp: 35, col: '#e8f0ff', pts: 250, blink: true },
+  mini:   { name: 'Mini Slime',   r: 17, hp: 14, col: '#7dffea', pts: 60 }
+};
+const BOSSES = [
+  { name: 'KING SLIME',     col: '#5fe08a', r: 70 },
+  { name: 'CRYSTAL GOLEM',  col: '#a98bff', r: 72 },
+  { name: 'FORGE DRAGON',   col: '#ff6a3a', r: 74 },
+  { name: 'FROST WITCH',    col: '#9fe6ff', r: 68 },
+  { name: 'THE VOID EYE',   col: '#ffe14d', r: 76 }
+];
+
+/* ---------------- run cards ---------------- */
+const CARDS = [
+  { id: 'heavy',   icon: '🔨', name: 'Heavy Ball',     desc: '+35% damage', rar: 1 },
+  { id: 'fire',    icon: '🔥', name: 'Fire Ball',      desc: 'Hits set monsters on fire', rar: 1 },
+  { id: 'split',   icon: '🔮', name: 'Bumper Split',   desc: 'Bumpers can spawn an extra ball', rar: 2 },
+  { id: 'zap',     icon: '⚡', name: 'Lightning',      desc: 'Every 10 bumps, zap ALL monsters', rar: 2 },
+  { id: 'sharp',   icon: '🗡️', name: 'Sharp Flippers', desc: 'Flipper hits launch harder', rar: 1 },
+  { id: 'big',     icon: '📏', name: 'Long Flippers',  desc: 'Flippers 15% longer', rar: 1 },
+  { id: 'saver',   icon: '😇', name: 'Angel Save',     desc: 'Once per room, rescue a draining ball', rar: 2 },
+  { id: 'crit',    icon: '🎯', name: 'Lucky Crit',     desc: '+15% chance for x3 damage', rar: 1 },
+  { id: 'ghost',   icon: '👻', name: 'Ghost Ball',     desc: 'Every 3rd hit pierces straight through', rar: 2 },
+  { id: 'boom',    icon: '💣', name: 'Bumper Bombs',   desc: 'Bumpers blast nearby monsters', rar: 2 },
+  { id: 'coins',   icon: '🪙', name: 'Gold Rush',      desc: '+50% coins', rar: 1 },
+  { id: 'multi',   icon: '🎱', name: 'Twin Start',     desc: 'Start each room with 2 balls', rar: 3 },
+  { id: 'life',    icon: '❤️', name: 'Extra Ball',     desc: '+1 ball right now', rar: 2 },
+  { id: 'bounce',  icon: '🌀', name: 'Super Bumpers',  desc: 'Bumpers kick harder and score x2', rar: 1 },
+  { id: 'chain',   icon: '⛓️', name: 'Chain Hits',     desc: 'Combo hits deal +10% each', rar: 2 },
+  { id: 'magnet',  icon: '🧲', name: 'Drain Magnet',   desc: 'Ball is pulled away from the drain', rar: 2 }
+];
+
+/* ---------------- permanent perks (gems) ---------------- */
+const PERKS = [
+  { id: 'dmg',    icon: '💪', name: 'Power Training', desc: '+8% damage per level',      base: 20, mul: 1.5,  max: 10 },
+  { id: 'balls',  icon: '🎱', name: 'Spare Balls',    desc: '+1 ball per run',            base: 60, mul: 2.2,  max: 2 },
+  { id: 'saver',  icon: '🛟', name: 'Ball Saver',     desc: 'Longer drain protection',    base: 25, mul: 1.6,  max: 6 },
+  { id: 'reroll', icon: '🎲', name: 'Card Reroll',    desc: '+1 reroll per run',          base: 40, mul: 1.8,  max: 3 },
+  { id: 'start',  icon: '🃏', name: 'Head Start',     desc: 'Start the run with a card',  base: 80, mul: 2.5,  max: 2 },
+  { id: 'gold',   icon: '💰', name: 'Treasure Nose',  desc: '+10% coins per level',       base: 20, mul: 1.5,  max: 8 }
+];
+function perkCost(p, l){ return Math.round(p.base * Math.pow(p.mul, l)); }
+const BALLS = [
+  { id: 'steel',  name: 'Steel',     price: 0,   c1: '#ffffff', c2: '#8a96a8' },
+  { id: 'gold',   name: 'Gold',      price: 30,  c1: '#fff6b0', c2: '#d9a000' },
+  { id: 'ruby',   name: 'Ruby',      price: 50,  c1: '#ffc2c8', c2: '#e0283a' },
+  { id: 'jade',   name: 'Jade',      price: 70,  c1: '#d4ffe0', c2: '#16a34a' },
+  { id: 'ice',    name: 'Ice',       price: 90,  c1: '#ffffff', c2: '#5ad2ff' },
+  { id: 'void',   name: 'Void',      price: 140, c1: '#b98cff', c2: '#1b0f40' },
+  { id: 'rainbow',name: 'Prism',     price: 220, c1: '#ffffff', c2: 'rainbow' }
+];
+
+/* ---------------- missions ---------------- */
+const MISSION_POOL = [
+  { id: 'rooms',   txt: n => `Clear ${n} rooms`,           n: [5, 15, 40, 100] },
+  { id: 'kills',   txt: n => `Defeat ${n} monsters`,       n: [30, 100, 300, 800] },
+  { id: 'bosses',  txt: n => `Beat ${n} bosses`,           n: [1, 3, 8] },
+  { id: 'bumps',   txt: n => `Hit bumpers ${n} times`,     n: [100, 400, 1200] },
+  { id: 'jack',    txt: n => `Score ${n} jackpots`,        n: [2, 8, 20] },
+  { id: 'best',    txt: n => `Reach room ${n} in one run`, n: [5, 10, 16, 25], peak: true },
+  { id: 'crits',   txt: n => `Land ${n} critical hits`,    n: [20, 80, 250] }
+];
+
+/* ---------------- save ---------------- */
+const SAVE_KEY = 'flipperraid_save_v1';
+function defSave(){
+  return {
+    v: 1, best: 0, bestScore: 0, gems: 0, runs: 0,
+    perk: { dmg: 0, balls: 0, saver: 0, reroll: 0, start: 0, gold: 0 },
+    ball: 'steel', own: { steel: 1 },
+    opt: { sfx: true, music: true, shake: true, haptic: true },
+    stats: { rooms: 0, kills: 0, bosses: 0, bumps: 0, jack: 0, crits: 0 },
+    missions: [], tut: 0
+  };
+}
+function mergeInto(base, src){
+  if(!src || typeof src !== 'object') return base;
+  for(const k in src){
+    const b = base[k], v = src[k];
+    if(b && typeof b === 'object' && !Array.isArray(b) && v && typeof v === 'object' && !Array.isArray(v)) mergeInto(b, v);
+    else if(b === undefined || typeof b === typeof v) base[k] = v;
+  }
+  return base;
+}
+let save = defSave();
+function loadSave(){
+  let raw = null;
+  const d = SDK.data();
+  try{ raw = d ? d.getItem(SAVE_KEY) : null; }catch(e){}
+  if(!raw){ try{ raw = localStorage.getItem(SAVE_KEY); }catch(e){} }
+  try{ save = mergeInto(defSave(), JSON.parse(raw || '{}')); }catch(e){ save = defSave(); }
+  fillMissions();
+}
+function persist(){
+  const s = JSON.stringify(save), d = SDK.data();
+  try{ if(d) d.setItem(SAVE_KEY, s); }catch(e){}
+  try{ localStorage.setItem(SAVE_KEY, s); }catch(e){}
+}
+function fillMissions(){
+  save.missions = save.missions.filter(m => !m.claimed);
+  const have = new Set(save.missions.map(m => m.id));
+  while(save.missions.length < 3){
+    const p = pick(MISSION_POOL.filter(m => !have.has(m.id))); have.add(p.id);
+    const tier = Math.min(p.n.length - 1, Math.floor(save.runs / 6));
+    const n = p.n[tier];
+    save.missions.push({ id: p.id, n, at: p.peak ? 0 : (save.stats[p.id] || 0), prog: 0, done: false, claimed: false, rw: 10 + tier * 10 });
+  }
+}
+function missionTick(room){
+  for(const m of save.missions){
+    if(m.done) continue;
+    const p = MISSION_POOL.find(x => x.id === m.id);
+    m.prog = p.peak ? Math.max(m.prog, room) : (save.stats[m.id] || 0) - m.at;
+    if(m.prog >= m.n){ m.prog = m.n; m.done = true; }
+  }
+}
+
+</script>
+<script>
+'use strict';
+/* All sound is synthesized: no audio files. Muted while an ad plays, while the
+   tab is hidden, and when CrazyGames asks the game to mute. */
+const AU = {
+  ctx: null, master: null, sfxG: null, musG: null, started: false,
+  portalMute: false, adMuted: false, hidden: false,
+  step: 0, nextT: 0, timer: 0, fast: false, style: 'title',
+
+  init(){
+    if(this.ctx){ this.resume(); return; }
+    try{
+      const C = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new C();
+      this.master = this.ctx.createGain(); this.master.connect(this.ctx.destination);
+      const comp = this.ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.connect(this.master);
+      this.sfxG = this.ctx.createGain(); this.sfxG.connect(comp);
+      this.musG = this.ctx.createGain(); this.musG.connect(comp);
+      this.apply();
+      this.startMusic();
+    }catch(e){ this.ctx = null; }
+  },
+  resume(){ if(this.ctx && this.ctx.state === 'suspended' && !this.adMuted && !this.hidden) this.ctx.resume().catch(() => {}); },
+  apply(){
+    if(!this.ctx) return;
+    const t = this.ctx.currentTime, on = !this.portalMute && !this.adMuted && !this.hidden;
+    this.master.gain.setTargetAtTime(on ? 1 : 0, t, 0.02);
+    this.sfxG.gain.setTargetAtTime(save.opt.sfx ? 0.85 : 0, t, 0.02);
+    this.musG.gain.setTargetAtTime(save.opt.music ? 0.26 : 0, t, 0.05);
+  },
+  setPortalMute(m){ this.portalMute = m; this.apply(); },
+  adMute(m){ this.adMuted = m; this.apply(); },
+  setHidden(h){ this.hidden = h; this.apply(); },
+
+  tone(f, dur, type = 'sine', vol = 0.3, delay = 0, slide = 0, dest){
+    if(!this.ctx) return;
+    const t = this.ctx.currentTime + delay, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, slide), t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(dest || this.sfxG); o.start(t); o.stop(t + dur + 0.02);
+  },
+  noise(dur, vol, f0, f1, q = 1, delay = 0, type = 'bandpass', dest){
+    if(!this.ctx) return;
+    const t = this.ctx.currentTime + delay, n = Math.max(1, Math.floor(this.ctx.sampleRate * dur));
+    const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate), d = buf.getChannelData(0);
+    for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    const s = this.ctx.createBufferSource(), fl = this.ctx.createBiquadFilter(), g = this.ctx.createGain();
+    s.buffer = buf; fl.type = type; fl.Q.value = q;
+    fl.frequency.setValueAtTime(f0, t); fl.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(fl); fl.connect(g); g.connect(dest || this.sfxG); s.start(t);
+  },
+  PENTA: [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28],
+  note(s){ return 523.25 * Math.pow(2, s / 12); },
+  flip(){ this.tone(140, 0.06, 'square', 0.12, 0, 90); this.noise(0.05, 0.25, 2500, 900, 1.2); },
+  bump(k){ const f = this.note(this.PENTA[k % this.PENTA.length]); this.tone(f, 0.16, 'square', 0.12); this.tone(f * 2, 0.12, 'triangle', 0.12, 0.01); this.noise(0.05, 0.2, 5000, 2000, 2); },
+  sling(){ this.tone(320, 0.1, 'square', 0.12, 0, 640); this.noise(0.06, 0.25, 3000, 1200, 1.5); },
+  wall(v){ if(v > 300) this.tone(110, 0.05, 'sine', Math.min(0.2, v / 6000), 0, 80); },
+  hit(k, crit){ const f = this.note(this.PENTA[(k + 3) % this.PENTA.length] - 12); this.tone(f, 0.12, 'sawtooth', 0.12, 0, f * 0.6); this.noise(0.1, 0.35, 1800, 300, 1); if(crit){ this.tone(f * 4, 0.25, 'square', 0.1, 0.02, f * 6); } },
+  shield(){ this.tone(900, 0.08, 'square', 0.08, 0, 1200); this.tone(1400, 0.1, 'sine', 0.08, 0.02); },
+  kill(){ this.noise(0.35, 0.5, 2500, 200, 0.7); [0, 7, 12].forEach((s, i) => this.tone(this.note(s), 0.2, 'triangle', 0.16, i * 0.04)); },
+  boom(){ this.noise(0.6, 0.7, 1600, 80, 0.6); this.tone(80, 0.5, 'sine', 0.5, 0, 35); },
+  coin(){ this.tone(1318, 0.06, 'square', 0.05); this.tone(1760, 0.12, 'square', 0.05, 0.05); },
+  lane(k){ this.tone(this.note(7 + k * 5), 0.15, 'triangle', 0.18); },
+  mult(){ [0, 4, 7, 12, 16].forEach((s, i) => this.tone(this.note(s + 12), 0.2, 'square', 0.08, i * 0.05)); },
+  target(){ this.tone(600, 0.1, 'square', 0.1, 0, 400); },
+  jackpot(){ [0, 4, 7, 12, 7, 12, 16, 19, 24].forEach((s, i) => this.tone(this.note(s), 0.22, 'square', 0.1, i * 0.06)); this.noise(0.8, 0.2, 5000, 9000, 0.7, 0, 'highpass'); },
+  zap(){ this.noise(0.4, 0.45, 6000, 400, 4); this.tone(1200, 0.3, 'sawtooth', 0.12, 0, 100); },
+  launch(){ this.noise(0.4, 0.35, 400, 3000, 1.2); this.tone(200, 0.35, 'triangle', 0.15, 0, 800); },
+  drain(){ [7, 4, 0, -5].forEach((s, i) => this.tone(this.note(s - 5), 0.25, 'triangle', 0.18, i * 0.1)); },
+  save(){ [12, 19, 24].forEach((s, i) => this.tone(this.note(s), 0.25, 'sine', 0.2, i * 0.06)); },
+  clear(){ [0, 4, 7, 12, 16, 19, 24, 28].forEach((s, i) => this.tone(this.note(s), 0.35, 'triangle', 0.17, i * 0.06)); this.noise(0.9, 0.2, 4000, 9000, 0.7, 0.1, 'highpass'); },
+  card(){ [0, 7, 12, 16].forEach((s, i) => this.tone(this.note(s + 7), 0.22, 'triangle', 0.18, i * 0.05)); },
+  bossIn(){ this.tone(55, 1.2, 'sawtooth', 0.25, 0, 40); this.tone(82, 1.2, 'sawtooth', 0.18, 0.1, 60); this.noise(1.2, 0.3, 300, 80, 0.8); },
+  multi(){ [12, 16, 19, 24, 28].forEach((s, i) => this.tone(this.note(s), 0.2, 'square', 0.08, i * 0.04)); },
+  over(){ [7, 4, 0, -5, -8].forEach((s, i) => this.tone(this.note(s), 0.35, 'triangle', 0.18, i * 0.13)); },
+  click(){ this.tone(700, 0.05, 'triangle', 0.15, 0, 900); },
+  buy(){ [0, 7, 12, 19].forEach((s, i) => this.tone(this.note(s), 0.2, 'triangle', 0.2, i * 0.05)); },
+  lose1(){ this.tone(300, 0.15, 'triangle', 0.12, 0, 200); },
+
+  /* bouncy song; faster and brighter during Sugar Rush */
+  PROG: [[0, 3, 7, 10], [-4, 0, 3, 7], [-2, 2, 5, 9], [-5, -1, 2, 7]],
+  setStyle(s){ this.style = s; },
+  startMusic(){
+    if(!this.ctx) return;
+    this.nextT = this.ctx.currentTime + 0.1;
+    clearInterval(this.timer);
+    this.timer = setInterval(() => this.sched(), 50);
+  },
+  sched(){
+    if(!this.ctx || this.ctx.state !== 'running') return;
+    const bpm = this.fast ? 150 : this.style === 'title' ? 96 : 124, spb = 60 / bpm / 2;
+    while(this.nextT < this.ctx.currentTime + 0.2){
+      const st = this.step % 64, bar = Math.floor(st / 16), ch = this.PROG[bar], beat = st % 16;
+      const t = this.nextT - this.ctx.currentTime, M = this.musG, k = this.fast ? 5 : 0;
+      if(beat % 4 === 0) this.tone(this.note(ch[0] + k - 24), spb * 1.6, 'triangle', 0.4, t, 0, M);
+      if(beat % 4 === 2) this.tone(this.note(ch[0] + k - 12), spb * 0.6, 'triangle', 0.18, t, 0, M);
+      if(this.style !== 'title' && beat % 4 === 0) this.tone(90, 0.12, 'sine', 0.35, t, 45, M);
+      if(this.style !== 'title' && beat % 4 === 2) this.noise(0.06, 0.12, 3000, 6000, 1, t, 'bandpass', M);
+      if(beat % 2 === 1) this.noise(0.03, 0.05, 8000, 9000, 1, t, 'highpass', M);
+      const arp = [0, 1, 2, 3][beat % 4];
+      if(beat % 2 === 0 || this.fast) this.tone(this.note(ch[arp] + k + (beat >= 8 ? 12 : 0)), spb * 0.8, 'sine', 0.1, t, 0, M);
+      if(st % 16 === 12 && Math.random() < 0.6) this.tone(this.note(pick([12, 14, 16, 19]) + k + 12), spb * 3, 'triangle', 0.06, t, 0, M);
+      this.nextT += spb; this.step++;
+    }
+  }
+};
+
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   FLIPPER RAID: pinball physics, dungeon rooms, monsters and cards.
+   World: a 600 x 1000 table, y down. Physics runs in substeps so a fast
+   ball never tunnels through a flipper.
+   ===================================================================== */
+const BR = 12, GRAV = 980, VMAX = 2500, SUB = 14, FLEN = 110;
+const LP = { x: 176, y: 885 }, RP = { x: 424, y: 885 };
+const G = {
+  state: 'title', t: 0, ts: 1, room: 1, theme: THEMES[0], lives: 3, score: 0, coins: 0, mult: 1,
+  balls: [], mons: [], bumpers: [], targets: [], orbs: [], walls: [], lanes: [false, false, false],
+  parts: [], texts: [], rings: [], bolts: [],
+  inL: false, inR: false, fl: null, combo: 0, bumps: 0, hits: 0, saveT: 0, angelUsed: false,
+  cards: {}, cardList: [], pending: 0, clearT: 0, shake: 0, flash: 0, flashC: '#fff',
+  run: null, demo: false, launchQ: 0, rerolls: 0
+};
+
+/* ---------------- geometry ---------------- */
+function buildTable(){
+  const W = [];
+  const seg = (ax, ay, bx, by, kind) => W.push({ ax, ay, bx, by, r: 8, kind: kind || 'wall' });
+  // dome
+  const cx = 300, cy = 300, R = 270, n = 14;
+  let px = cx - R, py = cy;
+  for(let i = 1; i <= n; i++){ const a = Math.PI + i / n * Math.PI, x = cx + Math.cos(a) * R, y = cy + Math.sin(a) * R; seg(px, py, x, y); px = x; py = y; }
+  seg(30, 300, 30, 760); seg(570, 300, 570, 760);
+  // inlane guides into the flippers
+  seg(30, 760, LP.x - 12, LP.y - 8); seg(570, 760, RP.x + 12, RP.y - 8);
+  // slingshots (closed triangles; the inner face kicks)
+  // sealed to the side walls so the ball can never wedge behind them
+  seg(78, 680, 140, 790, 'sling'); seg(140, 790, 30, 790); seg(30, 672, 78, 680);
+  seg(522, 680, 460, 790, 'sling'); seg(460, 790, 570, 790); seg(570, 672, 522, 680);
+  // lane dividers at the top
+  for(const x of [255, 345]) W.push({ ax: x, ay: 92, bx: x, by: 132, r: 6, kind: 'wall' });
+  G.walls = W;
+}
+function flipper(side){
+  const left = side === 'L', P = left ? LP : RP, f = G.fl[side];
+  const len = FLEN * (1 + (G.cards.big || 0) * 0.15);
+  const a = f.a;
+  return { px: P.x, py: P.y, tx: P.x + Math.cos(a) * len, ty: P.y + Math.sin(a) * len, len };
+}
+function resetFlippers(){
+  G.fl = { L: { a: 0.45, w: 0, rest: 0.45, up: -0.45 }, R: { a: Math.PI - 0.45, w: 0, rest: Math.PI - 0.45, up: Math.PI + 0.45 } };
+}
+
+/* ---------------- run / rooms ---------------- */
+function newRun(demo){
+  G.demo = !!demo;
+  G.room = 1; G.score = 0; G.coins = 0; G.mult = 1; G.cards = {}; G.cardList = [];
+  G.lives = 3 + (demo ? 0 : save.perk.balls);
+  G.rerolls = demo ? 0 : save.perk.reroll;
+  G.run = { rooms: 0, kills: 0, bosses: 0, bumps: 0, jack: 0, crits: 0, maxCombo: 0 };
+  if(!demo) for(let i = 0; i < save.perk.start; i++){ const c = pick(CARDS.filter(c => c.id !== 'life')); addCard(c, true); }
+  buildTable(); resetFlippers();
+  startRoom(1);
+}
+function startRoom(n){
+  G.room = n; G.theme = THEMES[Math.floor((n - 1) / 5) % THEMES.length];
+  G.mons = []; G.bumpers = []; G.targets = []; G.orbs = []; G.balls = []; G.bolts = [];
+  G.parts = []; G.texts = []; G.rings = []; G.lanes = [false, false, false];
+  G.combo = 0; G.angelUsed = false; G.clearT = 0; G.ts = 1; G.pending = 0;
+  const boss = n % 5 === 0, k = 1 + (n - 1) * 0.2;
+  const taken = [];
+  const free = (x, y, r) => taken.every(t => Math.hypot(x - t.x, y - t.y) > r + t.r + 34);
+  const place = (r, y0, y1) => { for(let i = 0; i < 80; i++){ const x = rnd(70 + r, 530 - r), y = rnd(y0, y1); if(free(x, y, r)){ taken.push({ x, y, r }); return { x, y }; } } return null; };
+  if(boss){
+    const B = BOSSES[Math.floor(n / 5 - 1) % BOSSES.length];
+    const hp = Math.round(420 * k);
+    const m = { k: 'boss', x: 300, y: 270, hx: 300, hy: 270, r: B.r, hp, max: hp, col: B.col, name: B.name, pts: 5000, hit: 0, burn: 0, ph: 0, boss: true };
+    G.mons.push(m); taken.push({ x: 300, y: 270, r: B.r + 70 });
+    const no = 2 + Math.min(2, Math.floor(n / 10));
+    for(let i = 0; i < no; i++) G.orbs.push({ a: i / no * TAU, r: 20, dist: B.r + 48, x: 0, y: 0 });
+    for(let i = 0; i < 2; i++){ const p = place(26, 480, 620); if(p) G.bumpers.push({ x: p.x, y: p.y, r: 28, hit: 0 }); }
+    for(let i = 0; i < 2; i++){ const p = place(20, 450, 640); if(p) addMon('mini', p.x, p.y, k); }
+    if(!G.demo){ AU.bossIn(); UI.banner('👑 ' + B.name, 'BOSS ROOM', B.col); }
+  }else{
+    const nb = 2 + (Math.random() < 0.5 ? 1 : 0);
+    for(let i = 0; i < nb; i++){ const p = place(28, 240, 600); if(p) G.bumpers.push({ x: p.x, y: p.y, r: 28, hit: 0 }); }
+    if(n >= 2 && Math.random() < 0.55){
+      const y = rnd(430, 560), x0 = rnd(150, 270);
+      for(let i = 0; i < 4; i++) G.targets.push({ x: x0 + i * 46, y, w: 36, up: true, hit: 0 });
+      taken.push({ x: x0 + 70, y, r: 100 });
+    }
+    const pool = ['slime'];
+    if(n >= 2) pool.push('bat'); if(n >= 3) pool.push('knight'); if(n >= 4) pool.push('bomb'); if(n >= 6) pool.push('split'); if(n >= 8) pool.push('ghost');
+    const nm = Math.min(9, 3 + Math.floor(n / 2));
+    for(let i = 0; i < nm; i++){
+      const kind = i === 0 ? 'slime' : pick(pool), r = MONSTERS[kind].r;
+      const p = place(r, 170, 640); if(p) addMon(kind, p.x, p.y, k);
+    }
+    if(!G.demo) UI.banner('ROOM ' + n, n === 1 ? 'Smash the monsters with your ball!' : G.theme.name, G.theme.glow);
+  }
+  const nb = 1 + ((G.cards.multi || 0) ? 1 : 0);
+  for(let i = 0; i < nb; i++) queueLaunch(i * 0.5);
+  G.saveT = 4 + (G.demo ? 0 : save.perk.saver * 1.5);
+  G.state = G.demo ? 'title' : 'play';
+}
+function addMon(kind, x, y, k){
+  const d = MONSTERS[kind], hp = Math.round(d.hp * k);
+  G.mons.push({ k: kind, x, y, hx: x, hy: y, r: d.r, hp, max: hp, col: d.col, pts: d.pts, hit: 0, burn: 0, ph: Math.random() * TAU });
+}
+// balls waiting in the launch chute count as alive, so the room never thinks it drained
+function queueLaunch(delay){ G.pending++; setTimeout(() => { G.pending = Math.max(0, G.pending - 1); launchBall(); }, delay * 1000 + 450); }
+function launchBall(x){
+  if(G.state !== 'play' && G.state !== 'title') return;
+  const b = { x: x || 300, y: 50, vx: rnd(-160, 160), vy: 120, trail: [], slow: 0, ghostN: 0, id: Math.random() };
+  G.balls.push(b);
+  if(!G.demo) AU.launch();
+  ring(b.x, b.y, G.theme.glow, 50);
+}
+function addCard(c, silent){
+  G.cards[c.id] = (G.cards[c.id] || 0) + 1;
+  G.cardList.push(c);
+  if(c.id === 'life') G.lives++;
+  if(!silent && !G.demo) AU.card();
+}
+
+/* ---------------- update ---------------- */
+function update(rdt){
+  if(G.state !== 'play' && G.state !== 'title' && G.state !== 'clear') return;
+  G.ts = lerp(G.ts, G.state === 'clear' ? 0.25 : 1, Math.min(1, rdt * 8));
+  const dt = rdt * G.ts;
+  G.t += dt;
+  G.shake = Math.max(0, G.shake - rdt * 30); G.flash = Math.max(0, G.flash - rdt * 2.4);
+  if(G.saveT > 0) G.saveT -= dt;
+  if(G.demo) autopilot();
+  // flippers
+  const h = dt / SUB;
+  for(let s = 0; s < SUB; s++){
+    for(const side of ['L', 'R']){
+      const f = G.fl[side], on = side === 'L' ? G.inL : G.inR;
+      const target = on ? f.up : f.rest, sp = (on ? 30 : 16) * h;
+      const old = f.a;
+      if(Math.abs(target - f.a) <= sp) f.a = target; else f.a += Math.sign(target - f.a) * sp;
+      f.w = (f.a - old) / h;
+    }
+    for(const b of G.balls) if(!b.dead) stepBall(b, h);
+    ballBall();
+  }
+  // monsters
+  for(const m of G.mons){
+    if(m.dead) continue;
+    m.ph += dt; m.hit = Math.max(0, m.hit - dt * 4);
+    if(m.k === 'bat'){ m.x = m.hx + Math.sin(m.ph * 1.3) * 70; m.y = m.hy + Math.sin(m.ph * 2.1) * 30; }
+    if(m.k === 'boss'){ m.x = 300 + Math.sin(m.ph * 0.6) * 140; m.y = m.hy + Math.sin(m.ph * 1.1) * 18; }
+    if(m.k === 'ghost') m.gone = (m.ph % 4) > 2.8;
+    if(m.burn > 0){ m.burn -= dt; m.burnT = (m.burnT || 0) + dt; if(m.burnT > 0.5){ m.burnT = 0; damage(m, 4 * dmgMult(), null, true); } }
+  }
+  for(const o of G.orbs){ const bm = G.mons.find(m => m.boss && !m.dead); if(!bm){ o.dead = true; continue; } o.a += dt * 1.6; o.x = bm.x + Math.cos(o.a) * o.dist; o.y = bm.y + Math.sin(o.a) * o.dist; }
+  for(const bp of G.bumpers) bp.hit = Math.max(0, bp.hit - dt * 4);
+  for(const tg of G.targets) tg.hit = Math.max(0, tg.hit - dt * 3);
+  // drains
+  for(const b of G.balls){
+    if(b.dead || b.y < TH + 20) continue;
+    if(G.saveT > 0 || (!G.demo && G.cards.saver && !G.angelUsed)){
+      if(G.saveT <= 0) G.angelUsed = true;
+      b.dead = true; launchBall();
+      if(!G.demo){ AU.save(); floatText(G.saveT > 0 ? 'BALL SAVED!' : '😇 ANGEL SAVE!', 300, 840, '#9fe6ff', 1.2); }
+      continue;
+    }
+    b.dead = true;
+  }
+  G.balls = G.balls.filter(b => !b.dead);
+  if(!G.balls.length && !G.pending && (G.state === 'play' || G.state === 'title') && !G.mons.every(m => m.dead)) lostBall();
+  // room clear
+  if(G.state === 'play' && G.mons.length && G.mons.every(m => m.dead)) roomClear();
+  if(G.state === 'title' && G.mons.every(m => m.dead)) startRoom(G.room % 9 + 1);
+  if(G.state === 'clear'){ G.clearT += rdt; if(G.clearT > 1.3 && !G.pickShown){ G.pickShown = true; UI.showPick(); } }
+  // effects
+  for(let i = G.parts.length - 1; i >= 0; i--){ const p = G.parts[i]; p.life += dt; if(p.life >= p.max){ G.parts.splice(i, 1); continue; } p.x += p.vx * dt; p.y += p.vy * dt; if(p.g) p.vy += p.g * dt; else { p.vx *= 0.93; p.vy *= 0.93; } }
+  for(let i = G.texts.length - 1; i >= 0; i--){ const t = G.texts[i]; t.life += rdt; t.y -= rdt * 45; if(t.life > t.max) G.texts.splice(i, 1); }
+  for(let i = G.rings.length - 1; i >= 0; i--){ const r = G.rings[i]; r.life += dt; if(r.life > r.max) G.rings.splice(i, 1); }
+  for(let i = G.bolts.length - 1; i >= 0; i--){ const r = G.bolts[i]; r.life += rdt; if(r.life > 0.35) G.bolts.splice(i, 1); }
+}
+
+/* ---------------- ball physics ---------------- */
+function stepBall(b, h){
+  b.vy += GRAV * h;
+  // drain magnet nudges a falling ball toward the flippers
+  if(G.cards.magnet && b.y > 860 && Math.abs(b.x - 300) < 46 && b.vy > 0){ b.vx += (b.x < 300 ? -1 : 1) * 2600 * h * G.cards.magnet; }
+  const sp = Math.hypot(b.vx, b.vy); if(sp > VMAX){ b.vx *= VMAX / sp; b.vy *= VMAX / sp; }
+  b.x += b.vx * h; b.y += b.vy * h;
+  // walls + slingshots
+  for(const w of G.walls) collideSeg(b, w);
+  // drop targets
+  for(const tg of G.targets){
+    if(!tg.up) continue;
+    const w = { ax: tg.x - tg.w / 2, ay: tg.y, bx: tg.x + tg.w / 2, by: tg.y, r: 7, kind: 'target', tg };
+    collideSeg(b, w);
+  }
+  // flippers
+  for(const side of ['L', 'R']){
+    const f = flipper(side), fs = G.fl[side];
+    const q = closest(b.x, b.y, f.px, f.py, f.tx, f.ty);
+    const rad = lerp(13, 8, q.t);
+    // which side of the flipper blade the ball is on; a fast ball must never be pushed through it
+    const ux = (f.tx - f.px) / f.len, uy = (f.ty - f.py) / f.len;
+    const sd = (b.x - f.px) * -uy + (b.y - f.py) * ux;
+    const key = 'side' + side;
+    if(q.d >= BR + rad){ if(Math.abs(sd) > 3) b[key] = Math.sign(sd); continue; }
+    let nx = (b.x - q.x) / (q.d || 1), ny = (b.y - q.y) / (q.d || 1);
+    if(b[key] && q.t > 0.02 && q.t < 0.98 && Math.sign(sd) !== b[key]){ nx = -uy * b[key]; ny = ux * b[key]; }
+    const svx = -fs.w * (q.y - f.py), svy = fs.w * (q.x - f.px);
+    let rvx = b.vx - svx, rvy = b.vy - svy;
+    const vn = rvx * nx + rvy * ny;
+    if(vn < 0){
+      const e = 0.25 + (Math.abs(fs.w) > 1 ? 0.25 + (G.cards.sharp || 0) * 0.15 : 0);
+      rvx -= (1 + e) * vn * nx; rvy -= (1 + e) * vn * ny;
+      b.vx = rvx + svx; b.vy = rvy + svy;
+      if(Math.abs(fs.w) > 1){ G.combo = 0; }
+    }
+    b.x = q.x + nx * (BR + rad + 0.3); b.y = q.y + ny * (BR + rad + 0.3);
+  }
+  // bumpers
+  for(const bp of G.bumpers){
+    const dx = b.x - bp.x, dy = b.y - bp.y, d = Math.hypot(dx, dy);
+    if(d >= BR + bp.r) continue;
+    const nx = dx / (d || 1), ny = dy / (d || 1), vn = b.vx * nx + b.vy * ny;
+    b.x = bp.x + nx * (BR + bp.r + 0.5); b.y = bp.y + ny * (BR + bp.r + 0.5);
+    if(vn < 60){
+      b.vx -= vn * nx; b.vy -= vn * ny;
+      const kick = 880 * (1 + (G.cards.bounce || 0) * 0.15);
+      b.vx += nx * kick; b.vy += ny * kick;
+      bumperHit(bp, b);
+    }
+  }
+  // boss shield orbs
+  for(const o of G.orbs){
+    if(o.dead) continue;
+    const dx = b.x - o.x, dy = b.y - o.y, d = Math.hypot(dx, dy);
+    if(d >= BR + o.r) continue;
+    const nx = dx / (d || 1), ny = dy / (d || 1), vn = b.vx * nx + b.vy * ny;
+    if(vn < 0){ b.vx -= 1.9 * vn * nx; b.vy -= 1.9 * vn * ny; if(!G.demo) AU.shield(); ring(o.x, o.y, '#ffffff', 30); }
+    b.x = o.x + nx * (BR + o.r + 0.5); b.y = o.y + ny * (BR + o.r + 0.5);
+  }
+  // monsters
+  for(const m of G.mons){
+    if(m.dead || m.gone) continue;
+    const dx = b.x - m.x, dy = b.y - m.y, d = Math.hypot(dx, dy);
+    if(d >= BR + m.r) continue;
+    const nx = dx / (d || 1), ny = dy / (d || 1), vn = b.vx * nx + b.vy * ny;
+    if(vn >= 0){ b.x = m.x + nx * (BR + m.r + 0.5); b.y = m.y + ny * (BR + m.r + 0.5); continue; }
+    const speed = Math.hypot(b.vx, b.vy);
+    // shield knights block hits from below
+    if(m.k === 'knight' && ny > 0.45){
+      b.vx -= 1.9 * vn * nx; b.vy -= 1.9 * vn * ny;
+      b.x = m.x + nx * (BR + m.r + 0.5); b.y = m.y + ny * (BR + m.r + 0.5);
+      if(!G.demo){ AU.shield(); floatText('BLOCK!', m.x, m.y - m.r - 10, '#cfe0f0', 0.7); }
+      continue;
+    }
+    b.ghostN = (b.ghostN || 0) + 1;
+    const pierce = G.cards.ghost && b.ghostN % 3 === 0;
+    if(!pierce){
+      b.vx -= 1.85 * vn * nx; b.vy -= 1.85 * vn * ny;
+      b.x = m.x + nx * (BR + m.r + 0.5); b.y = m.y + ny * (BR + m.r + 0.5);
+    }else if(!G.demo) floatText('PIERCE!', m.x, m.y - m.r - 20, '#e8f0ff', 0.6);
+    G.combo++; G.run.maxCombo = Math.max(G.run.maxCombo, G.combo);
+    const base = 10 * dmgMult() * (0.55 + Math.min(1.6, speed / 1100)) * (1 + (G.cards.chain || 0) * 0.1 * Math.min(10, G.combo));
+    damage(m, base, b);
+    if(G.cards.fire) m.burn = 3;
+  }
+  // rollover lanes
+  if(b.y > 96 && b.y < 128){
+    const xs = [210, 300, 390];
+    for(let i = 0; i < 3; i++) if(Math.abs(b.x - xs[i]) < 26 && !G.lanes[i]){
+      G.lanes[i] = true; if(!G.demo) AU.lane(i); addScore(100, xs[i], 112);
+      if(G.lanes.every(x => x)){ G.lanes = [false, false, false]; G.mult = Math.min(9, G.mult + 1); if(!G.demo){ AU.mult(); UI.banner('MULTIPLIER x' + G.mult + '!', '', G.theme.acc); } }
+    }
+  }
+  b.trail.push({ x: b.x, y: b.y }); if(b.trail.length > 10) b.trail.shift();
+}
+function closest(px, py, ax, ay, bx, by){
+  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
+  const t = clamp(((px - ax) * dx + (py - ay) * dy) / l2, 0, 1), x = ax + dx * t, y = ay + dy * t;
+  return { x, y, t, d: Math.hypot(px - x, py - y) };
+}
+function collideSeg(b, w){
+  const q = closest(b.x, b.y, w.ax, w.ay, w.bx, w.by);
+  if(q.d >= BR + w.r) return;
+  const nx = (b.x - q.x) / (q.d || 1), ny = (b.y - q.y) / (q.d || 1), vn = b.vx * nx + b.vy * ny;
+  b.x = q.x + nx * (BR + w.r + 0.3); b.y = q.y + ny * (BR + w.r + 0.3);
+  if(vn >= 0) return;
+  if(w.kind === 'sling' && vn < -120){
+    b.vx -= 2 * vn * nx; b.vy -= 2 * vn * ny; b.vx += nx * 520; b.vy += ny * 520;
+    w.hit = 1; if(!G.demo) AU.sling(); addScore(30, b.x, b.y); return;
+  }
+  if(w.kind === 'target'){
+    b.vx -= 1.6 * vn * nx; b.vy -= 1.6 * vn * ny;
+    w.tg.up = false; w.tg.hit = 1;
+    if(!G.demo) AU.target(); addScore(250, w.tg.x, w.tg.y);
+    burst(w.tg.x, w.tg.y, 8, G.theme.acc, 160, 3);
+    if(G.targets.every(t => !t.up)) jackpot();
+    return;
+  }
+  b.vx -= 1.45 * vn * nx; b.vy -= 1.45 * vn * ny;
+  if(!G.demo) AU.wall(-vn);
+}
+function ballBall(){
+  const B = G.balls;
+  for(let i = 0; i < B.length; i++) for(let j = i + 1; j < B.length; j++){
+    const a = B[i], c = B[j], dx = c.x - a.x, dy = c.y - a.y, d = Math.hypot(dx, dy);
+    if(d >= BR * 2 || d === 0) continue;
+    const nx = dx / d, ny = dy / d, rel = (c.vx - a.vx) * nx + (c.vy - a.vy) * ny;
+    const o = (BR * 2 - d) / 2; a.x -= nx * o; a.y -= ny * o; c.x += nx * o; c.y += ny * o;
+    if(rel < 0){ a.vx += rel * nx; a.vy += rel * ny; c.vx -= rel * nx; c.vy -= rel * ny; }
+  }
+}
+
+/* ---------------- scoring & combat ---------------- */
+function dmgMult(){ return (1 + (G.cards.heavy || 0) * 0.35) * (1 + (G.demo ? 0 : save.perk.dmg) * 0.08); }
+function addScore(v, x, y){ const s = Math.round(v * G.mult); G.score += s; return s; }
+function damage(m, dmg, b, quiet){
+  if(m.dead) return;
+  const crit = !quiet && Math.random() < 0.05 + (G.cards.crit || 0) * 0.15;
+  if(crit){ dmg *= 3; G.run.crits++; if(!G.demo) save.stats.crits++; }
+  dmg = Math.max(1, Math.round(dmg));
+  m.hp -= dmg; m.hit = 1;
+  G.hits++;
+  if(!G.demo){
+    floatText((crit ? 'CRIT ' : '') + dmg, m.x + rnd(-12, 12), m.y - m.r - 6, crit ? '#ffe14d' : quiet ? '#ff9d4a' : '#ffffff', crit ? 1.4 : quiet ? 0.6 : 0.95);
+    if(!quiet) AU.hit(G.combo, crit);
+  }
+  if(!quiet){ burst(b ? b.x : m.x, b ? b.y : m.y, crit ? 14 : 7, m.col, crit ? 320 : 200, crit ? 5 : 4); G.shake = Math.max(G.shake, crit ? 8 : 3); }
+  addScore(dmg * 5, m.x, m.y);
+  if(m.hp <= 0) killMon(m);
+}
+function killMon(m){
+  m.dead = true;
+  G.run.kills++; if(!G.demo) save.stats.kills++;
+  if(!G.demo){ AU.kill(); }
+  G.shake = Math.max(G.shake, m.boss ? 22 : 8);
+  burst(m.x, m.y, m.boss ? 70 : 24, m.col, m.boss ? 600 : 380, m.boss ? 8 : 6);
+  ring(m.x, m.y, '#ffffff', m.boss ? 220 : 80);
+  const pts = addScore(m.pts, m.x, m.y);
+  if(!G.demo) floatText('+' + pts, m.x, m.y - 30, G.theme.acc, m.boss ? 2 : 1.1);
+  const c = Math.round((m.boss ? 40 : 3 + Math.floor(Math.random() * 3)) * (1 + (G.cards.coins || 0) * 0.5) * (1 + (G.demo ? 0 : save.perk.gold) * 0.1));
+  G.coins += c;
+  for(let i = 0; i < Math.min(14, c); i++){ const a = Math.random() * TAU, v = 150 + Math.random() * 250; G.parts.push({ x: m.x, y: m.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 200, life: 0, max: 0.9, c: '#ffd23a', sz: 5, g: 900, coin: true }); }
+  if(!G.demo) setTimeout(() => AU.coin(), 120);
+  if(m.k === 'bomb'){
+    if(!G.demo) AU.boom(); G.flash = 0.3; G.flashC = '#ffb13a';
+    ring(m.x, m.y, '#ff8a3a', 160); burst(m.x, m.y, 30, '#ff8a3a', 500, 6);
+    for(const o of G.mons) if(!o.dead && o !== m && Math.hypot(o.x - m.x, o.y - m.y) < 170) damage(o, 40 * dmgMult(), null, true);
+  }
+  if(m.k === 'split'){ const k = 1 + (G.room - 1) * 0.2; addMon('mini', m.x - 30, m.y, k); addMon('mini', m.x + 30, m.y, k); }
+  if(m.boss){ G.run.bosses++; G.lives++; if(!G.demo){ save.stats.bosses++; SDK.happytime(); floatText('+1 BALL!', m.x, m.y - 70, '#7dffb0', 1.5); } G.flash = 0.6; G.flashC = '#ffffff'; }
+}
+function bumperHit(bp, b){
+  bp.hit = 1;
+  G.bumps++; G.run.bumps++; if(!G.demo) save.stats.bumps++;
+  G.combo++;
+  if(!G.demo) AU.bump(G.bumps);
+  addScore(50 * (G.cards.bounce ? 2 : 1), bp.x, bp.y);
+  ring(bp.x, bp.y, G.theme.glow, 50);
+  if(G.cards.boom) for(const m of G.mons) if(!m.dead && Math.hypot(m.x - bp.x, m.y - bp.y) < 150){ damage(m, 8 * G.cards.boom * dmgMult(), null, true); G.bolts.push({ x0: bp.x, y0: bp.y, x1: m.x, y1: m.y, life: 0, col: '#ff8a3a' }); }
+  if(G.cards.split && G.balls.length < 4 && Math.random() < 0.12 * G.cards.split){
+    G.balls.push({ x: bp.x, y: bp.y - bp.r - BR - 2, vx: rnd(-400, 400), vy: -600, trail: [], ghostN: 0, id: Math.random() });
+    if(!G.demo){ AU.multi(); floatText('MULTIBALL!', bp.x, bp.y - 50, '#b98cff', 1.2); }
+  }
+  if(G.cards.zap && G.bumps % 10 === 0){
+    if(!G.demo) AU.zap(); G.flash = 0.25; G.flashC = '#cfe8ff';
+    for(const m of G.mons) if(!m.dead){ G.bolts.push({ x0: m.x + rnd(-40, 40), y0: 0, x1: m.x, y1: m.y, life: 0, col: '#9fe6ff' }); damage(m, 20 * G.cards.zap * dmgMult(), null, true); }
+    if(!G.demo) floatText('⚡ LIGHTNING!', 300, 400, '#9fe6ff', 1.3);
+  }
+}
+function jackpot(){
+  G.run.jack++; if(!G.demo) save.stats.jack++;
+  const v = addScore(5000, 300, 480);
+  G.coins += 15;
+  if(!G.demo){ AU.jackpot(); UI.banner('💰 JACKPOT! +' + v, 'Bonus multiball!', '#ffe14d'); SDK.happytime(); }
+  G.flash = 0.5; G.flashC = '#fff2a8';
+  confetti(300, 480, 70);
+  setTimeout(() => { if(G.state === 'play' || G.state === 'title'){ for(const t of G.targets){ t.up = true; } launchBall(); } }, 1500);
+}
+function lostBall(){
+  if(G.demo){ launchBall(); return; }
+  G.lives--;
+  AU.drain();
+  if(G.lives <= 0){ gameOverNow(); return; }
+  UI.banner('BALL LOST', G.lives + (G.lives === 1 ? ' ball left' : ' balls left'), '#ff6b6b');
+  G.saveT = 3 + save.perk.saver;
+  queueLaunch(0.6);
+}
+function roomClear(){
+  G.state = 'clear'; G.clearT = 0; G.pickShown = false;
+  G.run.rooms++; save.stats.rooms++;
+  const bonus = addScore(1000 * G.room, 300, 400);
+  G.coins += 5 + G.room;
+  AU.clear(); G.flash = 0.4; G.flashC = '#ffffff';
+  confetti(300, 420, 90);
+  UI.banner(G.room % 5 === 0 ? '👑 BOSS DEFEATED!' : 'ROOM CLEAR!', '+' + bonus, G.theme.acc);
+  missionTick(G.room); persist();
+}
+function nextRoom(){
+  UI.hidePick();
+  G.balls = [];
+  startRoom(G.room + 1);
+}
+function gameOverNow(){
+  G.state = 'over';
+  setTimeout(() => UI.gameOver(), 600);
+}
+function runGems(){ return Math.floor(G.coins / 6) + G.run.rooms * 2 + G.run.bosses * 10; }
+
+/* ---------------- card choice ---------------- */
+function rollCards(){
+  const pool = CARDS.filter(c => !(c.id === 'multi' && G.cards.multi) && !(c.id === 'saver' && G.cards.saver));
+  const out = [];
+  while(out.length < 3){
+    const w = pool.map(c => c.rar === 3 ? 1 : c.rar === 2 ? 2.5 : 4);
+    let r = Math.random() * w.reduce((a, b) => a + b, 0), i = 0;
+    while(r > w[i]){ r -= w[i]; i++; }
+    if(!out.includes(pool[i])) out.push(pool[i]);
+  }
+  return out;
+}
+
+/* ---------------- autopilot (title demo + tests + trailer) ---------------- */
+function autopilot(){
+  // flip when a ball is about to touch a resting flipper, hold briefly, then let go
+  const AP = G.ap || (G.ap = { L: 0, R: 0 });
+  for(const side of ['L', 'R']){
+    if(AP[side] > 0){ AP[side] -= 1 / 60; continue; }
+    const fs = G.fl[side], len = FLEN * (1 + (G.cards.big || 0) * 0.15), P = side === 'L' ? LP : RP;
+    const tx = P.x + Math.cos(fs.rest) * len, ty = P.y + Math.sin(fs.rest) * len;
+    for(const b of G.balls){
+      if(b.vy < -50) continue;
+      const fx = b.x + b.vx * 0.03, fy = b.y + b.vy * 0.03;
+      const q = closest(fx, fy, P.x, P.y, tx, ty);
+      if(q.d < BR + 26 && q.t > 0.15){ AP[side] = 0.22; break; }
+    }
+  }
+  G.inL = AP.L > 0.02; G.inR = AP.R > 0.02;
+}
+
+/* ---------------- effects ---------------- */
+function burst(x, y, n, col, sp, sz){ for(let i = 0; i < n; i++){ const a = Math.random() * TAU, v = sp * (0.3 + Math.random() * 0.7); G.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0, max: 0.3 + Math.random() * 0.35, c: col, sz: sz * (0.6 + Math.random() * 0.8) }); } }
+function ring(x, y, col, r){ G.rings.push({ x, y, col, r, life: 0, max: 0.4 }); }
+function confetti(x, y, n){ const cols = ['#ff4f8b', '#ffd24a', '#4dffb0', '#5a8cff', '#ff8a3a', '#b98cff']; for(let i = 0; i < n; i++){ const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.6, v = 300 + Math.random() * 600; G.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0, max: 1.4 + Math.random(), c: cols[i % cols.length], sz: 5, g: 900, sq: true }); } }
+function floatText(txt, x, y, col, size){ if(G.demo) return; if(G.texts.length > 30) G.texts.shift(); G.texts.push({ txt, x, y, col, size: size || 1, life: 0, max: 0.9 }); }
+
+</script>
+<script>
+'use strict';
+/* Canvas renderer: a glowing dungeon pinball table. */
+const R = {
+  cv: null, c: null, W: 0, H: 0, dpr: 1, s: 1, ox: 0, oy: 0, bg: null, bgKey: '',
+  init(){ this.cv = $('cv'); this.c = this.cv.getContext('2d'); this.resize(); addEventListener('resize', () => this.resize()); },
+  resize(){
+    this.dpr = Math.min(2, devicePixelRatio || 1);
+    this.W = innerWidth; this.H = innerHeight;
+    this.cv.width = Math.round(this.W * this.dpr); this.cv.height = Math.round(this.H * this.dpr);
+    const port = this.H > this.W;
+    const top = port ? 64 : 10, bot = port ? 10 : 10;
+    this.s = Math.min(this.W / (TW + 20), (this.H - top - bot) / (TH + 10));
+    this.ox = (this.W - TW * this.s) / 2; this.oy = top + (this.H - top - bot - TH * this.s) / 2;
+    this.bgKey = '';
+  },
+  draw(){
+    const c = this.c, d = this.dpr, s = this.s, th = G.theme;
+    c.setTransform(d, 0, 0, d, 0, 0);
+    const g = c.createRadialGradient(this.W / 2, this.H / 2, 50, this.W / 2, this.H / 2, Math.max(this.W, this.H) * 0.7);
+    g.addColorStop(0, th.bg1); g.addColorStop(1, '#05060c'); c.fillStyle = g; c.fillRect(0, 0, this.W, this.H);
+    this.torches(c, th);
+    const sh = save.opt.shake ? G.shake : 0;
+    c.setTransform(s * d, 0, 0, s * d, (this.ox + (Math.random() - 0.5) * sh) * d, (this.oy + (Math.random() - 0.5) * sh) * d);
+    this.table(c, th);
+    this.lanes(c, th);
+    this.targets(c, th);
+    this.bumpers(c, th);
+    this.mons(c, th);
+    this.orbs(c);
+    this.flippers(c, th);
+    this.balls(c);
+    this.fx(c, th);
+    c.setTransform(d, 0, 0, d, 0, 0);
+    if(G.flash > 0){ c.globalAlpha = G.flash * 0.5; c.fillStyle = G.flashC; c.fillRect(0, 0, this.W, this.H); c.globalAlpha = 1; }
+    if(G.saveT > 0 && G.state === 'play'){
+      const p = this.toS(300, 950);
+      c.fillStyle = `rgba(159,230,255,${0.5 + Math.sin(G.t * 10) * 0.3})`; c.font = `900 ${Math.round(16 * s)}px ${FONT}`; c.textAlign = 'center';
+      c.fillText('🛟 BALL SAVER', p.x, p.y);
+    }
+  },
+  /* flickering wall torches beside the table on wide screens */
+  torches(c, th){
+    const side = this.ox;
+    if(side < 140) return;
+    for(const x of [side * 0.5, this.W - side * 0.5]){
+      for(const yk of [0.3, 0.72]){
+        const y = this.H * yk, f = Math.sin(G.t * 13 + x + yk * 9) * 0.15 + Math.sin(G.t * 7.3 + x) * 0.1;
+        const gl = c.createRadialGradient(x, y - 30, 4, x, y - 30, 140); gl.addColorStop(0, `rgba(255,170,60,${0.32 + f * 0.3})`); gl.addColorStop(1, 'rgba(255,170,60,0)');
+        c.fillStyle = gl; c.fillRect(x - 140, y - 170, 280, 280);
+        c.fillStyle = '#3a2a1a'; c.fillRect(x - 6, y - 16, 12, 46); c.fillStyle = '#5a4a3a'; c.fillRect(x - 12, y - 18, 24, 8);
+        c.fillStyle = '#ff8a2e'; c.beginPath(); c.ellipse(x, y - 34, 10 + f * 8, 20 + f * 12, 0, 0, TAU); c.fill();
+        c.fillStyle = '#ffe14d'; c.beginPath(); c.ellipse(x, y - 30, 5 + f * 4, 11 + f * 6, 0, 0, TAU); c.fill();
+      }
+    }
+  },
+  toS(x, y){ return { x: this.ox + x * this.s, y: this.oy + y * this.s }; },
+  table(c, th){
+    // playfield (cached)
+    const key = th.name + this.s;
+    if(this.bgKey !== key){
+      this.bgKey = key;
+      const cv = this.bg || (this.bg = document.createElement('canvas'));
+      cv.width = TW; cv.height = TH + 40;
+      const b = cv.getContext('2d');
+      b.save();
+      b.beginPath(); b.arc(300, 300, 270, Math.PI, 0); b.lineTo(570, 760); b.lineTo(RP.x + 12, RP.y); b.lineTo(RP.x + 12, TH + 40); b.lineTo(LP.x - 12, TH + 40); b.lineTo(LP.x - 12, LP.y); b.lineTo(30, 760); b.closePath();
+      const gg = b.createLinearGradient(0, 0, 0, TH); gg.addColorStop(0, th.bg1); gg.addColorStop(1, th.bg2);
+      b.fillStyle = gg; b.fill(); b.clip();
+      b.globalAlpha = 0.18; b.strokeStyle = th.wall; b.lineWidth = 1.5;
+      for(let y = 0; y < TH; y += 40){ const o = (y / 40) % 2 ? 30 : 0; for(let x = -o; x < TW; x += 60){ b.strokeRect(x, y, 60, 40); } }
+      b.globalAlpha = 0.12; b.fillStyle = th.glow; b.font = '900 46px ' + FONT; b.textAlign = 'center';
+      b.fillText('⚔', 300, 690);
+      b.restore();
+      // apron at the bottom
+      b.fillStyle = '#05060c'; b.fillRect(0, TH - 6, TW, 46);
+    }
+    c.drawImage(this.bg, 0, 0, TW, TH + 40);
+    // walls glow
+    c.lineCap = 'round';
+    for(const pass of [0, 1]){
+      c.strokeStyle = pass ? th.wall : th.glow; c.globalAlpha = pass ? 1 : 0.25; c.lineWidth = pass ? 8 : 18;
+      c.beginPath();
+      for(const w of G.walls){ if(w.kind === 'sling') continue; c.moveTo(w.ax, w.ay); c.lineTo(w.bx, w.by); }
+      c.stroke();
+    }
+    c.globalAlpha = 1;
+    // slingshots
+    for(const w of G.walls){
+      if(w.kind !== 'sling') continue;
+      const k = w.hit || 0; if(w.hit) w.hit = Math.max(0, w.hit - 0.06);
+      c.strokeStyle = k > 0 ? '#ffffff' : th.acc; c.lineWidth = 10 + k * 6;
+      c.beginPath(); c.moveTo(w.ax, w.ay); c.lineTo(w.bx, w.by); c.stroke();
+    }
+    // drain glow + launch chute
+    c.fillStyle = 'rgba(255,60,80,0.25)'; c.fillRect(LP.x + 20, TH - 20, RP.x - LP.x - 40, 14);
+    c.fillStyle = th.wall; c.globalAlpha = 0.6; c.fillRect(280, 14, 40, 10); c.globalAlpha = 1;
+  },
+  lanes(c, th){
+    const xs = [210, 300, 390];
+    for(let i = 0; i < 3; i++){
+      const on = G.lanes[i];
+      c.fillStyle = on ? th.acc : 'rgba(255,255,255,0.15)';
+      if(on){ c.shadowColor = th.acc; c.shadowBlur = 14; }
+      c.beginPath(); c.arc(xs[i], 112, 9, 0, TAU); c.fill(); c.shadowBlur = 0;
+    }
+    c.fillStyle = 'rgba(255,255,255,0.7)'; c.font = '900 16px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText('x' + G.mult, 300, 150);
+  },
+  targets(c, th){
+    for(const t of G.targets){
+      if(!t.up){ c.fillStyle = 'rgba(255,255,255,0.12)'; c.fillRect(t.x - t.w / 2, t.y - 2, t.w, 4); continue; }
+      c.fillStyle = t.hit > 0 ? '#ffffff' : th.acc; c.strokeStyle = '#000'; c.lineWidth = 2;
+      c.fillRect(t.x - t.w / 2, t.y - 7, t.w, 14); c.strokeRect(t.x - t.w / 2, t.y - 7, t.w, 14);
+    }
+    if(G.targets.length && G.targets.some(t => t.up)){ c.fillStyle = 'rgba(255,255,255,0.5)'; c.font = '900 12px ' + FONT; c.textAlign = 'center'; c.fillText('JACKPOT', G.targets[0].x + 69, G.targets[0].y + 24); }
+  },
+  bumpers(c, th){
+    for(const b of G.bumpers){
+      const k = b.hit, r = b.r * (1 + k * 0.15);
+      c.fillStyle = th.glow; c.globalAlpha = 0.25 + k * 0.5; c.beginPath(); c.arc(b.x, b.y, r + 10, 0, TAU); c.fill(); c.globalAlpha = 1;
+      c.fillStyle = k > 0.3 ? '#ffffff' : th.acc; c.strokeStyle = '#000'; c.lineWidth = 3;
+      c.beginPath(); c.arc(b.x, b.y, r, 0, TAU); c.fill(); c.stroke();
+      c.fillStyle = th.bg2; c.beginPath(); c.arc(b.x, b.y, r * 0.55, 0, TAU); c.fill();
+      c.fillStyle = th.glow; c.beginPath(); c.arc(b.x, b.y, r * 0.3, 0, TAU); c.fill();
+    }
+  },
+  orbs(c){
+    for(const o of G.orbs){ if(o.dead) continue; c.fillStyle = '#e8f0ff'; c.strokeStyle = '#5a6a8a'; c.lineWidth = 3; c.beginPath(); c.arc(o.x, o.y, o.r, 0, TAU); c.fill(); c.stroke(); c.fillStyle = '#9fb4c8'; c.beginPath(); c.arc(o.x, o.y, o.r * 0.5, 0, TAU); c.fill(); }
+  },
+  mons(c, th){
+    for(const m of G.mons){
+      if(m.dead) continue;
+      c.save(); c.translate(m.x, m.y);
+      if(m.gone) c.globalAlpha = 0.25;
+      const sq = 1 + m.hit * 0.18, wob = Math.sin(m.ph * 4) * 0.04;
+      c.scale(sq + wob, 1 / sq - wob);
+      drawMonster(c, m, G.t);
+      c.restore();
+      c.globalAlpha = 1;
+      if(m.hp < m.max){
+        const w = m.r * 1.8, k = Math.max(0, m.hp / m.max), y = m.y - m.r - (m.boss ? 22 : 14);
+        c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(m.x - w / 2, y, w, 7);
+        c.fillStyle = k > 0.5 ? '#5fe08a' : k > 0.25 ? '#ffd23a' : '#ff4f5a'; c.fillRect(m.x - w / 2, y, w * k, 7);
+      }
+      if(m.burn > 0){ for(let i = 0; i < 2; i++){ const a = Math.random() * TAU; G.parts.push({ x: m.x + Math.cos(a) * m.r * 0.7, y: m.y + Math.sin(a) * m.r * 0.7, vx: 0, vy: -60, life: 0, max: 0.4, c: Math.random() < 0.5 ? '#ffb13a' : '#ff4f3a', sz: 4 }); } }
+    }
+  },
+  flippers(c, th){
+    for(const side of ['L', 'R']){
+      const f = flipper(side), on = side === 'L' ? G.inL : G.inR;
+      c.lineCap = 'round';
+      c.strokeStyle = th.glow; c.globalAlpha = on ? 0.5 : 0.2; c.lineWidth = 34;
+      c.beginPath(); c.moveTo(f.px, f.py); c.lineTo(f.tx, f.ty); c.stroke(); c.globalAlpha = 1;
+      const g = c.createLinearGradient(f.px, f.py, f.tx, f.ty); g.addColorStop(0, '#ffffff'); g.addColorStop(1, th.acc);
+      c.strokeStyle = '#000'; c.lineWidth = 26; c.beginPath(); c.moveTo(f.px, f.py); c.lineTo(f.tx, f.ty); c.stroke();
+      c.strokeStyle = g; c.lineWidth = 20; c.beginPath(); c.moveTo(f.px, f.py); c.lineTo(f.tx, f.ty); c.stroke();
+      c.fillStyle = '#000'; c.beginPath(); c.arc(f.px, f.py, 5, 0, TAU); c.fill();
+    }
+  },
+  balls(c){
+    const sk = BALLS.find(b => b.id === save.ball) || BALLS[0];
+    for(const b of G.balls){
+      for(let i = 0; i < b.trail.length; i++){ const p = b.trail[i], k = i / b.trail.length; c.globalAlpha = k * 0.4; c.fillStyle = G.cards.fire ? '#ff8a3a' : G.theme.glow; c.beginPath(); c.arc(p.x, p.y, BR * k, 0, TAU); c.fill(); }
+      c.globalAlpha = 1;
+      const g = c.createRadialGradient(b.x - 4, b.y - 4, 1, b.x, b.y, BR);
+      g.addColorStop(0, sk.c1); g.addColorStop(1, sk.c2 === 'rainbow' ? `hsl(${(G.t * 200) % 360},90%,60%)` : sk.c2);
+      c.fillStyle = g; c.strokeStyle = '#000'; c.lineWidth = 2;
+      c.beginPath(); c.arc(b.x, b.y, BR, 0, TAU); c.fill(); c.stroke();
+      if(G.cards.fire){ c.strokeStyle = '#ff8a3a'; c.lineWidth = 3; c.beginPath(); c.arc(b.x, b.y, BR + 3 + Math.sin(G.t * 30) * 1.5, 0, TAU); c.stroke(); }
+    }
+  },
+  fx(c, th){
+    c.lineCap = 'round';
+    for(const bo of G.bolts){
+      c.strokeStyle = bo.col; c.globalAlpha = 1 - bo.life / 0.35; c.lineWidth = 4;
+      c.beginPath(); c.moveTo(bo.x0, bo.y0);
+      for(let i = 1; i < 6; i++){ const k = i / 6; c.lineTo(lerp(bo.x0, bo.x1, k) + rnd(-14, 14), lerp(bo.y0, bo.y1, k) + rnd(-10, 10)); }
+      c.lineTo(bo.x1, bo.y1); c.stroke();
+    }
+    c.globalAlpha = 1;
+    for(const r of G.rings){ const k = r.life / r.max; c.globalAlpha = 1 - k; c.strokeStyle = r.col; c.lineWidth = 6 * (1 - k); c.beginPath(); c.arc(r.x, r.y, r.r * (0.4 + k), 0, TAU); c.stroke(); }
+    for(const p of G.parts){ const k = 1 - p.life / p.max; c.globalAlpha = Math.min(1, k * 1.5); c.fillStyle = p.c; if(p.sq) c.fillRect(p.x - p.sz, p.y - p.sz / 2, p.sz * 2, p.sz); else { c.beginPath(); c.arc(p.x, p.y, p.sz * (p.coin ? 1 : k), 0, TAU); c.fill(); } }
+    c.globalAlpha = 1;
+    c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+    for(const t of G.texts){
+      const k = t.life / t.max, pop = Math.min(1, t.life * 10), sc = t.size * (0.6 + easeBack(pop) * 0.4);
+      c.save(); c.translate(t.x, t.y); c.scale(sc, sc); c.globalAlpha = k > 0.7 ? (1 - k) / 0.3 : 1;
+      c.font = '900 24px ' + FONT; c.lineWidth = 6; c.strokeStyle = 'rgba(0,0,0,0.9)'; c.strokeText(t.txt, 0, 0); c.fillStyle = t.col; c.fillText(t.txt, 0, 0);
+      c.restore();
+    }
+    c.globalAlpha = 1;
+  }
+};
+
+const FONT = '"Arial Rounded MT Bold","Trebuchet MS",system-ui,sans-serif';
+function easeBack(t){ const s = 1.9; t -= 1; return t * t * ((s + 1) * t + s) + 1; }
+function drawMonster(c, m, t){
+  const r = m.r, col = m.hit > 0.5 ? '#ffffff' : m.col;
+  c.fillStyle = 'rgba(0,0,0,0.3)'; c.beginPath(); c.ellipse(0, r * 0.95, r * 0.9, r * 0.25, 0, 0, TAU); c.fill();
+  c.strokeStyle = '#0a0a14'; c.lineWidth = 3;
+  if(m.k === 'bat'){
+    const f = Math.sin(t * 18) * 0.5;
+    c.fillStyle = col;
+    for(const s of [-1, 1]){ c.beginPath(); c.moveTo(s * r * 0.4, -r * 0.1); c.quadraticCurveTo(s * r * 1.6, -r * (0.9 + f), s * r * 1.5, r * 0.2); c.quadraticCurveTo(s * r, 0, s * r * 0.4, r * 0.3); c.fill(); c.stroke(); }
+  }
+  if(m.k === 'knight'){
+    // shield underneath
+    c.fillStyle = '#c8d3e0'; c.beginPath(); c.moveTo(-r * 0.9, r * 0.3); c.lineTo(r * 0.9, r * 0.3); c.lineTo(r * 0.6, r * 1.1); c.lineTo(0, r * 1.3); c.lineTo(-r * 0.6, r * 1.1); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = '#ffd23a'; c.fillRect(-3, r * 0.45, 6, r * 0.6);
+  }
+  if(m.k === 'boss'){
+    c.fillStyle = '#ffd23a';
+    c.beginPath(); c.moveTo(-r * 0.6, -r * 0.75); c.lineTo(-r * 0.7, -r * 1.25); c.lineTo(-r * 0.3, -r * 1.0); c.lineTo(0, -r * 1.4); c.lineTo(r * 0.3, -r * 1.0); c.lineTo(r * 0.7, -r * 1.25); c.lineTo(r * 0.6, -r * 0.75); c.closePath(); c.fill(); c.stroke();
+  }
+  // body
+  c.fillStyle = col;
+  c.beginPath();
+  if(m.k === 'slime' || m.k === 'mini' || m.k === 'split'){ c.moveTo(-r, r * 0.6); c.bezierCurveTo(-r * 1.1, -r * 0.9, r * 1.1, -r * 0.9, r, r * 0.6); c.quadraticCurveTo(0, r * 0.9, -r, r * 0.6); }
+  else if(m.k === 'ghost'){ c.moveTo(-r, r * 0.8); c.lineTo(-r, -r * 0.1); c.arc(0, -r * 0.1, r, Math.PI, 0); c.lineTo(r, r * 0.8); for(let i = 0; i < 4; i++) c.lineTo(r - (i + 0.5) * r / 2, r * (i % 2 ? 0.8 : 0.5)); }
+  else c.arc(0, 0, r, 0, TAU);
+  c.closePath(); c.fill(); c.stroke();
+  if(m.k === 'bomb'){ c.strokeStyle = '#8a5a3c'; c.lineWidth = 4; c.beginPath(); c.moveTo(0, -r); c.quadraticCurveTo(8, -r - 14, 16, -r - 10); c.stroke(); c.fillStyle = Math.sin(t * 20) > 0 ? '#ffe14d' : '#ff4f3a'; c.beginPath(); c.arc(16, -r - 10, 5, 0, TAU); c.fill(); }
+  if(m.k === 'split'){ c.strokeStyle = 'rgba(0,0,0,0.4)'; c.lineWidth = 3; c.beginPath(); c.moveTo(0, -r * 0.7); c.lineTo(0, r * 0.7); c.stroke(); }
+  // face
+  c.fillStyle = 'rgba(255,255,255,0.5)'; c.beginPath(); c.ellipse(-r * 0.35, -r * 0.4, r * 0.18, r * 0.1, -0.5, 0, TAU); c.fill();
+  const ey = m.k === 'slime' || m.k === 'mini' || m.k === 'split' ? -r * 0.05 : -r * 0.15;
+  c.fillStyle = '#fff'; c.beginPath(); c.arc(-r * 0.3, ey, r * 0.2, 0, TAU); c.arc(r * 0.3, ey, r * 0.2, 0, TAU); c.fill();
+  c.fillStyle = '#0a0a14'; c.beginPath(); c.arc(-r * 0.28, ey + 2, r * 0.1, 0, TAU); c.arc(r * 0.32, ey + 2, r * 0.1, 0, TAU); c.fill();
+  c.strokeStyle = '#0a0a14'; c.lineWidth = Math.max(2, r * 0.08); c.lineCap = 'round';
+  c.beginPath(); c.moveTo(-r * 0.5, ey - r * 0.3); c.lineTo(-r * 0.15, ey - r * 0.18); c.moveTo(r * 0.5, ey - r * 0.3); c.lineTo(r * 0.15, ey - r * 0.18); c.stroke();
+  if(m.hit > 0.3){ c.beginPath(); c.arc(0, ey + r * 0.45, r * 0.15, 0, TAU); c.stroke(); }
+  else{ c.beginPath(); c.moveTo(-r * 0.25, ey + r * 0.42); c.quadraticCurveTo(0, ey + r * 0.3, r * 0.25, ey + r * 0.42); c.stroke(); }
+}
+
+</script>
+<script>
+'use strict';
+/* Input, HUD, menus and boot. */
+let playing = false;
+function beginPlay(){ if(!playing){ playing = true; SDK.gameplayStart(); } }
+function endPlay(){ if(playing){ playing = false; SDK.gameplayStop(); } }
+
+const UI = {
+  touch: matchMedia('(pointer:coarse)').matches,
+  tab: 'perk', choices: [],
+  banner(a, b, col){
+    const el = $('banner');
+    el.querySelector('b').textContent = a; el.querySelector('b').style.color = col || '#fff';
+    el.querySelector('small').textContent = b || '';
+    el.classList.add('hidden'); void el.offsetWidth; el.classList.remove('hidden');
+    clearTimeout(this.banT); this.banT = setTimeout(() => el.classList.add('hidden'), 1800);
+  },
+  tip(txt, ms){ const el = $('tip'); el.textContent = txt; el.classList.add('hidden'); void el.offsetWidth; el.classList.remove('hidden'); clearTimeout(this.tipT); this.tipT = setTimeout(() => el.classList.add('hidden'), ms || 4000); },
+  toast(txt){ const d = document.createElement('div'); d.className = 'toast'; d.innerHTML = txt; $('toasts').appendChild(d); setTimeout(() => d.remove(), 1900); },
+  showPick(){
+    endPlay();
+    this.choices = rollCards();
+    this.renderPick();
+    $('pTitle').textContent = G.room % 5 === 0 ? '👑 BOSS LOOT: CHOOSE A POWER' : 'CHOOSE A POWER';
+    show('pick');
+  },
+  renderPick(){
+    const box = $('pCards'); box.innerHTML = '';
+    for(const c of this.choices){
+      const b = document.createElement('button'); b.className = 'r' + c.rar;
+      const lv = G.cards[c.id] || 0;
+      b.innerHTML = `<div class="ci">${c.icon}</div><div><div class="cn">${c.name}</div><div class="cd">${c.desc}</div>${lv ? `<div class="lv">LEVEL ${lv} ➜ ${lv + 1}</div>` : ''}</div>`;
+      b.onclick = () => { AU.init(); addCard(c); this.renderCards(); nextRoom(); beginPlay(); };
+      box.appendChild(b);
+    }
+    $('pReroll').classList.toggle('hidden', G.rerolls <= 0);
+    $('pReroll').textContent = '🎲 REROLL (' + G.rerolls + ')';
+  },
+  hidePick(){ hide('pick'); },
+  renderCards(){
+    const counts = {};
+    for(const c of G.cardList) counts[c.id] = (counts[c.id] || 0) + 1;
+    $('cardRow').innerHTML = Object.keys(counts).map(id => { const c = CARDS.find(x => x.id === id); return `<span title="${c.name}">${c.icon}${counts[id] > 1 ? counts[id] : ''}</span>`; }).join('');
+  },
+  gameOver(){ gameOver(); }
+};
+
+const SCREENS = ['pick', 'over', 'shop', 'missions', 'settings', 'pause'];
+function anyScreen(){ return SCREENS.some(id => !$(id).classList.contains('hidden')); }
+function closeScreens(){ SCREENS.forEach(hide); }
+let backTo = null;
+function openScreen(id, from){ backTo = from || null; SCREENS.forEach(s => s !== id && hide(s)); show(id); }
+
+/* ---------------- flow ---------------- */
+function toTitle(){
+  endPlay(); closeScreens();
+  newRun(true);
+  AU.setStyle('title');
+  hide('hud'); hide('tip'); hide('banner'); hide('touchL'); hide('touchR'); show('title');
+  refreshTitle();
+}
+function refreshTitle(){
+  $('tGems').textContent = save.gems;
+  $('tBest').textContent = save.best ? '🏆 Room ' + save.best : '⚔ First raid!';
+  $('tHint').textContent = UI.touch ? 'Tap the LEFT or RIGHT side to flip' : '← / A and → / D flip · Space flips both · or click left / right';
+  const can = PERKS.some(p => save.perk[p.id] < p.max && perkCost(p, save.perk[p.id]) <= save.gems);
+  $('shopBadge').classList.toggle('hidden', !can);
+  $('miBadge').classList.toggle('hidden', !save.missions.some(m => m.done && !m.claimed));
+}
+function play(){
+  closeScreens(); hide('title');
+  SDK.midgame(() => {
+    G.inL = G.inR = false;
+    newRun(false);
+    AU.setStyle('play');
+    show('hud'); UI.renderCards();
+    if(UI.touch){ show('touchL'); show('touchR'); }
+    beginPlay();
+    if(!save.tut) UI.tip(UI.touch ? 'Tap LEFT / RIGHT to flip. Smash the monsters!' : 'Use ← → (or A / D) to flip. Smash the monsters!', 5000);
+  });
+}
+function gameOver(){
+  endPlay();
+  hide('touchL'); hide('touchR');
+  const gems = runGems();
+  save.gems += gems; save.runs++;
+  const newBest = G.room > save.best;
+  if(newBest) save.best = G.room;
+  save.bestScore = Math.max(save.bestScore, G.score);
+  missionTick(G.room); if(!save.tut) save.tut = 1; persist();
+  G.lastGems = gems;
+  $('oTitle').textContent = newBest && save.runs > 1 ? '🏆 NEW BEST!' : 'RAID OVER';
+  $('oRoom').textContent = 'ROOM ' + G.room;
+  $('oBest').textContent = 'Best: room ' + save.best + ' · score ' + save.bestScore.toLocaleString();
+  $('oStats').innerHTML = [['🏅 Score', G.score.toLocaleString()], ['💀 Monsters', G.run.kills], ['👑 Bosses', G.run.bosses], ['💰 Jackpots', G.run.jack], ['🎯 Crits', G.run.crits], ['⛓ Best combo', G.run.maxCombo]].map(([a, b]) => `<div>${a}<b>${b}</b></div>`).join('');
+  $('oGems').textContent = '+' + gems;
+  $('oRevive').classList.toggle('hidden', !SDK.canRewarded() || G.revived);
+  $('oDouble').classList.toggle('hidden', !SDK.canRewarded());
+  $('oMiss').innerHTML = save.missions.map(m => `<div class="${m.done ? 'done' : ''}">${m.done ? '✅' : '🎯'} ${MISSION_POOL.find(p => p.id === m.id).txt(m.n)} <b>${Math.min(m.prog, m.n)}/${m.n}</b></div>`).join('');
+  AU.over();
+  openScreen('over');
+}
+
+/* ---------------- shop / missions / settings ---------------- */
+function buildShop(){
+  $('sGems').textContent = save.gems;
+  const g = $('sGrid'); g.innerHTML = '';
+  document.querySelectorAll('#shop .tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === UI.tab));
+  if(UI.tab === 'perk'){
+    g.style.display = 'flex'; g.style.flexDirection = 'column'; g.style.gap = '8px';
+    for(const p of PERKS){
+      const l = save.perk[p.id], max = l >= p.max, cost = perkCost(p, l);
+      const d = document.createElement('div'); d.className = 'row';
+      d.innerHTML = `<div class="ic">${p.icon}</div><div class="tx">${p.name} <small>${p.desc} · level ${l}/${p.max}</small></div><button>${max ? 'MAX' : '💎 ' + cost}</button>`;
+      const b = d.querySelector('button'); b.disabled = max || save.gems < cost;
+      b.onclick = () => { if(max || save.gems < cost) return; save.gems -= cost; save.perk[p.id]++; persist(); AU.buy(); buildShop(); refreshTitle(); };
+      g.appendChild(d);
+    }
+    return;
+  }
+  g.style.display = ''; g.style.flexDirection = ''; g.style.gap = '';
+  for(const it of BALLS){
+    const own = !!save.own[it.id], eq = save.ball === it.id;
+    const b = document.createElement('button'); b.className = eq ? 'eq' : '';
+    const cv = document.createElement('canvas'); cv.width = cv.height = 128; const c = cv.getContext('2d');
+    const gr = c.createRadialGradient(54, 54, 4, 64, 64, 40); gr.addColorStop(0, it.c1); gr.addColorStop(1, it.c2 === 'rainbow' ? '#ff7ad8' : it.c2);
+    c.fillStyle = gr; c.strokeStyle = '#000'; c.lineWidth = 4; c.beginPath(); c.arc(64, 64, 40, 0, TAU); c.fill(); c.stroke();
+    b.appendChild(cv);
+    const n = document.createElement('div'); n.textContent = it.name; b.appendChild(n);
+    const p = document.createElement('div'); p.className = own ? '' : 'price'; p.textContent = eq ? 'EQUIPPED' : own ? 'OWNED' : '💎 ' + it.price; b.appendChild(p);
+    b.onclick = () => {
+      if(!own){ if(save.gems < it.price){ AU.lose1(); UI.toast('Need more gems!'); return; } save.gems -= it.price; save.own[it.id] = 1; AU.buy(); }
+      else AU.click();
+      save.ball = it.id; persist(); buildShop(); refreshTitle();
+    };
+    g.appendChild(b);
+  }
+}
+function buildMissions(){
+  const l = $('mList'); l.innerHTML = '';
+  for(const m of save.missions){
+    const p = MISSION_POOL.find(x => x.id === m.id);
+    const d = document.createElement('div'); d.className = 'row';
+    d.innerHTML = `<div class="ic">🎯</div><div class="tx">${p.txt(m.n)}<div class="bar"><i style="width:${Math.min(100, m.prog / m.n * 100)}%"></i></div><small>${Math.min(m.prog, m.n)} / ${m.n}</small></div><button>${m.done ? 'CLAIM' : '💎 ' + m.rw}</button>`;
+    const b = d.querySelector('button'); b.disabled = !m.done;
+    b.onclick = () => { if(!m.done) return; m.claimed = true; save.gems += m.rw; AU.buy(); UI.toast('Mission complete! 💎 ' + m.rw); fillMissions(); persist(); buildMissions(); refreshTitle(); };
+    l.appendChild(d);
+  }
+  $('mStats').textContent = `Best room: ${save.best} · Monsters: ${save.stats.kills} · Bosses: ${save.stats.bosses}`;
+}
+function buildSettings(){ document.querySelectorAll('.setRow').forEach(r => { const v = save.opt[r.dataset.opt], b = r.querySelector('b'); b.textContent = v ? 'ON' : 'OFF'; b.classList.toggle('off', !v); }); }
+
+/* ---------------- pause ---------------- */
+function pauseGame(){ if(G.state !== 'play') return; G.state = 'pause'; G.inL = G.inR = false; endPlay(); openScreen('pause'); }
+function resumeGame(){ closeScreens(); if(G.state === 'pause'){ G.state = 'play'; beginPlay(); } }
+
+/* ---------------- input ---------------- */
+const ptrs = new Map();
+function setFlip(side, on){
+  if(G.state !== 'play') return;
+  const was = side === 'L' ? G.inL : G.inR;
+  if(side === 'L') G.inL = on; else G.inR = on;
+  if(on && !was) AU.flip();
+}
+function syncPtrs(){
+  let l = false, r = false;
+  for(const s of ptrs.values()){ if(s === 'L') l = true; else r = true; }
+  setFlip('L', l); setFlip('R', r);
+}
+function wire(){
+  const cv = R.cv;
+  cv.addEventListener('pointerdown', e => {
+    AU.init();
+    if(SDK.adBusy || anyScreen() || G.state !== 'play') return;
+    try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+    ptrs.set(e.pointerId, e.clientX < R.W / 2 ? 'L' : 'R'); syncPtrs();
+  });
+  const up = e => { ptrs.delete(e.pointerId); syncPtrs(); };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  const K = {};
+  const keySync = () => { setFlip('L', !!(K.ArrowLeft || K.KeyA || K.KeyZ || K.ShiftLeft || K.Space)); setFlip('R', !!(K.ArrowRight || K.KeyD || K.KeyM || K.Slash || K.ShiftRight || K.Space)); };
+  addEventListener('keydown', e => {
+    if(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+    if(SDK.adBusy) return;
+    AU.init();
+    if(e.repeat) return;
+    if(e.code === 'Escape' || e.code === 'KeyP'){ if(G.state === 'pause') resumeGame(); else if(G.state === 'play') pauseGame(); else if(anyScreen() && G.state === 'title') closeScreens(); return; }
+    if(G.state === 'title' && !anyScreen() && (e.code === 'Space' || e.code === 'Enter')){ play(); return; }
+    if(!$('over').classList.contains('hidden') && (e.code === 'Space' || e.code === 'Enter')){ $('oAgain').click(); return; }
+    if(!$('pick').classList.contains('hidden') && /^Digit[123]$/.test(e.code)){ const b = $('pCards').children[+e.code.slice(5) - 1]; if(b) b.click(); return; }
+    K[e.code] = true; keySync();
+  });
+  addEventListener('keyup', e => { K[e.code] = false; keySync(); });
+  addEventListener('blur', () => { for(const k in K) K[k] = false; ptrs.clear(); G.inL = G.inR = false; });
+  document.addEventListener('contextmenu', e => e.preventDefault());
+
+  const tap = (id, fn) => $(id).addEventListener('click', e => { if(SDK.adBusy) return; AU.init(); AU.click(); fn(e); });
+  tap('playBtn', play);
+  tap('bShop', () => { buildShop(); openScreen('shop'); });
+  tap('bMi', () => { buildMissions(); openScreen('missions'); });
+  tap('bSet', () => { buildSettings(); openScreen('settings'); });
+  tap('pauseBtn', pauseGame);
+  tap('pResume', resumeGame);
+  tap('pSet', () => { buildSettings(); openScreen('settings', 'pause'); });
+  tap('pQuit', () => { closeScreens(); G.state = 'play'; G.lives = 0; gameOverNow(); });
+  tap('pReroll', () => { if(G.rerolls <= 0) return; G.rerolls--; UI.choices = rollCards(); UI.renderPick(); });
+  tap('oHome', toTitle);
+  tap('oShop', () => { buildShop(); openScreen('shop', 'over'); });
+  tap('oAgain', play);
+  tap('oRevive', () => SDK.rewarded(ok => {
+    if(!ok) return;
+    save.gems -= G.lastGems; save.runs--; persist();
+    G.revived = true; G.lives = 1; G.state = 'play'; closeScreens(); if(UI.touch){ show('touchL'); show('touchR'); }
+    G.saveT = 5; launchBall(); beginPlay();
+  }));
+  tap('oDouble', () => { $('oDouble').disabled = true; SDK.rewarded(ok => { if(!ok) return; save.gems += G.lastGems; persist(); $('oGems').textContent = '+' + G.lastGems * 2; $('oDouble').classList.add('hidden'); AU.coin(); }); });
+  document.querySelectorAll('#shop .tabs button').forEach(b => b.addEventListener('click', () => { AU.click(); UI.tab = b.dataset.tab; buildShop(); }));
+  document.querySelectorAll('.back').forEach(b => b.addEventListener('click', () => { AU.click(); hide(b.closest('.screen').id); if(backTo){ show(backTo); backTo = null; } else refreshTitle(); }));
+  document.querySelectorAll('.setRow').forEach(r => r.addEventListener('click', () => { const k = r.dataset.opt; save.opt[k] = !save.opt[k]; persist(); AU.apply(); AU.click(); buildSettings(); }));
+  document.querySelectorAll('.screen, #hud button, #title button').forEach(el => el.addEventListener('pointerdown', e => e.stopPropagation()));
+  document.addEventListener('visibilitychange', () => { AU.setHidden(document.hidden); if(document.hidden){ persist(); pauseGame(); } else AU.resume(); });
+  SDK.onMute = m => AU.setPortalMute(m);
+}
+
+/* ---------------- HUD ---------------- */
+function updateHUD(){
+  if(G.state === 'title') return;
+  $('scoreTxt').textContent = G.score.toLocaleString();
+  $('roomTxt').textContent = (G.room % 5 === 0 ? '👑 ' : '⚔ ') + 'ROOM ' + G.room;
+  $('ballsTxt').textContent = '●'.repeat(Math.max(0, G.lives));
+  $('coinTxt').textContent = G.coins;
+  $('comboTxt').classList.toggle('hidden', G.combo < 3);
+  $('comboTxt').textContent = '⛓ ' + G.combo + ' COMBO';
+}
+
+/* ---------------- loop + boot ---------------- */
+let last = 0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  let dt = last ? (ts - last) / 1000 : 1 / 60; last = ts;
+  if(dt <= 0) return; if(dt > 0.05) dt = 0.05;
+  try{ update(dt); R.draw(); updateHUD(); }catch(err){ console.error(err); }
+}
+(async () => {
+  R.init();
+  await SDK.init();
+  SDK.loadingStart();
+  loadSave();
+  wire();
+  toTitle();
+  requestAnimationFrame(frame);
+  SDK.loadingStop();
+  const b = $('boot'); b.style.opacity = '0'; setTimeout(() => b.remove(), 450);
+})();
+
+</script>
+</body>
+</html>
