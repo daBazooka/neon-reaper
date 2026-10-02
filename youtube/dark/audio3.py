@@ -154,6 +154,31 @@ def whoosh():
 SND.update({'whoosh': (whoosh, .045, 0)})
 SND.update({'pull': (pullfx, .07, 0), 'lose': (lose, .07, 0), 'jackpot': (jackpot, .10, 0)})
 for k_ in range(8): SND['ding%d' % k_] = ((lambda kk=k_: ding(kk)), .07, .05 * (k_ % 3 - 1))
+
+def alarm():
+    y = np.zeros(int(.5 * SR), dtype=np.float32)
+    for k in range(2):
+        tt_ = T(.13); b_ = (np.sin(2 * np.pi * 784 * tt_) + .3 * np.sin(2 * np.pi * 1568 * tt_)) * np.minimum(1, tt_ / .006) * np.exp(-tt_ * 14)
+        o = int(k * .2 * SR); y[o:o + len(b_)] += b_.astype(np.float32)
+    return y
+def foot():
+    tt_ = T(.2); th = np.sin(2 * np.pi * np.cumsum(95 + 45 * np.exp(-tt_ * 30)) / SR) * np.exp(-tt_ * 26)
+    n = fft_filter(rng.standard_normal(len(tt_)).astype(np.float32), 180, 1500) * np.exp(-tt_ * 38) * .6
+    return (th * .9 + n).astype(np.float32)
+def drip():
+    tt_ = T(.6); f = 520 + 1100 * np.exp(-tt_ * 9)
+    return ((np.sin(2 * np.pi * np.cumsum(f) / SR) + .25 * np.sin(2 * np.pi * np.cumsum(f * 2.01) / SR)) * np.minimum(1, tt_ / .003) * np.exp(-tt_ * 11) * .8).astype(np.float32)
+def birds():
+    y = np.zeros(int(2.6 * SR), dtype=np.float32)
+    for k in range(7):
+        d = .09 + rng.random() * .07; tt_ = T(d); f0 = 2400 + rng.random() * 1400
+        ch = np.sin(2 * np.pi * np.cumsum(f0 + 900 * np.sin(np.pi * tt_ / d)) / SR) * np.sin(np.pi * tt_ / d) ** 2
+        o = int((.15 + k * .27 + rng.random() * .08) * SR); y[o:o + len(ch)] += ch.astype(np.float32) * (.5 + rng.random() * .4)
+    return y
+def windbed():
+    d = 6.0; n = rng.standard_normal(int(d * SR)).astype(np.float32); n = fft_filter(n, 120, 900); tt_ = T(d)
+    return (n * np.sin(np.pi * tt_ / d) ** 2 * (.7 + .3 * np.sin(2 * np.pi * .35 * tt_)) * 3.2).astype(np.float32)
+SND.update({'alarm': (alarm, .07, .1), 'foot': (foot, .09, .05), 'drip': (drip, .08, .15), 'birds': (birds, .05, .25), 'wind': (windbed, .06, 0)})
 for t, n in ev['snd']:
     if n in SND:
         fn, g, p = SND[n]; put(SFX, t, fn(), g, p)
