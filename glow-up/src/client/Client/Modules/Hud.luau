@@ -1,4 +1,4 @@
--- GLOW UP: the always-on screen. Deliberately minimal: your Aura (with rank progress), one
+-- SUB 5 TO TRUE ADAM: the always-on screen. Deliberately minimal: your Aura (with rank progress), one
 -- quest, a chain chip and an event banner only when relevant, and a dock that opens the menu.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -35,7 +35,7 @@ local function buildAuraCard(gui)
 		Name = "AuraCard",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 8),
-		Size = UDim2.fromOffset(320, 94),
+		Size = UDim2.fromOffset(360, 94),
 	})
 	refs.cardScale = UI.new("UIScale", {}, card)
 
@@ -73,7 +73,7 @@ local function buildAuraCard(gui)
 	})
 	refs.rank = UI.label(card, {
 		Position = UDim2.fromOffset(18, 48),
-		Size = UDim2.fromOffset(240, 18),
+		Size = UDim2.fromOffset(210, 18),
 		Font = UI.Fonts.Title,
 		TextSize = 14,
 		TextWrapped = false,
@@ -86,7 +86,7 @@ local function buildAuraCard(gui)
 	refs.rankNext = UI.label(card, {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -18, 0, 48),
-		Size = UDim2.fromOffset(150, 18),
+		Size = UDim2.fromOffset(130, 18),
 		Font = UI.Fonts.Bold,
 		TextSize = 12,
 		TextColor3 = C.Muted,
@@ -121,7 +121,7 @@ local function buildChips(gui)
 	refs.event = UI.panel(gui, {
 		Name = "EventBanner",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 148),
+		Position = UDim2.new(0.5, 0, 0, 188),
 		Size = UDim2.fromOffset(300, 46),
 		Visible = false,
 		Radius = 14,
@@ -140,6 +140,24 @@ local function buildChips(gui)
 		Font = UI.Fonts.Body,
 		TextSize = 12,
 		TextColor3 = C.Muted,
+		TextWrapped = false,
+		Text = "",
+	})
+
+	-- Mog Competition chip
+	refs.comp = UI.panel(gui, {
+		Name = "CompChip",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 148),
+		Size = UDim2.fromOffset(300, 34),
+		Visible = false,
+		Radius = 14,
+	})
+	refs.compText = UI.label(refs.comp, {
+		Size = UDim2.fromScale(1, 1),
+		Font = UI.Fonts.Title,
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
 		Text = "",
 	})
@@ -308,20 +326,21 @@ function Hud.pulseQuest()
 end
 
 function Hud.refresh()
-	-- Rank + progress to the next rank
+	-- Level + XP progress, and which looks tier you are
+	local level = player:GetAttribute("Level") or 1
 	local rankIndex = player:GetAttribute("Rank") or 1
-	local score = player:GetAttribute("GlowScore") or 0
 	local rank = Config.Ranks[rankIndex]
 	local nextRank = Config.Ranks[rankIndex + 1]
-	refs.rank.Text = string.format("%s  ·  GLOW %s", rank.Name:upper(), Util.fmt(score))
+	local xp = player:GetAttribute("XP") or 0
+	local needed = player:GetAttribute("XPNeeded") or 1
+	refs.rank.Text = string.format("LV %s  ·  %s", Util.fmt(level), rank.Name:upper())
 	refs.rank.TextColor3 = rank.Color
 	refs.rankBar.fill.BackgroundColor3 = rank.Color
+	refs.rankBar.set(xp / needed)
 	if nextRank then
-		refs.rankBar.set((score - rank.Score) / (nextRank.Score - rank.Score))
-		refs.rankNext.Text = string.format("→ %s %s", nextRank.Name, Util.fmt(nextRank.Score))
+		refs.rankNext.Text = string.format("%s / %s XP", Util.fmt(xp), Util.fmt(needed))
 	else
-		refs.rankBar.set(1)
-		refs.rankNext.Text = "MAX RANK"
+		refs.rankNext.Text = string.format("%s / %s XP", Util.fmt(xp), Util.fmt(needed))
 	end
 	local rate = player:GetAttribute("AuraRate") or 0
 	refs.rate.Text = rate > 0 and ("+" .. Util.fmt(rate) .. " /s") or ""
@@ -348,6 +367,21 @@ function Hud.refresh()
 		refs.eventDesc.Text = ev.Desc
 	else
 		refs.event.Visible = false
+	end
+
+	-- Mog Competition countdown
+	local compState = workspace:GetAttribute("CompState")
+	local compLeft = (workspace:GetAttribute("CompEnd") or 0) - workspace:GetServerTimeNow()
+	if compState == "open" and compLeft > 0 then
+		refs.comp.Visible = true
+		refs.compText.Text = string.format("🏆 MOG COMPETITION OPEN  %s  ·  go to the stage!", Util.clock(compLeft))
+		refs.compText.TextColor3 = C.Gold
+	elseif compState == "idle" and compLeft > 0 then
+		refs.comp.Visible = true
+		refs.compText.Text = string.format("🏆 Mog Competition in %s", Util.clock(compLeft))
+		refs.compText.TextColor3 = C.Muted
+	else
+		refs.comp.Visible = false
 	end
 
 	-- Dock badges: a dot means "something is waiting for you"

@@ -1,10 +1,11 @@
--- GLOW UP: the wardrobe. Owns the inventory (with star levels) and builds the glowing
+-- SUB 5 TO TRUE ADAM: the wardrobe. Owns the inventory (with star levels) and builds the glowing
 -- accessories players wear. Everything is made from parts and effects, so nothing needs uploading.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
+local Appearance = require(script.Parent.Appearance)
 
 local Cosmetics = {}
 
@@ -97,9 +98,15 @@ local function accessoryPart(props)
 	return part
 end
 
--- Positions `part` relative to `base` and welds it there.
+local ctxNow -- the build context currently being used (for size scaling)
+
+-- Positions `part` relative to `base` and welds it there. Accessories scale with the body so
+-- a hat still fits a big head and wings still fit a wide back.
 local function attach(part, base, offset, folder)
-	part.CFrame = base.CFrame * offset
+	local s = (ctxNow and base == ctxNow.head) and ctxNow.hs or (ctxNow and ctxNow.bs or 1)
+	part.Size = part.Size * s
+	local rotation = offset - offset.Position
+	part.CFrame = base.CFrame * (CFrame.new(offset.Position * s) * rotation)
 	local weld = Instance.new("WeldConstraint")
 	weld.Part0 = base
 	weld.Part1 = part
@@ -109,7 +116,7 @@ local function attach(part, base, offset, folder)
 end
 
 local function glowMaterial(spec)
-	return spec.Glow and Enum.Material.Neon or Enum.Material.SmoothPlastic
+	return spec.Glow and Enum.Material.Metal or Enum.Material.SmoothPlastic
 end
 
 local function sparkle(parent, color, rate)
@@ -150,7 +157,7 @@ function builders.halo(spec, ctx)
 		Shape = Enum.PartType.Cylinder,
 		Size = Vector3.new(0.14, 2.7, 2.7),
 		Color = spec.Color,
-		Material = Enum.Material.Neon,
+		Material = Enum.Material.SmoothPlastic,
 	})
 	attach(ring, ctx.head, CFrame.new(0, 1.5, 0) * CFrame.Angles(0, 0, math.pi / 2), ctx.folder)
 	local light = Instance.new("PointLight")
@@ -161,14 +168,14 @@ function builders.halo(spec, ctx)
 end
 
 function builders.crown(spec, ctx)
-	local base = accessoryPart({ Size = Vector3.new(2.1, 0.45, 2.1), Color = spec.Color, Material = Enum.Material.Neon })
+	local base = accessoryPart({ Size = Vector3.new(2.1, 0.45, 2.1), Color = spec.Color, Material = Enum.Material.SmoothPlastic })
 	attach(base, ctx.head, CFrame.new(0, 0.85, 0), ctx.folder)
 	for i = 1, 5 do
 		local angle = (i / 5) * math.pi * 2
 		local spike = accessoryPart({
 			Size = Vector3.new(0.38, 1.0, 0.38),
 			Color = spec.Color,
-			Material = Enum.Material.Neon,
+			Material = Enum.Material.SmoothPlastic,
 		})
 		attach(spike, ctx.head, CFrame.new(math.cos(angle) * 0.85, 1.4, math.sin(angle) * 0.85), ctx.folder)
 		if spec.Sparkle and i == 1 then
@@ -179,7 +186,7 @@ end
 
 function builders.horns(spec, ctx)
 	for side = -1, 1, 2 do
-		local horn = accessoryPart({ Size = Vector3.new(0.4, 1.5, 0.4), Color = spec.Color, Material = Enum.Material.Neon })
+		local horn = accessoryPart({ Size = Vector3.new(0.4, 1.5, 0.4), Color = spec.Color, Material = Enum.Material.SmoothPlastic })
 		attach(horn, ctx.head, CFrame.new(side * 0.75, 1.15, 0) * CFrame.Angles(0, 0, -side * 0.45), ctx.folder)
 		if spec.Sparkle then
 			sparkle(horn, spec.Color, 16)
@@ -195,7 +202,7 @@ function builders.cape(spec, ctx)
 	})
 	attach(body, ctx.torso, CFrame.new(0, -0.35, 0.78) * CFrame.Angles(0.12, 0, 0), ctx.folder)
 	if spec.Glow then
-		local edge = accessoryPart({ Size = Vector3.new(2.1, 0.12, 0.2), Color = Color3.new(1, 1, 1), Material = Enum.Material.Neon })
+		local edge = accessoryPart({ Size = Vector3.new(2.1, 0.12, 0.2), Color = Color3.new(1, 1, 1), Material = Enum.Material.SmoothPlastic })
 		attach(edge, ctx.torso, CFrame.new(0, -1.9, 0.9) * CFrame.Angles(0.12, 0, 0), ctx.folder)
 	end
 end
@@ -206,7 +213,7 @@ function builders.wings(spec, ctx)
 			local feather = accessoryPart({
 				Size = Vector3.new(0.18, 2.8 - i * 0.55, 1.1),
 				Color = spec.Color,
-				Material = Enum.Material.Neon,
+				Material = Enum.Material.SmoothPlastic,
 				Transparency = 0.12 * i,
 			})
 			attach(
@@ -239,7 +246,7 @@ end
 function builders.mask(spec, ctx)
 	local plate = accessoryPart({ Size = Vector3.new(1.95, 1.1, 0.2), Color = spec.Color, Material = glowMaterial(spec) })
 	attach(plate, ctx.head, CFrame.new(0, 0, -0.62), ctx.folder)
-	local slit = accessoryPart({ Size = Vector3.new(1.5, 0.18, 0.22), Color = Color3.new(0.05, 0.05, 0.1), Material = Enum.Material.Neon })
+	local slit = accessoryPart({ Size = Vector3.new(1.5, 0.18, 0.22), Color = Color3.new(0.05, 0.05, 0.1), Material = Enum.Material.SmoothPlastic })
 	attach(slit, ctx.head, CFrame.new(0, 0.15, -0.72), ctx.folder)
 end
 
@@ -315,7 +322,9 @@ function Cosmetics.apply(p)
 	local folder = Instance.new("Folder")
 	folder.Name = FOLDER
 	folder.Parent = char
-	local ctx = { head = head, root = root, torso = torso, folder = folder }
+	local hs, bs = Appearance.accessoryScales(p)
+	local ctx = { head = head, root = root, torso = torso, folder = folder, hs = hs, bs = bs }
+	ctxNow = ctx
 	for _, slot in Config.Slots do
 		local id = profile.Eq[slot]
 		local c = id and Config.CosmeticById[id]
@@ -324,7 +333,7 @@ function Cosmetics.apply(p)
 			if build then
 				local ok, err = pcall(build, c.Build, ctx)
 				if not ok then
-					warn("[GlowUp] cosmetic failed:", id, err)
+					warn("[TrueAdam] cosmetic failed:", id, err)
 				end
 			end
 		end

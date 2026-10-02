@@ -1,4 +1,4 @@
--- GLOW UP: the Aura shards floating around the district. Walk near one to collect it.
+-- SUB 5 TO TRUE ADAM: the Aura shards floating around the district. Walk near one to collect it.
 -- Chaining pickups quickly builds a multiplier.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -50,10 +50,17 @@ local function spawn(slot)
 	local color = mut and mut.Color or t.Color
 	local shard = Instance.new("Part")
 	shard.Name = "Shard"
-	shard.Shape = Enum.PartType.Ball
-	shard.Size = Vector3.one * (1.4 + t.Scale + (mut and 0.5 or 0))
-	shard.Material = Enum.Material.Neon
+	local size = 2 + t.Scale + (mut and 0.5 or 0)
+	if t.Shape == "Coin" then
+		shard.Shape = Enum.PartType.Cylinder
+		shard.Size = Vector3.new(0.45, size, size) -- a coin standing on its edge; it spins
+	else
+		shard.Shape = Enum.PartType.Ball
+		shard.Size = Vector3.one * size
+	end
+	shard.Material = Enum.Material[t.Material]
 	shard.Color = color
+	shard.Reflectance = t.Shape == "Gem" and 0.25 or 0.1
 	shard.Anchored = true
 	shard.CanCollide = false
 	shard.CanTouch = false
@@ -64,22 +71,19 @@ local function spawn(slot)
 	shard:SetAttribute("Tier", t.Name)
 	shard:SetAttribute("Mut", mut and mut.Name or nil)
 
-	local light = Instance.new("PointLight")
-	light.Color = color
-	light.Range = 8 + t.Scale * 6
-	light.Brightness = 1.4
-	light.Parent = shard
-
-	local e = Instance.new("ParticleEmitter")
-	e.Color = ColorSequence.new(color)
-	e.LightEmission = 1
-	e.Rate = 4 + math.sqrt(t.Value) + (mut and 16 or 0)
-	e.Lifetime = NumberRange.new(1.5, 3)
-	e.Speed = NumberRange.new(1, 2)
-	e.SpreadAngle = Vector2.new(180, 180)
-	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(1, 0) })
-	e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
-	e.Parent = shard
+	-- Only the valuable ones get a twinkle, so the plaza stays clean.
+	if mut or t.Value >= 60 then
+		local e = Instance.new("ParticleEmitter")
+		e.Color = ColorSequence.new(Color3.new(1, 1, 1), color)
+		e.LightEmission = 0.6
+		e.Rate = mut and 14 or 5
+		e.Lifetime = NumberRange.new(0.8, 1.5)
+		e.Speed = NumberRange.new(0.5, 1.5)
+		e.SpreadAngle = Vector2.new(180, 180)
+		e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 0) })
+		e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 1) })
+		e.Parent = shard
+	end
 
 	CollectionService:AddTag(shard, "Shard")
 	shard.Parent = folder
@@ -136,6 +140,7 @@ local function collect(p, shard, root)
 	local rank = p:GetAttribute("Rank") or 1
 	local base = shard:GetAttribute("Value") * Config.RankScaling(rank) * Config.ChainMult(chain)
 	local gained = Stats.addAura(p, base)
+	Stats.addXP(p, shard:GetAttribute("Value"))
 	Stats.send(p, "shard", shard.Position, gained, shard:GetAttribute("Tier"), shard.Color, shard:GetAttribute("Mut"), chain)
 	Quests.progress(p, "shards", 1)
 

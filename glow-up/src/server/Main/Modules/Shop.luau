@@ -1,4 +1,4 @@
--- GLOW UP: upgrades and rebirth.
+-- SUB 5 TO TRUE ADAM: upgrades and rebirth.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))

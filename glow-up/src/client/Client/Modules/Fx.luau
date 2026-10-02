@@ -1,4 +1,4 @@
--- GLOW UP: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
+-- SUB 5 TO TRUE ADAM: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
 -- centred callouts. Everything respects the "Effects" setting so players can tone it down.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

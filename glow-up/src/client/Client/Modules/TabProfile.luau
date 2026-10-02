@@ -1,4 +1,4 @@
--- GLOW UP: your character sheet: rank, stats, duel record and the current quest.
+-- SUB 5 TO TRUE ADAM: your character sheet: rank, stats, duel record and the current quest.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -140,16 +140,15 @@ function TabProfile.build(parent)
 		local nextRank = Config.Ranks[rankIndex + 1]
 		local score = player:GetAttribute("GlowScore") or 0
 		local rebirths = player:GetAttribute("Rebirths") or 0
-		rankLabel.Text = (rebirths > 0 and ("★" .. rebirths .. "  ") or "") .. rank.Name:upper()
+		rankLabel.Text = (rebirths > 0 and ("★" .. rebirths .. "  ") or "") .. rank.Full:upper()
 		rankLabel.TextColor3 = rank.Color
-		scoreLabel.Text = string.format("Glow Score %s   ·   Rebirths %d", Util.fmt(score), rebirths)
+		scoreLabel.Text = string.format("Level %s   ·   Mog Power %s   ·   Rebirths %d", Util.fmt(player:GetAttribute("Level") or 1), Util.fmt(score), rebirths)
 		rankBar.fill.BackgroundColor3 = rank.Color
+		rankBar.set((player:GetAttribute("XP") or 0) / (player:GetAttribute("XPNeeded") or 1))
 		if nextRank then
-			rankBar.set((score - rank.Score) / (nextRank.Score - rank.Score))
-			rankHint.Text = string.format("Next: %s at %s", nextRank.Name, Util.fmt(nextRank.Score))
+			rankHint.Text = string.format("Next tier: %s at level %s", nextRank.Full, Util.fmt(nextRank.Level))
 		else
-			rankBar.set(1)
-			rankHint.Text = "Highest rank reached"
+			rankHint.Text = "Highest tier reached"
 		end
 		for id, label in statRefs do
 			label.Text = Util.fmt(player:GetAttribute(id) or 0)

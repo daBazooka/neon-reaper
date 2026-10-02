@@ -1,4 +1,5 @@
--- GLOW UP: the rank tag floating above every player. Looks matter, so it's always visible.
+-- SUB 5 TO TRUE ADAM: the tag above every player. It says what they are (their looks tier)
+-- and their level, so everyone can see who's a Sub 5 and who's a True Adam.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
@@ -13,34 +14,33 @@ local function build(p, head)
 	end
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "GlowPlate"
-	gui.Size = UDim2.fromOffset(240, 62)
-	gui.StudsOffset = Vector3.new(0, 3.1, 0)
+	gui.Size = UDim2.fromOffset(260, 66)
+	gui.StudsOffset = Vector3.new(0, 3.4, 0)
 	gui.AlwaysOnTop = false
-	gui.MaxDistance = 90
+	gui.MaxDistance = 110
 	gui.LightInfluence = 0
 	gui.Parent = head
 
-	local rank = Instance.new("TextLabel")
-	rank.Name = "Rank"
-	rank.Size = UDim2.new(1, 0, 0, 30)
-	rank.BackgroundTransparency = 1
-	rank.Font = Enum.Font.GothamBlack
-	rank.TextSize = 24
-	rank.TextStrokeTransparency = 0.35
-	rank.TextStrokeColor3 = Color3.fromRGB(12, 8, 30)
-	rank.Parent = gui
+	local tier = Instance.new("TextLabel")
+	tier.Name = "Rank"
+	tier.Size = UDim2.new(1, 0, 0, 34)
+	tier.BackgroundTransparency = 1
+	tier.Font = Enum.Font.GothamBlack
+	tier.TextSize = 26
+	tier.TextStrokeTransparency = 0
+	tier.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	tier.Parent = gui
 
 	local name = Instance.new("TextLabel")
 	name.Name = "Name"
-	name.Position = UDim2.fromOffset(0, 30)
-	name.Size = UDim2.new(1, 0, 0, 22)
+	name.Position = UDim2.fromOffset(0, 34)
+	name.Size = UDim2.new(1, 0, 0, 24)
 	name.BackgroundTransparency = 1
 	name.Font = Enum.Font.GothamBold
-	name.TextSize = 16
+	name.TextSize = 17
 	name.TextColor3 = Color3.new(1, 1, 1)
-	name.TextStrokeTransparency = 0.5
-	name.TextStrokeColor3 = Color3.fromRGB(12, 8, 30)
-	name.Text = p.DisplayName
+	name.TextStrokeTransparency = 0.2
+	name.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 	name.Parent = gui
 end
 
@@ -50,11 +50,11 @@ local function refresh(p)
 	if not gui then
 		return
 	end
-	local rankIndex = p:GetAttribute("Rank") or 1
-	local rank = Config.Ranks[rankIndex]
+	local rank = Config.Ranks[p:GetAttribute("Rank") or 1]
 	local stars = p:GetAttribute("Rebirths") or 0
-	gui.Rank.Text = (stars > 0 and ("★" .. stars .. " ") or "") .. rank.Name:upper() .. "  " .. Util.fmt(p:GetAttribute("GlowScore") or 0)
+	gui.Rank.Text = (stars > 0 and ("★" .. stars .. " ") or "") .. rank.Full:upper()
 	gui.Rank.TextColor3 = rank.Color
+	gui.Name.Text = string.format("%s  ·  Lv %s", p.DisplayName, Util.fmt(p:GetAttribute("Level") or 1))
 end
 
 function Nameplate.onCharacter(p)
@@ -72,7 +72,7 @@ function Nameplate.onCharacter(p)
 end
 
 function Nameplate.init(p)
-	for _, attr in { "Rank", "GlowScore", "Rebirths" } do
+	for _, attr in { "Rank", "Level", "Rebirths" } do
 		p:GetAttributeChangedSignal(attr):Connect(function()
 			refresh(p)
 		end)

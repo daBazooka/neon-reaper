@@ -1,4 +1,4 @@
--- GLOW UP: the runway in the middle of the district. Walk it for a steady Aura trickle that
+-- SUB 5 TO TRUE ADAM: the runway in the middle of the district. Walk it for a steady Aura trickle that
 -- scales with your Glow Score, so a great look pays you just for strutting.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -9,7 +9,7 @@ local Stats = require(script.Parent.Stats)
 local Runway = {}
 
 function Runway.init()
-	local halfLength, halfWidth = Config.Runway.Length / 2, Config.Runway.Width / 2
+	local halfWidth = Config.Runway.HalfWidth
 	task.spawn(function()
 		while true do
 			task.wait(1)
@@ -18,12 +18,13 @@ function Runway.init()
 				local profileReady = p:GetAttribute("Ready")
 				if root and profileReady and not p:GetAttribute("InDuel") then
 					local pos = root.Position
-					local onRunway = math.abs(pos.X) <= halfLength and math.abs(pos.Z) <= halfWidth and pos.Y < 8
+					local onRunway = math.abs(pos.X) <= halfWidth and pos.Z >= Config.Runway.MinZ and pos.Z <= Config.Runway.MaxZ and pos.Y < 8
 					local walking = root.AssemblyLinearVelocity.Magnitude > 4
 					p:SetAttribute("OnRunway", onRunway)
 					if onRunway and walking then
 						local perSecond = math.max(2, Stats.score(p) * Config.Runway.AuraPerScore)
 						Stats.addAuraFractional(p, perSecond * Stats.eventMult("RunwayMult"))
+						Stats.addXP(p, math.max(0.5, Stats.score(p) * 0.004))
 					end
 				end
 			end

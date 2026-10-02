@@ -1,4 +1,4 @@
--- GLOW UP: shards bob and spin locally so the server never has to animate them.
+-- SUB 5 TO TRUE ADAM: shards bob and spin locally so the server never has to animate them.
 local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 

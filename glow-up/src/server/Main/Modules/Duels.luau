@@ -1,4 +1,4 @@
--- GLOW UP: "mog" duels. Two players (or a player and a bot) face off in a 7-second tap battle.
+-- SUB 5 TO TRUE ADAM: "mog" duels. Two players (or a player and a bot) face off in a 7-second tap battle.
 -- Your Glow Score gives you an edge, but a fast tapper can upset a higher-ranked rival.
 -- Losing never costs you anything: you still get a consolation reward.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -114,6 +114,7 @@ local function finish(duel)
 			reward *= 0.25
 		end
 		profile.Duels += 1
+		Stats.addXP(p, wins and (40 + oppScore * 0.05) or 15)
 		reward *= Stats.eventMult("DuelMult")
 		local given = Stats.addAura(p, math.max(10, reward))
 		Stats.send(p, "duelEnd", wins, given, myTaps, oppTaps, myEff, oppEff, p:GetAttribute("DuelStreak") or 0)
@@ -161,7 +162,7 @@ local function startDuel(a, b)
 	end
 
 	local function info(p)
-		return p and { p.DisplayName, p:GetAttribute("Rank") or 1 } or { "Mogger Bot", Config.RankFor(scoreB) }
+		return p and { p.DisplayName, p:GetAttribute("Rank") or 1 } or { "Mogger Bot", Config.RankFor(math.max(1, math.floor(scoreB / 10))) }
 	end
 	local ia, ib = info(a), info(b)
 	Stats.send(a, "duelStart", ib[1], ib[2], scoreB, scoreA, duel.tStart, cfg.Length)

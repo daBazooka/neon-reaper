@@ -1,4 +1,4 @@
--- GLOW UP: client audio. Pitched pickup notes, fanfares and generative ambient music.
+-- SUB 5 TO TRUE ADAM: client audio. Pitched pickup notes, fanfares and generative ambient music.
 -- Everything is built from a few short sounds, so it works without uploading anything.
 -- If a sound can't be loaded it is skipped silently (see the Output window for a note).
 local SoundService = game:GetService("SoundService")
@@ -58,7 +58,7 @@ function Audio.Init()
 					templates[name] = s
 				else
 					templates[name] = false
-					warn("[GlowUp Audio] Could not load '" .. name .. "' (" .. id .. "). Paste a working sound id in Config.Sounds.")
+					warn("[TrueAdam Audio] Could not load '" .. name .. "' (" .. id .. "). Paste a working sound id in Config.Sounds.")
 				end
 			end)
 		end

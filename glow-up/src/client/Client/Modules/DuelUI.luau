@@ -1,4 +1,4 @@
--- GLOW UP: duel overlay. Both sides tap as fast as they can for 7 seconds; Glow Score gives an
+-- SUB 5 TO TRUE ADAM: duel overlay. Both sides tap as fast as they can for 7 seconds; Mog Power gives an
 -- edge but speed can upset a higher rank. Win or lose, you always get rewarded.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -180,10 +180,10 @@ function DuelUI.start(oppNameText, oppRank, oppScore, myScore, tStart, length)
 	local opp = Config.Ranks[oppRank] or Config.Ranks[1]
 	myName.Text = player.DisplayName
 	myName.TextColor3 = myRank.Color
-	myInfo.Text = string.format("%s  ·  GLOW %s", myRank.Name:upper(), Util.fmt(myScore))
+	myInfo.Text = string.format("%s  ·  POWER %s", myRank.Name:upper(), Util.fmt(myScore))
 	oppName.Text = oppNameText
 	oppName.TextColor3 = opp.Color
-	oppInfo.Text = string.format("%s  ·  GLOW %s", opp.Name:upper(), Util.fmt(oppScore))
+	oppInfo.Text = string.format("%s  ·  POWER %s", opp.Name:upper(), Util.fmt(oppScore))
 	duel = { tStart = tStart, length = length, myTaps = 0, oppTaps = 0, lastTick = 0 }
 	pendingSend = 0
 	resultLabel.Text = ""

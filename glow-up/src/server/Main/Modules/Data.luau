@@ -1,4 +1,4 @@
--- GLOW UP: player save data. Loads/saves with DataStores when available; the game also runs
+-- SUB 5 TO TRUE ADAM: player save data. Loads/saves with DataStores when available; the game also runs
 -- fine in unpublished places (progress just isn't kept).
 local Players = game:GetService("Players")
 local DataStoreService = game:GetService("DataStoreService")
@@ -10,16 +10,18 @@ local profiles = {}
 local savable = {}
 
 local storeOk, store = pcall(function()
-	return DataStoreService:GetDataStore("GlowUpV1")
+	return DataStoreService:GetDataStore("SubFiveToTrueAdamV1")
 end)
 if not storeOk then
-	warn("[GlowUp] Saving disabled (publish the place to enable it).")
+	warn("[TrueAdam] Saving disabled (publish the place to enable it).")
 	store = nil
 end
 
 local function defaults()
 	return {
 		Aura = 0,
+		Level = 1,
+		XP = 0,
 		Power = 0,
 		Style = 0,
 		Charm = 0,
@@ -64,7 +66,7 @@ function Data.load(p)
 			savable[p] = true
 			data = result
 		else
-			warn("[GlowUp] load failed (saving off for this session):", result)
+			warn("[TrueAdam] load failed (saving off for this session):", result)
 		end
 	end
 	data = type(data) == "table" and data or {}
@@ -87,7 +89,7 @@ function Data.save(p)
 		store:SetAsync("u" .. p.UserId, profile)
 	end)
 	if not ok then
-		warn("[GlowUp] save failed:", err)
+		warn("[TrueAdam] save failed:", err)
 	end
 end
 

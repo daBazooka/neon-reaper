@@ -1,8 +1,9 @@
--- GLOW UP: the one main menu. A single window with a tab list so the screen never fills up with
+-- SUB 5 TO TRUE ADAM: the one main menu. A single window with a tab list so the screen never fills up with
 -- competing panels. Tabs register themselves with Menu.addTab(name, icon, builder).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
 local UI = require(Shared:WaitForChild("UI"))
 local Audio = require(Shared:WaitForChild("Audio"))
 
@@ -88,11 +89,11 @@ function Menu.init(gui)
 
 	local header = UI.label(window, {
 		Position = UDim2.fromOffset(24, 14),
-		Size = UDim2.fromOffset(200, 30),
+		Size = UDim2.fromOffset(420, 30),
 		Font = UI.Fonts.Title,
 		TextSize = 24,
 		TextColor3 = UI.Colors.Text,
-		Text = "GLOW UP",
+		Text = Config.GameName:upper(),
 		ZIndex = 22,
 	})
 	UI.gradient(header, UI.Colors.Cyan, UI.Colors.Accent2, 0)

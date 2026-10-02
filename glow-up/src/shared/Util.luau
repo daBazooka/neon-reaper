@@ -1,4 +1,4 @@
--- GLOW UP: small shared helpers.
+-- SUB 5 TO TRUE ADAM: small shared helpers.
 local Util = {}
 
 -- 1234 -> "1,234", 15300 -> "15.3K", 4.2e6 -> "4.20M" ...

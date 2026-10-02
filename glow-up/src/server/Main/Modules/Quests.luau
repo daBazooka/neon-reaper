@@ -1,4 +1,4 @@
--- GLOW UP: an endless chain of small goals. There is always exactly one active quest.
+-- SUB 5 TO TRUE ADAM: an endless chain of small goals. There is always exactly one active quest.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
@@ -47,6 +47,7 @@ function Quests.progress(p, kind, amount, absolute)
 
 	profile.QuestsDone += 1
 	Stats.addAura(p, q.Reward, { raw = true })
+	Stats.addXP(p, 25 + profile.QuestsDone * 5)
 	local bonus = ""
 	if profile.QuestsDone % 5 == 0 then
 		Stats.addFreeCrates(p, 1)

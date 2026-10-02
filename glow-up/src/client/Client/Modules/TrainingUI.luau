@@ -1,4 +1,4 @@
--- GLOW UP: the training minigame overlay. A marker sweeps a bar; press Space (or tap) while it
+-- SUB 5 TO TRUE ADAM: the training minigame overlay. A marker sweeps a bar; press Space (or tap) while it
 -- is inside the zone. The server decides the zone and grades the press, so this only draws it.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

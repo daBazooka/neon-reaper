@@ -1,4 +1,4 @@
--- GLOW UP: 7-day login streak. Missing a day restarts the cycle.
+-- SUB 5 TO TRUE ADAM: 7-day login streak. Missing a day restarts the cycle.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))

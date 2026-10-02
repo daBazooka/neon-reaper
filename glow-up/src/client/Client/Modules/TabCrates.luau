@@ -1,4 +1,4 @@
--- GLOW UP: crates tab. The server rolls; this plays the reveal (a spinning reel that slows
+-- SUB 5 TO TRUE ADAM: crates tab. The server rolls; this plays the reveal (a spinning reel that slows
 -- down, then a rarity-coloured card) so every opening feels like an event.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

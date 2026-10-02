@@ -1,33 +1,55 @@
--- GLOW UP: every number, name and table the game balances on lives here.
+-- SUB 5 TO TRUE ADAM: every number, name and table the game balances on lives here.
 local Config = {}
 
-Config.GameName = "GLOW UP"
-Config.PlazaRadius = 160
+Config.GameName = "Sub 5 to True Adam"
+Config.PlazaRadius = 150
 
 --------------------------------------------------------------------------------
--- Ranks (decided by Glow Score = your stats + the look you're wearing)
+-- Levels (1 to 1000) and the looks tiers they unlock
 --------------------------------------------------------------------------------
+Config.MaxLevel = 1000
+
 Config.Ranks = {
-	{ Name = "Rookie", Score = 0, Color = Color3.fromRGB(170, 178, 196) },
-	{ Name = "Rising", Score = 100, Color = Color3.fromRGB(110, 224, 150) },
-	{ Name = "Smooth", Score = 400, Color = Color3.fromRGB(90, 214, 255) },
-	{ Name = "Sharp", Score = 1200, Color = Color3.fromRGB(110, 150, 255) },
-	{ Name = "Radiant", Score = 3500, Color = Color3.fromRGB(192, 124, 255) },
-	{ Name = "Certified", Score = 9000, Color = Color3.fromRGB(255, 120, 205) },
-	{ Name = "Icon", Score = 24000, Color = Color3.fromRGB(255, 204, 84) },
-	{ Name = "Legend", Score = 65000, Color = Color3.fromRGB(255, 146, 66) },
-	{ Name = "Mythic", Score = 170000, Color = Color3.fromRGB(255, 86, 128) },
-	{ Name = "Eternal", Score = 450000, Color = Color3.fromRGB(236, 246, 255) },
+	{ Name = "Sub 5", Full = "Sub 5", Level = 1, Color = Color3.fromRGB(196, 168, 140) },
+	{ Name = "LTN", Full = "Low-Tier Normie", Level = 10, Color = Color3.fromRGB(150, 205, 120) },
+	{ Name = "MTN", Full = "Mid-Tier Normie", Level = 25, Color = Color3.fromRGB(90, 200, 235) },
+	{ Name = "HTN", Full = "High-Tier Normie", Level = 50, Color = Color3.fromRGB(100, 150, 255) },
+	{ Name = "Chadlite", Full = "Chadlite", Level = 100, Color = Color3.fromRGB(190, 125, 255) },
+	{ Name = "Chad", Full = "Chad", Level = 200, Color = Color3.fromRGB(255, 170, 60) },
+	{ Name = "Gigachad", Full = "Gigachad", Level = 450, Color = Color3.fromRGB(255, 110, 70) },
+	{ Name = "True Adam", Full = "TRUE ADAM", Level = 1000, Color = Color3.fromRGB(255, 214, 70) },
 }
 
-function Config.RankFor(score)
+function Config.RankFor(level)
 	local index = 1
 	for i, rank in Config.Ranks do
-		if score >= rank.Score then
+		if level >= rank.Level then
 			index = i
 		end
 	end
 	return index
+end
+
+-- XP needed to go from `level` to `level + 1`.
+-- Levels 1-50 are quick (a few minutes each at most); after 50 the cost climbs steeply.
+function Config.XPForLevel(level)
+	if level <= 50 then
+		return math.floor(20 + 8 * level)
+	end
+	return math.floor(420 * (level / 50) ^ 3.2)
+end
+
+-- Body shape by level. Level 1 is a short, wide, big-headed "Sub 5" gag character; it changes
+-- fastest early on and settles into a tall, athletic look at level 1000.
+local APPEARANCE_START = { BodyHeightScale = 0.8, BodyWidthScale = 1.55, BodyDepthScale = 1.45, HeadScale = 1.3, BodyTypeScale = 0, BodyProportionScale = 0 }
+local APPEARANCE_END = { BodyHeightScale = 1.12, BodyWidthScale = 0.92, BodyDepthScale = 0.95, HeadScale = 0.95, BodyTypeScale = 0.3, BodyProportionScale = 0.3 }
+function Config.AppearanceScales(level)
+	local t = math.clamp((level - 1) / (Config.MaxLevel - 1), 0, 1) ^ 0.55
+	local out = {}
+	for key, from in APPEARANCE_START do
+		out[key] = from + (APPEARANCE_END[key] - from) * t
+	end
+	return out
 end
 
 --------------------------------------------------------------------------------
@@ -74,8 +96,9 @@ end
 function Config.RebirthMult(rebirths)
 	return 1 + rebirths * 0.25
 end
+-- Level needed to rebirth (rebirth keeps your level, resets Aura/stats/upgrades).
 function Config.RebirthRequirement(rebirths)
-	return 4000 * 3 ^ rebirths
+	return 40 + 30 * rebirths
 end
 
 --------------------------------------------------------------------------------
@@ -181,14 +204,14 @@ end
 -- Aura shards scattered around the district
 --------------------------------------------------------------------------------
 Config.ShardTypes = {
-	{ Name = "Spark", Value = 2, Weight = 70, Scale = 0, Color = C(100, 220, 255) },
-	{ Name = "Bloom", Value = 12, Weight = 22, Scale = 0.4, Color = C(200, 120, 255) },
-	{ Name = "Nova", Value = 60, Weight = 7, Scale = 0.8, Color = C(255, 205, 80) },
-	{ Name = "Mythic", Value = 300, Weight = 1, Scale = 1.3, Color = C(255, 90, 170) },
+	{ Name = "Copper", Value = 2, Weight = 70, Scale = 0, Color = C(205, 127, 70), Shape = "Coin", Material = "Metal" },
+	{ Name = "Silver", Value = 12, Weight = 22, Scale = 0.4, Color = C(205, 212, 225), Shape = "Coin", Material = "Metal" },
+	{ Name = "Gold", Value = 60, Weight = 7, Scale = 0.8, Color = C(255, 202, 50), Shape = "Coin", Material = "Metal" },
+	{ Name = "Diamond", Value = 300, Weight = 1, Scale = 1.1, Color = C(130, 225, 255), Shape = "Gem", Material = "Glass" },
 }
 Config.ShardMutations = {
-	{ Name = "Prismatic", Chance = 0.005, Mult = 10, Color = C(255, 255, 255) },
-	{ Name = "Golden", Chance = 0.04, Mult = 3, Color = C(255, 205, 60) },
+	{ Name = "Rainbow", Chance = 0.005, Mult = 10, Color = C(255, 120, 200) },
+	{ Name = "Shiny", Chance = 0.04, Mult = 3, Color = C(255, 245, 160) },
 }
 Config.ShardRespawn = 4
 Config.ChainWindow = 2.5
@@ -221,9 +244,21 @@ Config.Duel = {
 }
 
 --------------------------------------------------------------------------------
+-- Mog Competition: a group flex-off on the central stage every few minutes
+--------------------------------------------------------------------------------
+Config.Competition = {
+	Gap = 150, -- seconds between competitions
+	EntryTime = 30,
+	Countdown = 3,
+	Length = 8,
+	MinFieldSize = 6, -- bots fill empty spots so it always feels like a crowd
+	BotNames = { "Mogger Mike", "Sigma Sam", "Chad Chris", "Aura Alex", "Rizz Ron", "Gigachad Gus" },
+}
+
+--------------------------------------------------------------------------------
 -- Runway: walking it earns a steady trickle scaled by your Glow Score
 --------------------------------------------------------------------------------
-Config.Runway = { Length = 80, Width = 16, AuraPerScore = 0.04 }
+Config.Runway = { MinZ = 26, MaxZ = 96, HalfWidth = 7, AuraPerScore = 0.04 }
 
 --------------------------------------------------------------------------------
 -- Quests (an endless chain of small goals)
@@ -277,10 +312,10 @@ Config.Daily = {
 --------------------------------------------------------------------------------
 Config.EventGap = { 150, 280 }
 Config.Events = {
-	{ Id = "Golden", Name = "GOLDEN HOUR", Icon = "🌟", Desc = "All Aura x2", Duration = 90, AuraMult = 2, Tint = C(255, 232, 175) },
-	{ Id = "Storm", Name = "SHARD STORM", Icon = "☄️", Desc = "Rare shards are raining down", Duration = 60, Tint = C(190, 215, 255) },
-	{ Id = "Frenzy", Name = "DUEL FRENZY", Icon = "⚔️", Desc = "Duel rewards x3", Duration = 90, DuelMult = 3, Tint = C(255, 190, 200) },
-	{ Id = "Runway", Name = "RUNWAY NIGHT", Icon = "💃", Desc = "Runway Aura x4", Duration = 90, RunwayMult = 4, Tint = C(225, 190, 255) },
+	{ Id = "Golden", Name = "GOLDEN HOUR", Icon = "🌟", Desc = "All Aura x2", Duration = 90, AuraMult = 2, Tint = C(255, 240, 200) },
+	{ Id = "Storm", Name = "SHARD STORM", Icon = "☄️", Desc = "Rare shards are raining down", Duration = 60, Tint = C(215, 230, 255) },
+	{ Id = "Frenzy", Name = "DUEL FRENZY", Icon = "⚔️", Desc = "Duel rewards x3", Duration = 90, DuelMult = 3, Tint = C(255, 215, 220) },
+	{ Id = "Runway", Name = "RUNWAY NIGHT", Icon = "💃", Desc = "Runway Aura x4", Duration = 90, RunwayMult = 4, Tint = C(235, 215, 255) },
 }
 Config.EventById = {}
 for _, e in Config.Events do

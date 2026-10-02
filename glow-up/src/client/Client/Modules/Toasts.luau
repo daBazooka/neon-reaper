@@ -1,4 +1,4 @@
--- GLOW UP: small, calm notifications. Max three at once, identical messages merge into "x2",
+-- SUB 5 TO TRUE ADAM: small, calm notifications. Max three at once, identical messages merge into "x2",
 -- and they sit above the dock so they never cover the action.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 

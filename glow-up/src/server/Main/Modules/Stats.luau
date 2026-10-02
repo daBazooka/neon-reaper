@@ -1,9 +1,10 @@
--- GLOW UP: the heart of progression. Owns Aura, stats, Glow Score, rank and the
+-- SUB 5 TO TRUE ADAM: the heart of progression. Owns Aura, stats, Glow Score, rank and the
 -- attributes the client reads. Every other system goes through here.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Data = require(script.Parent.Data)
+local Appearance = require(script.Parent.Appearance)
 
 local Stats = {}
 
@@ -40,9 +41,10 @@ function Stats.level(p, id)
 	return profile and profile.Levels[id] or 0
 end
 
+-- "Mog Power": what duels and competitions compare. Level, stats and gear all count.
 function Stats.computeScore(profile)
 	local statTotal = profile.Power + profile.Style + profile.Charm
-	local total = statTotal * Config.StatScore
+	local total = statTotal * Config.StatScore + profile.Level * 8
 	for slot, id in profile.Eq do
 		local c = Config.CosmeticById[id]
 		local stars = profile.Inv[id]
@@ -87,23 +89,77 @@ function Stats.recompute(p)
 	end
 	local oldRank = p:GetAttribute("Rank") or 1
 	local score = Stats.computeScore(profile)
-	local rank = Config.RankFor(score)
+	local rank = Config.RankFor(profile.Level)
 
 	p:SetAttribute("GlowScore", score)
 	p:SetAttribute("AuraRate", Stats.computeRate(profile))
 	p:SetAttribute("Rank", rank)
+	p:SetAttribute("Level", profile.Level)
+	p:SetAttribute("XP", math.floor(profile.XP))
+	p:SetAttribute("XPNeeded", Config.XPForLevel(profile.Level))
 	p:SetAttribute("Power", math.floor(profile.Power * 10) / 10)
 	p:SetAttribute("Style", math.floor(profile.Style * 10) / 10)
 	p:SetAttribute("Charm", math.floor(profile.Charm * 10) / 10)
 	p:SetAttribute("Rebirths", profile.Rebirths)
-	setLeaderstat(p, "Glow", score)
+	setLeaderstat(p, "Level", profile.Level)
 	setLeaderstat(p, "Rebirths", profile.Rebirths)
 
 	if rank > oldRank and p:GetAttribute("Ready") then
 		Stats.send(p, "rank", rank)
 	end
-	local magnet = Config.MagnetRadius(profile.Levels.Magnet or 0)
-	p:SetAttribute("MagnetRadius", magnet)
+	p:SetAttribute("MagnetRadius", Config.MagnetRadius(profile.Levels.Magnet or 0))
+end
+
+--------------------------------------------------------------------------------
+-- XP and levels
+--------------------------------------------------------------------------------
+-- Your look speeds up levelling: more stats and better gear means more XP from everything.
+function Stats.xpMult(p)
+	local profile = Data.get(p)
+	if not profile then
+		return 1
+	end
+	local power = (profile.Power + profile.Style + profile.Charm) * Config.StatScore
+	for _, id in profile.Eq do
+		local c = Config.CosmeticById[id]
+		local stars = profile.Inv[id]
+		if c and stars then
+			power += Config.CosmeticPower(c, stars)
+		end
+	end
+	return (1 + power / 120) * Config.RebirthMult(profile.Rebirths)
+end
+
+function Stats.addXP(p, base)
+	local profile = Data.get(p)
+	if not profile or profile.Level >= Config.MaxLevel then
+		return
+	end
+	profile.XP += base * Stats.xpMult(p)
+	local leveled = false
+	local needed = Config.XPForLevel(profile.Level)
+	while profile.XP >= needed and profile.Level < Config.MaxLevel do
+		profile.XP -= needed
+		profile.Level += 1
+		needed = Config.XPForLevel(profile.Level)
+		leveled = true
+		local aura = profile.Level * 15 * (1 + profile.Rebirths)
+		Stats.addAura(p, aura, { raw = true })
+		local crates = profile.Level % 10 == 0 and 1 or 0
+		if crates > 0 then
+			Stats.addFreeCrates(p, crates)
+		end
+		if p:GetAttribute("Ready") then
+			Stats.send(p, "level", profile.Level, aura, crates)
+		end
+	end
+	if profile.Level >= Config.MaxLevel then
+		profile.XP = 0
+	end
+	Stats.recompute(p)
+	if leveled then
+		Appearance.update(p)
+	end
 end
 
 function Stats.init(p)
@@ -111,7 +167,7 @@ function Stats.init(p)
 
 	local ls = Instance.new("Folder")
 	ls.Name = "leaderstats"
-	for _, name in { "Aura", "Glow", "Rebirths" } do
+	for _, name in { "Aura", "Level", "Rebirths" } do
 		local v = Instance.new("IntValue")
 		v.Name = name
 		v.Parent = ls

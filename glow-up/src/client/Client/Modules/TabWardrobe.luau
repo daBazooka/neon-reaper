@@ -1,4 +1,4 @@
--- GLOW UP: the wardrobe. A collection grid: owned items can be worn, unowned ones show as locked
+-- SUB 5 TO TRUE ADAM: the wardrobe. A collection grid: owned items can be worn, unowned ones show as locked
 -- silhouettes so players can see what they're chasing.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -206,7 +206,7 @@ function TabWardrobe.build(parent, Action)
 			end
 		end
 		summary.Text = string.format(
-			"Collection %d/%d   ·   Glow Score %s   ·   +%s Aura/s",
+			"Collection %d/%d   ·   Mog Power %s   ·   +%s Aura/s",
 			owned,
 			#Config.Cosmetics,
 			Util.fmt(player:GetAttribute("GlowScore") or 0),

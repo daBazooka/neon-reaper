@@ -22,11 +22,17 @@ local function newPlayer(id, name)
 	p.GetAttributeChangedSignal = function() return {Connect = function() end} end
 	p.FindFirstChild = function(_, n) if n == "leaderstats" then return ls end end
 	local function m() return U("part") end
-	char = {FindFirstChild = function() return U("part") end, FindFirstChildOfClass = function() return U("hum") end, WaitForChild = function() return U("part") end}
+	local scaleVals = {}
+	for _, n in {"BodyHeightScale","BodyWidthScale","BodyDepthScale","HeadScale","BodyTypeScale","BodyProportionScale"} do
+		scaleVals[n] = {Value = 1, IsA = function() return true end}
+	end
+	local hum = {RigType = Enum.HumanoidRigType.R15, FindFirstChild = function(_, n) return scaleVals[n] end, WaitForChild = function(_, n) return scaleVals[n] end, WalkSpeed = 16, Health = 100}
+	p.scaleVals = scaleVals; p.hum = hum
+	char = {FindFirstChild = function() return U("part") end, FindFirstChildOfClass = function() return hum end, WaitForChild = function() return hum end, GetScale = function() return 1 end, ScaleTo = function() end}
 	p.Character = char
 	p.CharacterAdded = {Connect = function() end}
 	-- leaderstats is created via Instance.new in Stats.init; give it settable values
-	ls.Aura = {Value = 0}; ls.Glow = {Value = 0}; ls.Rebirths = {Value = 0}
+	ls.Aura = {Value = 0}; ls.Level = {Value = 1}; ls.Rebirths = {Value = 0}
 	ls.FindFirstChild = function(self, n) return self[n] end
 	local root = {Position = Vector3.new(0, 3, 0), AssemblyLinearVelocity = Vector3.new(0, 0, 0), GetChildren = function() return {} end}
 	char.FindFirstChild = function(_, n) if n == "HumanoidRootPart" then return root end return U("part") end
@@ -39,10 +45,12 @@ players[1] = p1
 fireAll("PlayerAdded", p1)
 advance(1)
 check(a1.Ready == true, "player initialised (Ready)")
-check(a1.Rank == 1 and a1.GlowScore == 0, "starts as Rookie, Glow 0")
+check(a1.Rank == 1 and a1.Level == 1, "starts as Sub 5, level 1")
 check(a1.QuestKind ~= nil, "has a starting quest: " .. tostring(a1.QuestKind) .. " x" .. tostring(a1.QuestGoal))
 check(a1.DailyReady == true, "daily reward ready")
 
+check(math.abs(p1.scaleVals.BodyWidthScale.Value - 1.55) < 0.01, "level 1 body is wide (width " .. p1.scaleVals.BodyWidthScale.Value .. ")")
+check(math.abs(p1.scaleVals.BodyHeightScale.Value - 0.8) < 0.01, "level 1 body is short (height " .. p1.scaleVals.BodyHeightScale.Value .. ")")
 -- shards: heartbeat collects everything in the mock
 for i = 1, 160 do
 	p1.root.Position = Vector3.new(math.random(-150, 150), 3, math.random(-150, 150))
@@ -127,7 +135,8 @@ Stats.addAura(p1, 1e7, {raw = true})
 fireAll("Action", p1, "Buy", "Magnet")
 check(a1.Lv_Magnet == 1, "bought Magnet level 1")
 Stats.addStat(p1, "Power", 5000)
-check(Stats.score(p1) >= Config.RebirthRequirement(0), "score " .. Stats.score(p1) .. " meets rebirth requirement")
+Data.get(p1).Level = 200; Stats.recompute(p1)
+check(a1.Level >= Config.RebirthRequirement(0), "level " .. a1.Level .. " meets rebirth requirement")
 fireAll("Action", p1, "Rebirth")
 check(a1.Rebirths == 1, "rebirth done")
 check(a1.Lv_Magnet == 0, "rebirth reset upgrades")
@@ -157,4 +166,40 @@ for _, bad in {{}, 5, "x", nil} do
 end
 fireAll("Action", p1, "Equip", "not_a_real_item")
 fireAll("Action", p1, "OpenCrate", "not_a_crate")
+-- levelling curve: easy to 50, much harder after
+local Config2 = Config
+local sum50, sum100 = 0, 0
+for L = 1, 49 do sum50 += Config2.XPForLevel(L) end
+for L = 50, 99 do sum100 += Config2.XPForLevel(L) end
+check(Config2.XPForLevel(50) < 600 and Config2.XPForLevel(100) > 3000, "XP: level 50 needs " .. Config2.XPForLevel(50) .. ", level 100 needs " .. Config2.XPForLevel(100))
+check(sum100 > sum50 * 4, "levels 50-100 cost " .. math.floor(sum100/sum50*10)/10 .. "x levels 1-50")
+local Appearance = require(ModN.children.Appearance)
+Data.get(p1).Level = 1000
+Appearance.update(p1, true)
+check(p1.scaleVals.BodyHeightScale.Value > 1.1 and p1.scaleVals.BodyWidthScale.Value < 0.95, "level 1000 body is tall and athletic")
+Data.get(p1).Level = 500
+Appearance.update(p1, true)
+local mid = p1.scaleVals.BodyWidthScale.Value
+check(mid > 0.92 and mid < 1.55, "level 500 is in between (width " .. mid .. ")")
+print("tiers:", Config2.Ranks[Config2.RankFor(1)].Name, Config2.Ranks[Config2.RankFor(30)].Name, Config2.Ranks[Config2.RankFor(120)].Name, Config2.Ranks[Config2.RankFor(1000)].Full)
+
+-- Mog Competition: run a full cycle with one human
+Data.get(p1).Level = 20; Stats.recompute(p1)
+local Competition = require(ModN.children.Competition)
+a1.InDuel = false
+local guard = 0
+while attrsWS.CompState ~= "open" and guard < 1000 do advance(0.5); guard += 1 end
+check(attrsWS.CompState == "open", "competition opened: " .. tostring(attrsWS.CompState))
+Competition.enter(p1)
+local startedMsg = false
+advance(Config2.Competition.EntryTime + 1)
+for _, m in notifyLog do if m[1] == "compStart" then startedMsg = true end end
+check(startedMsg, "competition battle started with the entrant")
+advance(Config2.Competition.Countdown + 0.2)
+for i = 1, 60 do Competition.taps(p1, 1); advance(0.12) end
+advance(3)
+local compEnd
+for i = #notifyLog, 1, -1 do if notifyLog[i][1] == "compEnd" then compEnd = notifyLog[i]; break end end
+check(compEnd ~= nil, "competition results sent (place " .. tostring(compEnd and compEnd[2]) .. " of " .. tostring(compEnd and compEnd[3]) .. ")")
+check(a1.InDuel == false, "entrant released after competition")
 print("DONE, warnings:", #warns)

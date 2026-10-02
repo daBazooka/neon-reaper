@@ -1,4 +1,4 @@
--- GLOW UP: upgrades (bought with Aura) and the rebirth button.
+-- SUB 5 TO TRUE ADAM: upgrades (bought with Aura) and the rebirth button.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -140,9 +140,9 @@ function TabUpgrades.build(parent, Action)
 		end
 		local rebirths = player:GetAttribute("Rebirths") or 0
 		local need = Config.RebirthRequirement(rebirths)
-		local score = player:GetAttribute("GlowScore") or 0
+		local score = player:GetAttribute("Level") or 1
 		rebDesc.Text = string.format(
-			"Reset Aura, stats and upgrades. Keep every cosmetic, gain +25%% Aura and Glow forever, and a free pair of crates.\nNeeds Glow Score %s  (you have %s)",
+			"Reset Aura, stats and upgrades (you keep your level and every cosmetic). Gain +25%% Aura and Mog Power forever, plus 2 free crates.\nNeeds level %s  (you are level %s)",
 			Util.fmt(need),
 			Util.fmt(score)
 		)

@@ -1,4 +1,4 @@
--- GLOW UP: client entry point. Builds the interface, wires the menu tabs, and routes everything
+-- SUB 5 TO TRUE ADAM: client entry point. Builds the interface, wires the menu tabs, and routes everything
 -- the server tells us (pickups, rewards, training, duels) to the right place.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -27,6 +27,7 @@ local TabRewards = require(Modules.TabRewards)
 local TabSettings = require(Modules.TabSettings)
 local TrainingUI = require(Modules.TrainingUI)
 local DuelUI = require(Modules.DuelUI)
+local CompetitionUI = require(Modules.CompetitionUI)
 local Orbs = require(Modules.Orbs)
 
 -- Wait for the server to finish setting this player up.
@@ -70,6 +71,7 @@ Hud.init(gui, Menu)
 Toasts.init(gui)
 TrainingUI.init(gui, Action)
 DuelUI.init(gui, Action)
+CompetitionUI.init(gui, Action)
 
 TabSettings.apply()
 Audio.startMusic()
@@ -128,7 +130,33 @@ function handlers.rank(rankIndex)
 	Audio.rank()
 	Fx.shake(0.4, 0.5)
 	Fx.flash(rank.Color, 0.35, 0.9)
-	Fx.announce(rank.Name:upper(), "NEW RANK", rank.Color, 0.28)
+	Fx.announce(rank.Full:upper(), "NEW LOOKS TIER!", rank.Color, 0.28)
+end
+
+-- Plain level-ups stay small (a toast); every 10th level gets a proper moment.
+function handlers.level(level, aura, crates)
+	Audio.quest()
+	if level % 10 == 0 then
+		Audio.levelUp()
+		Fx.shake(0.3, 0.4)
+		Fx.flash(UI.Colors.Gold, 0.25, 0.6)
+		Fx.announce("LEVEL " .. level, "+" .. Util.fmt(aura) .. " Aura" .. (crates > 0 and "  +  free crate" or ""), UI.Colors.Gold, 0.3)
+	else
+		Toasts.push(string.format("Level %d!  +%s Aura", level, Util.fmt(aura)), "gold")
+	end
+end
+
+function handlers.compStart(...)
+	Menu.close()
+	CompetitionUI.start(...)
+end
+
+function handlers.compProgress(list)
+	CompetitionUI.progress(list)
+end
+
+function handlers.compEnd(...)
+	CompetitionUI.finish(...)
 end
 
 function handlers.quest(text, reward, bonus)
@@ -196,7 +224,7 @@ Notify.OnClientEvent:Connect(function(kind, ...)
 	if handler then
 		local ok, err = pcall(handler, ...)
 		if not ok then
-			warn("[GlowUp] UI handler '" .. tostring(kind) .. "' failed:", err)
+			warn("[TrueAdam] UI handler '" .. tostring(kind) .. "' failed:", err)
 		end
 	end
 end)

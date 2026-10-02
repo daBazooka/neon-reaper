@@ -1,4 +1,4 @@
--- GLOW UP: the client design system. One place for colours, fonts and reusable components
+-- SUB 5 TO TRUE ADAM: the client design system. One place for colours, fonts and reusable components
 -- so every screen looks like it belongs to the same game.
 local TweenService = game:GetService("TweenService")
 
@@ -8,20 +8,20 @@ local Util = require(script.Parent:WaitForChild("Util"))
 local UI = {}
 
 UI.Colors = {
-	Bg = Color3.fromRGB(13, 10, 28),
-	Panel = Color3.fromRGB(22, 17, 46),
-	Card = Color3.fromRGB(34, 27, 68),
-	CardHover = Color3.fromRGB(46, 37, 90),
-	Stroke = Color3.fromRGB(120, 96, 220),
-	Text = Color3.fromRGB(244, 240, 255),
-	Muted = Color3.fromRGB(167, 158, 206),
-	Accent = Color3.fromRGB(150, 92, 255),
-	Accent2 = Color3.fromRGB(255, 92, 190),
-	Good = Color3.fromRGB(64, 214, 128),
-	Gold = Color3.fromRGB(255, 204, 84),
-	Cyan = Color3.fromRGB(90, 214, 255),
-	Danger = Color3.fromRGB(255, 92, 110),
-	Disabled = Color3.fromRGB(70, 64, 104),
+	Bg = Color3.fromRGB(20, 28, 54),
+	Panel = Color3.fromRGB(34, 48, 88),
+	Card = Color3.fromRGB(54, 72, 128),
+	CardHover = Color3.fromRGB(72, 94, 160),
+	Stroke = Color3.fromRGB(10, 14, 30),
+	Text = Color3.fromRGB(255, 255, 255),
+	Muted = Color3.fromRGB(186, 200, 232),
+	Accent = Color3.fromRGB(62, 140, 255),
+	Accent2 = Color3.fromRGB(255, 170, 40),
+	Good = Color3.fromRGB(62, 200, 92),
+	Gold = Color3.fromRGB(255, 200, 40),
+	Cyan = Color3.fromRGB(90, 200, 255),
+	Danger = Color3.fromRGB(232, 72, 72),
+	Disabled = Color3.fromRGB(96, 104, 134),
 }
 
 UI.Fonts = {
@@ -48,8 +48,8 @@ end
 function UI.stroke(inst, color, thickness, transparency)
 	return UI.new("UIStroke", {
 		Color = color or UI.Colors.Stroke,
-		Thickness = thickness or 1.5,
-		Transparency = transparency or 0.55,
+		Thickness = thickness or 2.5,
+		Transparency = transparency or 0,
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 	}, inst)
 end
@@ -95,6 +95,8 @@ function UI.label(parent, props)
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextWrapped = true,
 		RichText = false,
+		TextStrokeColor3 = Color3.new(0, 0, 0),
+		TextStrokeTransparency = 0.6,
 	}
 	for k, v in props do
 		base[k] = v
@@ -106,10 +108,10 @@ end
 function UI.panel(parent, props)
 	local base = {
 		BackgroundColor3 = UI.Colors.Panel,
-		BackgroundTransparency = 0.08,
+		BackgroundTransparency = 0,
 		BorderSizePixel = 0,
 	}
-	local radius = props.Radius or 16
+	local radius = props.Radius or 14
 	for k, v in props do
 		if k ~= "Radius" then
 			base[k] = v
@@ -118,6 +120,7 @@ function UI.panel(parent, props)
 	local frame = UI.new("Frame", base, parent)
 	UI.corner(frame, radius)
 	UI.stroke(frame)
+	UI.gradient(frame, Color3.new(1, 1, 1), Color3.fromRGB(196, 200, 214), 90)
 	return frame
 end
 
@@ -127,11 +130,13 @@ function UI.button(parent, props, style)
 	local base = {
 		AutoButtonColor = false,
 		BorderSizePixel = 0,
-		Font = UI.Fonts.Bold,
+		Font = UI.Fonts.Title,
 		TextSize = 16,
 		TextColor3 = UI.Colors.Text,
 		Text = "",
-		BackgroundColor3 = style == "card" and UI.Colors.Card or UI.Colors.Accent,
+		BackgroundColor3 = style == "card" and UI.Colors.Card or UI.Colors.Good,
+		TextStrokeColor3 = Color3.new(0, 0, 0),
+		TextStrokeTransparency = 0.3,
 	}
 	local radius = props.Radius or 12
 	for k, v in props do
@@ -142,10 +147,8 @@ function UI.button(parent, props, style)
 	local btn = UI.new("TextButton", base, parent)
 	UI.corner(btn, radius)
 	local scale = UI.new("UIScale", {}, btn)
-	local grad
-	if style == "primary" then
-		grad = UI.gradient(btn, UI.Colors.Accent, UI.Colors.Accent2, 35)
-	end
+	UI.stroke(btn, UI.Colors.Stroke, 2.5, 0)
+	local grad = UI.gradient(btn, Color3.new(1, 1, 1), Color3.fromRGB(190, 196, 210), 90)
 	local baseColor = base.BackgroundColor3
 	btn.MouseEnter:Connect(function()
 		UI.tween(scale, 0.12, { Scale = 1.04 })
@@ -178,12 +181,14 @@ function UI.bar(parent, props, fillColor)
 		AnchorPoint = props.AnchorPoint or Vector2.zero,
 	}, parent)
 	UI.corner(back, 99)
+	UI.stroke(back, UI.Colors.Stroke, 2, 0)
 	local fill = UI.new("Frame", {
 		BackgroundColor3 = fillColor or UI.Colors.Accent,
 		BorderSizePixel = 0,
 		Size = UDim2.fromScale(0, 1),
 	}, back)
 	UI.corner(fill, 99)
+	UI.gradient(fill, Color3.new(1, 1, 1), Color3.fromRGB(170, 176, 190), 90)
 	local self = { back = back, fill = fill }
 	function self.set(alpha)
 		fill.Size = UDim2.fromScale(math.clamp(alpha, 0, 1), 1)

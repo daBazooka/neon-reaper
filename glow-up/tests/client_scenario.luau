@@ -2,7 +2,7 @@
 local function check(cond, msg) print((cond and "PASS  " or "FAIL  ") .. msg) end
 -- local player state as the server would have set it
 local a = attrsP
-a.Ready = true; a.Aura = 1500; a.GlowScore = 130; a.Rank = 2; a.AuraRate = 16.25; a.Rebirths = 0
+a.Ready = true; a.Aura = 1500; a.GlowScore = 130; a.Rank = 2; a.Level = 14; a.XP = 120; a.XPNeeded = 300; a.AuraRate = 16.25; a.Rebirths = 0
 a.Power = 12; a.Style = 3.5; a.Charm = 0; a.Wins = 4; a.DuelStreak = 2
 a.Inv = "head_cap:2,face_visor:1,aura_spark:1"; a.Eq_Head = "head_cap"; a.Eq_Back = ""; a.Eq_Face = ""; a.Eq_Aura = ""; a.Eq_Trail = ""
 a.FreeCrates = 1; a.Pity_neon = 3; a.Pity_icon = 0
@@ -12,7 +12,7 @@ a.Chain = 7; a.ChainExpire = clock + 2
 a.Lv_Magnet = 2; a.Lv_Boots = 0; a.Lv_Training = 1; a.Lv_Luck = 0; a.Lv_Boost = 0
 a.Set_Music = true; a.Set_Sfx = true; a.Set_Fx = true; a.Set_Duels = true
 a.OfflineGain = 5000
-attrsWS.Event = "Golden"; attrsWS.EventEnd = clock + 60
+attrsWS.Event = "Golden"; attrsWS.EventEnd = clock + 60; attrsWS.CompState = "open"; attrsWS.CompEnd = clock + 25
 
 local ok, err = pcall(sources[ClientN], ClientN)
 check(ok, "client init runs " .. tostring(err))
@@ -42,6 +42,8 @@ send("toast", "Another", "info")
 send("toast", "Third", "good")
 send("toast", "Fourth", "gold")
 send("rank", 3)
+send("level", 15, 225, 0)
+send("level", 20, 300, 1)
 send("quest", "Collect 25 Aura shards", 150, " + free crate")
 send("daily", 2, 300, 1)
 send("upgrade", "Magnet", 1)
@@ -71,6 +73,18 @@ send("duelStart", "Rival", 4, 900, 130, clock + 3, 7)
 advance(1)
 send("duelEnd", false, 40, 20, 50, 40, 70, 0)
 advance(5)
+-- Mog Competition flow
+send("compStart", clock + 3, 8, {{n = "Me", s = 120, m = true}, {n = "Mogger Mike", s = 100, m = false}, {n = "Sigma Sam", s = 90, m = false}})
+for i = 1, 60 do advance(0.1); fireAll("RenderStepped", 0.016) end
+send("compProgress", {{n = "Mogger Mike", t = 40, m = false}, {n = "Me", t = 33, m = true}, {n = "Sigma Sam", t = 20, m = false}})
+send("compEnd", 1, 6, 420, true, {{n = "Me", p = 88}, {n = "Mogger Mike", p = 80}})
+advance(2)
+send("compStart", clock + 3, 8, {{n = "Me", s = 120, m = true}})
+advance(1)
+send("compEnd", 3, 6, 90, false, {{n = "Chad Chris", p = 91}, {n = "Rizz Ron", p = 85}, {n = "Me", p = 70}})
+advance(2)
+attrsWS.CompState = "idle"; attrsWS.CompEnd = clock + 90
+advance(0.5); fireAll("RenderStepped", 0.016)
 -- bogus messages must not crash
 send("nonsense", 1, 2, 3)
 send("shard")

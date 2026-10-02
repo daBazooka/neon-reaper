@@ -1,4 +1,4 @@
--- GLOW UP: daily streak rewards and the current server event.
+-- SUB 5 TO TRUE ADAM: daily streak rewards and the current server event.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 

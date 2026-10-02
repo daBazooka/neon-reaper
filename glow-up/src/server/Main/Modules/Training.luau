@@ -1,4 +1,4 @@
--- GLOW UP: the training minigame. A marker sweeps a bar; hit the zone for stat gains.
+-- SUB 5 TO TRUE ADAM: the training minigame. A marker sweeps a bar; hit the zone for stat gains.
 -- The server picks the zone, computes where the marker was when you pressed, and grades it,
 -- so the result can't be faked from the client.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -67,6 +67,7 @@ resolve = function(p, session, grade)
 		gain = base * Config.TrainMult(profile.Levels.Training or 0) * streakMult
 		Stats.addStat(p, session.stat, gain)
 		Stats.addAura(p, gain * 4 * Config.RankScaling(p:GetAttribute("Rank") or 1))
+		Stats.addXP(p, gain * 10)
 		profile.Reps += 1
 		Quests.progress(p, "train", 1)
 		if grade == "perfect" then

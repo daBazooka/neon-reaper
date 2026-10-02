@@ -1,4 +1,4 @@
--- GLOW UP: simple toggles. Settings are saved on the server so they follow the player.
+-- SUB 5 TO TRUE ADAM: simple toggles. Settings are saved on the server so they follow the player.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 

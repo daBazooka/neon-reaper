@@ -1,10 +1,9 @@
--- GLOW UP: server entry point. Creates the network channels, builds the world, wires every
+-- SUB 5 TO TRUE ADAM: server entry point. Creates the network channels, builds the world, wires every
 -- system together, and routes client requests.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Config = require(Shared:WaitForChild("Config"))
 
 -- Network channels: Action = client asks the server, Notify = server tells the client.
 local net = Instance.new("Folder")
@@ -20,6 +19,7 @@ Notify.Parent = net
 local Modules = script:WaitForChild("Modules")
 local Data = require(Modules.Data)
 local Stats = require(Modules.Stats)
+local Appearance = require(Modules.Appearance)
 local Cosmetics = require(Modules.Cosmetics)
 local Nameplate = require(Modules.Nameplate)
 local Quests = require(Modules.Quests)
@@ -28,6 +28,7 @@ local Shards = require(Modules.Shards)
 local Training = require(Modules.Training)
 local Crates = require(Modules.Crates)
 local Duels = require(Modules.Duels)
+local Competition = require(Modules.Competition)
 local Shop = require(Modules.Shop)
 local Events = require(Modules.Events)
 local Runway = require(Modules.Runway)
@@ -37,7 +38,7 @@ local World = require(Modules.World)
 --------------------------------------------------------------------------------
 -- World + systems
 --------------------------------------------------------------------------------
-print("[GlowUp] server starting")
+print("[TrueAdam] server starting")
 local okWorld, info = pcall(World.build, {
 	train = Training.start,
 	crates = function(p)
@@ -45,16 +46,20 @@ local okWorld, info = pcall(World.build, {
 	end,
 	duelQueue = Duels.joinQueue,
 	duelBot = Duels.duelBot,
+	comp = Competition.enter,
 })
 if okWorld then
 	Duels.setArena(info.arena)
+	Competition.setStage(info.stage, info.compBoard)
 	Shards.build(info.slots)
 	Board.init(info.board)
-	print("[GlowUp] world built, shards:", #info.slots)
+	print("[TrueAdam] world built, shards:", #info.slots)
 else
-	warn("[GlowUp] World.build FAILED:", info)
+	warn("[TrueAdam] World.build FAILED:", info)
 end
+Appearance.setHook(Cosmetics.apply) -- rebuild accessories whenever the body size changes
 Shards.init()
+Competition.init()
 Training.init()
 Runway.init()
 Events.init()
@@ -71,6 +76,7 @@ local function onCharacter(p)
 	char:WaitForChild("HumanoidRootPart")
 	char:WaitForChild("Humanoid")
 	Stats.applyMovement(p)
+	Appearance.onCharacter(p)
 	Cosmetics.onCharacter(p)
 	Nameplate.onCharacter(p)
 end
@@ -109,6 +115,7 @@ end
 Players.PlayerRemoving:Connect(function(p)
 	Training.release(p)
 	Duels.release(p)
+	Competition.release(p)
 	Stats.forget(p)
 end)
 
@@ -167,6 +174,8 @@ Action.OnServerEvent:Connect(function(p, kind, a, b)
 		Training.handle(p, kind, a)
 	elseif kind == "DuelTaps" then
 		Duels.handle(p, kind, a)
+	elseif kind == "CompTaps" then
+		Competition.handle(p, kind, a)
 	elseif kind == "Setting" and type(a) == "string" and SETTING_KEYS[a] then
 		Stats.setSetting(p, a, b)
 	end
@@ -176,4 +185,4 @@ Players.PlayerRemoving:Connect(function(p)
 	budget[p] = nil
 end)
 
-print("[GlowUp] ready")
+print("[TrueAdam] ready")

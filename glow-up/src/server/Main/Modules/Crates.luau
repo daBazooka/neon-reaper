@@ -1,4 +1,4 @@
--- GLOW UP: crate opening. The server decides every roll; the client only plays the reveal.
+-- SUB 5 TO TRUE ADAM: crate opening. The server decides every roll; the client only plays the reveal.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
@@ -86,6 +86,7 @@ function Crates.open(p, crateId)
 	end
 
 	profile.CratesOpened += 1
+	Stats.addXP(p, 8)
 	Quests.progress(p, "crate", 1)
 	Stats.send(p, "crate", crateId, pick.Id, status, stars, refund)
 end

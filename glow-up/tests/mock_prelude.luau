@@ -1736,15 +1736,20 @@ V3mt.__mul = function(a, b) local ax, ay, az = comp(a); local bx, by, bz = comp(
 V3mt.__div = function(a, b) local ax, ay, az = comp(a); local bx, by, bz = comp(b); return V3new(ax / bx, ay / by, az / bz) end
 V3mt.__unm = function(a) return V3new(-a.X, -a.Y, -a.Z) end
 local Vector3 = {new = V3new, zero = V3new(0, 0, 0), one = V3new(1, 1, 1)}; local Vector2 = U("V2"); local CFrame = U("CF"); local Color3 = U("C3")
+local enumCache = {}
 local Enum = setmetatable({}, {__index = function(_, ename)
+	if enumCache[ename] then return enumCache[ename] end
 	local items = API_ENUMS[ename]
 	if not items then bad("BADENUM", tostring(ename), ""); return U("enum") end
 	local set = {}
 	for n in string.gmatch(items, "%S+") do set[n] = true end
-	return setmetatable({}, {__index = function(_, item)
+	local cache = {}
+	enumCache[ename] = setmetatable({}, {__index = function(_, item)
 		if not set[item] then bad("BADENUMITEM", ename, item) end
-		return {EnumType = ename, Name = item}
+		cache[item] = cache[item] or {EnumType = ename, Name = item}
+		return cache[item]
 	end})
+	return enumCache[ename]
 end}); local TweenInfo = U("TI"); local UDim2 = U("UDim2"); local UDim = U("UDim")
 local ColorSequence = U("CS"); local ColorSequenceKeypoint = U("CSK"); local NumberRange = U("NR"); local NumberSequence = U("NS"); local NumberSequenceKeypoint = U("NSK")
 local Random = {new = function(seed) return {NextNumber = function() return math.random() end, NextInteger = function(_, a, b) return math.random(a, b) end} end}

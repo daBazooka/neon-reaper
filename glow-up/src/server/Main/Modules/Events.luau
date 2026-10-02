@@ -1,4 +1,4 @@
--- GLOW UP: a server-wide event every few minutes. Clients read the "Event" attributes on workspace.
+-- SUB 5 TO TRUE ADAM: a server-wide event every few minutes. Clients read the "Event" attributes on workspace.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
