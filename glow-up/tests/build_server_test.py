@@ -4,7 +4,7 @@ def read(p): return open(os.path.join(root, p)).read()
 out = [open(os.path.join(os.path.dirname(__file__), "mock_prelude.luau")).read()]
 out.append('local SharedN = node("Shared", RS)')
 out.append('local function addSrc(parentNode, name, fn) local n = node(name, parentNode); sources[n] = fn; return n end')
-for name in ["Config", "Util", "Audio", "UI"]:
+for name in ["Config", "Util", "Audio", "UI", "HammerModel"]:
     out.append(f'addSrc(SharedN, "{name}", function(script)\n{read("shared/"+name+".luau")}\nend)')
 out.append('local MainN = node("Main", nil); local ModN = node("Modules", MainN)')
 mods = sorted(f[:-5] for f in os.listdir(os.path.join(root, "server/Main/Modules")))

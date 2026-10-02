@@ -21,6 +21,8 @@ Your look (stats + gear) multiplies XP, so a better look levels you faster. The 
 ## What you do
 | System | What it is |
 |---|---|
+| **Click / tap to train** | Click or tap anywhere (hold to keep swinging) to hit yourself with your hammer. Every swing pays Aura (hammer x rebirth x boosts) and a little XP. |
+| **Hammer Shop** | 10 hammers on LEGO-stud pedestals right where you spawn (Basic x1 up to True Adam Hammer x512). Stand on a pedestal and press the button to buy or equip; labels show OWNED / EQUIPPED / price. |
 | **Pickups** | Walk the plaza to grab apples, protein shakes, dumbbells and trophies (Aura + XP). Chain pickups for a multiplier. |
 | **Training** | Gym, Style Studio and Charm Lounge: a 5-rep timing minigame that raises Power / Style / Charm. |
 | **Wardrobe + Crates** | 25 cosmetics in 5 rarities; duplicates star up to 5. Crate Shop with pity timers. |
@@ -29,9 +31,11 @@ Your look (stats + gear) multiplies XP, so a better look levels you faster. The 
 | **Catwalk** | Walk it for steady Aura and XP. |
 | **Quests, daily rewards, events, rebirth, Top Moggers board** | Endless small goals, 7-day streak, Golden Hour / Shard Storm / Duel Frenzy / Runway Night, rebirth for a permanent bonus. |
 
-Every place has its own look and its own camera angle (gym, studio, lounge, crate shop, duel ring, Mog Stage, catwalk); switch the cinematic cameras off in Settings. The UI is small and colour-coded so it stays out of the way, and the soundtrack is a built-in "mogger theme" loop (set `Config.MusicTrackId` for a real song).
+Every place has its own look. The camera is the normal Roblox camera everywhere, so nothing is ever blocked.
 
-Controls: **E** interact, **Space** hit the training zone / tap in duels and competitions, **M** menu.
+**HUD:** left buttons Shop / Rebirth (with % progress) / Rewards / PVP / MOG (PVP and MOG jump you to the ring or the stage), right buttons Hammers / Wardrobe / Crates / Profile / Settings, the big Aura counter and wide LEVEL bar at the bottom, and a "Click / tap to train" banner at the top. Walk up to any place or pedestal and a big **use** button appears at the bottom of the screen. It works from the character's position (not the camera), so it works from any angle, on mouse, keyboard and touch.
+
+Controls: click / tap = swing, **E** = use, **Space** = hit the zone in training / tap in duels and competitions, **M** = menu.
 
 ## Install (easiest)
 1. Open `SubFiveToTrueAdam.rbxl` (double-click, or Roblox Studio **File > Open from File**).
@@ -42,11 +46,11 @@ It is built with Rojo from `src/`: `rojo build default.project.json -o SubFiveTo
 
 ## Layout
 ```
-ReplicatedStorage.Shared      Config, Util, Audio, UI
+ReplicatedStorage.Shared      Config, Util, Audio, UI, HammerModel
 ServerScriptService.Main      Script + Modules (Data, Stats, Appearance, Cosmetics, Shards, Training, Crates,
-                              Duels, Competition, Quests, Daily, Events, Runway, Shop, Nameplate, Board, Quirks, World)
+                              Duels, Competition, Quests, Daily, Events, Runway, Shop, Nameplate, Board, Quirks, Hammers, World)
 StarterPlayerScripts.Client   LocalScript + Modules (Fx, Toasts, Menu, Hud, 6 tabs, TrainingUI, DuelUI,
-                              CompetitionUI, Orbs, ZoneCamera)
+                              CompetitionUI, Orbs, Interact, HammerRow, Swing)
 ```
 All numbers (tiers, XP curve, body scales, costs, odds, rewards) live in `src/shared/Config.luau`.
 

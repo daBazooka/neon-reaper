@@ -1,8 +1,10 @@
 -- SUB 5 TO TRUE ADAM: every number, name and table the game balances on lives here.
 local Config = {}
 local C3 = Color3.fromRGB
+local C = C3
 
 Config.GameName = "Sub 5 to True Adam"
+Config.HammerRowZ = 118 -- the pedestal row you see when you spawn
 Config.PlazaRadius = 150
 
 -- Where the buildings stand (angle in degrees around the plaza, at StationRadius from the centre).
@@ -17,18 +19,6 @@ function Config.StationFront(name)
 	local a = math.rad(Config.Stations[name])
 	return Vector3.new(-math.cos(a), 0, -math.sin(a))
 end
-
--- Each place has its own camera angle. Dist/Height are in studs, Yaw swings the camera around the
--- Front direction (degrees), Fov is the field of view, Look raises the look-at point.
-Config.Zones = {
-	{ Id = "Gym", Label = "GYM", Icon = "💪", Kind = "station", Station = "Gym", Radius = 21, Cam = { Dist = 22, Height = 7, Yaw = -38, Fov = 58, Look = 3 } },
-	{ Id = "Studio", Label = "STYLE STUDIO", Icon = "💈", Kind = "station", Station = "Studio", Radius = 21, Cam = { Dist = 19, Height = 5, Yaw = 42, Fov = 54, Look = 3.5 } },
-	{ Id = "Lounge", Label = "CHARM LOUNGE", Icon = "🛋️", Kind = "station", Station = "Lounge", Radius = 21, Cam = { Dist = 20, Height = 6, Yaw = 55, Fov = 58, Look = 2.5 } },
-	{ Id = "Crates", Label = "CRATE SHOP", Icon = "🎁", Kind = "station", Station = "Crates", Radius = 19, Cam = { Dist = 17, Height = 4, Yaw = 0, Fov = 50, Look = 3 } },
-	{ Id = "Ring", Label = "DUEL RING", Icon = "🥊", Kind = "station", Station = "Ring", Radius = 30, Cam = { Dist = 38, Height = 22, Yaw = 28, Fov = 66, Look = 2 } },
-	{ Id = "Stage", Label = "MOG STAGE", Icon = "🏆", Kind = "circle", Center = Vector3.new(0, 0, 0), Front = Vector3.new(0, 0, -1), Radius = 35, Cam = { Dist = 54, Height = 9, Yaw = 0, Fov = 60, Look = 5 } },
-	{ Id = "Catwalk", Label = "CATWALK", Icon = "💃", Kind = "rect", MinX = -9, MaxX = 9, MinZ = 24, MaxZ = 98, Front = Vector3.new(1, 0, 0), Cam = { Dist = 26, Height = 5, Yaw = 0, Fov = 54, Look = 3 } },
-}
 
 --------------------------------------------------------------------------------
 -- Levels (1 to 1250) and the looks tiers they unlock
@@ -151,11 +141,67 @@ function Config.BoostMult(level)
 	return 1 + level * 0.15
 end
 function Config.RebirthMult(rebirths)
-	return 1 + rebirths * 0.25
+	return 1 + rebirths * 0.5
 end
--- Level needed to rebirth (rebirth keeps your level, resets Aura/stats/upgrades).
+-- Level needed to rebirth (rebirth keeps your level and hammers, resets Aura/stats/upgrades).
 function Config.RebirthRequirement(rebirths)
-	return 40 + 30 * rebirths
+	return 20 + 15 * rebirths
+end
+
+--------------------------------------------------------------------------------
+-- Hammers: click / tap to swing one at your own face. Better hammer = bigger multiplier.
+--------------------------------------------------------------------------------
+Config.Hammers = {
+	{ Id = 1, Name = "Basic Hammer", Mult = 1, Price = 0, Handle = C(150, 105, 62), Head = C(120, 120, 128), Style = "block", Material = "Metal" },
+	{ Id = 2, Name = "Stone Hammer", Mult = 2, Price = 50, Handle = C(150, 105, 62), Head = C(140, 140, 146), Style = "block", Material = "Slate" },
+	{ Id = 3, Name = "Iron Hammer", Mult = 4, Price = 400, Handle = C(120, 85, 55), Head = C(80, 84, 96), Style = "block", Material = "Metal" },
+	{ Id = 4, Name = "Golden Hammer", Mult = 8, Price = 3500, Handle = C(120, 85, 55), Head = C(255, 202, 50), Style = "block", Material = "Metal" },
+	{ Id = 5, Name = "Diamond Hammer", Mult = 16, Price = 30000, Handle = C(70, 90, 120), Head = C(130, 225, 255), Style = "block", Material = "Glass" },
+	{ Id = 6, Name = "Mewing Mallet", Mult = 32, Price = 250000, Handle = C(60, 60, 70), Head = C(255, 130, 70), Style = "mallet", Material = "SmoothPlastic" },
+	{ Id = 7, Name = "Chad Chisel", Mult = 64, Price = 2000000, Handle = C(60, 60, 70), Head = C(200, 210, 230), Style = "chisel", Material = "Metal" },
+	{ Id = 8, Name = "Jawline Hammer", Mult = 128, Price = 16000000, Handle = C(50, 40, 50), Head = C(235, 70, 130), Style = "spiked", Material = "Metal" },
+	{ Id = 9, Name = "Sculptor Hammer", Mult = 256, Price = 120000000, Handle = C(240, 240, 245), Head = C(120, 150, 255), Style = "mallet", Material = "Marble" },
+	{ Id = 10, Name = "True Adam Hammer", Mult = 512, Price = 1000000000, Handle = C(255, 235, 150), Head = C(255, 244, 190), Style = "spiked", Material = "Metal" },
+}
+Config.HammerById = {}
+for _, h in Config.Hammers do
+	Config.HammerById[h.Id] = h
+end
+function Config.HammerPos(id)
+	return Vector3.new((id - 5.5) * 10.5, 0, Config.HammerRowZ)
+end
+Config.SwingInterval = 0.13 -- fastest allowed swing rate (seconds)
+
+-- Base Aura per swing before the hammer, rebirth and event multipliers.
+function Config.SwingBase(level)
+	return 1 + (level or 1) * 0.04
+end
+
+--------------------------------------------------------------------------------
+-- Things you can interact with (press E, or tap the on-screen button). These work from any camera
+-- angle because they use the character's position, not the camera.
+--------------------------------------------------------------------------------
+Config.HammerRadius = 8
+Config.Interactables = {
+	{ Id = "Gym", Object = "Gym", Action = "Train Power", Pos = "station:Gym", Radius = 17 },
+	{ Id = "Studio", Object = "Style Studio", Action = "Train Style", Pos = "station:Studio", Radius = 17 },
+	{ Id = "Lounge", Object = "Charm Lounge", Action = "Train Charm", Pos = "station:Lounge", Radius = 17 },
+	{ Id = "Crates", Object = "Crate Shop", Action = "Open crates", Pos = "station:Crates", Radius = 16 },
+	{ Id = "Ring", Object = "Duel Ring", Action = "Find a duel", Pos = "station:Ring", Radius = 24 },
+	{ Id = "Bot", Object = "Mogger Bot", Action = "Duel the bot", Pos = "bot", Radius = 9 },
+	{ Id = "Stage", Object = "Mog Stage", Action = "Enter competition", Pos = "stage", Radius = 24 },
+}
+-- Resolves an interactable's world position (shared by the client and the server).
+function Config.InteractPos(entry)
+	local kind, arg = string.match(entry.Pos, "^(%w+):(.*)$")
+	if kind == "station" then
+		return Config.StationPos(arg)
+	elseif entry.Pos == "bot" then
+		-- the training dummy stands beside the duel ring
+		local ring = Config.StationPos("Ring")
+		return (CFrame.lookAt(ring, ring + Config.StationFront("Ring")) * CFrame.new(-26, 0.4, -8)).Position
+	end
+	return Vector3.new(0, 0, 0)
 end
 
 --------------------------------------------------------------------------------
@@ -175,7 +221,6 @@ Config.StarBonus = 0.25 -- each extra star adds this much to Power and Aps
 Config.Slots = { "Head", "Back", "Face", "Aura", "Trail" }
 Config.SlotIcons = { Head = "👑", Back = "🦋", Face = "🕶️", Aura = "✨", Trail = "💨" }
 
-local C = Color3.fromRGB
 Config.Cosmetics = {
 	-- Head
 	{ Id = "head_cap", Name = "Street Cap", Slot = "Head", Rarity = "Common", Icon = "🧢", Build = { Kind = "cap", Color = C(70, 80, 120) } },
@@ -320,12 +365,14 @@ Config.Runway = { MinZ = 26, MaxZ = 96, HalfWidth = 7, AuraPerScore = 0.04 }
 --------------------------------------------------------------------------------
 -- Quests (an endless chain of small goals)
 --------------------------------------------------------------------------------
-local QUEST_KINDS = { "shards", "train", "duel", "crate", "perfect" }
+local QUEST_KINDS = { "swings", "shards", "train", "duel", "crate", "perfect" }
 function Config.MakeQuest(done, rebirths)
 	local kind = QUEST_KINDS[done % #QUEST_KINDS + 1]
 	local step = done // #QUEST_KINDS
 	local goal, per
-	if kind == "shards" then
+	if kind == "swings" then
+		goal, per = math.min(40 + step * 15, 400), 2
+	elseif kind == "shards" then
 		goal, per = math.min(25 + step * 8, 150), 6
 	elseif kind == "train" then
 		goal, per = math.min(5 + step, 20), 40
@@ -339,7 +386,9 @@ function Config.MakeQuest(done, rebirths)
 	return { Kind = kind, Goal = goal, Reward = math.floor(goal * per * (1 + rebirths)) }
 end
 function Config.QuestText(kind, goal)
-	if kind == "shards" then
+	if kind == "swings" then
+		return string.format("Swing your hammer %d times", goal)
+	elseif kind == "shards" then
 		return string.format("Collect %d pickups", goal)
 	elseif kind == "train" then
 		return string.format("Land %d training reps", goal)

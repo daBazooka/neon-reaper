@@ -15,7 +15,6 @@ local OPTIONS = {
 	{ key = "Music", name = "Music", desc = "Ambient background music" },
 	{ key = "Sfx", name = "Sound effects", desc = "Pickups, crates and fanfares" },
 	{ key = "Fx", name = "Screen effects", desc = "Camera punch, shake, flashes and floating numbers" },
-	{ key = "Cam", name = "Zone cameras", desc = "Each place has its own cinematic camera angle" },
 	{ key = "Duels", name = "Duels", desc = "Allow duel matchmaking (turn off to stay out of fights)" },
 }
 

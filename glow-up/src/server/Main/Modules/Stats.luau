@@ -82,6 +82,15 @@ local function setLeaderstat(p, name, value)
 	end
 end
 
+function Stats.ownedString(profile)
+	local ids = {}
+	for k in profile.HammersOwned do
+		table.insert(ids, tonumber(k))
+	end
+	table.sort(ids)
+	return table.concat(ids, ",")
+end
+
 function Stats.recompute(p)
 	local profile = Data.get(p)
 	if not profile then
@@ -101,6 +110,10 @@ function Stats.recompute(p)
 	p:SetAttribute("Style", math.floor(profile.Style * 10) / 10)
 	p:SetAttribute("Charm", math.floor(profile.Charm * 10) / 10)
 	p:SetAttribute("Rebirths", profile.Rebirths)
+	p:SetAttribute("RebirthNeed", Config.RebirthRequirement(profile.Rebirths))
+	p:SetAttribute("Hammer", profile.Hammer)
+	p:SetAttribute("HammersOwned", Stats.ownedString(profile))
+	p:SetAttribute("Swings", profile.Swings)
 	setLeaderstat(p, "Level", profile.Level)
 	setLeaderstat(p, "Rebirths", profile.Rebirths)
 

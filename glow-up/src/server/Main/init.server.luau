@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
 
 -- Network channels: Action = client asks the server, Notify = server tells the client.
 local net = Instance.new("Folder")
@@ -34,21 +35,14 @@ local Shop = require(Modules.Shop)
 local Events = require(Modules.Events)
 local Runway = require(Modules.Runway)
 local Board = require(Modules.Board)
+local Hammers = require(Modules.Hammers)
 local World = require(Modules.World)
 
 --------------------------------------------------------------------------------
 -- World + systems
 --------------------------------------------------------------------------------
 print("[TrueAdam] server starting")
-local okWorld, info = pcall(World.build, {
-	train = Training.start,
-	crates = function(p)
-		Stats.send(p, "openMenu", "Crates")
-	end,
-	duelQueue = Duels.joinQueue,
-	duelBot = Duels.duelBot,
-	comp = Competition.enter,
-})
+local okWorld, info = pcall(World.build)
 if okWorld then
 	Duels.setArena(info.arena)
 	Competition.setStage(info.stage, info.compBoard)
@@ -84,6 +78,7 @@ local function onCharacter(p)
 	Appearance.onCharacter(p)
 	Cosmetics.onCharacter(p)
 	Nameplate.onCharacter(p)
+	Hammers.attach(p)
 end
 
 local function onPlayer(p)
@@ -119,6 +114,7 @@ end
 
 Players.PlayerRemoving:Connect(function(p)
 	Training.release(p)
+	Hammers.release(p)
 	Duels.release(p)
 	Competition.release(p)
 	Stats.forget(p)
@@ -149,7 +145,55 @@ end)
 --------------------------------------------------------------------------------
 -- Client requests (rate limited)
 --------------------------------------------------------------------------------
-local SETTING_KEYS = { Music = true, Sfx = true, Duels = true, Fx = true, Cam = true }
+-- Everything you can use is activated by a button on screen (or E). The server checks how close your
+-- character is, so it works the same from any camera angle.
+local INTERACT_SLACK = 8
+local interactions = {
+	Gym = function(p)
+		Training.start(p, "Power")
+	end,
+	Studio = function(p)
+		Training.start(p, "Style")
+	end,
+	Lounge = function(p)
+		Training.start(p, "Charm")
+	end,
+	Crates = function(p)
+		Stats.send(p, "openMenu", "Crates")
+	end,
+	Ring = Duels.joinQueue,
+	Bot = Duels.duelBot,
+	Stage = Competition.enter,
+}
+
+local function nearTo(p, pos, radius)
+	local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return false
+	end
+	local d = root.Position - pos
+	return Vector3.new(d.X, 0, d.Z).Magnitude <= radius + INTERACT_SLACK
+end
+
+local function interact(p, id)
+	local hammerId = string.match(id, "^Hammer:(%d+)$")
+	if hammerId then
+		local n = tonumber(hammerId)
+		if Config.HammerById[n] and nearTo(p, Config.HammerPos(n), Config.HammerRadius) then
+			Hammers.use(p, n)
+		end
+		return
+	end
+	local handler = interactions[id]
+	for _, entry in Config.Interactables do
+		if entry.Id == id and handler and nearTo(p, Config.InteractPos(entry), entry.Radius) then
+			handler(p)
+			return
+		end
+	end
+end
+
+local SETTING_KEYS = { Music = true, Sfx = true, Duels = true, Fx = true }
 local budget = {}
 
 Action.OnServerEvent:Connect(function(p, kind, a, b)
@@ -173,6 +217,10 @@ Action.OnServerEvent:Connect(function(p, kind, a, b)
 		Shop.handle(p, kind, a)
 	elseif kind == "OpenCrate" and type(a) == "string" then
 		Crates.open(p, a)
+	elseif kind == "Swing" then
+		Hammers.swing(p)
+	elseif kind == "Interact" and type(a) == "string" then
+		interact(p, a)
 	elseif kind == "Claim" then
 		Daily.claim(p)
 	elseif kind == "TrainHit" or kind == "TrainCancel" then

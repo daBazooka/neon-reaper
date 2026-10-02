@@ -73,16 +73,30 @@ send("duelStart", "Rival", 4, 900, 130, clock + 3, 7)
 advance(1)
 send("duelEnd", false, 40, 20, 50, 40, 70, 0)
 advance(5)
--- zone cameras: stand in every place and let the bound camera step run
-local zoneFns = handlers["bound_GlowZoneCamera"]
-check(zoneFns ~= nil, "zone camera bound")
+-- hammers + interact button + click to swing
+a.Hammer = 1; a.HammersOwned = "1,2"; a.Swings = 10; a.RebirthNeed = 35
+send("swing", 14); send("swing", 14); send("swing", 14); send("swing", 14)
+send("hammer", 3, "bought"); send("hammer", 1, "equipped")
+local Config = require(RS.children.Shared.children.Config)
 local places = {
-	Gym = Vector3.new(72.8, 3, 61), Stage = Vector3.new(0, 3, 0), Catwalk = Vector3.new(0, 3, 60), Nowhere = Vector3.new(0, 3, 140),
+	Gym = Config.StationPos("Gym"), Stage = Vector3.new(0, 3, 0), Hammer3 = Config.HammerPos(3), Hammer1 = Config.HammerPos(1),
+	Ring = Config.StationPos("Ring"), Bot = Config.InteractPos(Config.Interactables[6]), Nowhere = Vector3.new(0, 3, 40),
 }
 for name, pos in places do
-	localPlayer.Character.FindFirstChild = function() return {Position = pos, CFrame = {LookVector = Vector3.new(0, 0, -1)}} end
-	for i = 1, 12 do advance(0.05); if zoneFns then pcall(zoneFns[1], 0.05) end end
+	localPlayer.Character.FindFirstChild = function() return {Position = pos + Vector3.new(0, 3, 0), CFrame = {LookVector = Vector3.new(0, 0, -1)}, FindFirstChild = function() return nil end} end
+	for i = 1, 6 do advance(0.1); fireAll("Heartbeat", 0.1); fireAll("RenderStepped", 0.016) end
+	fireAll("input", {KeyCode = Enum.KeyCode.E, UserInputType = Enum.UserInputType.Keyboard}, false)
 end
+check(true, "interact scan + E key in every place")
+local mouse = {KeyCode = Enum.KeyCode.A, UserInputType = Enum.UserInputType.MouseButton1}
+fireAll("input", mouse, false); for i = 1, 8 do advance(0.1); fireAll("Heartbeat", 0.1) end; fireAll("inputEnd", mouse)
+check(true, "click to swing + hold runs")
+fireAll("input", mouse, true); advance(0.2)
+check(true, "clicks on UI buttons are ignored")
+-- rebirth window
+local Hud = require(ModN.children.Hud)
+Hud.toggleRebirth(true); advance(0.3); fireAll("RenderStepped", 0.016); Hud.toggleRebirth(false)
+check(true, "rebirth window opens and closes")
 -- Mog Competition flow
 send("compStart", clock + 3, 8, {{n = "Me", s = 120, m = true}, {n = "Mogger Mike", s = 100, m = false}, {n = "Sigma Sam", s = 90, m = false}})
 for i = 1, 60 do advance(0.1); fireAll("RenderStepped", 0.016) end

@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local HammerModel = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HammerModel"))
 
 local World = {}
 
@@ -89,33 +90,6 @@ local function sign(parent, position, facing, size, text, boardColor, textColor)
 	label.Text = text
 	label.Parent = gui
 	return face, label
-end
-
-local function prompt(parent, objectText, actionText, onTriggered)
-	local p = Instance.new("ProximityPrompt")
-	p.ObjectText = objectText
-	p.ActionText = actionText
-	p.HoldDuration = 0
-	p.KeyboardKeyCode = Enum.KeyCode.E
-	p.MaxActivationDistance = 18
-	p.RequiresLineOfSight = false
-	p.Exclusivity = Enum.ProximityPromptExclusivity.OnePerButton
-	p.Parent = parent
-	p.Triggered:Connect(function(player)
-		onTriggered(player)
-	end)
-	return p
-end
-
-local function promptAnchor(parent, pos)
-	return part(parent, {
-		Name = "PromptAnchor",
-		Size = Vector3.new(4, 2, 4),
-		Position = pos + Vector3.new(0, 2.5, 0),
-		Transparency = 1,
-		CanCollide = false,
-		CanQuery = false,
-	})
 end
 
 local function tree(parent, pos)
@@ -257,7 +231,50 @@ local function stationAt(name)
 	return pos, inward, Vector3.new(-inward.Z, 0, inward.X)
 end
 
-local function buildGym(parent, cb)
+--------------------------------------------------------------------------------
+-- Hammer shop: a row of LEGO-stud pedestals right where you spawn. The client adds the OWNED /
+-- EQUIPPED / price labels (they differ per player).
+--------------------------------------------------------------------------------
+local function buildHammerRow(parent)
+	local row = Instance.new("Folder")
+	row.Name = "HammerRow"
+	row.Parent = parent
+	for _, hammer in Config.Hammers do
+		local pos = Config.HammerPos(hammer.Id)
+		local color = hammer.Head
+		local pedestal = block(row, "Pedestal", Vector3.new(8, 1.4, 8), CFrame.new(pos + Vector3.new(0, 0.7, 0)), C3(60, 66, 90), M.SmoothPlastic)
+		pedestal:SetAttribute("HammerId", hammer.Id)
+		block(row, "PedestalTop", Vector3.new(8.4, 0.5, 8.4), CFrame.new(pos + Vector3.new(0, 1.65, 0)), color, M.SmoothPlastic)
+		for sx = -1, 1, 2 do
+			for sz = -1, 1, 2 do
+				part(row, {
+					Name = "Stud",
+					Shape = Enum.PartType.Cylinder,
+					Size = Vector3.new(0.5, 1.8, 1.8),
+					CFrame = CFrame.new(pos + Vector3.new(sx * 2.2, 2.15, sz * 2.2)) * CFrame.Angles(0, 0, math.pi / 2),
+					Color = color,
+					Material = M.SmoothPlastic,
+					CanCollide = false,
+				})
+			end
+		end
+		local light = Instance.new("PointLight")
+		light.Color = color
+		light.Range = 16
+		light.Brightness = 1.2
+		light.Parent = pedestal
+		local display = HammerModel.build(hammer, CFrame.new(pos + Vector3.new(0, 6.6, 0)) * CFrame.Angles(0, math.rad(30), math.rad(-18)), row, { anchored = true })
+		display.Name = "HammerDisplay"
+		local face = sign(row, pos + Vector3.new(0, 3.3, 3.6), Vector3.new(0, 0, 1), Vector3.new(7.4, 1.6, 0.4), hammer.Name .. "  x" .. hammer.Mult, C3(30, 34, 52), color)
+		face.Orientation = face.Orientation + Vector3.new(-25, 0, 0)
+	end
+	sign(row, Vector3.new(0, 16, Config.HammerRowZ + 14), Vector3.new(0, 0, 1), Vector3.new(34, 5, 0.6), "🔨  HAMMER SHOP  🔨", C3(200, 120, 20))
+	for side = -1, 1, 2 do
+		block(row, "SignPost", Vector3.new(1.2, 16, 1.2), CFrame.new(side * 18, 8, Config.HammerRowZ + 14.4), DARK, M.Metal)
+	end
+end
+
+local function buildGym(parent)
 	local pos, inward = stationAt("Gym")
 	local cf = pavilion(parent, pos, inward, RED, "💪  GYM", C3(150, 30, 20), C3(48, 50, 56), M.Slate, C3(150, 60, 55))
 	-- Bench press
@@ -281,12 +298,9 @@ local function buildGym(parent, cb)
 		end
 	end
 	block(parent, "Mirror", Vector3.new(14, 7, 0.3), cf * CFrame.new(7, 6, 14), C3(190, 215, 235), M.Glass, { Transparency = 0.35, Reflectance = 0.3 })
-	prompt(promptAnchor(parent, pos), "Gym", "Train Power", function(p)
-		cb.train(p, "Power")
-	end)
 end
 
-local function buildStudio(parent, cb)
+local function buildStudio(parent)
 	local pos, inward = stationAt("Studio")
 	local cf = pavilion(parent, pos, inward, C3(190, 70, 140), "💈  STYLE STUDIO", C3(130, 40, 100), C3(242, 190, 214), M.Marble, C3(236, 170, 200))
 	for i, x in { -7, 7 } do
@@ -309,12 +323,9 @@ local function buildStudio(parent, cb)
 	for i = 1, 7 do
 		post(parent, "Bottle", (cf * CFrame.new(-10 + i * 2.7, 4, 12.4)).Position, 0.4, 1.4, ({ BLUE, GREEN, YELLOW, RED })[i % 4 + 1], M.Glass)
 	end
-	prompt(promptAnchor(parent, pos), "Style Studio", "Train Style", function(p)
-		cb.train(p, "Style")
-	end)
 end
 
-local function buildLounge(parent, cb)
+local function buildLounge(parent)
 	local pos, inward = stationAt("Lounge")
 	local cf = pavilion(parent, pos, inward, C3(60, 140, 190), "🛋️  CHARM LOUNGE", C3(30, 90, 140), C3(170, 122, 84), M.WoodPlanks, C3(96, 170, 190))
 	disk(parent, "Rug", (cf * CFrame.new(0, 0.9, 1)).Position, 9, 0.1, C3(190, 70, 90), M.Fabric)
@@ -333,12 +344,9 @@ local function buildLounge(parent, cb)
 		post(parent, "Pot", (cf * CFrame.new(x, 1.8, 11)).Position, 1.2, 2, C3(170, 100, 70), M.Concrete)
 		part(parent, { Name = "Plant", Shape = Enum.PartType.Ball, Size = Vector3.one * 4, Position = (cf * CFrame.new(x, 4.4, 11)).Position, Color = GREEN, Material = M.Grass, CanCollide = false })
 	end
-	prompt(promptAnchor(parent, pos), "Charm Lounge", "Train Charm", function(p)
-		cb.train(p, "Charm")
-	end)
 end
 
-local function buildCrateShop(parent, cb)
+local function buildCrateShop(parent)
 	local pos, inward = stationAt("Crates")
 	local cf = CFrame.lookAt(pos, pos + inward)
 	block(parent, "Base", Vector3.new(26, 0.8, 20), cf * CFrame.new(0, 0.5, 0), C3(150, 120, 90), M.Wood)
@@ -364,12 +372,9 @@ local function buildCrateShop(parent, cb)
 		block(parent, "StackedCrate", Vector3.new(3, 3, 3), cf * CFrame.new(-10.5 + (i % 2) * 0.4, 2.4 + (i - 1) * 3, 7), WOOD, M.Wood)
 		block(parent, "StackedCrate", Vector3.new(3, 3, 3), cf * CFrame.new(10.5 - (i % 2) * 0.4, 2.4 + (i - 1) * 3, 7), WOOD, M.Wood)
 	end
-	prompt(promptAnchor(parent, pos), "Crate Shop", "Open shop", function(p)
-		cb.crates(p)
-	end)
 end
 
-local function buildDummy(parent, at, facing, cb)
+local function buildDummy(parent, at, facing)
 	local cf = CFrame.lookAt(at, at + facing)
 	post(parent, "DummyBase", (cf * CFrame.new(0, 0.5, 0)).Position, 2.2, 0.8, DARK, M.Metal)
 	post(parent, "DummyPole", (cf * CFrame.new(0, 3, 0)).Position, 0.4, 5, C3(200, 205, 215), M.Metal)
@@ -394,12 +399,9 @@ local function buildDummy(parent, at, facing, cb)
 	label.TextStrokeTransparency = 0
 	label.Text = "MOGGER BOT"
 	label.Parent = tag
-	prompt(body, "Mogger Bot", "Duel the bot", function(p)
-		cb.duelBot(p)
-	end)
 end
 
-local function buildRing(parent, cb)
+local function buildRing(parent)
 	local pos, inward, tangent = stationAt("Ring")
 	local cf = CFrame.lookAt(pos, pos + inward)
 	-- Platform with steps toward the plaza
@@ -431,17 +433,14 @@ local function buildRing(parent, cb)
 	for side = -1, 1, 2 do
 		block(parent, "SignPost", Vector3.new(1.2, 15, 1.2), cf * CFrame.new(side * 15, 7.5, 20), DARK, M.Metal)
 	end
-	prompt(promptAnchor(parent, pos + Vector3.new(0, 2.6, 0)), "Duel Ring", "Find a duel", function(p)
-		cb.duelQueue(p)
-	end)
-	buildDummy(parent, (cf * CFrame.new(-26, 0.4, -8)).Position, inward, cb)
+	buildDummy(parent, (cf * CFrame.new(-26, 0.4, -8)).Position, inward)
 	return { padA = padA, padB = padB, center = pos + Vector3.new(0, 2.8, 0) }
 end
 
 --------------------------------------------------------------------------------
 -- The Mog Competition stage (centre of the plaza)
 --------------------------------------------------------------------------------
-local function buildStage(parent, cb)
+local function buildStage(parent)
 	disk(parent, "StageStep", Vector3.new(0, 0.9, 0), 28, 0.9, C3(150, 150, 156), M.Concrete)
 	disk(parent, "Stage", Vector3.new(0, 1.8, 0), 24, 0.9, C3(196, 196, 202), M.Concrete)
 	disk(parent, "StageEmblem", Vector3.new(0, 1.85, 0), 15, 0.1, YELLOW, M.SmoothPlastic)
@@ -487,9 +486,6 @@ local function buildStage(parent, cb)
 			block(parent, "Bleacher", Vector3.new(6, tier * 2, 22), CFrame.new(side * (42 + tier * 6), tier, 0), C3(110, 90, 70), M.Wood)
 		end
 	end
-	prompt(promptAnchor(parent, Vector3.new(0, 1.8, 6)), "Mog Competition", "Enter competition", function(p)
-		cb.comp(p)
-	end)
 	return boardLabel
 end
 
@@ -644,7 +640,7 @@ end
 --------------------------------------------------------------------------------
 -- Entry point
 --------------------------------------------------------------------------------
-function World.build(cb)
+function World.build()
 	for _, child in workspace:GetChildren() do
 		if child.Name == "Baseplate" or child.Name == "SpawnLocation" or child.Name == "GlowWorld" then
 			child:Destroy()
@@ -660,24 +656,25 @@ function World.build(cb)
 	buildTown(world)
 	buildCatwalk(world)
 	local boardLabel = buildBoard(world)
-	local compBoard = buildStage(world, cb)
+	local compBoard = buildStage(world)
 
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Anchored = true
 	spawn.Size = Vector3.new(12, 1, 12)
-	spawn.Position = Vector3.new(0, 0.6, 118)
+	spawn.Position = Vector3.new(0, 0.6, 138)
 	spawn.Transparency = 1
 	spawn.CanCollide = false
 	spawn.Duration = 0
 	spawn.Parent = world
 
-	buildGym(world, cb)
-	buildStudio(world, cb)
-	buildLounge(world, cb)
-	buildCrateShop(world, cb)
-	local arena = buildRing(world, cb)
+	buildHammerRow(world)
+	buildGym(world)
+	buildStudio(world)
+	buildLounge(world)
+	buildCrateShop(world)
+	local arena = buildRing(world)
 
-	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 118), r = 8 } }
+	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 124), r = 56 } }
 	for name in Config.Stations do
 		table.insert(avoid, { pos = (stationAt(name)), r = 28 })
 	end

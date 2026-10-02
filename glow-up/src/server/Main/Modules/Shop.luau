@@ -38,8 +38,8 @@ function Shop.rebirth(p)
 	if not profile then
 		return
 	end
-	if Stats.score(p) < Config.RebirthRequirement(profile.Rebirths) then
-		Stats.toast(p, "Reach a higher Glow Score to rebirth", "bad")
+	if profile.Level < Config.RebirthRequirement(profile.Rebirths) then
+		Stats.toast(p, "Reach level " .. Config.RebirthRequirement(profile.Rebirths) .. " to rebirth", "bad")
 		return
 	end
 	profile.Rebirths += 1

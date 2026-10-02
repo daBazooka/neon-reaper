@@ -29,7 +29,9 @@ local TrainingUI = require(Modules.TrainingUI)
 local DuelUI = require(Modules.DuelUI)
 local CompetitionUI = require(Modules.CompetitionUI)
 local Orbs = require(Modules.Orbs)
-local ZoneCamera = require(Modules.ZoneCamera)
+local Interact = require(Modules.Interact)
+local HammerRow = require(Modules.HammerRow)
+local Swing = require(Modules.Swing)
 
 -- Wait for the server to finish setting this player up.
 while not player:GetAttribute("Ready") do
@@ -49,7 +51,6 @@ local gui = UI.new("ScreenGui", {
 Audio.Init()
 Fx.init(gui)
 Orbs.init()
-ZoneCamera.init()
 Menu.init(gui)
 Menu.addTab("Wardrobe", "👗", function(page)
 	return TabWardrobe.build(page, Action)
@@ -69,22 +70,20 @@ end)
 Menu.addTab("Settings", "⚙️", function(page)
 	return TabSettings.build(page, Action)
 end)
-Hud.init(gui, Menu)
+Hud.init(gui, Menu, Action)
 Toasts.init(gui)
 TrainingUI.init(gui, Action)
 DuelUI.init(gui, Action)
 CompetitionUI.init(gui, Action)
+Interact.init(gui, Action, Menu)
+HammerRow.init()
+Swing.init(gui, Action, Menu)
 
 TabSettings.apply()
 Audio.startMusic()
 for _, key in { "Music", "Sfx" } do
 	player:GetAttributeChangedSignal("Set_" .. key):Connect(TabSettings.apply)
 end
-
--- A small label when you walk into a new place (its camera angle changes too).
-ZoneCamera.onEnter(function(zone)
-	Toasts.push(zone.Icon .. " " .. zone.Label, "info")
-end)
 
 Menu.onChanged(function(name)
 	if name == "Wardrobe" then
@@ -193,7 +192,21 @@ function handlers.rebirth(n)
 	Audio.ascend()
 	Fx.shake(0.7, 0.9)
 	Fx.flash(Color3.new(1, 1, 1), 1, 1.4)
-	Fx.announce("REBORN", "★" .. n .. "  ·  +25% Aura and Glow, forever", UI.Colors.Gold, 0.3)
+	Fx.announce("REBORN", "★" .. n .. "  ·  +50% Aura and XP, forever", UI.Colors.Gold, 0.3)
+end
+
+function handlers.swing(gained)
+	Swing.result(gained)
+end
+
+function handlers.hammer(id, how)
+	local hammer = Config.HammerById[id]
+	Audio.purchase()
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		Fx.burst(root.Position, hammer.Head, 20)
+	end
+	Toasts.push(string.format("%s %s  ·  x%d Aura per swing", hammer.Name, how == "bought" and "bought and equipped" or "equipped", hammer.Mult), "gold")
 end
 
 function handlers.openMenu(tab)

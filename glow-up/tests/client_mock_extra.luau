@@ -16,6 +16,6 @@ local CollectionService = {GetInstanceAddedSignal = function() return signal("ia
 local game_old = game
 game = {GetService = function(self, n)
 	if n == "CollectionService" then return CollectionService end
-	if n == "UserInputService" then return {InputBegan = signal("input")} end
+	if n == "UserInputService" then return {InputBegan = signal("input"), InputEnded = signal("inputEnd"), KeyboardEnabled = true} end
 	return game_old.GetService(self, n)
 end, BindToClose = function() end}

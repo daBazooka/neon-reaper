@@ -196,6 +196,64 @@ for _, lvl in {1, 50, 300, 700} do Data.get(p1).Level = lvl; Quirks.apply(p1) en
 check(true, "quirks build at levels 1/50/300/700 without errors")
 print("tiers:", Config2.Ranks[Config2.RankFor(1)].Name, Config2.Ranks[Config2.RankFor(30)].Name, Config2.Ranks[Config2.RankFor(120)].Name, Config2.Ranks[Config2.RankFor(1000)].Full)
 
+
+-- Hammers: swing, buy, equip, distance checks, rebirth keeps hammers
+do
+	a1.Training = false; a1.InDuel = false
+	local before = a1.Aura
+	local swingsBefore = a1.Swings or 0
+	for i = 1, 5 do fireAll("Action", p1, "Swing"); advance(0.2) end
+	check((a1.Swings or 0) == swingsBefore + 5, "5 swings counted: " .. tostring(a1.Swings))
+	check(a1.Aura > before, "swings pay Aura: " .. before .. " -> " .. a1.Aura)
+	local fast = a1.Swings
+	for i = 1, 20 do fireAll("Action", p1, "Swing") end
+	check(a1.Swings - fast <= 1, "swing spam is rate limited (" .. (a1.Swings - fast) .. " extra)")
+	-- far away: cannot buy
+	Stats.setAura(p1, 100000)
+	p1.root.Position = Vector3.new(0, 3, 0)
+	fireAll("Action", p1, "Interact", "Hammer:2"); advance(0.2)
+	check(a1.Hammer == 1, "cannot buy a hammer from far away")
+	-- walk to the Stone Hammer pedestal and buy it
+	p1.root.Position = Config.HammerPos(2) + Vector3.new(0, 3, 1)
+	fireAll("Action", p1, "Interact", "Hammer:2"); advance(0.2)
+	check(a1.Hammer == 2, "bought + equipped Stone Hammer: " .. tostring(a1.Hammer))
+	check(string.find(a1.HammersOwned, "2") ~= nil, "owned list updated: " .. tostring(a1.HammersOwned))
+	local aura = a1.Aura
+	fireAll("Action", p1, "Swing"); advance(0.2)
+	check(a1.Aura - aura >= Config.SwingBase(a1.Level) * 2 - 1, "stone hammer pays double (" .. (a1.Aura - aura) .. ")")
+	-- too expensive
+	Stats.setAura(p1, 10)
+	p1.root.Position = Config.HammerPos(5) + Vector3.new(0, 3, 0)
+	fireAll("Action", p1, "Interact", "Hammer:5"); advance(0.2)
+	check(a1.Hammer == 2, "cannot afford Diamond Hammer")
+	-- re-equip the free one
+	p1.root.Position = Config.HammerPos(1) + Vector3.new(0, 3, 0)
+	fireAll("Action", p1, "Interact", "Hammer:1"); advance(0.2)
+	check(a1.Hammer == 1, "re-equipped Basic Hammer")
+	-- garbage ids are ignored
+	fireAll("Action", p1, "Interact", "Hammer:999"); fireAll("Action", p1, "Interact", 5); fireAll("Action", p1, "Interact", "Nope")
+	check(true, "bad interact ids ignored")
+	-- stations: gym needs proximity
+	p1.root.Position = Vector3.new(0, 3, 0)
+	fireAll("Action", p1, "Interact", "Gym"); advance(0.1)
+	check(a1.Training ~= true, "gym far away does nothing")
+	p1.root.Position = Config.StationPos("Gym") + Vector3.new(0, 3, 0)
+	fireAll("Action", p1, "Interact", "Gym"); advance(0.1)
+	check(a1.Training == true, "gym in range starts training")
+	fireAll("Action", p1, "TrainCancel"); advance(0.2)
+	a1.Training = false
+	-- rebirth is level based and keeps hammers
+	local d = Data.get(p1)
+	local r0 = a1.Rebirths or 0
+	d.Level = 5; Stats.recompute(p1)
+	fireAll("Action", p1, "Rebirth"); advance(0.1)
+	check((a1.Rebirths or 0) == r0, "rebirth refused below level " .. tostring(a1.RebirthNeed))
+	d.Hammer = 3; d.HammersOwned["3"] = true
+	d.Level = Config.RebirthRequirement(r0); Stats.recompute(p1)
+	fireAll("Action", p1, "Rebirth"); advance(0.1)
+	check(a1.Rebirths == r0 + 1 and a1.Hammer == 3, "rebirth works and keeps the hammer")
+end
+
 -- Mog Competition: run a full cycle with one human
 Data.get(p1).Level = 20; Stats.recompute(p1)
 local Competition = require(ModN.children.Competition)

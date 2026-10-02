@@ -142,7 +142,7 @@ function TabUpgrades.build(parent, Action)
 		local need = Config.RebirthRequirement(rebirths)
 		local score = player:GetAttribute("Level") or 1
 		rebDesc.Text = string.format(
-			"Reset Aura, stats and upgrades (you keep your level and every cosmetic). Gain +25%% Aura and Mog Power forever, plus 2 free crates.\nNeeds level %s  (you are level %s)",
+			"Reset Aura, stats and upgrades (you keep your level, hammers and every cosmetic). Gain +50%% Aura and XP forever, plus 2 free crates.\nNeeds level %s  (you are level %s)",
 			Util.fmt(need),
 			Util.fmt(score)
 		)

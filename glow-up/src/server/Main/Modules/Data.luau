@@ -34,13 +34,16 @@ local function defaults()
 		Duels = 0,
 		BestStreak = 0,
 		Reps = 0,
+		Swings = 0,
+		Hammer = 1,
+		HammersOwned = { ["1"] = true },
 		Perfects = 0,
 		CratesOpened = 0,
 		Pity = { neon = 0, icon = 0 },
 		QuestsDone = 0,
 		Quest = nil,
 		Daily = { Last = 0, Streak = 0 },
-		Settings = { Music = true, Sfx = true, Duels = true, Fx = true, Cam = true },
+		Settings = { Music = true, Sfx = true, Duels = true, Fx = true },
 		LastSeen = nil,
 	}
 end
