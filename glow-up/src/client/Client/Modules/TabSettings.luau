@@ -14,6 +14,7 @@ local TabSettings = {}
 local OPTIONS = {
 	{ key = "Music", name = "Music", desc = "Ambient background music" },
 	{ key = "Sfx", name = "Sound effects", desc = "Pickups, crates and fanfares" },
+	{ key = "Voice", name = "Announcer voice", desc = "Deep voice: 3-2-1, Level up, Rebirth ready" },
 	{ key = "Fx", name = "Screen effects", desc = "Camera punch, shake, flashes and floating numbers" },
 	{ key = "Duels", name = "Duels", desc = "Allow duel matchmaking (turn off to stay out of fights)" },
 }
@@ -22,6 +23,7 @@ local OPTIONS = {
 function TabSettings.apply()
 	Audio.setMusic(player:GetAttribute("Set_Music") ~= false)
 	Audio.setSfx(player:GetAttribute("Set_Sfx") ~= false)
+	Audio.setVoice(player:GetAttribute("Set_Voice") ~= false)
 end
 
 function TabSettings.build(parent, Action)

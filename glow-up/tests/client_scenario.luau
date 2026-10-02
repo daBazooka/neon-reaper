@@ -75,6 +75,7 @@ send("duelEnd", false, 40, 20, 50, 40, 70, 0)
 advance(5)
 -- hammers + interact button + click to swing
 a.Pets = "cat:2,dragon:1"; a.PetsEq = "cat,dragon"; a.PetMult = 5.3
+a.TutStep = 1; a.TutGoal = 10; a.TutProgress = 4
 a.Hammer = 1; a.HammersOwned = "1,2"; a.Swings = 10; a.RebirthNeed = 35
 send("swing", 14, "crit", false); send("swing", 999, "jackpot", true); send("swing", 14, nil, true); send("frenzy", 8); send("gift", 500, 1, 3, 7); a.FrenzyEnd = clock + 6; a.SwingCombo = 12; a.GiftAt = clock + 40; advance(0.3); fireAll("RenderStepped", 0.016)
 send("swing", 14); send("swing", 14); send("swing", 14); send("swing", 14)
@@ -98,6 +99,9 @@ fireAll("input", mouse, false); for i = 1, 8 do advance(0.1); fireAll("Heartbeat
 check(true, "click to swing + hold runs")
 fireAll("input", mouse, true); advance(0.2)
 check(true, "clicks on UI buttons are ignored")
+for st = 1, 6 do a.TutStep = st; a.TutGoal = st == 3 and 3 or 0; advance(0.2); fireAll("Heartbeat", 0.1) end
+send("tutorialStep", 2); send("tutorialDone", 1000, 2); fireAll("Heartbeat", 0.1)
+check(true, "tutorial card and pointer run through every step")
 -- rebirth window
 local Hud = require(ModN.children.Hud)
 Hud.toggleRebirth(true); advance(0.3); fireAll("RenderStepped", 0.016); Hud.toggleRebirth(false)

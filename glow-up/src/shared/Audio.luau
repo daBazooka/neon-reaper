@@ -187,10 +187,52 @@ end
 
 -- Deep announcer voice: "3, 2, 1, Go!", "Level up!", "Rebirth ready!". Uses your recorded audio when an id is
 -- set in Config.VoiceSoundIds, otherwise Roblox text-to-speech (slowed and pitched down).
-local voices = {} -- kind -> { sound = Sound } or { tts = AudioTextToSpeech }
-local voiceOut
+local voices = {} -- kind -> { sound = Sound } or { tts = AudioTextToSpeech } or false
+local voiceChain -- the effects every spoken line goes through (pitch down + bass boost)
+local voiceOn = true
+
+function Audio.setVoice(on)
+	voiceOn = on
+end
+
+local function wire(from, to)
+	local w = Instance.new("Wire")
+	w.SourceInstance = from
+	w.TargetInstance = to
+	w.Parent = to
+	return w
+end
+
+-- tts -> pitch shifter -> equalizer -> compressor -> speakers
+local function getChain()
+	if voiceChain then
+		return voiceChain
+	end
+	local v = Config.Voice
+	local shifter = Instance.new("AudioPitchShifter")
+	shifter.Pitch = v.Shifter
+	shifter.Parent = SoundService
+	local eq = Instance.new("AudioEqualizer")
+	eq.LowGain = v.Bass
+	eq.MidGain = -2
+	eq.HighGain = v.Treble
+	eq.Parent = SoundService
+	local comp = Instance.new("AudioCompressor")
+	comp.Threshold = -18
+	comp.Ratio = 4
+	comp.MakeupGain = 6
+	comp.Parent = SoundService
+	local out = Instance.new("AudioDeviceOutput")
+	out.Parent = SoundService
+	wire(shifter, eq)
+	wire(eq, comp)
+	wire(comp, out)
+	voiceChain = shifter
+	return shifter
+end
+
 function Audio.say(kind)
-	if sfxGroup and sfxGroup.Volume <= 0 then
+	if not voiceOn or (sfxGroup and sfxGroup.Volume <= 0) then
 		return
 	end
 	task.spawn(function()
@@ -212,14 +254,7 @@ function Audio.say(kind)
 					tts.Speed = Config.Voice.Speed
 					tts.Volume = Config.Voice.Volume
 					tts.Parent = SoundService
-					if not voiceOut then
-						voiceOut = Instance.new("AudioDeviceOutput")
-						voiceOut.Parent = SoundService
-					end
-					local wire = Instance.new("Wire")
-					wire.SourceInstance = tts
-					wire.TargetInstance = voiceOut
-					wire.Parent = tts
+					wire(tts, getChain())
 					tts:LoadAsync()
 					cached = { tts = tts }
 				else

@@ -35,6 +35,7 @@ local function defaults()
 		BestStreak = 0,
 		Reps = 0,
 		Swings = 0,
+		Tut = 1, -- tutorial step (7 = finished or skipped)
 		Stage = 0, -- stage battles cleared
 		Pets = {}, -- pet id -> copies owned
 		PetsEq = {}, -- list of equipped pet ids
@@ -47,7 +48,7 @@ local function defaults()
 		QuestsDone = 0,
 		Quest = nil,
 		Daily = { Last = 0, Streak = 0 },
-		Settings = { Music = true, Sfx = true, Duels = true, Fx = true },
+		Settings = { Music = true, Sfx = true, Duels = true, Fx = true, Voice = true },
 		LastSeen = nil,
 	}
 end

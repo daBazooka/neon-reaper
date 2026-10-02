@@ -204,10 +204,52 @@ end
 
 -- Deep announcer voice: "3, 2, 1, Go!", "Level up!", "Rebirth ready!". Uses your recorded audio when an id is
 -- set in Config.VoiceSoundIds, otherwise Roblox text-to-speech (slowed and pitched down).
-local voices = {} -- kind -> { sound = Sound } or { tts = AudioTextToSpeech }
-local voiceOut
+local voices = {} -- kind -> { sound = Sound } or { tts = AudioTextToSpeech } or false
+local voiceChain -- the effects every spoken line goes through (pitch down + bass boost)
+local voiceOn = true
+
+function Audio.setVoice(on)
+	voiceOn = on
+end
+
+local function wire(from, to)
+	local w = Instance.new("Wire")
+	w.SourceInstance = from
+	w.TargetInstance = to
+	w.Parent = to
+	return w
+end
+
+-- tts -> pitch shifter -> equalizer -> compressor -> speakers
+local function getChain()
+	if voiceChain then
+		return voiceChain
+	end
+	local v = Config.Voice
+	local shifter = Instance.new("AudioPitchShifter")
+	shifter.Pitch = v.Shifter
+	shifter.Parent = SoundService
+	local eq = Instance.new("AudioEqualizer")
+	eq.LowGain = v.Bass
+	eq.MidGain = -2
+	eq.HighGain = v.Treble
+	eq.Parent = SoundService
+	local comp = Instance.new("AudioCompressor")
+	comp.Threshold = -18
+	comp.Ratio = 4
+	comp.MakeupGain = 6
+	comp.Parent = SoundService
+	local out = Instance.new("AudioDeviceOutput")
+	out.Parent = SoundService
+	wire(shifter, eq)
+	wire(eq, comp)
+	wire(comp, out)
+	voiceChain = shifter
+	return shifter
+end
+
 function Audio.say(kind)
-	if sfxGroup and sfxGroup.Volume <= 0 then
+	if not voiceOn or (sfxGroup and sfxGroup.Volume <= 0) then
 		return
 	end
 	task.spawn(function()
@@ -229,14 +271,7 @@ function Audio.say(kind)
 					tts.Speed = Config.Voice.Speed
 					tts.Volume = Config.Voice.Volume
 					tts.Parent = SoundService
-					if not voiceOut then
-						voiceOut = Instance.new("AudioDeviceOutput")
-						voiceOut.Parent = SoundService
-					end
-					local wire = Instance.new("Wire")
-					wire.SourceInstance = tts
-					wire.TargetInstance = voiceOut
-					wire.Parent = tts
+					wire(tts, getChain())
 					tts:LoadAsync()
 					cached = { tts = tts }
 				else
@@ -655,12 +690,26 @@ end
 -- Voice lines. Plays with Roblox's text-to-speech (deep and slow). To use your own recorded voice,
 -- upload audio you own and paste the ids into VoiceSoundIds (e.g. VoiceSoundIds.levelup = 1234567890).
 --------------------------------------------------------------------------------
-Config.Voice = { VoiceId = "3", Pitch = 0.6, Speed = 0.85, Volume = 1.6 }
-Config.VoiceSoundIds = { ["3"] = 0, ["2"] = 0, ["1"] = 0, go = 0, levelup = 0, rebirth = 0, stage = 0, win = 0 }
+-- Shifter < 1 drops the voice an octave-ish; Bass boosts the low end (dB); Volume is loudness.
+Config.Voice = { VoiceId = "3", Pitch = 0.8, Speed = 0.8, Shifter = 0.7, Bass = 12, Treble = -12, Volume = 2.2 }
+Config.VoiceSoundIds = { ["3"] = 0, ["2"] = 0, ["1"] = 0, go = 0, levelup = 0, rebirth = 0, stage = 0, win = 0, welcome = 0, nice = 0, done = 0 }
 Config.VoiceText = {
 	["3"] = "Three!", ["2"] = "Two!", ["1"] = "One!", go = "Go!",
 	levelup = "Level up!", rebirth = "Rebirth ready!", stage = "Stage cleared!", win = "Mogged!",
+	welcome = "Welcome! Let us make you a Chad.", nice = "Nice!", done = "Training complete. Now go mog them all!",
 }
+
+--------------------------------------------------------------------------------
+-- First-time tutorial (5 short steps, skippable)
+--------------------------------------------------------------------------------
+Config.Tutorial = {
+	{ Title = "Swing your hammer", Text = "Click or tap anywhere to hit yourself. Every hit earns Aura.", Goal = 10 },
+	{ Title = "Buy the Stone Hammer", Text = "Walk to the glowing Stone Hammer and press the big button at the bottom. Bigger hammer, more Aura per swing.", Gift = 60 },
+	{ Title = "Train on a platform", Text = "Walk onto the Gym platform, press the big button, then hit SPACE (or tap) when the marker is in the green.", Goal = 3 },
+	{ Title = "Hatch a pet", Text = "Press the 🐾 Pets button on the right and hatch a Basic Egg. Pets boost your Aura.", Gift = 500 },
+	{ Title = "Fight Stage 1", Text = "Press the ⚔️ Battle button, then the big button, and tap as fast as you can!" },
+}
+Config.TutorialReward = { Aura = 1000, Crates = 2 }
 
 --------------------------------------------------------------------------------
 -- Things you can interact with (press E, or tap the on-screen button). These work from any camera
@@ -1313,6 +1362,7 @@ local Hammers = require(Modules.Hammers)
 local Pets = require(Modules.Pets)
 local Aura = require(Modules.Aura)
 local Playtime = require(Modules.Playtime)
+local Tutorial = require(Modules.Tutorial)
 local World = require(Modules.World)
 
 --------------------------------------------------------------------------------
@@ -1367,6 +1417,7 @@ local function onPlayer(p)
 	Quests.init(p)
 	Daily.refresh(p)
 	Playtime.init(p)
+	Tutorial.init(p)
 	Nameplate.init(p)
 	Cosmetics.sync(p)
 
@@ -1398,6 +1449,7 @@ Players.PlayerRemoving:Connect(function(p)
 	Hammers.release(p)
 	Pets.release(p)
 	Playtime.release(p)
+	Tutorial.release(p)
 	Duels.release(p)
 	Competition.release(p)
 	Stats.forget(p)
@@ -1418,6 +1470,7 @@ task.spawn(function()
 					Stats.addAuraFractional(p, rate * Stats.eventMult("AuraMult"), { raw = true })
 				end
 				Playtime.tick(p)
+				Tutorial.tick(p)
 				if tick % 30 == 0 then
 					Daily.refresh(p)
 				end
@@ -1478,7 +1531,7 @@ local function interact(p, id)
 	end
 end
 
-local SETTING_KEYS = { Music = true, Sfx = true, Duels = true, Fx = true }
+local SETTING_KEYS = { Music = true, Sfx = true, Duels = true, Fx = true, Voice = true }
 local budget = {}
 
 Action.OnServerEvent:Connect(function(p, kind, a, b)
@@ -1504,6 +1557,8 @@ Action.OnServerEvent:Connect(function(p, kind, a, b)
 		Crates.open(p, a)
 	elseif kind == "Hatch" or kind == "PetEquip" or kind == "PetUnequip" then
 		Pets.handle(p, kind, a)
+	elseif kind == "TutorialSkip" then
+		Tutorial.skip(p)
 	elseif kind == "Swing" then
 		Hammers.swing(p)
 	elseif kind == "Interact" and type(a) == "string" then
@@ -2690,6 +2745,7 @@ local function defaults()
 		BestStreak = 0,
 		Reps = 0,
 		Swings = 0,
+		Tut = 1, -- tutorial step (7 = finished or skipped)
 		Stage = 0, -- stage battles cleared
 		Pets = {}, -- pet id -> copies owned
 		PetsEq = {}, -- list of equipped pet ids
@@ -2702,7 +2758,7 @@ local function defaults()
 		QuestsDone = 0,
 		Quest = nil,
 		Daily = { Last = 0, Streak = 0 },
-		Settings = { Music = true, Sfx = true, Duels = true, Fx = true },
+		Settings = { Music = true, Sfx = true, Duels = true, Fx = true, Voice = true },
 		LastSeen = nil,
 	}
 end
@@ -4878,6 +4934,113 @@ return Training
         </Item>
         <Item class="ModuleScript" referent="32">
           <Properties>
+            <string name="Name">Tutorial</string>
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the first-time tutorial. Five short steps that teach the core loop (swing, hammer, train, pet,
+-- battle), each with a small gift so the next step is possible. The step number is saved; players can skip it.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Data = require(script.Parent.Data)
+local Stats = require(script.Parent.Stats)
+
+local Tutorial = {}
+
+local DONE = #Config.Tutorial + 1
+local base = {} -- player -> { step, value } counter value when the step began
+local gifted = {} -- player -> highest step already gifted
+
+local function counter(profile, step)
+	if step == 1 then
+		return profile.Swings
+	elseif step == 3 then
+		return profile.Reps
+	elseif step == 4 then
+		return profile.Hatched or 0
+	elseif step == 5 then
+		return profile.Duels
+	end
+	return 0
+end
+
+local function enter(p, profile, step)
+	base[p] = { step = step, value = counter(profile, step) }
+	p:SetAttribute("TutStep", step)
+	p:SetAttribute("TutGoal", Config.Tutorial[step] and Config.Tutorial[step].Goal or 0)
+	p:SetAttribute("TutProgress", 0)
+	local def = Config.Tutorial[step]
+	if def and def.Gift and (gifted[p] or 0) < step then
+		gifted[p] = step
+		if profile.Aura < def.Gift then
+			Stats.addAura(p, def.Gift - math.floor(profile.Aura), { raw = true })
+		end
+	end
+end
+
+function Tutorial.init(p)
+	local profile = Data.get(p)
+	local step = math.clamp(profile.Tut or 1, 1, DONE)
+	profile.Tut = step
+	enter(p, profile, step)
+end
+
+function Tutorial.skip(p)
+	local profile = Data.get(p)
+	if profile and profile.Tut < DONE then
+		profile.Tut = DONE
+		p:SetAttribute("TutStep", DONE)
+	end
+end
+
+local function advance(p, profile)
+	local step = profile.Tut + 1
+	profile.Tut = step
+	if step >= DONE then
+		p:SetAttribute("TutStep", DONE)
+		Stats.addAura(p, Config.TutorialReward.Aura, { raw = true })
+		Stats.addFreeCrates(p, Config.TutorialReward.Crates)
+		Stats.send(p, "tutorialDone", Config.TutorialReward.Aura, Config.TutorialReward.Crates)
+	else
+		Stats.send(p, "tutorialStep", step)
+		enter(p, profile, step)
+	end
+end
+
+-- Called once a second.
+function Tutorial.tick(p)
+	local profile = Data.get(p)
+	if not profile or profile.Tut >= DONE then
+		return
+	end
+	local step = profile.Tut
+	if not base[p] or base[p].step ~= step then
+		enter(p, profile, step)
+	end
+	local def = Config.Tutorial[step]
+	local done
+	if step == 2 then
+		done = profile.HammersOwned["2"] ~= nil
+	else
+		local progress = counter(profile, step) - base[p].value
+		local goal = def.Goal or 1
+		p:SetAttribute("TutProgress", math.min(progress, goal))
+		done = progress >= goal
+	end
+	if done then
+		advance(p, profile)
+	end
+end
+
+function Tutorial.release(p)
+	base[p] = nil
+	gifted[p] = nil
+end
+
+return Tutorial
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="33">
+          <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: builds the whole town from code (nothing to import).
 -- A bright daytime plaza with grass, concrete, brick and wood: three training pavilions, a crate
@@ -5722,15 +5885,15 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="33">
+  <Item class="StarterPlayer" referent="34">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="34">
+    <Item class="StarterPlayerScripts" referent="35">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="35">
+      <Item class="LocalScript" referent="36">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: client entry point. Builds the interface, wires the menu tabs, and routes everything
@@ -5768,6 +5931,7 @@ local Orbs = require(Modules.Orbs)
 local Interact = require(Modules.Interact)
 local HammerRow = require(Modules.HammerRow)
 local Swing = require(Modules.Swing)
+local Tutorial = require(Modules.Tutorial)
 
 -- Wait for the server to finish setting this player up.
 while not player:GetAttribute("Ready") do
@@ -5817,10 +5981,11 @@ CompetitionUI.init(gui, Action)
 Interact.init(gui, Action, Menu)
 HammerRow.init()
 Swing.init(gui, Action, Menu)
+Tutorial.init(gui, Action)
 
 TabSettings.apply()
 Audio.startMusic()
-for _, key in { "Music", "Sfx" } do
+for _, key in { "Music", "Sfx", "Voice" } do
 	player:GetAttributeChangedSignal("Set_" .. key):Connect(TabSettings.apply)
 end
 
@@ -6005,6 +6170,20 @@ function handlers.stageResult(stage, won, first, cleared)
 	end
 end
 
+function handlers.tutorialStep()
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		Fx.burst(root.Position, UI.Colors.Good, 20)
+	end
+end
+
+function handlers.tutorialDone(aura, crates)
+	Audio.say("done")
+	Audio.levelUp()
+	Fx.flash(UI.Colors.Gold, 0.3, 0.6)
+	Fx.announce("TUTORIAL COMPLETE", string.format("+%s Aura  +%d crates. Now go mog them all!", Util.fmt(aura), crates), UI.Colors.Gold, 0.22)
+end
+
 function handlers.openMenu(tab)
 	Menu.open(tab)
 end
@@ -6063,11 +6242,11 @@ task.spawn(function()
 end)
 ]]></string>
         </Properties>
-        <Item class="Folder" referent="36">
+        <Item class="Folder" referent="37">
           <Properties>
             <string name="Name">Modules</string>
           </Properties>
-          <Item class="ModuleScript" referent="37">
+          <Item class="ModuleScript" referent="38">
             <Properties>
               <string name="Name">CompetitionUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: Mog Competition overlay. Everyone on stage flexes (taps) for 8 seconds; a live
@@ -6351,7 +6530,7 @@ return CompetitionUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="38">
+          <Item class="ModuleScript" referent="39">
             <Properties>
               <string name="Name">DuelUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: duel overlay. Both sides tap as fast as they can for 7 seconds; Mog Power gives an
@@ -6591,7 +6770,7 @@ return DuelUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="39">
+          <Item class="ModuleScript" referent="40">
             <Properties>
               <string name="Name">Fx</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
@@ -6829,7 +7008,7 @@ return Fx
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="40">
+          <Item class="ModuleScript" referent="41">
             <Properties>
               <string name="Name">HammerRow</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: floating OWNED / EQUIPPED / price labels over every hammer pedestal.
@@ -6954,7 +7133,7 @@ return HammerRow
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="41">
+          <Item class="ModuleScript" referent="42">
             <Properties>
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the always-on screen.
@@ -7083,9 +7262,8 @@ local function buildTop(gui)
 		})
 		return label
 	end
-	refs.auraPill = counter(1, 170, C.Gold, C.Yellow)
-	refs.rebirthPill = counter(2, 110, C.Mint, C.Mint)
-	refs.multPill = counter(3, 140, C.Pink, C.Pink)
+	refs.rebirthPill = counter(1, 90, C.Mint, C.Mint)
+	refs.multPill = counter(2, 130, C.Pink, C.Pink)
 
 	-- Chips (chain, event, competition), only visible while relevant
 	local chips = UI.new("Frame", { Name = "Chips", Size = UDim2.fromOffset(440, 70), BackgroundTransparency = 1, LayoutOrder = 3 }, stack)
@@ -7439,7 +7617,6 @@ function Hud.init(gui, Menu, Action)
 			shownAura = aura
 		end
 		refs.bigAura.Text = "🏆 " .. Util.fmt(shownAura)
-		refs.auraPill.Text = "🏆 " .. Util.fmt(shownAura)
 
 		if pending > 0 then
 			refs.ticker.Text = "+" .. Util.fmt(pending)
@@ -7564,7 +7741,7 @@ function Hud.refresh()
 
 	-- Quest
 	local kind = player:GetAttribute("QuestKind")
-	refs.quest.Visible = kind ~= nil
+	refs.quest.Visible = kind ~= nil and (player:GetAttribute("TutStep") or 99) > #Config.Tutorial
 	if kind then
 		local goal = player:GetAttribute("QuestGoal") or 1
 		local progress = player:GetAttribute("QuestProgress") or 0
@@ -7623,7 +7800,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="42">
+          <Item class="ModuleScript" referent="43">
             <Properties>
               <string name="Name">Interact</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: "use" button for every place and hammer. Stand near something and a big button
@@ -7777,7 +7954,7 @@ return Interact
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="43">
+          <Item class="ModuleScript" referent="44">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the one main menu. A single window with a tab list so the screen never fills up with
@@ -8022,7 +8199,7 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="44">
+          <Item class="ModuleScript" referent="45">
             <Properties>
               <string name="Name">Orbs</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: pickups bob and spin locally so the server never has to animate them, and
@@ -8079,7 +8256,7 @@ return Orbs
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="45">
+          <Item class="ModuleScript" referent="46">
             <Properties>
               <string name="Name">Swing</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: click / tap anywhere (or hold) to swing your hammer at your own face.
@@ -8224,7 +8401,7 @@ return Swing
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="46">
+          <Item class="ModuleScript" referent="47">
             <Properties>
               <string name="Name">TabCrates</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: crates tab. The server rolls; this plays the reveal (a spinning reel that slows
@@ -8523,7 +8700,7 @@ return TabCrates
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="47">
+          <Item class="ModuleScript" referent="48">
             <Properties>
               <string name="Name">TabPets</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Pets tab. Hatch eggs at the top, manage your pets below.
@@ -8723,7 +8900,7 @@ return TabPets
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="48">
+          <Item class="ModuleScript" referent="49">
             <Properties>
               <string name="Name">TabProfile</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: your character sheet: rank, stats, duel record and the current quest.
@@ -8902,7 +9079,7 @@ return TabProfile
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="49">
+          <Item class="ModuleScript" referent="50">
             <Properties>
               <string name="Name">TabRewards</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: daily streak rewards and the current server event.
@@ -9028,7 +9205,7 @@ return TabRewards
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="50">
+          <Item class="ModuleScript" referent="51">
             <Properties>
               <string name="Name">TabSettings</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: simple toggles. Settings are saved on the server so they follow the player.
@@ -9047,6 +9224,7 @@ local TabSettings = {}
 local OPTIONS = {
 	{ key = "Music", name = "Music", desc = "Ambient background music" },
 	{ key = "Sfx", name = "Sound effects", desc = "Pickups, crates and fanfares" },
+	{ key = "Voice", name = "Announcer voice", desc = "Deep voice: 3-2-1, Level up, Rebirth ready" },
 	{ key = "Fx", name = "Screen effects", desc = "Camera punch, shake, flashes and floating numbers" },
 	{ key = "Duels", name = "Duels", desc = "Allow duel matchmaking (turn off to stay out of fights)" },
 }
@@ -9055,6 +9233,7 @@ local OPTIONS = {
 function TabSettings.apply()
 	Audio.setMusic(player:GetAttribute("Set_Music") ~= false)
 	Audio.setSfx(player:GetAttribute("Set_Sfx") ~= false)
+	Audio.setVoice(player:GetAttribute("Set_Voice") ~= false)
 end
 
 function TabSettings.build(parent, Action)
@@ -9131,7 +9310,7 @@ return TabSettings
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="51">
+          <Item class="ModuleScript" referent="52">
             <Properties>
               <string name="Name">TabUpgrades</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades (bought with Aura) and the rebirth button.
@@ -9291,7 +9470,7 @@ return TabUpgrades
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="52">
+          <Item class="ModuleScript" referent="53">
             <Properties>
               <string name="Name">TabWardrobe</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the wardrobe. A collection grid: owned items can be worn, unowned ones show as locked
@@ -9518,7 +9697,7 @@ return TabWardrobe
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="53">
+          <Item class="ModuleScript" referent="54">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -9628,7 +9807,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="54">
+          <Item class="ModuleScript" referent="55">
             <Properties>
               <string name="Name">TrainingUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame overlay. A marker sweeps a bar; press Space (or tap) while it
@@ -9893,11 +10072,211 @@ return TrainingUI
 ]]></string>
             </Properties>
           </Item>
+          <Item class="ModuleScript" referent="56">
+            <Properties>
+              <string name="Name">Tutorial</string>
+              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the first-time tutorial card and the bouncing arrow that points at where to go.
+-- It reads the TutStep attribute from the server (7 = finished). Players can skip it.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(Shared:WaitForChild("UI"))
+local Audio = require(Shared:WaitForChild("Audio"))
+
+local Tutorial = {}
+
+local player = Players.LocalPlayer
+local C = UI.Colors
+local DONE = #Config.Tutorial + 1
+
+local card, title, body, bar, countLabel, scale
+local pointer, pointerGui
+local shownStep = 0
+
+-- Where the arrow should point for each step (nil = no arrow).
+local function target(step)
+	if step == 2 then
+		return Config.HammerPos(2) + Vector3.new(0, 11, 0)
+	elseif step == 3 then
+		local pos, front = Config.StationPos("Gym"), Config.StationFront("Gym")
+		return pos + front * 7 + Vector3.new(0, 8, 0)
+	elseif step == 5 then
+		return Config.BattlePos() + Config.BattleFront() * 30 + Vector3.new(0, 10, 0)
+	end
+	return nil
+end
+
+local function ensurePointer()
+	if pointer then
+		return
+	end
+	pointer = UI.new("Part", {
+		Name = "TutorialPointer",
+		Size = Vector3.one,
+		Transparency = 1,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+	}, workspace)
+	pointerGui = UI.new("BillboardGui", {
+		Adornee = pointer,
+		Size = UDim2.fromOffset(120, 90),
+		AlwaysOnTop = true,
+		MaxDistance = 400,
+	}, pointer)
+	UI.label(pointerGui, {
+		Size = UDim2.new(1, 0, 0, 24),
+		Font = UI.Fonts.Title,
+		TextSize = 18,
+		TextColor3 = C.Yellow,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextWrapped = false,
+		TextStrokeTransparency = 0,
+		Text = "GO HERE",
+	})
+	UI.label(pointerGui, {
+		Position = UDim2.fromOffset(0, 22),
+		Size = UDim2.new(1, 0, 0, 60),
+		Font = UI.Fonts.Title,
+		TextSize = 54,
+		TextColor3 = C.Yellow,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextWrapped = false,
+		TextStrokeTransparency = 0,
+		Text = "▼",
+	})
+end
+
+local function show(step)
+	local def = Config.Tutorial[step]
+	if not def then
+		card.Visible = false
+		if pointer then
+			pointer.Parent = nil
+		end
+		return
+	end
+	card.Visible = true
+	title.Text = string.format("TUTORIAL %d/%d  ·  %s", step, #Config.Tutorial, def.Title:upper())
+	body.Text = def.Text
+	bar.back.Visible = def.Goal ~= nil
+	countLabel.Visible = def.Goal ~= nil
+	if step ~= shownStep then
+		shownStep = step
+		UI.pop(scale, 1.1)
+		if step == 1 then
+			Audio.say("welcome")
+		else
+			Audio.say("nice")
+		end
+		Audio.quest()
+	end
+	local at = target(step)
+	if at then
+		ensurePointer()
+		pointer.Parent = workspace
+		pointer.Position = at
+	elseif pointer then
+		pointer.Parent = nil
+	end
+end
+
+function Tutorial.init(gui, Action)
+	card = UI.panel(gui, {
+		Name = "TutorialCard",
+		AnchorPoint = Vector2.new(0, 0),
+		Position = UDim2.new(0, 84, 0.5, -185),
+		Size = UDim2.fromOffset(270, 132),
+		Visible = false,
+		Radius = 12,
+	})
+	card:FindFirstChildOfClass("UIStroke").Color = C.Yellow
+	scale = UI.new("UIScale", {}, card)
+	title = UI.label(card, {
+		Position = UDim2.fromOffset(10, 6),
+		Size = UDim2.new(1, -20, 0, 16),
+		Font = UI.Fonts.Title,
+		TextSize = 11,
+		TextColor3 = C.Yellow,
+		TextWrapped = false,
+		Text = "",
+	})
+	body = UI.label(card, {
+		Position = UDim2.fromOffset(10, 24),
+		Size = UDim2.new(1, -20, 0, 66),
+		Font = UI.Fonts.Bold,
+		TextSize = 12,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		Text = "",
+	})
+	bar = UI.bar(card, { Position = UDim2.new(0, 10, 1, -26), Size = UDim2.new(1, -90, 0, 8) }, C.Good)
+	countLabel = UI.label(card, {
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(1, -78, 1, -22),
+		Size = UDim2.fromOffset(30, 14),
+		Font = UI.Fonts.Title,
+		TextSize = 11,
+		TextColor3 = C.Good,
+		TextWrapped = false,
+		Text = "",
+	})
+	local skip = UI.button(card, {
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -8, 1, -6),
+		Size = UDim2.fromOffset(46, 20),
+		BackgroundColor3 = C.Disabled,
+		Text = "SKIP",
+		TextSize = 10,
+		Radius = 6,
+	}, "card")
+	skip.Activated:Connect(function()
+		Audio.click()
+		Action:FireServer("TutorialSkip")
+	end)
+
+	local lastStep = 0
+	local t0 = os.clock()
+	RunService.Heartbeat:Connect(function()
+		local step = player:GetAttribute("TutStep") or DONE
+		if step ~= lastStep then
+			lastStep = step
+			show(step)
+		end
+		if step < DONE then
+			local goal = player:GetAttribute("TutGoal") or 0
+			if goal > 0 then
+				local progress = player:GetAttribute("TutProgress") or 0
+				bar.set(progress / goal)
+				countLabel.Text = progress .. "/" .. goal
+			end
+			if pointer and pointer.Parent then
+				local at = target(step)
+				if at then
+					pointer.Position = at + Vector3.new(0, math.sin((os.clock() - t0) * 4) * 1.2, 0)
+				end
+			end
+		end
+	end)
+end
+
+-- True while the tutorial is still running (the HUD hides the quest so the screen stays simple).
+function Tutorial.active()
+	return (player:GetAttribute("TutStep") or DONE) < DONE
+end
+
+return Tutorial
+]]></string>
+            </Properties>
+          </Item>
         </Item>
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="55">
+  <Item class="Workspace" referent="57">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

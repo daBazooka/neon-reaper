@@ -361,6 +361,39 @@ do
 	d.Level = 20; Stats.recompute(p1)
 end
 
+
+-- Tutorial: a fresh player walks through every step
+do
+	local p2, a2 = newPlayer(77, "Newbie")
+	players[77] = p2
+	fireAll("PlayerAdded", p2)
+	advance(1)
+	check(a2.TutStep == 1, "new player starts the tutorial at step 1")
+	local T = require(ModN.children.Tutorial)
+	a2.Training = false; a2.InDuel = false
+	for i = 1, 12 do fireAll("Action", p2, "Swing"); advance(0.2) end
+	advance(2)
+	check(a2.TutStep == 2, "10 swings finish step 1 (now step " .. tostring(a2.TutStep) .. ")")
+	check((a2.Aura or 0) >= Config.Tutorial[2].Gift, "step 2 gifts enough Aura for the Stone Hammer: " .. tostring(a2.Aura))
+	p2.root.Position = Config.HammerPos(2) + Vector3.new(0, 3, 0)
+	fireAll("Action", p2, "Interact", "Hammer:2"); advance(2)
+	check(a2.TutStep == 3, "buying the hammer finishes step 2 (now " .. tostring(a2.TutStep) .. ")")
+	Data.get(p2).Reps += 3; advance(2)
+	check(a2.TutStep == 4, "training finishes step 3")
+	fireAll("Action", p2, "Hatch", "basic"); advance(2)
+	check(a2.TutStep == 5, "hatching finishes step 4 (" .. tostring(a2.TutStep) .. ")")
+	Data.get(p2).Duels += 1; advance(2)
+	check(a2.TutStep == #Config.Tutorial + 1, "battle finishes the tutorial")
+	local doneMsg
+	for _, m in notifyLog do if m[1] == "tutorialDone" then doneMsg = m end end
+	check(doneMsg ~= nil, "tutorial reward sent")
+	local p3, a3 = newPlayer(78, "Skipper")
+	players[78] = p3
+	fireAll("PlayerAdded", p3); advance(1)
+	fireAll("Action", p3, "TutorialSkip"); advance(0.5)
+	check(a3.TutStep == #Config.Tutorial + 1, "skip ends the tutorial")
+end
+
 -- Mog Competition: run a full cycle with one human
 Data.get(p1).Level = 20; Stats.recompute(p1)
 local Competition = require(ModN.children.Competition)

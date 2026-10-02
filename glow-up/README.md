@@ -28,7 +28,8 @@ Your look (stats + gear) multiplies XP, so a better look levels you faster. The 
 | **Platforms** | Training now happens on raised, studded platforms with steps and bollards (Gym, Style Studio, Charm Lounge); the stage battle lane has its own "YOU" and "VS" platforms. |
 | **Looks change every level** | Body shape, skin tone, face size and the amount of hair all change with every level (half of the whole transformation happens by level 50). |
 | **Aura VFX** | Sparks from level 1, flames from tier 6, a ground ring from tier 10, a halo from tier 20; colour follows your tier. |
-| **Voice lines** | A deep announcer says "3, 2, 1, Go!", "Level up!", "Rebirth ready!", "Stage cleared!". Uses Roblox text-to-speech by default; paste your own recording ids into `Config.VoiceSoundIds`. |
+| **Voice lines** | A deep announcer says "3, 2, 1, Go!", "Level up!", "Rebirth ready!", "Stage cleared!". Uses Roblox text-to-speech by default, pitched down with a bass-boost effect chain (tune `Config.Voice`; turn off in Settings); paste your own recording ids into `Config.VoiceSoundIds`. |
+| **Tutorial** | A 5-step first-time guide (swing, buy a hammer, train, hatch a pet, fight stage 1) with a bouncing arrow and small gifts; skippable. |
 | **Pets** | Hatch Basic / Golden / Mog eggs in the Pets tab for 13 pets (Common to Mythic). Equip 3; they follow you and add a % Aura multiplier plus Aura per second. Duplicates star up to 5 (+25% each). |
 | **Pickups** | Walk the plaza to grab apples, protein shakes, dumbbells and trophies (Aura + XP). Chain pickups for a multiplier. |
 | **Training** | Gym, Style Studio and Charm Lounge: a 5-rep timing minigame that raises Power / Style / Charm. |
@@ -55,7 +56,7 @@ It is built with Rojo from `src/`: `rojo build default.project.json -o SubFiveTo
 ```
 ReplicatedStorage.Shared      Config, Util, Audio, UI, HammerModel
 ServerScriptService.Main      Script + Modules (Data, Stats, Appearance, Cosmetics, Shards, Training, Crates,
-                              Duels, Competition, Quests, Daily, Events, Runway, Shop, Nameplate, Board, Quirks, Hammers, Pets, Playtime, Aura, World)
+                              Duels, Competition, Quests, Daily, Events, Runway, Shop, Nameplate, Board, Quirks, Hammers, Pets, Playtime, Aura, Tutorial, World)
 StarterPlayerScripts.Client   LocalScript + Modules (Fx, Toasts, Menu, Hud, 6 tabs, TrainingUI, DuelUI,
                               CompetitionUI, Orbs, Interact, HammerRow, Swing, TabPets)
 ```

@@ -124,9 +124,8 @@ local function buildTop(gui)
 		})
 		return label
 	end
-	refs.auraPill = counter(1, 170, C.Gold, C.Yellow)
-	refs.rebirthPill = counter(2, 110, C.Mint, C.Mint)
-	refs.multPill = counter(3, 140, C.Pink, C.Pink)
+	refs.rebirthPill = counter(1, 90, C.Mint, C.Mint)
+	refs.multPill = counter(2, 130, C.Pink, C.Pink)
 
 	-- Chips (chain, event, competition), only visible while relevant
 	local chips = UI.new("Frame", { Name = "Chips", Size = UDim2.fromOffset(440, 70), BackgroundTransparency = 1, LayoutOrder = 3 }, stack)
@@ -480,7 +479,6 @@ function Hud.init(gui, Menu, Action)
 			shownAura = aura
 		end
 		refs.bigAura.Text = "🏆 " .. Util.fmt(shownAura)
-		refs.auraPill.Text = "🏆 " .. Util.fmt(shownAura)
 
 		if pending > 0 then
 			refs.ticker.Text = "+" .. Util.fmt(pending)
@@ -605,7 +603,7 @@ function Hud.refresh()
 
 	-- Quest
 	local kind = player:GetAttribute("QuestKind")
-	refs.quest.Visible = kind ~= nil
+	refs.quest.Visible = kind ~= nil and (player:GetAttribute("TutStep") or 99) > #Config.Tutorial
 	if kind then
 		local goal = player:GetAttribute("QuestGoal") or 1
 		local progress = player:GetAttribute("QuestProgress") or 0

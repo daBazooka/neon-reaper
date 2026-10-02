@@ -33,6 +33,7 @@ local Orbs = require(Modules.Orbs)
 local Interact = require(Modules.Interact)
 local HammerRow = require(Modules.HammerRow)
 local Swing = require(Modules.Swing)
+local Tutorial = require(Modules.Tutorial)
 
 -- Wait for the server to finish setting this player up.
 while not player:GetAttribute("Ready") do
@@ -82,10 +83,11 @@ CompetitionUI.init(gui, Action)
 Interact.init(gui, Action, Menu)
 HammerRow.init()
 Swing.init(gui, Action, Menu)
+Tutorial.init(gui, Action)
 
 TabSettings.apply()
 Audio.startMusic()
-for _, key in { "Music", "Sfx" } do
+for _, key in { "Music", "Sfx", "Voice" } do
 	player:GetAttributeChangedSignal("Set_" .. key):Connect(TabSettings.apply)
 end
 
@@ -268,6 +270,20 @@ function handlers.stageResult(stage, won, first, cleared)
 	else
 		Toasts.push("Stage " .. stage .. " (" .. def.Name .. ") beat you. Level up and try again!", "bad")
 	end
+end
+
+function handlers.tutorialStep()
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		Fx.burst(root.Position, UI.Colors.Good, 20)
+	end
+end
+
+function handlers.tutorialDone(aura, crates)
+	Audio.say("done")
+	Audio.levelUp()
+	Fx.flash(UI.Colors.Gold, 0.3, 0.6)
+	Fx.announce("TUTORIAL COMPLETE", string.format("+%s Aura  +%d crates. Now go mog them all!", Util.fmt(aura), crates), UI.Colors.Gold, 0.22)
 end
 
 function handlers.openMenu(tab)

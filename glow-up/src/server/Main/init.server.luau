@@ -39,6 +39,7 @@ local Hammers = require(Modules.Hammers)
 local Pets = require(Modules.Pets)
 local Aura = require(Modules.Aura)
 local Playtime = require(Modules.Playtime)
+local Tutorial = require(Modules.Tutorial)
 local World = require(Modules.World)
 
 --------------------------------------------------------------------------------
@@ -93,6 +94,7 @@ local function onPlayer(p)
 	Quests.init(p)
 	Daily.refresh(p)
 	Playtime.init(p)
+	Tutorial.init(p)
 	Nameplate.init(p)
 	Cosmetics.sync(p)
 
@@ -124,6 +126,7 @@ Players.PlayerRemoving:Connect(function(p)
 	Hammers.release(p)
 	Pets.release(p)
 	Playtime.release(p)
+	Tutorial.release(p)
 	Duels.release(p)
 	Competition.release(p)
 	Stats.forget(p)
@@ -144,6 +147,7 @@ task.spawn(function()
 					Stats.addAuraFractional(p, rate * Stats.eventMult("AuraMult"), { raw = true })
 				end
 				Playtime.tick(p)
+				Tutorial.tick(p)
 				if tick % 30 == 0 then
 					Daily.refresh(p)
 				end
@@ -204,7 +208,7 @@ local function interact(p, id)
 	end
 end
 
-local SETTING_KEYS = { Music = true, Sfx = true, Duels = true, Fx = true }
+local SETTING_KEYS = { Music = true, Sfx = true, Duels = true, Fx = true, Voice = true }
 local budget = {}
 
 Action.OnServerEvent:Connect(function(p, kind, a, b)
@@ -230,6 +234,8 @@ Action.OnServerEvent:Connect(function(p, kind, a, b)
 		Crates.open(p, a)
 	elseif kind == "Hatch" or kind == "PetEquip" or kind == "PetUnequip" then
 		Pets.handle(p, kind, a)
+	elseif kind == "TutorialSkip" then
+		Tutorial.skip(p)
 	elseif kind == "Swing" then
 		Hammers.swing(p)
 	elseif kind == "Interact" and type(a) == "string" then

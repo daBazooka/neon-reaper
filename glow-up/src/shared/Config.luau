@@ -292,12 +292,26 @@ end
 -- Voice lines. Plays with Roblox's text-to-speech (deep and slow). To use your own recorded voice,
 -- upload audio you own and paste the ids into VoiceSoundIds (e.g. VoiceSoundIds.levelup = 1234567890).
 --------------------------------------------------------------------------------
-Config.Voice = { VoiceId = "3", Pitch = 0.6, Speed = 0.85, Volume = 1.6 }
-Config.VoiceSoundIds = { ["3"] = 0, ["2"] = 0, ["1"] = 0, go = 0, levelup = 0, rebirth = 0, stage = 0, win = 0 }
+-- Shifter < 1 drops the voice an octave-ish; Bass boosts the low end (dB); Volume is loudness.
+Config.Voice = { VoiceId = "3", Pitch = 0.8, Speed = 0.8, Shifter = 0.7, Bass = 12, Treble = -12, Volume = 2.2 }
+Config.VoiceSoundIds = { ["3"] = 0, ["2"] = 0, ["1"] = 0, go = 0, levelup = 0, rebirth = 0, stage = 0, win = 0, welcome = 0, nice = 0, done = 0 }
 Config.VoiceText = {
 	["3"] = "Three!", ["2"] = "Two!", ["1"] = "One!", go = "Go!",
 	levelup = "Level up!", rebirth = "Rebirth ready!", stage = "Stage cleared!", win = "Mogged!",
+	welcome = "Welcome! Let us make you a Chad.", nice = "Nice!", done = "Training complete. Now go mog them all!",
 }
+
+--------------------------------------------------------------------------------
+-- First-time tutorial (5 short steps, skippable)
+--------------------------------------------------------------------------------
+Config.Tutorial = {
+	{ Title = "Swing your hammer", Text = "Click or tap anywhere to hit yourself. Every hit earns Aura.", Goal = 10 },
+	{ Title = "Buy the Stone Hammer", Text = "Walk to the glowing Stone Hammer and press the big button at the bottom. Bigger hammer, more Aura per swing.", Gift = 60 },
+	{ Title = "Train on a platform", Text = "Walk onto the Gym platform, press the big button, then hit SPACE (or tap) when the marker is in the green.", Goal = 3 },
+	{ Title = "Hatch a pet", Text = "Press the 🐾 Pets button on the right and hatch a Basic Egg. Pets boost your Aura.", Gift = 500 },
+	{ Title = "Fight Stage 1", Text = "Press the ⚔️ Battle button, then the big button, and tap as fast as you can!" },
+}
+Config.TutorialReward = { Aura = 1000, Crates = 2 }
 
 --------------------------------------------------------------------------------
 -- Things you can interact with (press E, or tap the on-screen button). These work from any camera
