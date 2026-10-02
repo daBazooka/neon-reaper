@@ -18,6 +18,7 @@ local function part(parent, props)
 	p.TopSurface = Enum.SurfaceType.Smooth
 	p.BottomSurface = Enum.SurfaceType.Smooth
 	p.Material = M.SmoothPlastic
+	p.CanCollide = false -- decoration never blocks players (or the camera)
 	for k, v in props do
 		p[k] = v
 	end
@@ -116,6 +117,104 @@ function Decor.chimneys(parent, cf, y, spread, color, z)
 	end
 end
 
+
+--------------------------------------------------------------------------------
+-- Interior props that make each building feel like what it is
+--------------------------------------------------------------------------------
+local WOODC = C3(120, 84, 58)
+
+local function gymProps(parent, cf)
+	-- rubber floor mat, squat rack, kettlebells, a plate tree and a pull-up frame
+	block(parent, "RubberMat", Vector3.new(12, 0.07, 9), cf * CFrame.new(9, 0.95, 5), C3(36, 36, 40), M.Rubber)
+	for side = -1, 1, 2 do
+		block(parent, "RackUpright", Vector3.new(0.5, 8, 0.5), cf * CFrame.new(9 + side * 2.2, 4.9, 5), C3(50, 52, 60), M.Metal, { CanCollide = true })
+		block(parent, "RackFoot", Vector3.new(0.6, 0.4, 4), cf * CFrame.new(9 + side * 2.2, 1.1, 5), C3(50, 52, 60), M.Metal)
+	end
+	block(parent, "RackTop", Vector3.new(5.2, 0.5, 0.5), cf * CFrame.new(9, 8.9, 5), C3(50, 52, 60), M.Metal)
+	block(parent, "SquatBar", Vector3.new(7, 0.3, 0.3), cf * CFrame.new(9, 6.4, 5), C3(210, 214, 222), M.Metal)
+	for side = -1, 1, 2 do
+		part(parent, { Name = "BarPlate", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 2.4, 2.4), CFrame = cf * CFrame.new(9 + side * 3.1, 6.4, 5) * CFrame.Angles(0, 0, math.pi / 2), Color = C3(30, 30, 34), Material = M.Metal })
+	end
+	for i = 1, 5 do
+		local x, z = -13, -4 + i * 2.2
+		part(parent, { Name = "Kettlebell", Shape = Enum.PartType.Ball, Size = Vector3.one * (1.1 + i * 0.12), CFrame = cf * CFrame.new(x, 1.7 + i * 0.05, z), Color = i % 2 == 0 and C3(210, 60, 50) or C3(40, 40, 46), Material = M.Metal })
+		part(parent, { Name = "KettlebellHandle", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.18, 0.9, 0.9), CFrame = cf * CFrame.new(x, 2.5 + i * 0.1, z) * CFrame.Angles(0, 0, math.pi / 2), Color = C3(40, 40, 46), Material = M.Metal })
+	end
+	for i = 1, 4 do
+		part(parent, { Name = "WallPlate", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 2.6 - i * 0.25, 2.6 - i * 0.25), CFrame = cf * CFrame.new(14.6, 3 + i * 1.5, -5) * CFrame.Angles(0, 0, 0), Color = i % 2 == 0 and C3(210, 60, 50) or C3(30, 30, 34), Material = M.Metal })
+	end
+end
+
+local function studioProps(parent, cf)
+	-- wash basins along the side wall, pendant lamps over the barber chairs, a waiting bench
+	for i = 1, 2 do
+		local z = -3 + i * 5
+		block(parent, "BasinCabinet", Vector3.new(2.6, 2.6, 3), cf * CFrame.new(-14.2, 2.2, z), C3(246, 242, 238), M.SmoothPlastic, { CanCollide = true })
+		part(parent, { Name = "Basin", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 2.2, 2.2), CFrame = cf * CFrame.new(-14.2, 3.6, z) * CFrame.Angles(0, 0, math.pi / 2), Color = C3(236, 240, 246), Material = M.Marble })
+		block(parent, "Faucet", Vector3.new(0.2, 1.2, 0.2), cf * CFrame.new(-14.9, 4.4, z), C3(210, 214, 222), M.Metal)
+		block(parent, "FaucetSpout", Vector3.new(0.9, 0.18, 0.18), cf * CFrame.new(-14.5, 5, z), C3(210, 214, 222), M.Metal)
+	end
+	for _, x in { -7, 7 } do
+		block(parent, "PendantCord", Vector3.new(0.1, 3.5, 0.1), cf * CFrame.new(x, 10.7, 2), DARK, M.Metal)
+		local lamp = part(parent, { Name = "PendantLamp", Shape = Enum.PartType.Ball, Size = Vector3.new(2.4, 1.8, 2.4), CFrame = cf * CFrame.new(x, 8.8, 2), Color = C3(255, 236, 214), Transparency = 0.1 })
+		glowLight(lamp, C3(255, 226, 190), 24, 1)
+	end
+	block(parent, "WaitingBench", Vector3.new(7, 0.6, 2), cf * CFrame.new(11, 1.8, -3), C3(60, 50, 56), M.Leather, { CanCollide = true })
+	block(parent, "WaitingBenchBack", Vector3.new(7, 2.2, 0.5), cf * CFrame.new(11, 3, -2.2), C3(60, 50, 56), M.Leather)
+	for sx = -1, 1, 2 do
+		block(parent, "WaitingBenchLeg", Vector3.new(0.4, 1.4, 1.6), cf * CFrame.new(11 + sx * 3.2, 1.2, -3), DARK, M.Metal)
+	end
+	-- a rack of products on the back wall
+	for row = 1, 3 do
+		block(parent, "ProductShelf", Vector3.new(7, 0.25, 1), cf * CFrame.new(-11, 3 + row * 2.2, 13.4), C3(236, 230, 224), M.Marble)
+		for i = 1, 6 do
+			part(parent, { Name = "Product", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1, 0.55, 0.55), CFrame = cf * CFrame.new(-13.2 + i * 0.85, 3.7 + row * 2.2, 13.4) * CFrame.Angles(0, 0, math.pi / 2), Color = Color3.fromHSV((i * 0.17 + row * 0.1) % 1, 0.5, 0.95), Material = M.Glass })
+		end
+	end
+end
+
+local function loungeProps(parent, cf)
+	-- a stone fireplace with a real fire and a full bookshelf on the back wall, and two armchairs
+	local fp = cf * CFrame.new(-10.5, 0.9, 13.5)
+	block(parent, "FireplaceStone", Vector3.new(8, 8, 1.8), fp * CFrame.new(0, 4, 0), C3(150, 144, 136), M.Brick, { CanCollide = true })
+	block(parent, "FireplaceHole", Vector3.new(4.4, 3.4, 1.9), fp * CFrame.new(0, 2.4, -0.15), C3(24, 20, 20), M.SmoothPlastic)
+	block(parent, "Mantel", Vector3.new(9, 0.5, 2.6), fp * CFrame.new(0, 5.6, -0.3), WOODC, M.Wood)
+	for i = -1, 1 do
+		part(parent, { Name = "Log", Shape = Enum.PartType.Cylinder, Size = Vector3.new(3.4, 0.7, 0.7), CFrame = fp * CFrame.new(i * 0.9, 1.2 + (i == 0 and 0.5 or 0), -0.6) * CFrame.Angles(0, math.pi / 2, 0), Color = C3(80, 52, 34), Material = M.Wood })
+	end
+	local base = block(parent, "FireBase", Vector3.new(3, 0.4, 1), fp * CFrame.new(0, 1.5, -0.6), C3(255, 140, 40), M.SmoothPlastic, { Transparency = 1 })
+	local flame = Instance.new("Fire")
+	flame.Color = C3(255, 140, 40)
+	flame.SecondaryColor = C3(255, 70, 20)
+	flame.Size = 6
+	flame.Heat = 8
+	flame.Parent = base
+	glowLight(base, C3(255, 150, 70), 28, 1.4)
+	local shelf = cf * CFrame.new(10.8, 0.9, 13.8)
+	block(parent, "BookshelfFrame", Vector3.new(8, 10, 1.4), shelf * CFrame.new(0, 5, 0), WOODC, M.Wood, { CanCollide = true })
+	for row = 1, 4 do
+		block(parent, "Shelf", Vector3.new(7.6, 0.3, 1.5), shelf * CFrame.new(0, row * 2.1, -0.1), C3(98, 68, 46), M.Wood)
+		local rng = Random.new(row * 31)
+		local xpos = -3.6
+		while xpos < 3.4 do
+			local bw = 0.3 + rng:NextNumber() * 0.4
+			local bh = 1.2 + rng:NextNumber() * 0.7
+			block(parent, "Book", Vector3.new(bw, bh, 0.9), shelf * CFrame.new(xpos + bw / 2, row * 2.1 - 2.1 + 0.15 + bh / 2 + 0.0, -0.35), Color3.fromHSV(rng:NextNumber(), 0.55, 0.8), M.SmoothPlastic)
+			xpos += bw + 0.05
+		end
+	end
+	for _, x in { -7, 7 } do
+		local chair = cf * CFrame.new(x, 0.9, 1.5) * CFrame.Angles(0, x < 0 and math.rad(40) or math.rad(-40), 0)
+		block(parent, "ArmchairSeat", Vector3.new(3.4, 1.2, 3.4), chair * CFrame.new(0, 1.2, 0), C3(176, 76, 84), M.Fabric, { CanCollide = true })
+		block(parent, "ArmchairBack", Vector3.new(3.4, 3.2, 0.9), chair * CFrame.new(0, 3, 1.4), C3(160, 66, 74), M.Fabric)
+		for side = -1, 1, 2 do
+			block(parent, "ArmchairArm", Vector3.new(0.7, 2.2, 3.4), chair * CFrame.new(side * 1.9, 1.9, 0), C3(160, 66, 74), M.Fabric)
+		end
+	end
+end
+
+
+
 -- Full interior + exterior treatment for the open pavilions (Gym, Studio, Lounge, Crate Shop).
 -- cf is the pavilion frame (floor top at y = 0.9, entrance toward local -Z, roof at y = 14.4).
 function Decor.pavilion(parent, id, cf)
@@ -126,22 +225,9 @@ function Decor.pavilion(parent, id, cf)
 	local lamp = part(parent, { Name = "AuraBeacon", Shape = Enum.PartType.Ball, Size = Vector3.one * 2.6, CFrame = cf * CFrame.new(0, 17, 0), Color = glow, Transparency = 0.15, CanCollide = false })
 	glowLight(lamp, glow, 60, 1.4)
 	Decor.groundAura(parent, cf.Position, 30, glow)
-	-- patterned floor: two coloured rings and a centre medallion
-	for i, r in { 12.5, 8.5, 4.5 } do
-		local ring = part(parent, { Name = "FloorRing", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.06, r * 2, r * 2), CFrame = cf * CFrame.new(0, 0.93 + i * 0.01, 0) * CFrame.Angles(0, 0, math.pi / 2), Color = (i % 2 == 1) and main or main:Lerp(Color3.new(1, 1, 1), 0.6), CanCollide = false })
-		ring.Transparency = 0.1
-	end
-	-- accent light strips under the roof edge
-	for _, z in { -15.5, 15.5 } do
-		local strip = block(parent, "LightStrip", Vector3.new(33, 0.5, 0.5), cf * CFrame.new(0, 13, z), glow, M.SmoothPlastic, { CanCollide = false })
-		glowLight(strip, glow, 24, 0.9)
-	end
-	-- pillar caps in the building colour
-	for sx = -1, 1, 2 do
-		for sz = -1, 1, 2 do
-			block(parent, "PillarCap", Vector3.new(2.6, 0.9, 2.6), cf * CFrame.new(sx * 14.5, 13.8, sz * 13.5), main, M.SmoothPlastic)
-			block(parent, "PillarBase", Vector3.new(2.6, 0.9, 2.6), cf * CFrame.new(sx * 14.5, 1.3, sz * 13.5), main, M.SmoothPlastic)
-		end
+	-- a floor medallion in the building colours under the chandelier
+	for i, r in { 4.4, 3.8, 2.2 } do
+		part(parent, { Name = "FloorMedallion", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.06, r * 2, r * 2), CFrame = cf * CFrame.new(0, 0.95 + i * 0.01, 2) * CFrame.Angles(0, 0, math.pi / 2), Color = (i % 2 == 1) and main or main:Lerp(Color3.new(1, 1, 1), 0.7) })
 	end
 	-- chandelier: a hanging ring of glowing glass balls
 	local chand = cf * CFrame.new(0, 10.5, 2)
@@ -164,6 +250,13 @@ function Decor.pavilion(parent, id, cf)
 	block(parent, "Carpet", Vector3.new(6, 0.08, 14), cf * CFrame.new(0, 0.95, -9), main, M.Fabric, { CanCollide = false })
 	block(parent, "CarpetTrim", Vector3.new(6.6, 0.07, 14.6), cf * CFrame.new(0, 0.94, -9), glow, M.Fabric, { CanCollide = false })
 	Decor.exterior(parent, id, cf)
+	if id == "gym" then
+		gymProps(parent, cf)
+	elseif id == "studio" then
+		studioProps(parent, cf)
+	elseif id == "lounge" then
+		loungeProps(parent, cf)
+	end
 end
 
 -- Extra exterior detail for the pavilions: roof tiles, gutters, lanterns, flower boxes, a stone path, floor trim.
@@ -176,31 +269,22 @@ function Decor.exterior(parent, id, cf)
 	for i = 1, 6 do
 		block(parent, "RoofTile", Vector3.new(36, 0.3, 5.2), cf * CFrame.new(0, 15.25, -15 + (i - 1) * 6), i % 2 == 0 and main or dark, M.SmoothPlastic)
 	end
-	block(parent, "RoofRidge", Vector3.new(37, 0.8, 1.2), cf * CFrame.new(0, 15.7, 0), glow, M.SmoothPlastic)
-	for _, z in { -16.7, 16.7 } do
-		part(parent, { Name = "Gutter", Shape = Enum.PartType.Cylinder, Size = Vector3.new(36, 0.7, 0.7), CFrame = cf * CFrame.new(0, 14.2, z) * CFrame.Angles(0, 0, 0), Color = DARK, Material = M.Metal, CanCollide = false })
-	end
-	-- floor trim in the building colour
-	block(parent, "TrimFront", Vector3.new(32, 0.12, 0.9), cf * CFrame.new(0, 0.96, -14.4), main, M.SmoothPlastic, { CanCollide = false })
-	block(parent, "TrimBack", Vector3.new(32, 0.12, 0.9), cf * CFrame.new(0, 0.96, 14.0), main, M.SmoothPlastic, { CanCollide = false })
-	for side = -1, 1, 2 do
-		block(parent, "TrimSide", Vector3.new(0.9, 0.12, 29), cf * CFrame.new(side * 15.4, 0.96, 0), main, M.SmoothPlastic, { CanCollide = false })
-	end
+	block(parent, "RoofRidge", Vector3.new(37, 0.8, 1.2), cf * CFrame.new(0, 15.7, 0), glow, M.SmoothPlastic, { CanCollide = false })
 	-- lanterns hanging from the front pillars
 	for side = -1, 1, 2 do
-		block(parent, "LanternChain", Vector3.new(0.12, 1.4, 0.12), cf * CFrame.new(side * 14.5, 12.4, -14.9), DARK, M.Metal, { CanCollide = false })
-		local lantern = block(parent, "Lantern", Vector3.new(1.1, 1.6, 1.1), cf * CFrame.new(side * 14.5, 10.9, -14.9), glow, M.Glass, { Transparency = 0.25, CanCollide = false })
+		block(parent, "LanternChain", Vector3.new(0.12, 1.4, 0.12), cf * CFrame.new(side * 7.6, 11.4, -17.0), DARK, M.Metal, { CanCollide = false })
+		local lantern = block(parent, "Lantern", Vector3.new(1.1, 1.6, 1.1), cf * CFrame.new(side * 7.6, 9.9, -17.0), glow, M.Glass, { Transparency = 0.25, CanCollide = false })
 		glowLight(lantern, glow, 22, 1)
-		block(parent, "LanternCap", Vector3.new(1.4, 0.3, 1.4), cf * CFrame.new(side * 14.5, 11.9, -14.9), DARK, M.Metal, { CanCollide = false })
+		block(parent, "LanternCap", Vector3.new(1.4, 0.3, 1.4), cf * CFrame.new(side * 7.6, 10.9, -17.0), DARK, M.Metal, { CanCollide = false })
 	end
 	-- flower boxes beside the entrance
 	for side = -1, 1, 2 do
-		local box = cf * CFrame.new(side * 9, 0.9, -16.4)
-		block(parent, "FlowerBox", Vector3.new(7, 1.3, 1.8), box * CFrame.new(0, 0.65, 0), C3(120, 82, 56), M.Wood)
-		part(parent, { Name = "Bush", Shape = Enum.PartType.Ball, Size = Vector3.new(6.4, 1.2, 1.5), CFrame = box * CFrame.new(0, 1.5, 0), Color = C3(60, 140, 62), Material = M.Grass, CanCollide = false })
+		local box = cf * CFrame.new(side * 12.8, 0.9, -17.2)
+		block(parent, "FlowerBox", Vector3.new(5.2, 1.3, 1.8), box * CFrame.new(0, 0.65, 0), C3(120, 82, 56), M.Wood)
+		part(parent, { Name = "Bush", Shape = Enum.PartType.Ball, Size = Vector3.new(4.8, 1.2, 1.5), CFrame = box * CFrame.new(0, 1.5, 0), Color = C3(60, 140, 62), Material = M.Grass, CanCollide = false })
 		for i = 1, 8 do
 			local color = ({ main, glow, Color3.new(1, 1, 1), C3(255, 220, 90) })[rng:NextInteger(1, 4)]
-			part(parent, { Name = "Flower", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.6, CFrame = box * CFrame.new(-3 + (i - 1) * 0.85, 2.1 + rng:NextNumber() * 0.2, (rng:NextNumber() - 0.5) * 0.8), Color = color, CanCollide = false })
+			part(parent, { Name = "Flower", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.6, CFrame = box * CFrame.new(-2.3 + (i - 1) * 0.65, 2.1 + rng:NextNumber() * 0.2, (rng:NextNumber() - 0.5) * 0.8), Color = color, CanCollide = false })
 		end
 	end
 	-- a stone path leading out from the entrance

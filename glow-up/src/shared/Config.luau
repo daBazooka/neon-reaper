@@ -84,7 +84,8 @@ end
 -- Body shape by level. Level 1 is a short, very wide, big-headed gag character; it changes
 -- fastest early on and settles into a tall, athletic look around level 1000.
 local APPEARANCE_START = { BodyHeightScale = 0.78, BodyWidthScale = 1.9, BodyDepthScale = 1.75, HeadScale = 1.35, BodyTypeScale = 0, BodyProportionScale = 0 }
-local APPEARANCE_END = { BodyHeightScale = 1.12, BodyWidthScale = 0.92, BodyDepthScale = 0.95, HeadScale = 0.95, BodyTypeScale = 0.3, BodyProportionScale = 0.3 }
+-- Tall, broad-shouldered and athletic by level 1000 (a bit over a head taller than a default avatar).
+local APPEARANCE_END = { BodyHeightScale = 1.3, BodyWidthScale = 1.02, BodyDepthScale = 0.98, HeadScale = 0.94, BodyTypeScale = 0.5, BodyProportionScale = 0.4 }
 function Config.AppearanceScales(level)
 	-- Half of the whole transformation happens in the first 50 levels (a visible step every level).
 	local L = math.clamp(level, 1, 1000)

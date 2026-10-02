@@ -28,40 +28,74 @@ local function limb(char, r15, r6)
 end
 
 --------------------------------------------------------------------------------
--- Muscles: pecs, shoulders, biceps, thighs and abs grow with level
+-- Muscles: traps, lats (the V-taper), pecs, abs, delts, biceps, forearms, thighs and calves grow with level
 --------------------------------------------------------------------------------
 local function buildPhysique(char, torso, folder, T, level, w, skin)
-	local m = math.clamp((level - 15) / 500, 0, 1)
+	local m = math.clamp((level - 8) / 300, 0, 1)
 	if m <= 0.02 then
 		return
 	end
-	local line = skin:Lerp(Color3.new(0, 0, 0), 0.18)
-	-- pecs
+	local line = skin:Lerp(Color3.new(0, 0, 0), 0.2)
+	local light = skin:Lerp(Color3.new(1, 1, 1), 0.06)
 	for _, side in { -1, 1 } do
-		stick(ball(Vector3.new(T.X * (0.22 + 0.2 * m), T.Y * (0.14 + 0.12 * m), T.Z * (0.18 + 0.18 * m)), skin), torso, CFrame.new(side * T.X * 0.2, T.Y * 0.22, -T.Z * 0.5), folder)
+		-- pecs
+		stick(ball(Vector3.new(T.X * (0.22 + 0.2 * m), T.Y * (0.14 + 0.12 * m), T.Z * (0.18 + 0.2 * m)), skin), torso, CFrame.new(side * T.X * 0.2, T.Y * 0.2, -T.Z * 0.5), folder)
+		-- traps rising to the neck, lats flaring out under the arms (the V-taper)
+		stick(ball(Vector3.new(T.X * (0.18 + 0.12 * m), T.Y * (0.14 + 0.12 * m), T.Z * 0.5), skin), torso, CFrame.new(side * T.X * 0.2, T.Y * 0.5, T.Z * 0.05), folder)
+		stick(ball(Vector3.new(T.X * (0.12 + 0.2 * m), T.Y * 0.62, T.Z * (0.28 + 0.2 * m)), skin), torso, CFrame.new(side * T.X * 0.5, T.Y * 0.02, T.Z * 0.18), folder)
 	end
-	-- abs (only when the belly is gone)
+	stick(bit({ Size = Vector3.new(T.X * 0.03, T.Y * 0.16, T.Z * 0.03), Color = line }), torso, CFrame.new(0, T.Y * 0.2, -T.Z * 0.5), folder)
+	-- abs (a six-pack once the belly is gone)
 	if w < 0.35 and m > 0.12 then
-		for row = 0, 2 do
+		for row = 0, 3 do
 			for _, side in { -1, 1 } do
-				stick(bit({ Size = Vector3.new(T.X * 0.17, T.Y * 0.1, T.Z * 0.06), Color = skin:Lerp(Color3.new(1, 1, 1), 0.05) }), torso, CFrame.new(side * T.X * 0.1, T.Y * (0.0 - row * 0.12), -T.Z * 0.5), folder)
+				stick(bit({ Size = Vector3.new(T.X * 0.18, T.Y * 0.1, T.Z * 0.06), Color = light }), torso, CFrame.new(side * T.X * 0.105, T.Y * (0.0 - row * 0.115), -T.Z * 0.5), folder)
 			end
 		end
-		stick(bit({ Size = Vector3.new(T.X * 0.025, T.Y * 0.4, T.Z * 0.03), Color = line }), torso, CFrame.new(0, -T.Y * 0.1, -T.Z * 0.5), folder)
+		stick(bit({ Size = Vector3.new(T.X * 0.025, T.Y * 0.5, T.Z * 0.03), Color = line }), torso, CFrame.new(0, -T.Y * 0.1, -T.Z * 0.5), folder)
 	end
-	-- shoulders, biceps
-	for _, name in { { "LeftUpperArm", "Left Arm" }, { "RightUpperArm", "Right Arm" } } do
+	-- arms: delts, biceps, triceps, forearms
+	for _, name in { { "LeftUpperArm", "Left Arm", "LeftLowerArm" }, { "RightUpperArm", "Right Arm", "RightLowerArm" } } do
 		local arm = limb(char, name[1], name[2])
 		if arm then
-			stick(ball(arm.Size.X * (1.1 + 0.9 * m), skin), arm, CFrame.new(0, arm.Size.Y * 0.32, 0), folder)
-			stick(ball(Vector3.new(arm.Size.X * (0.9 + 0.7 * m), arm.Size.Y * 0.4, arm.Size.Z * (0.9 + 0.8 * m)), skin), arm, CFrame.new(0, -arm.Size.Y * 0.02, -arm.Size.Z * 0.15), folder)
+			stick(ball(arm.Size.X * (1.15 + 1.1 * m), skin), arm, CFrame.new(0, arm.Size.Y * 0.32, 0), folder)
+			stick(ball(Vector3.new(arm.Size.X * (0.9 + 0.8 * m), arm.Size.Y * 0.42, arm.Size.Z * (0.9 + 0.9 * m)), skin), arm, CFrame.new(0, -arm.Size.Y * 0.02, -arm.Size.Z * 0.15), folder)
+			stick(ball(Vector3.new(arm.Size.X * (0.8 + 0.6 * m), arm.Size.Y * 0.4, arm.Size.Z * (0.8 + 0.6 * m)), skin), arm, CFrame.new(0, -arm.Size.Y * 0.02, arm.Size.Z * 0.2), folder)
+		end
+		local fore = char:FindFirstChild(name[3])
+		if fore then
+			stick(ball(Vector3.new(fore.Size.X * (0.95 + 0.5 * m), fore.Size.Y * 0.5, fore.Size.Z * (0.95 + 0.5 * m)), skin), fore, CFrame.new(0, fore.Size.Y * 0.2, 0), folder)
 		end
 	end
-	-- thighs
-	for _, name in { { "LeftUpperLeg", "Left Leg" }, { "RightUpperLeg", "Right Leg" } } do
+	-- thighs and calves
+	for _, name in { { "LeftUpperLeg", "Left Leg", "LeftLowerLeg" }, { "RightUpperLeg", "Right Leg", "RightLowerLeg" } } do
 		local leg = limb(char, name[1], name[2])
 		if leg and m > 0.2 then
-			stick(ball(Vector3.new(leg.Size.X * (0.95 + 0.5 * m), leg.Size.Y * 0.5, leg.Size.Z * (0.95 + 0.5 * m)), skin), leg, CFrame.new(0, leg.Size.Y * 0.1, -leg.Size.Z * 0.05), folder)
+			stick(ball(Vector3.new(leg.Size.X * (0.95 + 0.55 * m), leg.Size.Y * 0.5, leg.Size.Z * (0.95 + 0.55 * m)), skin), leg, CFrame.new(0, leg.Size.Y * 0.1, -leg.Size.Z * 0.05), folder)
+		end
+		local calf = char:FindFirstChild(name[3])
+		if calf and m > 0.25 then
+			stick(ball(Vector3.new(calf.Size.X * (0.9 + 0.5 * m), calf.Size.Y * 0.5, calf.Size.Z * (0.9 + 0.5 * m)), skin), calf, CFrame.new(0, calf.Size.Y * 0.15, calf.Size.Z * 0.1), folder)
+		end
+	end
+end
+
+-- Hides the avatar's own hair while our styled hair is on (and brings it back at low levels).
+local function setAvatarHair(char, hidden)
+	for _, acc in char:GetChildren() do
+		if acc:IsA("Accessory") and acc.AccessoryType == Enum.AccessoryType.Hair then
+			local handle = acc:FindFirstChild("Handle")
+			if handle then
+				if hidden then
+					if handle:GetAttribute("GlowOrigT") == nil then
+						handle:SetAttribute("GlowOrigT", handle.Transparency)
+					end
+					handle.Transparency = 1
+				else
+					handle.Transparency = handle:GetAttribute("GlowOrigT") or 0
+					handle:SetAttribute("GlowOrigT", nil)
+				end
+			end
 		end
 	end
 end
@@ -101,6 +135,11 @@ function Quirks.apply(p)
 	-- Every player gets their own custom face (the default sticker face is hidden).
 	setFace(head, false)
 	Face.build(head, folder, dims, g, w, skin)
+	local styled = profile.Level >= 40
+	setAvatarHair(char, styled)
+	if styled then
+		Face.hair(head, folder, dims, g, profile.Level)
+	end
 
 	if w > 0.02 then
 		-- Hair all over the face

@@ -15,8 +15,8 @@ local WHITE, BLACK = C3(255, 255, 255), C3(18, 16, 18)
 --------------------------------------------------------------------------------
 -- kind: quad (cats, dogs, horses...), bird, fish, ape.  Lengths are in studs at scale 1.
 Animals.Species = {
-	cat = { kind = "quad", scale = 1.25, len = 1.9, h = 0.78, w = 0.62, legH = 0.85, legT = 0.2, neck = 0.25, head = V3(0.74, 0.66, 0.68), snout = V3(0.24, 0.2, 0.2), ears = "point", earSize = 0.36, tail = "long", tailLen = 1.9, main = C3(222, 128, 48), belly = C3(250, 232, 205), accent = C3(246, 214, 176), dark = C3(120, 56, 20), eye = C3(120, 190, 70), nose = C3(236, 150, 150), pattern = "tabby", whiskers = true, slit = true },
-	pup = { kind = "quad", scale = 1.2, len = 2.3, h = 0.98, w = 0.78, legH = 1.1, legT = 0.28, neck = 0.3, head = V3(0.82, 0.76, 0.8), snout = V3(0.44, 0.34, 0.5), ears = "floppy", earSize = 0.5, tail = "feather", tailLen = 1.5, main = C3(224, 168, 82), belly = C3(242, 206, 140), accent = C3(240, 196, 120), dark = C3(160, 100, 40), eye = C3(80, 48, 24), nose = BLACK, pattern = "none", tongue = true },
+	cat = { kind = "quad", scale = 1.25, len = 1.9, h = 0.78, w = 0.62, legH = 0.85, legT = 0.23, neck = 0.25, head = V3(0.74, 0.66, 0.68), snout = V3(0.24, 0.2, 0.2), ears = "point", earSize = 0.36, tail = "long", tailLen = 1.9, main = C3(222, 128, 48), belly = C3(250, 232, 205), accent = C3(246, 214, 176), dark = C3(120, 56, 20), eye = C3(120, 190, 70), nose = C3(236, 150, 150), pattern = "tabby", whiskers = true, slit = true },
+	pup = { kind = "quad", scale = 1.2, len = 2.3, h = 0.98, w = 0.78, legH = 1.1, legT = 0.32, neck = 0.3, head = V3(0.82, 0.76, 0.8), snout = V3(0.44, 0.34, 0.5), ears = "floppy", earSize = 0.5, tail = "feather", tailLen = 1.5, main = C3(224, 168, 82), belly = C3(242, 206, 140), accent = C3(240, 196, 120), dark = C3(160, 100, 40), eye = C3(80, 48, 24), nose = BLACK, pattern = "none", tongue = true },
 	mouse = { kind = "quad", scale = 1, len = 1.15, h = 0.5, w = 0.42, legH = 0.34, legT = 0.1, neck = 0.1, head = V3(0.42, 0.38, 0.5), snout = V3(0.18, 0.16, 0.3), ears = "round", earSize = 0.34, tail = "thin", tailLen = 1.4, main = C3(168, 168, 178), belly = C3(236, 220, 220), accent = C3(240, 160, 170), dark = C3(120, 120, 130), eye = BLACK, nose = C3(240, 140, 150), pattern = "none", whiskers = true, buckTeeth = true },
 	wolf = { kind = "quad", scale = 1.3, len = 2.7, h = 1.1, w = 0.8, legH = 1.5, legT = 0.28, neck = 0.4, head = V3(0.8, 0.72, 0.78), snout = V3(0.42, 0.3, 0.62), ears = "point", earSize = 0.4, tail = "bushy", tailLen = 1.7, main = C3(128, 130, 138), belly = C3(206, 206, 212), accent = C3(70, 72, 80), dark = C3(54, 56, 62), eye = C3(220, 170, 40), nose = BLACK, pattern = "saddle", fluff = true },
 	fox = { kind = "quad", scale = 1.2, len = 2.1, h = 0.82, w = 0.62, legH = 1.05, legT = 0.2, neck = 0.3, head = V3(0.66, 0.6, 0.7), snout = V3(0.3, 0.22, 0.54), ears = "tall", earSize = 0.55, tail = "bushy", tailLen = 1.9, main = C3(226, 108, 34), belly = C3(250, 244, 236), accent = C3(30, 26, 26), dark = C3(30, 26, 26), eye = C3(150, 96, 30), nose = BLACK, pattern = "socks", tailTip = C3(252, 250, 246), fluff = true },
@@ -48,7 +48,7 @@ local function newRig(def)
 	root.CanCollide, root.CanQuery, root.CanTouch = false, false, false
 	root.Parent = model
 	model.PrimaryPart = root
-	return { model = model, root = root, def = def, scale = def.scale, joints = {}, phase = 0, t = math.random() * 10, blink = 0 }
+	return { model = model, root = root, def = def, scale = def.scale, joints = {}, phase = 0, t = math.random() * 10, blink = 0, mat = def.smooth and SP or Enum.Material.Fabric }
 end
 
 -- Adds a part welded to `parent` at offset `cf` (in the parent's space, before scaling).
@@ -61,7 +61,7 @@ local function add(rig, parent, name, shape, size, color, cf, extra)
 	end
 	p.Size = size * rig.scale
 	p.Color = color
-	p.Material = (extra and extra.material) or SP
+	p.Material = (extra and extra.material) or rig.mat
 	p.Anchored = false
 	p.CanCollide, p.CanQuery, p.CanTouch, p.Massless, p.CastShadow = false, false, false, true, false
 	p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
@@ -90,16 +90,22 @@ local function pose(rig, name, delta)
 	end
 end
 
-local function eye(rig, parent, x, y, z, size, color, slit)
+local function eye(rig, parent, x, y, z, size, color, slit, lid)
 	-- eyeball, coloured iris, pupil and a highlight
-	add(rig, parent, "Eye", BALL, V3(size, size * 0.9, size * 0.6), C3(236, 232, 226), CF(x, y, z))
-	add(rig, parent, "Iris", BALL, V3(size * 0.78, size * 0.78, size * 0.4), color, CF(x, y, z - size * 0.18))
+	local m = { material = SP }
+	-- dark rim, eyeball, big coloured iris, pupil, glint, and a lid that covers the top of the eye
+	add(rig, parent, "EyeRim", BALL, V3(size * 1.16, size * 0.86, size * 0.5), BLACK, CF(x, y, z + size * 0.04), m)
+	add(rig, parent, "Eye", BALL, V3(size, size * 0.74, size * 0.55), C3(240, 234, 224), CF(x, y, z), m)
+	add(rig, parent, "Iris", BALL, V3(size * 0.78, size * 0.7, size * 0.42), color, CF(x, y, z - size * 0.16), m)
 	if slit then
-		add(rig, parent, "Pupil", BLOCK, V3(size * 0.16, size * 0.7, size * 0.1), BLACK, CF(x, y, z - size * 0.34))
+		add(rig, parent, "Pupil", BLOCK, V3(size * 0.14, size * 0.66, size * 0.1), BLACK, CF(x, y, z - size * 0.34), m)
 	else
-		add(rig, parent, "Pupil", BALL, V3(size * 0.4, size * 0.4, size * 0.2), BLACK, CF(x, y, z - size * 0.34))
+		add(rig, parent, "Pupil", BALL, V3(size * 0.4, size * 0.4, size * 0.2), BLACK, CF(x, y, z - size * 0.34), m)
 	end
-	add(rig, parent, "Glint", BALL, V3(size * 0.14, size * 0.14, size * 0.08), WHITE, CF(x + size * 0.14, y + size * 0.16, z - size * 0.4))
+	add(rig, parent, "Glint", BALL, V3(size * 0.14, size * 0.14, size * 0.08), WHITE, CF(x + size * 0.14, y + size * 0.14, z - size * 0.4), m)
+	if lid then
+		add(rig, parent, "Lid", BALL, V3(size * 1.12, size * 0.34, size * 0.6), lid, CF(x, y + size * 0.3, z - size * 0.04))
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -107,7 +113,7 @@ end
 --------------------------------------------------------------------------------
 local function tailChain(rig, def, parent, base)
 	local kind = def.tail
-	local segs = (kind == "thin" and 6) or (kind == "long" and 5) or (kind == "spiked" and 6) or (kind == "flow" and 5) or 4
+	local segs = (kind == "thin" and 8) or (kind == "long" and 7) or (kind == "spiked" and 8) or (kind == "flow" and 7) or (kind == "bushy" and 6) or 5
 	local len = def.tailLen
 	local prev = parent
 	local x, y, z = base.X, base.Y, base.Z
@@ -150,29 +156,57 @@ local function tailChain(rig, def, parent, base)
 	end
 end
 
+-- little tufts of fur: soft elongated blobs hanging from a point (chest, cheeks, back of the legs)
+local function fluff(rig, parent, n, cf, spread, color, size, dirY)
+	for i = 1, n do
+		local t = (i - (n + 1) / 2) / n
+		add(rig, parent, "Tuft", BALL, V3(size * 0.45, size * (1 + 0.3 * (1 - math.abs(t))), size * 0.5), color, cf * CF(t * spread, -size * 0.3 * (dirY or 1), 0) * ANG(0, 0, -t * 0.5))
+	end
+end
+
+local function paw(rig, def, foot, t, pLen, color)
+	add(rig, foot, "Paw", BALL, V3(t * 1.05, pLen * 1.1 + t * 0.25, t * 1.45), color, CF(0, -pLen * 0.4, -t * 0.25))
+	if def.hooves then
+		add(rig, foot, "Hoof", BLOCK, V3(t * 0.95, pLen * 1.2, t * 1.0), def.hooves, CF(0, -pLen * 0.7, -t * 0.05), { material = SP })
+		return
+	end
+	for i = -1, 1 do
+		add(rig, foot, "Toe", BALL, V3(t * 0.4, t * 0.34, t * 0.5), color, CF(i * t * 0.3, -pLen * 0.65, -t * 0.82))
+		add(rig, foot, "Claw", BLOCK, V3(0.026, 0.026, 0.07), def.slit and def.horns or C3(232, 228, 216), CF(i * t * 0.3, -pLen * 0.68, -t * 1.12), { material = SP })
+	end
+end
+
 local function leg(rig, def, parent, name, x, y, z, front)
 	local legH, t = def.legH, def.legT
+	local c = def.main
+	local lower = def.pattern == "socks" and def.accent or c
+	local pawColor = (def.pattern == "socks") and def.accent or def.belly
 	local hip = joint(rig, name, parent, CF(x, y, z))
-	local uLen, lLen, pLen = legH * 0.5, legH * 0.42, legH * 0.1
-	-- hind legs bend like a real animal's: thigh forward, hock back. Front legs are straighter.
-	local a1 = front and 0.05 or 0.5
-	local a2 = front and -0.05 or -0.9
-	local thigh = joint(rig, name .. "Th", hip, CF(0, 0, 0) * ANG(a1, 0, 0))
-	local tw = t * (front and 1.25 or 1.7)
-	add(rig, thigh, "Thigh", BALL, V3(tw, uLen * 1.25, tw * 1.05), def.main, CF(0, -uLen * 0.46, 0))
-	local shin = joint(rig, name .. "Sh", thigh, CF(0, -uLen * 0.9, 0) * ANG(a2, 0, 0))
-	local shinColor = def.pattern == "socks" and def.accent or def.main
-	add(rig, shin, "Shin", CYL, V3(lLen * 1.05, t * 0.8, t * 0.8), shinColor, CF(0, -lLen * 0.5, 0) * ANG(0, 0, math.pi / 2))
-	add(rig, shin, "Knee", BALL, V3(t * 0.95, t * 0.95, t * 0.95), shinColor, CF(0, 0, 0))
-	local foot = joint(rig, name .. "Pw", shin, CF(0, -lLen * 0.95, 0) * ANG(-(a1 + a2), 0, 0))
-	if def.hooves then
-		add(rig, foot, "Hoof", BLOCK, V3(t * 0.95, pLen * 1.4, t * 1.05), def.hooves, CF(0, -pLen * 0.6, -t * 0.05))
+	local pLen = legH * 0.1
+	if front then
+		add(rig, hip, "Shoulder", BALL, V3(t * 1.75, legH * 0.5, t * 1.8), c, CF(0, -legH * 0.12, 0))
+		local arm = joint(rig, name .. "Th", hip, CF(0, -legH * 0.04, 0) * ANG(-0.1, 0, 0))
+		add(rig, arm, "UpperArm", BALL, V3(t * 1.3, legH * 0.56, t * 1.25), c, CF(0, -legH * 0.24, 0))
+		local fore = joint(rig, name .. "Sh", arm, CF(0, -legH * 0.46, 0) * ANG(0.12, 0, 0))
+		add(rig, fore, "Elbow", BALL, V3(t * 0.95, t * 0.95, t * 1.05), c, CF(0, 0.02, 0.06))
+		add(rig, fore, "Forearm", BALL, V3(t * 0.84, legH * 0.5, t * 0.82), lower, CF(0, -legH * 0.24, 0))
+		local foot = joint(rig, name .. "Pw", fore, CF(0, -legH * 0.46, 0) * ANG(-0.02, 0, 0))
+		add(rig, foot, "Pastern", BALL, V3(t * 0.7, legH * 0.16, t * 0.72), lower, CF(0, -legH * 0.04, 0))
+		paw(rig, def, foot, t, pLen, pawColor)
 	else
-		local pawColor = (def.pattern == "socks") and def.accent or def.belly
-		add(rig, foot, "Paw", BALL, V3(t * 1.15, pLen * 1.3 + t * 0.3, t * 1.75), pawColor, CF(0, -pLen * 0.35, -t * 0.35))
-		for i = -1, 1 do
-			add(rig, foot, "Claw", BLOCK, V3(0.028, 0.028, 0.07), def.slit and def.horns or C3(232, 228, 216), CF(i * t * 0.3, -pLen * 0.5, -t * 1.2))
-		end
+		local th = joint(rig, name .. "Th", hip, CF(0, 0, 0) * ANG(0.45, 0, 0))
+		add(rig, th, "Thigh", BALL, V3(t * 2.0, legH * 0.66, t * 2.0), c, CF(0, -legH * 0.24, 0.02))
+		local tib = joint(rig, name .. "Sh", th, CF(0, -legH * 0.4, 0) * ANG(-0.85, 0, 0))
+		add(rig, tib, "Stifle", BALL, V3(t * 1.05, t * 1.05, t * 1.05), c, CF(0, 0, -0.02))
+		add(rig, tib, "Tibia", BALL, V3(t * 0.95, legH * 0.52, t * 0.9), lower, CF(0, -legH * 0.24, 0))
+		local hock = joint(rig, name .. "Hk", tib, CF(0, -legH * 0.46, 0) * ANG(0.65, 0, 0))
+		add(rig, hock, "Hock", BALL, V3(t * 0.8, t * 0.8, t * 0.9), lower, CF(0, 0, 0.04))
+		add(rig, hock, "Metatarsal", BALL, V3(t * 0.66, legH * 0.36, t * 0.66), lower, CF(0, -legH * 0.16, 0))
+		local foot = joint(rig, name .. "Pw", hock, CF(0, -legH * 0.33, 0) * ANG(-0.25, 0, 0))
+		paw(rig, def, foot, t, pLen, pawColor)
+	end
+	if def.fluff and front then
+		fluff(rig, hip, 3, CF(0, -legH * 0.35, t * 0.4), t * 0.6, def.belly, t * 0.9)
 	end
 end
 
@@ -180,22 +214,28 @@ local function earShape(rig, def, headPart, side, hw, hh, hl)
 	local s = def.earSize
 	local kind = def.ears
 	local name = side < 0 and "EarL" or "EarR"
+	local inner = (def.nose == BLACK) and def.belly or def.nose
 	if kind == "point" or kind == "tall" then
 		local h = s * (kind == "tall" and 1.15 or 1)
-		local j = joint(rig, name, headPart, CF(side * hw * 0.3, hh * 0.38, hl * 0.06) * ANG(0, 0, side * -0.18))
-		-- a wedge turned so its triangle faces forward; the tall edge is on the inner side
-		add(rig, j, "Ear", BLOCK, V3(s * 0.2, h, s * 0.9), def.pattern == "socks" and def.accent or def.main, CF(0, h * 0.5, 0) * ANG(0, -side * math.pi / 2, 0), { class = "WedgePart" })
-		add(rig, j, "EarIn", BLOCK, V3(s * 0.08, h * 0.72, s * 0.55), def.nose == BLACK and def.belly or def.nose, CF(0, h * 0.4, -s * 0.1) * ANG(0, -side * math.pi / 2, 0), { class = "WedgePart" })
+		local j = joint(rig, name, headPart, CF(side * hw * 0.3, hh * 0.38, hl * 0.06) * ANG(0, 0, side * -0.2))
+		add(rig, j, "EarBase", BALL, V3(s * 0.55, s * 0.4, s * 0.55), def.main, CF(0, h * 0.06, 0))
+		add(rig, j, "Ear", BLOCK, V3(s * 0.24, h, s * 0.9), def.pattern == "socks" and def.accent or def.main, CF(0, h * 0.5, 0) * ANG(0, -side * math.pi / 2, 0), { class = "WedgePart" })
+		add(rig, j, "EarIn", BLOCK, V3(s * 0.1, h * 0.74, s * 0.58), inner, CF(0, h * 0.4, -s * 0.12) * ANG(0, -side * math.pi / 2, 0), { class = "WedgePart" })
+		if def.fluff then
+			fluff(rig, j, 3, CF(0, h * 0.22, -s * 0.2), s * 0.35, def.belly, s * 0.4)
+		end
 	elseif kind == "floppy" then
 		local j = joint(rig, name, headPart, CF(side * hw * 0.42, hh * 0.28, hl * 0.04))
-		add(rig, j, "Ear", BALL, V3(s * 0.22, s * 1.25, s * 0.8), def.dark, CF(side * s * 0.14, -s * 0.5, 0) * ANG(0, 0, side * 0.25))
+		add(rig, j, "EarFlap", BALL, V3(s * 0.2, s * 1.3, s * 0.85), def.dark, CF(side * s * 0.14, -s * 0.5, 0) * ANG(0, 0, side * 0.25))
+		add(rig, j, "EarEdge", BALL, V3(s * 0.22, s * 0.5, s * 0.6), def.dark:Lerp(BLACK, 0.2), CF(side * s * 0.2, -s * 1.0, 0.02) * ANG(0, 0, side * 0.25))
 	elseif kind == "round" then
 		local j = joint(rig, name, headPart, CF(side * hw * 0.34, hh * 0.42, hl * 0.05))
-		add(rig, j, "Ear", CYL, V3(s * 0.12, s, s), def.main, CF(side * s * 0.2, s * 0.35, 0) * ANG(0, 0, 0))
-		add(rig, j, "EarIn", CYL, V3(s * 0.08, s * 0.72, s * 0.72), def.accent, CF(side * s * 0.2, s * 0.35, -s * 0.07) * ANG(0, 0, 0))
+		add(rig, j, "Ear", CYL, V3(s * 0.14, s, s), def.main, CF(side * s * 0.2, s * 0.35, 0))
+		add(rig, j, "EarIn", CYL, V3(s * 0.1, s * 0.74, s * 0.74), def.accent, CF(side * s * 0.2, s * 0.35, -s * 0.07))
 	elseif kind == "side" then
 		local j = joint(rig, name, headPart, CF(side * hw * 0.5, hh * 0.18, hl * 0.12))
 		add(rig, j, "Ear", BALL, V3(s * 0.9, s * 0.26, s * 0.5), def.main, CF(side * s * 0.4, 0, 0) * ANG(0, 0, side * -0.25))
+		add(rig, j, "EarIn", BALL, V3(s * 0.6, s * 0.2, s * 0.34), inner, CF(side * s * 0.4, 0, -s * 0.06) * ANG(0, 0, side * -0.25))
 	end
 end
 
@@ -203,134 +243,170 @@ local function quadruped(rig, def)
 	local len, h, w = def.len, def.h, def.w
 	local root = rig.root
 	local legH = def.legH
-	rig.ground = legH * 1.02 + h * 0.26 -- distance from the root down to the floor
-	-- body: chest, belly, hindquarters (overlapping ellipsoids give a muscular shape)
-	add(rig, root, "Chest", BALL, V3(w * 1.02, h * 1.05, len * 0.52), def.main, CF(0, h * 0.04, -len * 0.2))
-	add(rig, root, "Hips", BALL, V3(w * 0.96, h * 0.98, len * 0.5), def.main, CF(0, 0, len * 0.22))
-	add(rig, root, "Waist", CYL, V3(len * 0.5, h * 0.9, w * 0.88), def.main, CF(0, 0, 0) * ANG(0, math.pi / 2, math.pi / 2))
-	add(rig, root, "Belly", BALL, V3(w * 0.74, h * 0.5, len * 0.78), def.belly, CF(0, -h * 0.3, 0))
-	add(rig, root, "Back", BALL, V3(w * 0.72, h * 0.28, len * 0.7), def.main, CF(0, h * 0.28, 0.05))
-	if def.pattern == "saddle" then
-		add(rig, root, "Saddle", BALL, V3(w * 0.86, h * 0.5, len * 0.62), def.accent, CF(0, h * 0.14, 0.02))
+	rig.ground = legH * 0.98 + h * 0.26 -- distance from the root down to the floor
+	local main, belly = def.main, def.belly
+	-- body: shoulders, rib cage, a tucked-in waist and strong haunches overlap into one organic shape
+	add(rig, root, "Shoulders", BALL, V3(w * 0.98, h * 1.0, len * 0.34), main, CF(0, h * 0.02, -len * 0.27))
+	add(rig, root, "Ribcage", BALL, V3(w * 1.02, h * 1.08, len * 0.4), main, CF(0, h * 0.03, -len * 0.06))
+	add(rig, root, "Waist", BALL, V3(w * 0.86, h * 0.84, len * 0.3), main, CF(0, -h * 0.02, len * 0.14))
+	add(rig, root, "Haunch", BALL, V3(w * 1.0, h * 1.0, len * 0.34), main, CF(0, h * 0.0, len * 0.3))
+	add(rig, root, "Belly", BALL, V3(w * 0.72, h * 0.46, len * 0.76), belly, CF(0, -h * 0.34, -len * 0.02))
+	for side = -1, 1, 2 do
+		add(rig, root, "ShoulderBlade", BALL, V3(w * 0.3, h * 0.26, len * 0.2), main, CF(side * w * 0.3, h * 0.46, -len * 0.26))
 	end
+	local spine = (def.pattern == "tabby" or def.pattern == "saddle" or def.pattern == "scales") and def.dark or main
+	add(rig, root, "Spine", BALL, V3(w * 0.34, h * 0.16, len * 0.86), spine, CF(0, h * 0.5, 0.02))
 	if def.hump then
-		add(rig, root, "Hump", BALL, V3(w * 0.95, h * 0.7, len * 0.3), def.main, CF(0, h * 0.5, -len * 0.26))
+		add(rig, root, "Hump", BALL, V3(w * 0.95, h * 0.7, len * 0.3), main, CF(0, h * 0.52, -len * 0.26))
 	end
-	if def.mane and def.kind == "quad" and def.ears == "round" and def.tail == "tuft" then
+	if def.mane and def.ears == "round" and def.tail == "tuft" then
 		add(rig, root, "ChestFluff", BALL, V3(w * 1.12, h * 1.1, len * 0.36), def.mane, CF(0, h * 0.05, -len * 0.34))
+		add(rig, root, "BellyFringe", BALL, V3(w * 0.5, h * 0.3, len * 0.5), def.mane:Lerp(main, 0.5), CF(0, -h * 0.5, -len * 0.18))
 	end
 	-- markings
 	if def.pattern == "tabby" then
-		for i = 1, 6 do
-			add(rig, root, "Stripe", BLOCK, V3(w * 0.86, h * 0.07, len * 0.045), def.dark, CF(0, h * 0.39, -len * 0.34 + i * len * 0.115) * ANG(0, 0, 0))
-			add(rig, root, "FlankStripe", BLOCK, V3(w * 1.02, h * 0.38, len * 0.035), def.dark, CF(0, h * 0.04, -len * 0.3 + i * len * 0.11) * ANG(0, 0, 0), { transparency = 0.25 })
+		for i = 1, 8 do
+			add(rig, root, "Stripe", BLOCK, V3(w * 0.7, h * 0.05, len * 0.04), def.dark, CF(0, h * 0.5, -len * 0.4 + i * len * 0.09))
+			add(rig, root, "FlankStripe", BALL, V3(w * 1.04, h * 0.5, len * 0.03), def.dark, CF(0, h * 0.0, -len * 0.34 + i * len * 0.085), { transparency = 0.2 })
 		end
 	elseif def.pattern == "scales" then
-		for i = 1, 7 do
-			add(rig, root, "BellyPlate", BLOCK, V3(w * 0.5, h * 0.06, len * 0.08), def.belly, CF(0, -h * 0.52, -len * 0.38 + i * len * 0.1))
-			add(rig, root, "ScalePatch", BALL, V3(w * 0.3, h * 0.16, len * 0.1), def.accent, CF((i % 2 == 0 and 1 or -1) * w * 0.32, h * 0.2, -len * 0.36 + i * len * 0.11))
+		for i = 1, 8 do
+			add(rig, root, "BellyPlate", BLOCK, V3(w * 0.5, h * 0.06, len * 0.08), belly, CF(0, -h * 0.55, -len * 0.38 + i * len * 0.1))
+			add(rig, root, "ScalePatch", BALL, V3(w * 0.3, h * 0.16, len * 0.1), def.accent, CF((i % 2 == 0 and 1 or -1) * w * 0.34, h * 0.2, -len * 0.36 + i * len * 0.11))
 		end
+	elseif def.pattern == "saddle" then
+		add(rig, root, "Saddle", BALL, V3(w * 0.88, h * 0.52, len * 0.62), def.accent, CF(0, h * 0.12, 0.02))
 	end
-	if def.nosePatch then
-		add(rig, root, "ChestPatch", BALL, V3(w * 0.5, h * 0.4, len * 0.2), def.belly, CF(0, -h * 0.18, -len * 0.4))
+	if def.nosePatch or def.pattern == "socks" or def.pattern == "tabby" then
+		add(rig, root, "ChestPatch", BALL, V3(w * 0.5, h * 0.4, len * 0.2), belly, CF(0, -h * 0.18, -len * 0.4))
+	end
+	if def.fluff then
+		fluff(rig, root, 5, CF(0, -h * 0.34, -len * 0.42), w * 0.6, belly, h * 0.28)
 	end
 	if def.spikes then
-		for i = 1, 8 do
-			local sz = 0.34 - math.abs(i - 4) * 0.025
-			add(rig, root, "BackSpike", BLOCK, V3(0.1, sz, 0.2), def.spikes, CF(0, h * 0.42 + sz * 0.3, -len * 0.4 + i * len * 0.1), { class = "WedgePart" })
+		for i = 1, 9 do
+			local sz = 0.4 - math.abs(i - 5) * 0.03
+			add(rig, root, "BackSpike", BLOCK, V3(0.1, sz, 0.2), def.spikes, CF(0, h * 0.54 + sz * 0.3, -len * 0.42 + i * len * 0.09), { class = "WedgePart", material = SP })
 		end
 	end
 
-	-- legs: front pair slightly forward, hind pair back (rear legs have big thighs)
+	-- legs
 	local fz, bz = -len * 0.3, len * 0.32
 	local lx = w * 0.32
-	local hindDrop = legH * 0.1 -- bent hind legs are shorter, so their hips sit lower
+	local hindDrop = legH * 0.08
 	leg(rig, def, root, "LegFL", -lx, -h * 0.26, fz, true)
 	leg(rig, def, root, "LegFR", lx, -h * 0.26, fz, true)
 	leg(rig, def, root, "LegBL", -lx, -h * 0.26 - hindDrop, bz, false)
 	leg(rig, def, root, "LegBR", lx, -h * 0.26 - hindDrop, bz, false)
 
-	-- neck and head: the neck leans forward and up, the head is levelled again at its end
+	-- neck: three overlapping ellipsoids that taper toward the head; the head is levelled again at its end
 	local neckLen = def.neck
 	local pitch = math.rad(28 + neckLen * 22)
-	local L = h * (0.38 + neckLen * 0.95)
+	local L = h * (0.4 + neckLen * 0.95)
 	local neck = joint(rig, "Neck", root, CF(0, h * 0.3, -len * 0.38) * ANG(pitch, 0, 0))
-	add(rig, neck, "NeckBody", CYL, V3(L * 1.15, w * 0.6, w * 0.6), def.main, CF(0, 0, -L * 0.5) * ANG(0, math.pi / 2, 0))
-	add(rig, neck, "NeckBase", BALL, V3(w * 0.78, w * 0.8, w * 0.8), def.main, CF(0, -0.05, -L * 0.1))
+	for i, f in { 0.12, 0.45, 0.78 } do
+		local thick = w * (0.9 - 0.18 * i)
+		add(rig, neck, "NeckPart", BALL, V3(thick, thick * 1.05, L * 0.55), main, CF(0, -0.02, -L * f))
+	end
+	add(rig, neck, "Throat", BALL, V3(w * 0.5, w * 0.4, L * 0.7), belly, CF(0, -w * 0.22, -L * 0.45))
+	if def.fluff and not def.mane then
+		add(rig, neck, "Ruff", BALL, V3(w * 1.0, w * 0.9, L * 0.5), belly, CF(0, -w * 0.12, -L * 0.2))
+	end
 	if def.mane and def.ears == "round" and def.tail == "tuft" then
-		-- lion's mane: a thick ring of fur around the head and shoulders
 		for i = 1, 12 do
 			local a2 = (i / 12) * math.pi * 2
 			add(rig, neck, "Mane", BALL, V3(0.7, 0.7, 0.7), i % 2 == 0 and def.mane or def.mane:Lerp(BLACK, 0.2), CF(math.cos(a2) * def.head.Y * 0.62, math.sin(a2) * def.head.Y * 0.62, -L - 0.1))
 		end
 		add(rig, neck, "ManeBack", BALL, V3(def.head.Y * 1.45, def.head.Y * 1.45, def.head.Z * 0.7), def.mane, CF(0, 0, -L + 0.1))
 	elseif def.mane then
-		-- flowing mane along the neck (pegasus)
-		for i = 1, 6 do
-			add(rig, neck, "Mane", BALL, V3(0.16, 0.5, 0.32), def.mane, CF(0, w * 0.32, -i * L * 0.15) * ANG(0.3, 0, 0))
+		for i = 1, 7 do
+			add(rig, neck, "Mane", BALL, V3(0.16, 0.5, 0.34), def.mane, CF(0, w * 0.36, -i * L * 0.14) * ANG(0.3, 0, 0))
 		end
 	end
-	local hd = V3(def.head.X, def.head.Y, def.head.Z)
 	local head = joint(rig, "Head", neck, CF(0, 0, -L) * ANG(-pitch * 0.85, 0, 0))
-	local hw, hh, hl = hd.X, hd.Y, hd.Z
-	add(rig, head, "Skull", BALL, V3(hw, hh, hl), def.main, CF(0, 0, 0))
+	local hw, hh, hl = def.head.X * 1.12, def.head.Y * 1.12, def.head.Z * 1.1
 	local sn = def.snout
-	-- muzzle: upper snout, lower jaw, nose, mouth line
-	add(rig, head, "Muzzle", BALL, V3(sn.X * 1.6, sn.Y * 1.5, sn.Z * 1.7), def.pattern == "scales" and def.main or def.belly == WHITE and def.main or (def.nosePatch and def.nosePatch) or (def.pattern == "none" and def.main) or def.belly, CF(0, -hh * 0.16, -hl * 0.38 - sn.Z * 0.2))
-	add(rig, head, "Jaw", BALL, V3(sn.X * 1.3, sn.Y * 0.9, sn.Z * 1.5), def.belly, CF(0, -hh * 0.3, -hl * 0.34 - sn.Z * 0.1))
-	local tipZ = -hl * 0.38 - sn.Z * 1.05
-	add(rig, head, "Nose", BALL, V3(sn.X * 0.7, sn.Y * 0.55, sn.Y * 0.5), def.nose, CF(0, -hh * 0.08, tipZ))
-	add(rig, head, "Mouth", BLOCK, V3(sn.X * 1.25, 0.03, sn.Z * 1.1), BLACK, CF(0, -hh * 0.27, tipZ + sn.Z * 0.55))
+	add(rig, head, "Skull", BALL, V3(hw, hh, hl), main, CF(0, 0, 0))
+	add(rig, head, "Forehead", BALL, V3(hw * 0.8, hh * 0.5, hl * 0.6), main, CF(0, hh * 0.28, -hl * 0.14))
+	-- muzzle: bridge and tip, lower jaw with a chin, nose pad
+	local muzzleColor = (def.pattern == "none" and def.nosePatch == nil) and main or belly
+	if def.pattern == "scales" or def.pattern == "none" and not def.nosePatch then
+		muzzleColor = main
+	end
+	add(rig, head, "Bridge", BALL, V3(sn.X * 1.5, sn.Y * 1.3, sn.Z * 1.4), main, CF(0, -hh * 0.08, -hl * 0.4 - sn.Z * 0.12))
+	add(rig, head, "MuzzleTip", BALL, V3(sn.X * 1.7, sn.Y * 1.35, sn.Z * 1.0), muzzleColor, CF(0, -hh * 0.15, -hl * 0.4 - sn.Z * 0.5))
+	add(rig, head, "Jaw", BALL, V3(sn.X * 1.35, sn.Y * 0.85, sn.Z * 1.5), belly, CF(0, -hh * 0.3, -hl * 0.34 - sn.Z * 0.12))
+	add(rig, head, "Chin", BALL, V3(sn.X * 0.9, sn.Y * 0.6, sn.Y * 0.7), belly, CF(0, -hh * 0.36, -hl * 0.4 - sn.Z * 0.68))
+	local tipZ = -hl * 0.4 - sn.Z * 1.0
+	add(rig, head, "Nose", BALL, V3(sn.X * 0.85, sn.Y * 0.55, sn.Y * 0.5), def.nose, CF(0, -hh * 0.06, tipZ))
+	for side = -1, 1, 2 do
+		add(rig, head, "Nostril", BALL, V3(sn.X * 0.2, sn.Y * 0.18, 0.03), BLACK, CF(side * sn.X * 0.22, -hh * 0.07, tipZ - sn.Y * 0.2), { material = SP })
+	end
+	add(rig, head, "Philtrum", BLOCK, V3(0.018, sn.Y * 0.7, 0.02), BLACK, CF(0, -hh * 0.2, tipZ + 0.02), { material = SP })
+	-- mouth: a "w" for cats, a long line with turned-down corners for dogs
+	if def.slit and def.kind == "quad" and def.ears ~= "none" then
+		for side = -1, 1, 2 do
+			add(rig, head, "MouthLine", BLOCK, V3(sn.X * 0.7, 0.018, 0.02), BLACK, CF(side * sn.X * 0.35, -hh * 0.27, tipZ + 0.02) * ANG(0, 0, side * -0.4), { material = SP })
+		end
+	else
+		add(rig, head, "Mouth", BLOCK, V3(sn.X * 1.5, 0.022, sn.Z * 1.05), BLACK, CF(0, -hh * 0.27, tipZ + sn.Z * 0.5), { material = SP })
+		for side = -1, 1, 2 do
+			add(rig, head, "MouthCorner", BLOCK, V3(0.02, sn.Y * 0.2, 0.04), BLACK, CF(side * sn.X * 0.74, -hh * 0.3, tipZ + sn.Z * 1.0), { material = SP })
+		end
+	end
 	if def.tongue then
-		add(rig, head, "Tongue", BALL, V3(sn.X * 0.6, 0.06, sn.Z * 0.9), C3(240, 110, 130), CF(0, -hh * 0.3, tipZ + sn.Z * 0.45))
+		add(rig, head, "Tongue", BALL, V3(sn.X * 0.6, 0.07, sn.Z * 0.95), C3(240, 110, 130), CF(0, -hh * 0.31, tipZ + sn.Z * 0.5), { material = SP })
 	end
 	if def.buckTeeth then
-		add(rig, head, "Teeth", BLOCK, V3(0.1, 0.12, 0.04), C3(250, 248, 238), CF(0, -hh * 0.32, tipZ + 0.02))
+		add(rig, head, "Teeth", BLOCK, V3(0.1, 0.12, 0.04), C3(250, 248, 238), CF(0, -hh * 0.32, tipZ + 0.02), { material = SP })
 	end
 	if def.pattern == "tabby" then
 		for i = -1, 1 do
-			add(rig, head, "ForeheadMark", BLOCK, V3(0.04, hh * 0.22, 0.03), def.dark, CF(i * hw * 0.13, hh * 0.3, -hl * 0.4))
+			add(rig, head, "ForeheadMark", BLOCK, V3(0.04, hh * 0.24, 0.03), def.dark, CF(i * hw * 0.13, hh * 0.32, -hl * 0.44))
 		end
 		for side = -1, 1, 2 do
-			add(rig, head, "CheekStripe", BLOCK, V3(hw * 0.2, 0.035, 0.03), def.dark, CF(side * hw * 0.42, -hh * 0.08, -hl * 0.3) * ANG(0, 0, side * 0.2))
+			for k = 0, 1 do
+				add(rig, head, "CheekStripe", BLOCK, V3(hw * 0.22, 0.035, 0.03), def.dark, CF(side * hw * 0.44, -hh * 0.04 - k * 0.07, -hl * 0.3) * ANG(0, 0, side * (0.2 + k * 0.15)))
+			end
 		end
 	elseif def.pattern == "saddle" or def.pattern == "socks" then
-		add(rig, head, "FaceMask", BALL, V3(hw * 0.7, hh * 0.5, hl * 0.4), def.belly, CF(0, -hh * 0.2, -hl * 0.34))
+		add(rig, head, "FaceMask", BALL, V3(hw * 0.7, hh * 0.5, hl * 0.4), belly, CF(0, -hh * 0.2, -hl * 0.34))
 	end
 	if def.nosePatch then
 		add(rig, head, "NosePatch", BALL, V3(sn.X * 1.7, sn.Y * 1.5, sn.Z * 0.7), def.nosePatch, CF(0, -hh * 0.1, -hl * 0.38 - sn.Z * 0.6))
 	end
-	-- eyes + brow ridge
+	-- eyes + brow ridge; cats get whisker pads, dogs get brow dots
 	for side = -1, 1, 2 do
 		local ex = side * hw * 0.3
-		local es = math.max(0.1, hw * 0.26)
-		eye(rig, head, ex, hh * 0.12, -hl * 0.36, es, def.eye, def.slit)
-		add(rig, head, "Brow", BLOCK, V3(es * 1.3, es * 0.22, es * 0.5), def.dark, CF(ex, hh * 0.12 + es * 0.55, -hl * 0.34) * ANG(0, 0, side * -0.25))
+		local es = math.max(0.1, hw * 0.28)
+		eye(rig, head, ex, hh * 0.12, -hl * 0.36, es, def.eye, def.slit, main)
+		add(rig, head, "Brow", BLOCK, V3(es * 1.3, es * 0.2, es * 0.5), def.dark, CF(ex, hh * 0.12 + es * 0.58, -hl * 0.34) * ANG(0, 0, side * -0.25))
 		earShape(rig, def, head, side, hw, hh, hl)
+		if def.whiskers then
+			add(rig, head, "WhiskerPad", BALL, V3(sn.X * 0.9, sn.Y * 0.8, sn.Z * 0.6), belly, CF(side * sn.X * 0.55, -hh * 0.19, tipZ + sn.Z * 0.35))
+		end
 	end
 	if def.horns then
 		for side = -1, 1, 2 do
 			if def.ears == "side" then
-				-- bull horns: out, then up and forward
 				local h1 = joint(rig, side < 0 and "HornL" or "HornR", head, CF(side * hw * 0.5, hh * 0.32, hl * 0.02))
-				add(rig, h1, "HornBase", CYL, V3(0.5, 0.2, 0.2), def.horns, CF(side * 0.22, 0, 0))
-				add(rig, h1, "HornMid", CYL, V3(0.55, 0.15, 0.15), def.horns, CF(side * 0.58, 0.14, 0) * ANG(0, 0, side * 0.6))
-				add(rig, h1, "HornTip", CYL, V3(0.45, 0.1, 0.1), C3(60, 50, 44), CF(side * 0.8, 0.52, -0.05) * ANG(0, 0, side * 1.2))
+				add(rig, h1, "HornBase", CYL, V3(0.5, 0.22, 0.22), def.horns, CF(side * 0.22, 0, 0), { material = SP })
+				add(rig, h1, "HornMid", CYL, V3(0.55, 0.16, 0.16), def.horns, CF(side * 0.58, 0.14, 0) * ANG(0, 0, side * 0.6), { material = SP })
+				add(rig, h1, "HornTip", CYL, V3(0.45, 0.1, 0.1), C3(60, 50, 44), CF(side * 0.8, 0.52, -0.05) * ANG(0, 0, side * 1.2), { material = SP })
 			else
-				-- dragon horns: swept back
-				add(rig, head, "Horn", BLOCK, V3(0.14, 0.14, 0.7), def.horns, CF(side * hw * 0.3, hh * 0.5, hl * 0.2) * ANG(math.rad(-40), 0, 0), { class = "WedgePart" })
+				add(rig, head, "Horn", BLOCK, V3(0.14, 0.14, 0.7), def.horns, CF(side * hw * 0.3, hh * 0.5, hl * 0.2) * ANG(math.rad(-40), 0, 0), { class = "WedgePart", material = SP })
 			end
 		end
 	end
 	if def.fluff then
 		for side = -1, 1, 2 do
-			add(rig, head, "CheekFur", BALL, V3(hw * 0.4, hh * 0.5, hl * 0.4), def.belly, CF(side * hw * 0.38, -hh * 0.22, -hl * 0.08))
+			add(rig, head, "CheekFur", BALL, V3(hw * 0.4, hh * 0.5, hl * 0.4), belly, CF(side * hw * 0.38, -hh * 0.22, -hl * 0.08))
 		end
 	end
 	if def.whiskers then
 		for side = -1, 1, 2 do
 			for i = -1, 1 do
-				add(rig, head, "Whisker", BLOCK, V3(sn.X * 2.2, 0.012, 0.012), C3(244, 244, 244), CF(side * (sn.X * 1.7), -hh * 0.18 + i * 0.045, tipZ + sn.Z * 0.5) * ANG(0, 0, side * (0.12 - i * 0.09)))
+				add(rig, head, "Whisker", BLOCK, V3(sn.X * 2.6, 0.012, 0.012), C3(244, 244, 244), CF(side * (sn.X * 1.9), -hh * 0.18 + i * 0.05, tipZ + sn.Z * 0.5) * ANG(0, 0, side * (0.12 - i * 0.09)), { material = SP })
 			end
 		end
 	end
@@ -342,21 +418,18 @@ local function quadruped(rig, def)
 			local wj = joint(rig, name, root, CF(side * w * 0.4, h * 0.42, -len * 0.14))
 			local span = len * 0.9
 			if def.pattern == "scales" then
-				-- bat-style: arm bone with fingers and a membrane
-				add(rig, wj, "WingArm", CYL, V3(span * 0.55, 0.14, 0.14), def.main, CF(side * span * 0.28, 0.1, 0))
-				add(rig, wj, "WingMembrane", BLOCK, V3(span * 0.95, 0.04, len * 0.55), def.wings, CF(side * span * 0.5, 0, len * 0.2), { class = "Part", transparency = 0.1 })
+				add(rig, wj, "WingArm", CYL, V3(span * 0.55, 0.14, 0.14), def.main, CF(side * span * 0.28, 0.1, 0), { material = SP })
+				add(rig, wj, "WingMembrane", BLOCK, V3(span * 0.95, 0.04, len * 0.55), def.wings, CF(side * span * 0.5, 0, len * 0.2), { material = SP, transparency = 0.1 })
 				for i = 1, 3 do
-					add(rig, wj, "WingFinger", BLOCK, V3(span * 0.8, 0.07, 0.07), def.main, CF(side * span * 0.5, 0.03, len * (0.04 + i * 0.12)) * ANG(0, side * -0.25 * i, 0))
+					add(rig, wj, "WingFinger", BLOCK, V3(span * 0.8, 0.07, 0.07), def.main, CF(side * span * 0.5, 0.03, len * (0.04 + i * 0.12)) * ANG(0, side * -0.25 * i, 0), { material = SP })
 				end
 			else
-				-- feathered wing: a row of long feathers fanning out
-				for i = 1, 7 do
-					local fl = span * (0.55 + 0.07 * (7 - i) * 0.5)
+				for i = 1, 8 do
+					local fl = span * (0.5 + 0.07 * (8 - i) * 0.5)
 					add(rig, wj, "Feather", BALL, V3(fl, 0.07, 0.34), def.wings, CF(side * fl * 0.5, 0.02 * i, len * 0.04 * (i - 2)) * ANG(0, side * -0.14 * (i - 3), side * 0.18))
 				end
 				add(rig, wj, "WingBase", BALL, V3(span * 0.4, 0.2, 0.5), def.wings, CF(side * span * 0.16, 0.08, 0))
 			end
-			-- wings rest folded back by default (they open when flapping)
 			rig.joints[name].base = rig.joints[name].weld.C0
 		end
 	end

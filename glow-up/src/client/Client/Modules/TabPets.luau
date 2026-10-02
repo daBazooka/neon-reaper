@@ -39,6 +39,19 @@ function TabPets.build(parent, Action)
 		TextWrapped = false,
 		Text = "🐾  Pets",
 	})
+	local best = UI.button(parent, {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -52, 0, 0),
+		Size = UDim2.fromOffset(120, 26),
+		BackgroundColor3 = C.Gold,
+		Text = "⭐ EQUIP BEST",
+		TextSize = 12,
+		Radius = 8,
+	}, "card")
+	best.Activated:Connect(function()
+		Audio.click()
+		Action:FireServer("PetBest")
+	end)
 	local summary = UI.label(parent, {
 		Position = UDim2.fromOffset(0, 28),
 		Size = UDim2.new(1, 0, 0, 20),
@@ -178,7 +191,7 @@ function TabPets.build(parent, Action)
 		for _ in on do
 			count += 1
 		end
-		summary.Text = string.format("Equipped %d/%d   ·   Pet bonus +%d%% Aura   ·   click a pet to equip it", count, Config.PetSlots, math.floor((player:GetAttribute("PetMult") or 0) * 100 + 0.5))
+		summary.Text = string.format("Equipped %d/%d   ·   Pet bonus +%d%% Aura", count, Config.PetSlots, math.floor((player:GetAttribute("PetMult") or 0) * 100 + 0.5))
 		for id, cost in eggButtons do
 			local egg = Config.EggById[id]
 			cost.TextColor3 = aura >= egg.Cost and C.Yellow or C.Danger

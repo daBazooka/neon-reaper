@@ -276,7 +276,7 @@ local function handleAction(p, kind, a, b)
 		Shop.handle(p, kind, a)
 	elseif kind == "OpenCrate" and type(a) == "string" then
 		Crates.open(p, a)
-	elseif kind == "Hatch" or kind == "PetEquip" or kind == "PetUnequip" then
+	elseif kind == "Hatch" or kind == "PetEquip" or kind == "PetUnequip" or kind == "PetBest" then
 		Pets.handle(p, kind, a)
 	elseif kind == "TreadStop" then
 		Treadmill.stop(p)

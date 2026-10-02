@@ -136,8 +136,16 @@ local function buildTop(gui, Menu)
 		return label
 	end
 	refs.rebirthPill = counter(1, 90, C.Mint, C.Mint)
-	refs.multPill = counter(2, 130, C.Pink, C.Pink)
+	-- The store button only shows once at least one real purchase has been set up in Config.Store.
+	local storeLive = false
+	for _, pass in Config.Store.Passes do
+		storeLive = storeLive or pass.PassId ~= 0
+	end
+	for _, product in Config.Store.Products do
+		storeLive = storeLive or product.ProductId ~= 0
+	end
 	local store = UI.button(row, {
+		Visible = storeLive,
 		LayoutOrder = 3,
 		Size = UDim2.fromOffset(104, 30),
 		BackgroundColor3 = C.Accent2,
@@ -697,9 +705,8 @@ function Hud.refresh()
 
 	-- Banner + pills
 	local mult = Hud.swingMult()
-	refs.banner.Text = string.format("Click / tap to train  •  ×%s Aura  •  Rebirth at Level %d", Util.fmt(mult), need)
+	refs.banner.Text = string.format("Click to swing  •  ×%s  •  Rebirth at Lv %d", Util.fmt(mult), need)
 	refs.rebirthPill.Text = "★ " .. rebirths
-	refs.multPill.Text = "×" .. Util.fmt(mult) .. " per swing"
 
 	-- Rebirth button percentage + window
 	local pct = math.clamp(level / need, 0, 1)
@@ -758,7 +765,7 @@ function Hud.refresh()
 	local left = (workspace:GetAttribute("EventEnd") or 0) - workspace:GetServerTimeNow()
 	if ev and left > 0 then
 		refs.event.Visible = true
-		refs.eventText.Text = string.format("%s %s  %s  ·  %s", ev.Icon, ev.Name, Util.clock(left), ev.Desc)
+		refs.eventText.Text = string.format("%s %s  %s", ev.Icon, ev.Name, Util.clock(left))
 		refs.eventText.TextColor3 = C.Pink
 	else
 		refs.event.Visible = false
@@ -769,7 +776,7 @@ function Hud.refresh()
 	local compLeft = (workspace:GetAttribute("CompEnd") or 0) - workspace:GetServerTimeNow()
 	if compState == "open" and compLeft > 0 then
 		refs.comp.Visible = true
-		refs.compText.Text = string.format("🏆 MOG COMPETITION OPEN %s  ·  press MOG", Util.clock(compLeft))
+		refs.compText.Text = string.format("🏆 Mog Competition OPEN  %s", Util.clock(compLeft))
 		refs.compText.TextColor3 = C.Orange
 	elseif compState == "idle" and compLeft > 0 then
 		refs.comp.Visible = true

@@ -100,8 +100,33 @@ function Pets.unequip(p, id)
 	Pets.refresh(p)
 end
 
+-- Equips the strongest pets you own.
+function Pets.best(p)
+	local profile = Data.get(p)
+	if not profile then
+		return
+	end
+	local owned = {}
+	for id, copies in profile.Pets do
+		local pet = Config.PetById[id]
+		if pet then
+			table.insert(owned, { id = id, power = Config.PetMult(pet, copies) })
+		end
+	end
+	table.sort(owned, function(a, b)
+		return a.power > b.power
+	end)
+	profile.PetsEq = {}
+	for i = 1, math.min(Config.PetSlots, #owned) do
+		table.insert(profile.PetsEq, owned[i].id)
+	end
+	Stats.recompute(p)
+end
+
 function Pets.handle(p, kind, id)
-	if kind == "Hatch" and type(id) == "string" then
+	if kind == "PetBest" then
+		Pets.best(p)
+	elseif kind == "Hatch" and type(id) == "string" then
 		Pets.hatch(p, id)
 	elseif kind == "PetEquip" and type(id) == "string" then
 		Pets.equip(p, id)

@@ -72,20 +72,18 @@ local function buildBuildingTags()
 		local def = Config.Buildings[id]
 		local at = Config.BuildingPos[id]()
 		local height = (id == "stage" or id == "battle") and 40 or (id == "treadmills" and 28 or 22)
-		local frame, stroke = makeTag(anchorAt(at + Vector3.new(0, height, 0)), Vector3.zero, 190, 62, 190)
+		local frame, stroke = makeTag(anchorAt(at + Vector3.new(0, height, 0)), Vector3.zero, 180, 46, 190)
 		line(frame, 3, 18, 13, def.Main:Lerp(Color3.new(1, 1, 1), 0.4), def.Name:upper())
-		line(frame, 21, 14, 10, C.Muted, "Aura: " .. def.Aura, UI.Fonts.Bold)
-		local status = line(frame, 37, 20, 15, C.Yellow, "")
+		local status = line(frame, 22, 20, 15, C.Yellow, "")
 		buildingTags[id] = { status = status, stroke = stroke, def = def }
 	end
 end
 
 local function buildTreadTags(row)
 	for _, t in Config.Treadmills do
-		local frame, stroke = makeTag(anchorAt(Config.TreadPos(t.Id) + Vector3.new(0, 12.5, 0)), Vector3.zero, 118, 58, 80)
-		line(frame, 3, 14, 11, t.Color, (t.Name:gsub(" Treadmill", "")):upper() .. " TREADMILL")
-		line(frame, 17, 22, 18, t.Color, "+" .. Util.fmt(t.Rate) .. "/s")
-		local status = line(frame, 39, 16, 12, C.Yellow, "")
+		local frame, stroke = makeTag(anchorAt(Config.TreadPos(t.Id) + Vector3.new(0, 12.5, 0)), Vector3.zero, 110, 44, 80)
+		line(frame, 3, 22, 18, t.Color, "+" .. Util.fmt(t.Rate) .. "/s")
+		local status = line(frame, 25, 16, 12, C.Yellow, "")
 		treadTags[t.Id] = { status = status, stroke = stroke, def = t }
 	end
 end

@@ -6,6 +6,7 @@ local Lighting = game:GetService("Lighting")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Decor = require(script.Parent.Decor)
+local Architecture = require(script.Parent.Architecture)
 local Util = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"))
 local HammerModel = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HammerModel"))
 
@@ -212,18 +213,19 @@ end
 --------------------------------------------------------------------------------
 -- Pavilions (training stations)
 --------------------------------------------------------------------------------
-local function pavilion(parent, pos, inward, roofColor, signText, signColor, floorColor, floorMaterial, wallColor)
+local function pavilion(parent, pos, inward, roofColor, signText, signColor, floorColor, floorMaterial, wallColor, wallMaterial)
 	local cf = CFrame.lookAt(pos, pos + inward)
-	block(parent, "Floor", Vector3.new(32, 0.8, 30), cf * CFrame.new(0, 0.5, 0), floorColor or C3(160, 160, 166), floorMaterial or M.Concrete)
-	for sx = -1, 1, 2 do
-		for sz = -1, 1, 2 do
-			block(parent, "Pillar", Vector3.new(1.8, 13, 1.8), cf * CFrame.new(sx * 14.5, 7.3, sz * 13.5), WHITE, M.Concrete)
-		end
-	end
-	block(parent, "Roof", Vector3.new(35, 1.4, 33), cf * CFrame.new(0, 14.4, 0), roofColor)
-	block(parent, "RoofTrim", Vector3.new(36, 0.6, 34), cf * CFrame.new(0, 13.5, 0), WHITE)
-	block(parent, "BackWall", Vector3.new(32, 12, 1), cf * CFrame.new(0, 7, 14.6), wallColor or C3(214, 208, 196), M.Concrete)
-	sign(parent, (cf * CFrame.new(0, 18.6, -16)).Position, inward, Vector3.new(26, 5, 0.6), signText, signColor)
+	local floor = floorColor or C3(160, 160, 166)
+	Architecture.pavilion(parent, cf, {
+		wall = wallColor or C3(214, 208, 196),
+		wallMat = wallMaterial or M.Concrete,
+		accent = signColor or RED,
+		floorA = floor:Lerp(WHITE, 0.35),
+		floorB = floor:Lerp(DARK, 0.2),
+		floorMat = floorMaterial or M.Concrete,
+		roof = roofColor,
+	})
+	sign(parent, (cf * CFrame.new(0, 19.2, -16)).Position, inward, Vector3.new(26, 5, 0.6), signText, signColor)
 	return cf
 end
 
@@ -508,7 +510,7 @@ end
 
 local function buildGym(parent)
 	local pos, inward = stationAt("Gym")
-	local cf = pavilion(parent, pos, inward, RED, "💪  GYM", C3(150, 30, 20), C3(48, 50, 56), M.Slate, C3(150, 60, 55))
+	local cf = pavilion(parent, pos, inward, RED, "💪  GYM", C3(150, 30, 20), C3(48, 50, 56), M.Slate, C3(150, 64, 56), M.Brick)
 	Decor.pavilion(parent, "gym", cf)
 	-- Bench press
 	block(parent, "Bench", Vector3.new(2.4, 1.2, 6.5), cf * CFrame.new(0, 1.9, 2), C3(40, 40, 46), M.SmoothPlastic)
@@ -535,7 +537,7 @@ end
 
 local function buildStudio(parent)
 	local pos, inward = stationAt("Studio")
-	local cf = pavilion(parent, pos, inward, C3(190, 70, 140), "💈  STYLE STUDIO", C3(130, 40, 100), C3(242, 190, 214), M.Marble, C3(236, 170, 200))
+	local cf = pavilion(parent, pos, inward, C3(190, 70, 140), "💈  STYLE STUDIO", C3(130, 40, 100), C3(242, 190, 214), M.Marble, C3(238, 196, 214), M.Marble)
 	Decor.pavilion(parent, "studio", cf)
 	for i, x in { -7, 7 } do
 		local c = cf * CFrame.new(x, 0, 2)
@@ -561,7 +563,7 @@ end
 
 local function buildLounge(parent)
 	local pos, inward = stationAt("Lounge")
-	local cf = pavilion(parent, pos, inward, C3(60, 140, 190), "🛋️  CHARM LOUNGE", C3(30, 90, 140), C3(170, 122, 84), M.WoodPlanks, C3(96, 170, 190))
+	local cf = pavilion(parent, pos, inward, C3(60, 140, 190), "🛋️  CHARM LOUNGE", C3(30, 90, 140), C3(170, 122, 84), M.WoodPlanks, C3(90, 168, 188), M.Concrete)
 	Decor.pavilion(parent, "lounge", cf)
 	disk(parent, "Rug", (cf * CFrame.new(0, 0.9, 1)).Position, 9, 0.1, C3(190, 70, 90), M.Fabric)
 	block(parent, "SofaSeat", Vector3.new(11, 1.6, 4), cf * CFrame.new(0, 2, 11), C3(120, 80, 150), M.Fabric)

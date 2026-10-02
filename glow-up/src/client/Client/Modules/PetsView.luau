@@ -34,7 +34,7 @@ local function rebuild(view, eq)
 		local rig = def and Animals.build(def.Species)
 		if rig then
 			rig.model.Parent = folder
-			table.insert(view.pets, { rig = rig, pos = nil, yaw = 0, groundY = nil, lastRay = 0 })
+			table.insert(view.pets, { rig = rig, pos = nil, yaw = 0, groundY = nil, lastRay = 0, shown = true })
 		end
 	end
 end
@@ -96,6 +96,11 @@ local function step(player, view, dt, now)
 		local diff = (targetYaw - pet.yaw + math.pi) % (math.pi * 2) - math.pi
 		pet.yaw += diff * math.min(1, dt * 8)
 		local near = (camera.CFrame.Position - pet.pos).Magnitude < NEAR
+		-- far-away pets are taken out of the world entirely (they have 100+ parts each)
+		if near ~= pet.shown then
+			pet.shown = near
+			rig.model.Parent = near and folder or nil
+		end
 		local breath = near and Animals.animate(rig, dt, speed) or 0
 		local bob = 0
 		if rig.def.float and rig.def.float > 0 then

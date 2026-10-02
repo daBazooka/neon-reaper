@@ -35,6 +35,8 @@ Your look (stats + gear) multiplies XP, so a better look levels you faster. The 
 | **Store (real Robux)** | 3 game passes (2x Aura, 2x XP, VIP) and 3 Aura packs. Offers show COMING SOON until you create them on create.roblox.com and paste the ids into `Config.Store`. |
 | **Realistic animals** | The 13 pets are built as real animals (tabby cat, golden retriever, field mouse, wolf, fox, lion, bull, silverback gorilla, owl, shark, dragon, pegasus, phoenix) with skeletons, fur patterns, eyes, whiskers, bent hind legs, wings and tails. They walk, flap, swim and sway, follow their owner, and are drawn on every player's screen. The Pets tab shows each one in 3D. |
 | **Unique faces and bodies** | Every player has their own face (eye colour/size, brows, nose, mouth, jaw, ears, mole/scar/freckles, beard style) and body build, decided by their user id. Levels change how goofy or chiselled it is, and muscles grow. |
+| **Level-up fanfare** | Every level plays a power-up: sub drop, rising laser sweep, bright chord, sparkle run (bigger on every 10th level and tier-ups), plus the deep "Level up!" voice. |
+| **Handsome and fit** | Up to 1.3x taller, broad shoulders with a V-taper, pecs, six-pack, delts, biceps, forearms, thighs and calves that grow with level. The face turns "chad": hunter eyes, strong brows, cheekbones, square jaw, chin, light stubble, plus a styled hairstyle (swept, quiff, slick, buzz or long) from level 40. |
 | **Welcome guide** | A 4-page guide on the very first visit (and from the ❓ button), then the 5-step tutorial. |
 | **Pets** | Hatch Basic / Golden / Mog eggs in the Pets tab for 13 pets (Common to Mythic). Equip 3; they follow you and add a % Aura multiplier plus Aura per second. Duplicates star up to 5 (+25% each). |
 | **Pickups** | Walk the plaza to grab apples, protein shakes, dumbbells and trophies (Aura + XP). Chain pickups for a multiplier. |
@@ -62,7 +64,7 @@ It is built with Rojo from `src/`: `rojo build default.project.json -o SubFiveTo
 ```
 ReplicatedStorage.Shared      Config, Util, Audio, UI, HammerModel, Genome, Face, Animals
 ServerScriptService.Main      Script + Modules (Data, Stats, Appearance, Cosmetics, Shards, Training, Crates,
-                              Duels, Competition, Quests, Daily, Events, Runway, Shop, Nameplate, Board, Quirks, Hammers, Pets, Playtime, Aura, Tutorial, Buildings, Treadmill, Store, Decor, World)
+                              Duels, Competition, Quests, Daily, Events, Runway, Shop, Nameplate, Board, Quirks, Hammers, Pets, Playtime, Aura, Tutorial, Buildings, Treadmill, Store, Decor, Architecture, World)
 StarterPlayerScripts.Client   LocalScript + Modules (Fx, Toasts, Menu, Hud, 6 tabs, TrainingUI, DuelUI,
                               CompetitionUI, Orbs, Interact, HammerRow, Swing, TabPets, WorldTags, Runner, TabStore, PetsView, Guide)
 ```
@@ -76,5 +78,5 @@ All numbers (tiers, XP curve, body scales, costs, odds, rewards) live in `src/sh
 - `tests/` has a Roblox mock that validates every property, class and enum against Roblox's API dump.
 
 ## Previewing models without Studio
-`tests/preview/run.sh out.png cat wolf ...` renders side/front/top views of the animals, `tests/preview/face_render.py out.png` renders sample faces,
+`tests/preview/arch_preview.py out.png gym|studio|lounge` renders a building, `tests/preview/run.sh out.png cat wolf ...` renders side/front/top views of the animals, `tests/preview/face_render.py out.png` renders sample faces,
 and `python3 tests/preview/animate_test.py` animates every animal for hundreds of frames to prove nothing errors. They use a tiny stand-in for Vector3/CFrame/Instance, so they need only the Luau CLI and matplotlib.

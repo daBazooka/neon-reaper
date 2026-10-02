@@ -24,19 +24,19 @@ fig, axes = plt.subplots(rows, cols, figsize=(3.2 * cols, 3.4 * rows), facecolor
 for ax, case in zip(axes.flat, cases):
     hc = tuple(case["hc"])
     h = case["head"]
-    ax.add_patch(Polygon([(-h[0]/2, -h[1]/2), (h[0]/2, -h[1]/2), (h[0]/2, h[1]/2), (-h[0]/2, h[1]/2)], facecolor=hc, edgecolor="#333", linewidth=0.5))
-    items = []
+    items = [(0.0, {"k": hc, "t": 0}, [(-h[0]/2, -h[1]/2), (h[0]/2, -h[1]/2), (h[0]/2, h[1]/2), (-h[0]/2, h[1]/2)])]
     for part in case["parts"]:
         pts = world_points(part)
         depth = sum(p[2] for p in pts) / len(pts)  # more negative z = nearer the camera (front is -Z)
         items.append((-depth, part, [(p[0], p[1]) for p in pts]))
     items.sort(key=lambda t: t[0])
+    # (the head box is item 0 at depth 0, so anything behind it is correctly hidden)
     for d, part, pts2 in items:
         hh = hull(pts2)
         if len(hh) < 3: continue
         col = tuple(part["k"])
         ax.add_patch(Polygon(hh, closed=True, facecolor=col, edgecolor=tuple(max(0, c * 0.5) for c in col), linewidth=0.3, alpha=1 - part["t"]))
-    ax.set_xlim(-0.95, 0.95); ax.set_ylim(-0.85, 1.0); ax.set_aspect("equal"); ax.axis("off")
+    ax.set_xlim(-0.95, 0.95); ax.set_ylim(-0.85, 1.25); ax.set_aspect("equal"); ax.axis("off")
     ax.set_title(f"player {case['id']}  level {case['level']}", fontsize=9)
 plt.tight_layout()
 plt.savefig(sys.argv[1], dpi=90)

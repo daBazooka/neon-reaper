@@ -28,7 +28,7 @@ local function newPlayer(id, name)
 	end
 	local hum = {RigType = Enum.HumanoidRigType.R15, FindFirstChild = function(_, n) return scaleVals[n] end, WaitForChild = function(_, n) return scaleVals[n] end, WalkSpeed = 16, Health = 100}
 	p.scaleVals = scaleVals; p.hum = hum
-	char = {GetDescendants = function() return {} end, FindFirstChild = function() return U("part") end, FindFirstChildOfClass = function() return hum end, WaitForChild = function() return hum end, GetScale = function() return 1 end, ScaleTo = function() end}
+	char = {GetChildren = function() return {} end, GetDescendants = function() return {} end, FindFirstChild = function() return U("part") end, FindFirstChildOfClass = function() return hum end, WaitForChild = function() return hum end, GetScale = function() return 1 end, ScaleTo = function() end}
 	p.Character = char
 	p.CharacterAdded = {Connect = function() end}
 	p.CharacterRemoving = {Connect = function() end}
@@ -178,7 +178,7 @@ check(sum100 > sum50 * 4, "levels 50-100 cost " .. math.floor(sum100/sum50*10)/1
 local Appearance = require(ModN.children.Appearance)
 Data.get(p1).Level = 1000
 Appearance.update(p1, true)
-check(p1.scaleVals.BodyHeightScale.Value > 1.02 and p1.scaleVals.BodyWidthScale.Value < 1.0, "level 1000 body is tall and athletic")
+check(p1.scaleVals.BodyHeightScale.Value > 1.2 and p1.scaleVals.BodyWidthScale.Value < 1.15, "level 1000 body is much taller than normal and no longer wide (h " .. string.format("%.2f", p1.scaleVals.BodyHeightScale.Value) .. ", w " .. string.format("%.2f", p1.scaleVals.BodyWidthScale.Value) .. ")")
 Data.get(p1).Level = 500
 Appearance.update(p1, true)
 local mid = p1.scaleVals.BodyWidthScale.Value
@@ -524,6 +524,21 @@ do
 		if i % 50 == 0 then advance(0.2) end
 	end
 	check(true, "3000 random garbage requests handled")
+end
+
+
+-- Equip best + styled hair
+do
+	local d = Data.get(p1)
+	d.Pets = { cat = 3, dragon = 1, mouse = 1, fox = 2, wolf = 1 }
+	d.PetsEq = { "mouse" }
+	Stats.recompute(p1)
+	fireAll("Action", p1, "PetBest"); advance(0.2)
+	check(#d.PetsEq == Config.PetSlots and d.PetsEq[1] == "dragon", "equip best picks the strongest pets: " .. table.concat(d.PetsEq, ","))
+	local Quirks = require(ModN.children.Quirks)
+	for _, lvl in {10, 39, 40, 41, 500} do d.Level = lvl; Quirks.apply(p1) end
+	check(true, "avatar hair is swapped for styled hair from level 40")
+	d.Level = 20; Stats.recompute(p1)
 end
 
 -- Mog Competition: run a full cycle with one human

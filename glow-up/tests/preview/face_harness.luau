@@ -9,7 +9,7 @@ local Genome = (function() GENOME_SOURCE end)()
 local Face = (function() FACE_SOURCE end)()
 local out = {}
 local function num(x) return string.format("%.4f", x) end
-local cases = { {1001, 1}, {1001, 60}, {1001, 250}, {1001, 900}, {2002, 1}, {2002, 250}, {2002, 900}, {3003, 1}, {3003, 250}, {3003, 900}, {4004, 900}, {5005, 900} }
+local cases = { {1001, 1}, {1001, 60}, {1001, 250}, {1001, 900}, {2002, 1}, {2002, 250}, {2002, 900}, {3003, 900}, {4004, 900}, {5005, 900}, {6006, 900}, {7007, 900} }
 local Config = { Weirdness = function(level)
 	if level <= 100 then return 1 - (level - 1) * 0.0075 end
 	return math.max(0, 0.2575 * (1 - (level - 100) / 300))
@@ -23,6 +23,7 @@ for _, case in cases do
 	head.Color = Genome.skin(Color3.fromRGB(214, 190, 150), g)
 	local folder = Instance.new("Folder")
 	Face.build(head, folder, head.Size, g, Config.Weirdness(level), head.Color)
+	if level >= 40 then Face.hair(head, folder, head.Size, g, level) end
 	local parts = {}
 	for _, p in folder._children do
 		local cf = p.CFrame

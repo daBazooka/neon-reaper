@@ -166,7 +166,7 @@ end
 
 -- Plain level-ups stay small (a toast); every 10th level gets a proper moment.
 function handlers.level(level, aura, crates)
-	Audio.quest()
+	Audio.levelUp(level % 10 == 0)
 	Audio.say("levelup")
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	if root then
@@ -175,7 +175,6 @@ function handlers.level(level, aura, crates)
 		Fx.burst(root.Position, UI.Colors.Gold, level % 10 == 0 and 50 or 16)
 	end
 	if level % 10 == 0 then
-		Audio.levelUp()
 		Fx.shake(0.3, 0.4)
 		Fx.flash(UI.Colors.Gold, 0.25, 0.6)
 		Fx.announce("LEVEL " .. level, "+" .. Util.fmt(aura) .. " Aura" .. (crates > 0 and "  +  free crate" or ""), UI.Colors.Gold, 0.3)
@@ -294,7 +293,7 @@ end
 
 function handlers.tutorialDone(aura, crates)
 	Audio.say("done")
-	Audio.levelUp()
+	Audio.levelUp(true)
 	Fx.flash(UI.Colors.Gold, 0.3, 0.6)
 	Fx.announce("TUTORIAL COMPLETE", string.format("+%s Aura  +%d crates. Now go mog them all!", Util.fmt(aura), crates), UI.Colors.Gold, 0.22)
 end
@@ -302,7 +301,7 @@ end
 function handlers.building(id)
 	local def = Config.Buildings[id]
 	Audio.say("unlock")
-	Audio.levelUp()
+	Audio.levelUp(true)
 	Fx.shake(0.35, 0.4)
 	Fx.flash(def.Glow, 0.3, 0.6)
 	local pos = Config.BuildingPos[id]()

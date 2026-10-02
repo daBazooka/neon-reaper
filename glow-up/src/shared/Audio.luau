@@ -119,9 +119,41 @@ function Audio.purchase()
 	arpeggio({ 3, 5, 8 }, 0.06, 0.55)
 end
 
-function Audio.levelUp()
-	arpeggio({ 1, 3, 5, 8, 10, 13 }, 0.07, 0.7)
-	Audio.play("Flash", 1, 0.4)
+-- A power-up fanfare: sub drop, a rising laser sweep, a bright major chord stab, then a sparkle run.
+-- Built only from the ping / bass / flash sounds that ship with Roblox, so no upload is needed.
+local function chord(speeds, volume)
+	for _, speed in speeds do
+		Audio.play("Tone", speed, volume)
+	end
+end
+
+local function sweep(count, from, to, gap, volume)
+	for i = 0, count - 1 do
+		Audio.play("Tone", from * (to / from) ^ (i / (count - 1)), volume)
+		task.wait(gap)
+	end
+end
+
+function Audio.levelUp(big)
+	task.spawn(function()
+		Audio.play("Bass", 0.5, big and 1 or 0.8)
+		Audio.play("Flash", big and 0.6 or 0.8, 0.5)
+		sweep(big and 16 or 9, 0.6, big and 2.6 or 2, 0.016, 0.3)
+		chord({ 1, 1.26, 1.5, 2 }, big and 0.65 or 0.5)
+		if big then
+			Audio.play("Bass", 0.7, 0.9)
+		end
+		task.wait(0.14)
+		local run = big and { 1.5, 1.68, 2, 2.52, 3, 3.36, 4 } or { 1.5, 2, 2.52 }
+		for _, speed in run do
+			Audio.play("Tone", speed, 0.42)
+			task.wait(0.05)
+		end
+		if big then
+			task.wait(0.06)
+			chord({ 1.33, 1.68, 2, 2.67 }, 0.6) -- the fanfare ends on a bigger chord
+		end
+	end)
 end
 
 function Audio.quest()
@@ -138,8 +170,8 @@ function Audio.event()
 end
 
 function Audio.ascend()
-	arpeggio({ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 }, 0.06, 0.7)
-	Audio.play("Flash", 0.8, 0.6)
+	Audio.levelUp(true)
+	arpeggio({ 6, 7, 8, 9, 10, 11, 12 }, 0.06, 0.6)
 end
 
 function Audio.daily()
@@ -159,8 +191,8 @@ function Audio.error()
 end
 
 function Audio.rank()
-	arpeggio({ 1, 3, 5, 8, 10, 13, 15 }, 0.08, 0.75)
-	Audio.play("Flash", 1, 0.5)
+	Audio.levelUp(true)
+	arpeggio({ 5, 8, 10, 13, 15 }, 0.08, 0.6)
 end
 
 function Audio.win()

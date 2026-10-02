@@ -32,8 +32,8 @@ local WHITE, BLACK = C3(255, 255, 255), C3(18, 16, 18)
 --------------------------------------------------------------------------------
 -- kind: quad (cats, dogs, horses...), bird, fish, ape.  Lengths are in studs at scale 1.
 Animals.Species = {
-	cat = { kind = "quad", scale = 1.25, len = 1.9, h = 0.78, w = 0.62, legH = 0.85, legT = 0.2, neck = 0.25, head = V3(0.74, 0.66, 0.68), snout = V3(0.24, 0.2, 0.2), ears = "point", earSize = 0.36, tail = "long", tailLen = 1.9, main = C3(222, 128, 48), belly = C3(250, 232, 205), accent = C3(246, 214, 176), dark = C3(120, 56, 20), eye = C3(120, 190, 70), nose = C3(236, 150, 150), pattern = "tabby", whiskers = true, slit = true },
-	pup = { kind = "quad", scale = 1.2, len = 2.3, h = 0.98, w = 0.78, legH = 1.1, legT = 0.28, neck = 0.3, head = V3(0.82, 0.76, 0.8), snout = V3(0.44, 0.34, 0.5), ears = "floppy", earSize = 0.5, tail = "feather", tailLen = 1.5, main = C3(224, 168, 82), belly = C3(242, 206, 140), accent = C3(240, 196, 120), dark = C3(160, 100, 40), eye = C3(80, 48, 24), nose = BLACK, pattern = "none", tongue = true },
+	cat = { kind = "quad", scale = 1.25, len = 1.9, h = 0.78, w = 0.62, legH = 0.85, legT = 0.23, neck = 0.25, head = V3(0.74, 0.66, 0.68), snout = V3(0.24, 0.2, 0.2), ears = "point", earSize = 0.36, tail = "long", tailLen = 1.9, main = C3(222, 128, 48), belly = C3(250, 232, 205), accent = C3(246, 214, 176), dark = C3(120, 56, 20), eye = C3(120, 190, 70), nose = C3(236, 150, 150), pattern = "tabby", whiskers = true, slit = true },
+	pup = { kind = "quad", scale = 1.2, len = 2.3, h = 0.98, w = 0.78, legH = 1.1, legT = 0.32, neck = 0.3, head = V3(0.82, 0.76, 0.8), snout = V3(0.44, 0.34, 0.5), ears = "floppy", earSize = 0.5, tail = "feather", tailLen = 1.5, main = C3(224, 168, 82), belly = C3(242, 206, 140), accent = C3(240, 196, 120), dark = C3(160, 100, 40), eye = C3(80, 48, 24), nose = BLACK, pattern = "none", tongue = true },
 	mouse = { kind = "quad", scale = 1, len = 1.15, h = 0.5, w = 0.42, legH = 0.34, legT = 0.1, neck = 0.1, head = V3(0.42, 0.38, 0.5), snout = V3(0.18, 0.16, 0.3), ears = "round", earSize = 0.34, tail = "thin", tailLen = 1.4, main = C3(168, 168, 178), belly = C3(236, 220, 220), accent = C3(240, 160, 170), dark = C3(120, 120, 130), eye = BLACK, nose = C3(240, 140, 150), pattern = "none", whiskers = true, buckTeeth = true },
 	wolf = { kind = "quad", scale = 1.3, len = 2.7, h = 1.1, w = 0.8, legH = 1.5, legT = 0.28, neck = 0.4, head = V3(0.8, 0.72, 0.78), snout = V3(0.42, 0.3, 0.62), ears = "point", earSize = 0.4, tail = "bushy", tailLen = 1.7, main = C3(128, 130, 138), belly = C3(206, 206, 212), accent = C3(70, 72, 80), dark = C3(54, 56, 62), eye = C3(220, 170, 40), nose = BLACK, pattern = "saddle", fluff = true },
 	fox = { kind = "quad", scale = 1.2, len = 2.1, h = 0.82, w = 0.62, legH = 1.05, legT = 0.2, neck = 0.3, head = V3(0.66, 0.6, 0.7), snout = V3(0.3, 0.22, 0.54), ears = "tall", earSize = 0.55, tail = "bushy", tailLen = 1.9, main = C3(226, 108, 34), belly = C3(250, 244, 236), accent = C3(30, 26, 26), dark = C3(30, 26, 26), eye = C3(150, 96, 30), nose = BLACK, pattern = "socks", tailTip = C3(252, 250, 246), fluff = true },
@@ -65,7 +65,7 @@ local function newRig(def)
 	root.CanCollide, root.CanQuery, root.CanTouch = false, false, false
 	root.Parent = model
 	model.PrimaryPart = root
-	return { model = model, root = root, def = def, scale = def.scale, joints = {}, phase = 0, t = math.random() * 10, blink = 0 }
+	return { model = model, root = root, def = def, scale = def.scale, joints = {}, phase = 0, t = math.random() * 10, blink = 0, mat = def.smooth and SP or Enum.Material.Fabric }
 end
 
 -- Adds a part welded to `parent` at offset `cf` (in the parent's space, before scaling).
@@ -78,7 +78,7 @@ local function add(rig, parent, name, shape, size, color, cf, extra)
 	end
 	p.Size = size * rig.scale
 	p.Color = color
-	p.Material = (extra and extra.material) or SP
+	p.Material = (extra and extra.material) or rig.mat
 	p.Anchored = false
 	p.CanCollide, p.CanQuery, p.CanTouch, p.Massless, p.CastShadow = false, false, false, true, false
 	p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
@@ -107,16 +107,22 @@ local function pose(rig, name, delta)
 	end
 end
 
-local function eye(rig, parent, x, y, z, size, color, slit)
+local function eye(rig, parent, x, y, z, size, color, slit, lid)
 	-- eyeball, coloured iris, pupil and a highlight
-	add(rig, parent, "Eye", BALL, V3(size, size * 0.9, size * 0.6), C3(236, 232, 226), CF(x, y, z))
-	add(rig, parent, "Iris", BALL, V3(size * 0.78, size * 0.78, size * 0.4), color, CF(x, y, z - size * 0.18))
+	local m = { material = SP }
+	-- dark rim, eyeball, big coloured iris, pupil, glint, and a lid that covers the top of the eye
+	add(rig, parent, "EyeRim", BALL, V3(size * 1.16, size * 0.86, size * 0.5), BLACK, CF(x, y, z + size * 0.04), m)
+	add(rig, parent, "Eye", BALL, V3(size, size * 0.74, size * 0.55), C3(240, 234, 224), CF(x, y, z), m)
+	add(rig, parent, "Iris", BALL, V3(size * 0.78, size * 0.7, size * 0.42), color, CF(x, y, z - size * 0.16), m)
 	if slit then
-		add(rig, parent, "Pupil", BLOCK, V3(size * 0.16, size * 0.7, size * 0.1), BLACK, CF(x, y, z - size * 0.34))
+		add(rig, parent, "Pupil", BLOCK, V3(size * 0.14, size * 0.66, size * 0.1), BLACK, CF(x, y, z - size * 0.34), m)
 	else
-		add(rig, parent, "Pupil", BALL, V3(size * 0.4, size * 0.4, size * 0.2), BLACK, CF(x, y, z - size * 0.34))
+		add(rig, parent, "Pupil", BALL, V3(size * 0.4, size * 0.4, size * 0.2), BLACK, CF(x, y, z - size * 0.34), m)
 	end
-	add(rig, parent, "Glint", BALL, V3(size * 0.14, size * 0.14, size * 0.08), WHITE, CF(x + size * 0.14, y + size * 0.16, z - size * 0.4))
+	add(rig, parent, "Glint", BALL, V3(size * 0.14, size * 0.14, size * 0.08), WHITE, CF(x + size * 0.14, y + size * 0.14, z - size * 0.4), m)
+	if lid then
+		add(rig, parent, "Lid", BALL, V3(size * 1.12, size * 0.34, size * 0.6), lid, CF(x, y + size * 0.3, z - size * 0.04))
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -124,7 +130,7 @@ end
 --------------------------------------------------------------------------------
 local function tailChain(rig, def, parent, base)
 	local kind = def.tail
-	local segs = (kind == "thin" and 6) or (kind == "long" and 5) or (kind == "spiked" and 6) or (kind == "flow" and 5) or 4
+	local segs = (kind == "thin" and 8) or (kind == "long" and 7) or (kind == "spiked" and 8) or (kind == "flow" and 7) or (kind == "bushy" and 6) or 5
 	local len = def.tailLen
 	local prev = parent
 	local x, y, z = base.X, base.Y, base.Z
@@ -167,29 +173,57 @@ local function tailChain(rig, def, parent, base)
 	end
 end
 
+-- little tufts of fur: soft elongated blobs hanging from a point (chest, cheeks, back of the legs)
+local function fluff(rig, parent, n, cf, spread, color, size, dirY)
+	for i = 1, n do
+		local t = (i - (n + 1) / 2) / n
+		add(rig, parent, "Tuft", BALL, V3(size * 0.45, size * (1 + 0.3 * (1 - math.abs(t))), size * 0.5), color, cf * CF(t * spread, -size * 0.3 * (dirY or 1), 0) * ANG(0, 0, -t * 0.5))
+	end
+end
+
+local function paw(rig, def, foot, t, pLen, color)
+	add(rig, foot, "Paw", BALL, V3(t * 1.05, pLen * 1.1 + t * 0.25, t * 1.45), color, CF(0, -pLen * 0.4, -t * 0.25))
+	if def.hooves then
+		add(rig, foot, "Hoof", BLOCK, V3(t * 0.95, pLen * 1.2, t * 1.0), def.hooves, CF(0, -pLen * 0.7, -t * 0.05), { material = SP })
+		return
+	end
+	for i = -1, 1 do
+		add(rig, foot, "Toe", BALL, V3(t * 0.4, t * 0.34, t * 0.5), color, CF(i * t * 0.3, -pLen * 0.65, -t * 0.82))
+		add(rig, foot, "Claw", BLOCK, V3(0.026, 0.026, 0.07), def.slit and def.horns or C3(232, 228, 216), CF(i * t * 0.3, -pLen * 0.68, -t * 1.12), { material = SP })
+	end
+end
+
 local function leg(rig, def, parent, name, x, y, z, front)
 	local legH, t = def.legH, def.legT
+	local c = def.main
+	local lower = def.pattern == "socks" and def.accent or c
+	local pawColor = (def.pattern == "socks") and def.accent or def.belly
 	local hip = joint(rig, name, parent, CF(x, y, z))
-	local uLen, lLen, pLen = legH * 0.5, legH * 0.42, legH * 0.1
-	-- hind legs bend like a real animal's: thigh forward, hock back. Front legs are straighter.
-	local a1 = front and 0.05 or 0.5
-	local a2 = front and -0.05 or -0.9
-	local thigh = joint(rig, name .. "Th", hip, CF(0, 0, 0) * ANG(a1, 0, 0))
-	local tw = t * (front and 1.25 or 1.7)
-	add(rig, thigh, "Thigh", BALL, V3(tw, uLen * 1.25, tw * 1.05), def.main, CF(0, -uLen * 0.46, 0))
-	local shin = joint(rig, name .. "Sh", thigh, CF(0, -uLen * 0.9, 0) * ANG(a2, 0, 0))
-	local shinColor = def.pattern == "socks" and def.accent or def.main
-	add(rig, shin, "Shin", CYL, V3(lLen * 1.05, t * 0.8, t * 0.8), shinColor, CF(0, -lLen * 0.5, 0) * ANG(0, 0, math.pi / 2))
-	add(rig, shin, "Knee", BALL, V3(t * 0.95, t * 0.95, t * 0.95), shinColor, CF(0, 0, 0))
-	local foot = joint(rig, name .. "Pw", shin, CF(0, -lLen * 0.95, 0) * ANG(-(a1 + a2), 0, 0))
-	if def.hooves then
-		add(rig, foot, "Hoof", BLOCK, V3(t * 0.95, pLen * 1.4, t * 1.05), def.hooves, CF(0, -pLen * 0.6, -t * 0.05))
+	local pLen = legH * 0.1
+	if front then
+		add(rig, hip, "Shoulder", BALL, V3(t * 1.75, legH * 0.5, t * 1.8), c, CF(0, -legH * 0.12, 0))
+		local arm = joint(rig, name .. "Th", hip, CF(0, -legH * 0.04, 0) * ANG(-0.1, 0, 0))
+		add(rig, arm, "UpperArm", BALL, V3(t * 1.3, legH * 0.56, t * 1.25), c, CF(0, -legH * 0.24, 0))
+		local fore = joint(rig, name .. "Sh", arm, CF(0, -legH * 0.46, 0) * ANG(0.12, 0, 0))
+		add(rig, fore, "Elbow", BALL, V3(t * 0.95, t * 0.95, t * 1.05), c, CF(0, 0.02, 0.06))
+		add(rig, fore, "Forearm", BALL, V3(t * 0.84, legH * 0.5, t * 0.82), lower, CF(0, -legH * 0.24, 0))
+		local foot = joint(rig, name .. "Pw", fore, CF(0, -legH * 0.46, 0) * ANG(-0.02, 0, 0))
+		add(rig, foot, "Pastern", BALL, V3(t * 0.7, legH * 0.16, t * 0.72), lower, CF(0, -legH * 0.04, 0))
+		paw(rig, def, foot, t, pLen, pawColor)
 	else
-		local pawColor = (def.pattern == "socks") and def.accent or def.belly
-		add(rig, foot, "Paw", BALL, V3(t * 1.15, pLen * 1.3 + t * 0.3, t * 1.75), pawColor, CF(0, -pLen * 0.35, -t * 0.35))
-		for i = -1, 1 do
-			add(rig, foot, "Claw", BLOCK, V3(0.028, 0.028, 0.07), def.slit and def.horns or C3(232, 228, 216), CF(i * t * 0.3, -pLen * 0.5, -t * 1.2))
-		end
+		local th = joint(rig, name .. "Th", hip, CF(0, 0, 0) * ANG(0.45, 0, 0))
+		add(rig, th, "Thigh", BALL, V3(t * 2.0, legH * 0.66, t * 2.0), c, CF(0, -legH * 0.24, 0.02))
+		local tib = joint(rig, name .. "Sh", th, CF(0, -legH * 0.4, 0) * ANG(-0.85, 0, 0))
+		add(rig, tib, "Stifle", BALL, V3(t * 1.05, t * 1.05, t * 1.05), c, CF(0, 0, -0.02))
+		add(rig, tib, "Tibia", BALL, V3(t * 0.95, legH * 0.52, t * 0.9), lower, CF(0, -legH * 0.24, 0))
+		local hock = joint(rig, name .. "Hk", tib, CF(0, -legH * 0.46, 0) * ANG(0.65, 0, 0))
+		add(rig, hock, "Hock", BALL, V3(t * 0.8, t * 0.8, t * 0.9), lower, CF(0, 0, 0.04))
+		add(rig, hock, "Metatarsal", BALL, V3(t * 0.66, legH * 0.36, t * 0.66), lower, CF(0, -legH * 0.16, 0))
+		local foot = joint(rig, name .. "Pw", hock, CF(0, -legH * 0.33, 0) * ANG(-0.25, 0, 0))
+		paw(rig, def, foot, t, pLen, pawColor)
+	end
+	if def.fluff and front then
+		fluff(rig, hip, 3, CF(0, -legH * 0.35, t * 0.4), t * 0.6, def.belly, t * 0.9)
 	end
 end
 
@@ -197,22 +231,28 @@ local function earShape(rig, def, headPart, side, hw, hh, hl)
 	local s = def.earSize
 	local kind = def.ears
 	local name = side < 0 and "EarL" or "EarR"
+	local inner = (def.nose == BLACK) and def.belly or def.nose
 	if kind == "point" or kind == "tall" then
 		local h = s * (kind == "tall" and 1.15 or 1)
-		local j = joint(rig, name, headPart, CF(side * hw * 0.3, hh * 0.38, hl * 0.06) * ANG(0, 0, side * -0.18))
-		-- a wedge turned so its triangle faces forward; the tall edge is on the inner side
-		add(rig, j, "Ear", BLOCK, V3(s * 0.2, h, s * 0.9), def.pattern == "socks" and def.accent or def.main, CF(0, h * 0.5, 0) * ANG(0, -side * math.pi / 2, 0), { class = "WedgePart" })
-		add(rig, j, "EarIn", BLOCK, V3(s * 0.08, h * 0.72, s * 0.55), def.nose == BLACK and def.belly or def.nose, CF(0, h * 0.4, -s * 0.1) * ANG(0, -side * math.pi / 2, 0), { class = "WedgePart" })
+		local j = joint(rig, name, headPart, CF(side * hw * 0.3, hh * 0.38, hl * 0.06) * ANG(0, 0, side * -0.2))
+		add(rig, j, "EarBase", BALL, V3(s * 0.55, s * 0.4, s * 0.55), def.main, CF(0, h * 0.06, 0))
+		add(rig, j, "Ear", BLOCK, V3(s * 0.24, h, s * 0.9), def.pattern == "socks" and def.accent or def.main, CF(0, h * 0.5, 0) * ANG(0, -side * math.pi / 2, 0), { class = "WedgePart" })
+		add(rig, j, "EarIn", BLOCK, V3(s * 0.1, h * 0.74, s * 0.58), inner, CF(0, h * 0.4, -s * 0.12) * ANG(0, -side * math.pi / 2, 0), { class = "WedgePart" })
+		if def.fluff then
+			fluff(rig, j, 3, CF(0, h * 0.22, -s * 0.2), s * 0.35, def.belly, s * 0.4)
+		end
 	elseif kind == "floppy" then
 		local j = joint(rig, name, headPart, CF(side * hw * 0.42, hh * 0.28, hl * 0.04))
-		add(rig, j, "Ear", BALL, V3(s * 0.22, s * 1.25, s * 0.8), def.dark, CF(side * s * 0.14, -s * 0.5, 0) * ANG(0, 0, side * 0.25))
+		add(rig, j, "EarFlap", BALL, V3(s * 0.2, s * 1.3, s * 0.85), def.dark, CF(side * s * 0.14, -s * 0.5, 0) * ANG(0, 0, side * 0.25))
+		add(rig, j, "EarEdge", BALL, V3(s * 0.22, s * 0.5, s * 0.6), def.dark:Lerp(BLACK, 0.2), CF(side * s * 0.2, -s * 1.0, 0.02) * ANG(0, 0, side * 0.25))
 	elseif kind == "round" then
 		local j = joint(rig, name, headPart, CF(side * hw * 0.34, hh * 0.42, hl * 0.05))
-		add(rig, j, "Ear", CYL, V3(s * 0.12, s, s), def.main, CF(side * s * 0.2, s * 0.35, 0) * ANG(0, 0, 0))
-		add(rig, j, "EarIn", CYL, V3(s * 0.08, s * 0.72, s * 0.72), def.accent, CF(side * s * 0.2, s * 0.35, -s * 0.07) * ANG(0, 0, 0))
+		add(rig, j, "Ear", CYL, V3(s * 0.14, s, s), def.main, CF(side * s * 0.2, s * 0.35, 0))
+		add(rig, j, "EarIn", CYL, V3(s * 0.1, s * 0.74, s * 0.74), def.accent, CF(side * s * 0.2, s * 0.35, -s * 0.07))
 	elseif kind == "side" then
 		local j = joint(rig, name, headPart, CF(side * hw * 0.5, hh * 0.18, hl * 0.12))
 		add(rig, j, "Ear", BALL, V3(s * 0.9, s * 0.26, s * 0.5), def.main, CF(side * s * 0.4, 0, 0) * ANG(0, 0, side * -0.25))
+		add(rig, j, "EarIn", BALL, V3(s * 0.6, s * 0.2, s * 0.34), inner, CF(side * s * 0.4, 0, -s * 0.06) * ANG(0, 0, side * -0.25))
 	end
 end
 
@@ -220,134 +260,170 @@ local function quadruped(rig, def)
 	local len, h, w = def.len, def.h, def.w
 	local root = rig.root
 	local legH = def.legH
-	rig.ground = legH * 1.02 + h * 0.26 -- distance from the root down to the floor
-	-- body: chest, belly, hindquarters (overlapping ellipsoids give a muscular shape)
-	add(rig, root, "Chest", BALL, V3(w * 1.02, h * 1.05, len * 0.52), def.main, CF(0, h * 0.04, -len * 0.2))
-	add(rig, root, "Hips", BALL, V3(w * 0.96, h * 0.98, len * 0.5), def.main, CF(0, 0, len * 0.22))
-	add(rig, root, "Waist", CYL, V3(len * 0.5, h * 0.9, w * 0.88), def.main, CF(0, 0, 0) * ANG(0, math.pi / 2, math.pi / 2))
-	add(rig, root, "Belly", BALL, V3(w * 0.74, h * 0.5, len * 0.78), def.belly, CF(0, -h * 0.3, 0))
-	add(rig, root, "Back", BALL, V3(w * 0.72, h * 0.28, len * 0.7), def.main, CF(0, h * 0.28, 0.05))
-	if def.pattern == "saddle" then
-		add(rig, root, "Saddle", BALL, V3(w * 0.86, h * 0.5, len * 0.62), def.accent, CF(0, h * 0.14, 0.02))
+	rig.ground = legH * 0.98 + h * 0.26 -- distance from the root down to the floor
+	local main, belly = def.main, def.belly
+	-- body: shoulders, rib cage, a tucked-in waist and strong haunches overlap into one organic shape
+	add(rig, root, "Shoulders", BALL, V3(w * 0.98, h * 1.0, len * 0.34), main, CF(0, h * 0.02, -len * 0.27))
+	add(rig, root, "Ribcage", BALL, V3(w * 1.02, h * 1.08, len * 0.4), main, CF(0, h * 0.03, -len * 0.06))
+	add(rig, root, "Waist", BALL, V3(w * 0.86, h * 0.84, len * 0.3), main, CF(0, -h * 0.02, len * 0.14))
+	add(rig, root, "Haunch", BALL, V3(w * 1.0, h * 1.0, len * 0.34), main, CF(0, h * 0.0, len * 0.3))
+	add(rig, root, "Belly", BALL, V3(w * 0.72, h * 0.46, len * 0.76), belly, CF(0, -h * 0.34, -len * 0.02))
+	for side = -1, 1, 2 do
+		add(rig, root, "ShoulderBlade", BALL, V3(w * 0.3, h * 0.26, len * 0.2), main, CF(side * w * 0.3, h * 0.46, -len * 0.26))
 	end
+	local spine = (def.pattern == "tabby" or def.pattern == "saddle" or def.pattern == "scales") and def.dark or main
+	add(rig, root, "Spine", BALL, V3(w * 0.34, h * 0.16, len * 0.86), spine, CF(0, h * 0.5, 0.02))
 	if def.hump then
-		add(rig, root, "Hump", BALL, V3(w * 0.95, h * 0.7, len * 0.3), def.main, CF(0, h * 0.5, -len * 0.26))
+		add(rig, root, "Hump", BALL, V3(w * 0.95, h * 0.7, len * 0.3), main, CF(0, h * 0.52, -len * 0.26))
 	end
-	if def.mane and def.kind == "quad" and def.ears == "round" and def.tail == "tuft" then
+	if def.mane and def.ears == "round" and def.tail == "tuft" then
 		add(rig, root, "ChestFluff", BALL, V3(w * 1.12, h * 1.1, len * 0.36), def.mane, CF(0, h * 0.05, -len * 0.34))
+		add(rig, root, "BellyFringe", BALL, V3(w * 0.5, h * 0.3, len * 0.5), def.mane:Lerp(main, 0.5), CF(0, -h * 0.5, -len * 0.18))
 	end
 	-- markings
 	if def.pattern == "tabby" then
-		for i = 1, 6 do
-			add(rig, root, "Stripe", BLOCK, V3(w * 0.86, h * 0.07, len * 0.045), def.dark, CF(0, h * 0.39, -len * 0.34 + i * len * 0.115) * ANG(0, 0, 0))
-			add(rig, root, "FlankStripe", BLOCK, V3(w * 1.02, h * 0.38, len * 0.035), def.dark, CF(0, h * 0.04, -len * 0.3 + i * len * 0.11) * ANG(0, 0, 0), { transparency = 0.25 })
+		for i = 1, 8 do
+			add(rig, root, "Stripe", BLOCK, V3(w * 0.7, h * 0.05, len * 0.04), def.dark, CF(0, h * 0.5, -len * 0.4 + i * len * 0.09))
+			add(rig, root, "FlankStripe", BALL, V3(w * 1.04, h * 0.5, len * 0.03), def.dark, CF(0, h * 0.0, -len * 0.34 + i * len * 0.085), { transparency = 0.2 })
 		end
 	elseif def.pattern == "scales" then
-		for i = 1, 7 do
-			add(rig, root, "BellyPlate", BLOCK, V3(w * 0.5, h * 0.06, len * 0.08), def.belly, CF(0, -h * 0.52, -len * 0.38 + i * len * 0.1))
-			add(rig, root, "ScalePatch", BALL, V3(w * 0.3, h * 0.16, len * 0.1), def.accent, CF((i % 2 == 0 and 1 or -1) * w * 0.32, h * 0.2, -len * 0.36 + i * len * 0.11))
+		for i = 1, 8 do
+			add(rig, root, "BellyPlate", BLOCK, V3(w * 0.5, h * 0.06, len * 0.08), belly, CF(0, -h * 0.55, -len * 0.38 + i * len * 0.1))
+			add(rig, root, "ScalePatch", BALL, V3(w * 0.3, h * 0.16, len * 0.1), def.accent, CF((i % 2 == 0 and 1 or -1) * w * 0.34, h * 0.2, -len * 0.36 + i * len * 0.11))
 		end
+	elseif def.pattern == "saddle" then
+		add(rig, root, "Saddle", BALL, V3(w * 0.88, h * 0.52, len * 0.62), def.accent, CF(0, h * 0.12, 0.02))
 	end
-	if def.nosePatch then
-		add(rig, root, "ChestPatch", BALL, V3(w * 0.5, h * 0.4, len * 0.2), def.belly, CF(0, -h * 0.18, -len * 0.4))
+	if def.nosePatch or def.pattern == "socks" or def.pattern == "tabby" then
+		add(rig, root, "ChestPatch", BALL, V3(w * 0.5, h * 0.4, len * 0.2), belly, CF(0, -h * 0.18, -len * 0.4))
+	end
+	if def.fluff then
+		fluff(rig, root, 5, CF(0, -h * 0.34, -len * 0.42), w * 0.6, belly, h * 0.28)
 	end
 	if def.spikes then
-		for i = 1, 8 do
-			local sz = 0.34 - math.abs(i - 4) * 0.025
-			add(rig, root, "BackSpike", BLOCK, V3(0.1, sz, 0.2), def.spikes, CF(0, h * 0.42 + sz * 0.3, -len * 0.4 + i * len * 0.1), { class = "WedgePart" })
+		for i = 1, 9 do
+			local sz = 0.4 - math.abs(i - 5) * 0.03
+			add(rig, root, "BackSpike", BLOCK, V3(0.1, sz, 0.2), def.spikes, CF(0, h * 0.54 + sz * 0.3, -len * 0.42 + i * len * 0.09), { class = "WedgePart", material = SP })
 		end
 	end
 
-	-- legs: front pair slightly forward, hind pair back (rear legs have big thighs)
+	-- legs
 	local fz, bz = -len * 0.3, len * 0.32
 	local lx = w * 0.32
-	local hindDrop = legH * 0.1 -- bent hind legs are shorter, so their hips sit lower
+	local hindDrop = legH * 0.08
 	leg(rig, def, root, "LegFL", -lx, -h * 0.26, fz, true)
 	leg(rig, def, root, "LegFR", lx, -h * 0.26, fz, true)
 	leg(rig, def, root, "LegBL", -lx, -h * 0.26 - hindDrop, bz, false)
 	leg(rig, def, root, "LegBR", lx, -h * 0.26 - hindDrop, bz, false)
 
-	-- neck and head: the neck leans forward and up, the head is levelled again at its end
+	-- neck: three overlapping ellipsoids that taper toward the head; the head is levelled again at its end
 	local neckLen = def.neck
 	local pitch = math.rad(28 + neckLen * 22)
-	local L = h * (0.38 + neckLen * 0.95)
+	local L = h * (0.4 + neckLen * 0.95)
 	local neck = joint(rig, "Neck", root, CF(0, h * 0.3, -len * 0.38) * ANG(pitch, 0, 0))
-	add(rig, neck, "NeckBody", CYL, V3(L * 1.15, w * 0.6, w * 0.6), def.main, CF(0, 0, -L * 0.5) * ANG(0, math.pi / 2, 0))
-	add(rig, neck, "NeckBase", BALL, V3(w * 0.78, w * 0.8, w * 0.8), def.main, CF(0, -0.05, -L * 0.1))
+	for i, f in { 0.12, 0.45, 0.78 } do
+		local thick = w * (0.9 - 0.18 * i)
+		add(rig, neck, "NeckPart", BALL, V3(thick, thick * 1.05, L * 0.55), main, CF(0, -0.02, -L * f))
+	end
+	add(rig, neck, "Throat", BALL, V3(w * 0.5, w * 0.4, L * 0.7), belly, CF(0, -w * 0.22, -L * 0.45))
+	if def.fluff and not def.mane then
+		add(rig, neck, "Ruff", BALL, V3(w * 1.0, w * 0.9, L * 0.5), belly, CF(0, -w * 0.12, -L * 0.2))
+	end
 	if def.mane and def.ears == "round" and def.tail == "tuft" then
-		-- lion's mane: a thick ring of fur around the head and shoulders
 		for i = 1, 12 do
 			local a2 = (i / 12) * math.pi * 2
 			add(rig, neck, "Mane", BALL, V3(0.7, 0.7, 0.7), i % 2 == 0 and def.mane or def.mane:Lerp(BLACK, 0.2), CF(math.cos(a2) * def.head.Y * 0.62, math.sin(a2) * def.head.Y * 0.62, -L - 0.1))
 		end
 		add(rig, neck, "ManeBack", BALL, V3(def.head.Y * 1.45, def.head.Y * 1.45, def.head.Z * 0.7), def.mane, CF(0, 0, -L + 0.1))
 	elseif def.mane then
-		-- flowing mane along the neck (pegasus)
-		for i = 1, 6 do
-			add(rig, neck, "Mane", BALL, V3(0.16, 0.5, 0.32), def.mane, CF(0, w * 0.32, -i * L * 0.15) * ANG(0.3, 0, 0))
+		for i = 1, 7 do
+			add(rig, neck, "Mane", BALL, V3(0.16, 0.5, 0.34), def.mane, CF(0, w * 0.36, -i * L * 0.14) * ANG(0.3, 0, 0))
 		end
 	end
-	local hd = V3(def.head.X, def.head.Y, def.head.Z)
 	local head = joint(rig, "Head", neck, CF(0, 0, -L) * ANG(-pitch * 0.85, 0, 0))
-	local hw, hh, hl = hd.X, hd.Y, hd.Z
-	add(rig, head, "Skull", BALL, V3(hw, hh, hl), def.main, CF(0, 0, 0))
+	local hw, hh, hl = def.head.X * 1.12, def.head.Y * 1.12, def.head.Z * 1.1
 	local sn = def.snout
-	-- muzzle: upper snout, lower jaw, nose, mouth line
-	add(rig, head, "Muzzle", BALL, V3(sn.X * 1.6, sn.Y * 1.5, sn.Z * 1.7), def.pattern == "scales" and def.main or def.belly == WHITE and def.main or (def.nosePatch and def.nosePatch) or (def.pattern == "none" and def.main) or def.belly, CF(0, -hh * 0.16, -hl * 0.38 - sn.Z * 0.2))
-	add(rig, head, "Jaw", BALL, V3(sn.X * 1.3, sn.Y * 0.9, sn.Z * 1.5), def.belly, CF(0, -hh * 0.3, -hl * 0.34 - sn.Z * 0.1))
-	local tipZ = -hl * 0.38 - sn.Z * 1.05
-	add(rig, head, "Nose", BALL, V3(sn.X * 0.7, sn.Y * 0.55, sn.Y * 0.5), def.nose, CF(0, -hh * 0.08, tipZ))
-	add(rig, head, "Mouth", BLOCK, V3(sn.X * 1.25, 0.03, sn.Z * 1.1), BLACK, CF(0, -hh * 0.27, tipZ + sn.Z * 0.55))
+	add(rig, head, "Skull", BALL, V3(hw, hh, hl), main, CF(0, 0, 0))
+	add(rig, head, "Forehead", BALL, V3(hw * 0.8, hh * 0.5, hl * 0.6), main, CF(0, hh * 0.28, -hl * 0.14))
+	-- muzzle: bridge and tip, lower jaw with a chin, nose pad
+	local muzzleColor = (def.pattern == "none" and def.nosePatch == nil) and main or belly
+	if def.pattern == "scales" or def.pattern == "none" and not def.nosePatch then
+		muzzleColor = main
+	end
+	add(rig, head, "Bridge", BALL, V3(sn.X * 1.5, sn.Y * 1.3, sn.Z * 1.4), main, CF(0, -hh * 0.08, -hl * 0.4 - sn.Z * 0.12))
+	add(rig, head, "MuzzleTip", BALL, V3(sn.X * 1.7, sn.Y * 1.35, sn.Z * 1.0), muzzleColor, CF(0, -hh * 0.15, -hl * 0.4 - sn.Z * 0.5))
+	add(rig, head, "Jaw", BALL, V3(sn.X * 1.35, sn.Y * 0.85, sn.Z * 1.5), belly, CF(0, -hh * 0.3, -hl * 0.34 - sn.Z * 0.12))
+	add(rig, head, "Chin", BALL, V3(sn.X * 0.9, sn.Y * 0.6, sn.Y * 0.7), belly, CF(0, -hh * 0.36, -hl * 0.4 - sn.Z * 0.68))
+	local tipZ = -hl * 0.4 - sn.Z * 1.0
+	add(rig, head, "Nose", BALL, V3(sn.X * 0.85, sn.Y * 0.55, sn.Y * 0.5), def.nose, CF(0, -hh * 0.06, tipZ))
+	for side = -1, 1, 2 do
+		add(rig, head, "Nostril", BALL, V3(sn.X * 0.2, sn.Y * 0.18, 0.03), BLACK, CF(side * sn.X * 0.22, -hh * 0.07, tipZ - sn.Y * 0.2), { material = SP })
+	end
+	add(rig, head, "Philtrum", BLOCK, V3(0.018, sn.Y * 0.7, 0.02), BLACK, CF(0, -hh * 0.2, tipZ + 0.02), { material = SP })
+	-- mouth: a "w" for cats, a long line with turned-down corners for dogs
+	if def.slit and def.kind == "quad" and def.ears ~= "none" then
+		for side = -1, 1, 2 do
+			add(rig, head, "MouthLine", BLOCK, V3(sn.X * 0.7, 0.018, 0.02), BLACK, CF(side * sn.X * 0.35, -hh * 0.27, tipZ + 0.02) * ANG(0, 0, side * -0.4), { material = SP })
+		end
+	else
+		add(rig, head, "Mouth", BLOCK, V3(sn.X * 1.5, 0.022, sn.Z * 1.05), BLACK, CF(0, -hh * 0.27, tipZ + sn.Z * 0.5), { material = SP })
+		for side = -1, 1, 2 do
+			add(rig, head, "MouthCorner", BLOCK, V3(0.02, sn.Y * 0.2, 0.04), BLACK, CF(side * sn.X * 0.74, -hh * 0.3, tipZ + sn.Z * 1.0), { material = SP })
+		end
+	end
 	if def.tongue then
-		add(rig, head, "Tongue", BALL, V3(sn.X * 0.6, 0.06, sn.Z * 0.9), C3(240, 110, 130), CF(0, -hh * 0.3, tipZ + sn.Z * 0.45))
+		add(rig, head, "Tongue", BALL, V3(sn.X * 0.6, 0.07, sn.Z * 0.95), C3(240, 110, 130), CF(0, -hh * 0.31, tipZ + sn.Z * 0.5), { material = SP })
 	end
 	if def.buckTeeth then
-		add(rig, head, "Teeth", BLOCK, V3(0.1, 0.12, 0.04), C3(250, 248, 238), CF(0, -hh * 0.32, tipZ + 0.02))
+		add(rig, head, "Teeth", BLOCK, V3(0.1, 0.12, 0.04), C3(250, 248, 238), CF(0, -hh * 0.32, tipZ + 0.02), { material = SP })
 	end
 	if def.pattern == "tabby" then
 		for i = -1, 1 do
-			add(rig, head, "ForeheadMark", BLOCK, V3(0.04, hh * 0.22, 0.03), def.dark, CF(i * hw * 0.13, hh * 0.3, -hl * 0.4))
+			add(rig, head, "ForeheadMark", BLOCK, V3(0.04, hh * 0.24, 0.03), def.dark, CF(i * hw * 0.13, hh * 0.32, -hl * 0.44))
 		end
 		for side = -1, 1, 2 do
-			add(rig, head, "CheekStripe", BLOCK, V3(hw * 0.2, 0.035, 0.03), def.dark, CF(side * hw * 0.42, -hh * 0.08, -hl * 0.3) * ANG(0, 0, side * 0.2))
+			for k = 0, 1 do
+				add(rig, head, "CheekStripe", BLOCK, V3(hw * 0.22, 0.035, 0.03), def.dark, CF(side * hw * 0.44, -hh * 0.04 - k * 0.07, -hl * 0.3) * ANG(0, 0, side * (0.2 + k * 0.15)))
+			end
 		end
 	elseif def.pattern == "saddle" or def.pattern == "socks" then
-		add(rig, head, "FaceMask", BALL, V3(hw * 0.7, hh * 0.5, hl * 0.4), def.belly, CF(0, -hh * 0.2, -hl * 0.34))
+		add(rig, head, "FaceMask", BALL, V3(hw * 0.7, hh * 0.5, hl * 0.4), belly, CF(0, -hh * 0.2, -hl * 0.34))
 	end
 	if def.nosePatch then
 		add(rig, head, "NosePatch", BALL, V3(sn.X * 1.7, sn.Y * 1.5, sn.Z * 0.7), def.nosePatch, CF(0, -hh * 0.1, -hl * 0.38 - sn.Z * 0.6))
 	end
-	-- eyes + brow ridge
+	-- eyes + brow ridge; cats get whisker pads, dogs get brow dots
 	for side = -1, 1, 2 do
 		local ex = side * hw * 0.3
-		local es = math.max(0.1, hw * 0.26)
-		eye(rig, head, ex, hh * 0.12, -hl * 0.36, es, def.eye, def.slit)
-		add(rig, head, "Brow", BLOCK, V3(es * 1.3, es * 0.22, es * 0.5), def.dark, CF(ex, hh * 0.12 + es * 0.55, -hl * 0.34) * ANG(0, 0, side * -0.25))
+		local es = math.max(0.1, hw * 0.28)
+		eye(rig, head, ex, hh * 0.12, -hl * 0.36, es, def.eye, def.slit, main)
+		add(rig, head, "Brow", BLOCK, V3(es * 1.3, es * 0.2, es * 0.5), def.dark, CF(ex, hh * 0.12 + es * 0.58, -hl * 0.34) * ANG(0, 0, side * -0.25))
 		earShape(rig, def, head, side, hw, hh, hl)
+		if def.whiskers then
+			add(rig, head, "WhiskerPad", BALL, V3(sn.X * 0.9, sn.Y * 0.8, sn.Z * 0.6), belly, CF(side * sn.X * 0.55, -hh * 0.19, tipZ + sn.Z * 0.35))
+		end
 	end
 	if def.horns then
 		for side = -1, 1, 2 do
 			if def.ears == "side" then
-				-- bull horns: out, then up and forward
 				local h1 = joint(rig, side < 0 and "HornL" or "HornR", head, CF(side * hw * 0.5, hh * 0.32, hl * 0.02))
-				add(rig, h1, "HornBase", CYL, V3(0.5, 0.2, 0.2), def.horns, CF(side * 0.22, 0, 0))
-				add(rig, h1, "HornMid", CYL, V3(0.55, 0.15, 0.15), def.horns, CF(side * 0.58, 0.14, 0) * ANG(0, 0, side * 0.6))
-				add(rig, h1, "HornTip", CYL, V3(0.45, 0.1, 0.1), C3(60, 50, 44), CF(side * 0.8, 0.52, -0.05) * ANG(0, 0, side * 1.2))
+				add(rig, h1, "HornBase", CYL, V3(0.5, 0.22, 0.22), def.horns, CF(side * 0.22, 0, 0), { material = SP })
+				add(rig, h1, "HornMid", CYL, V3(0.55, 0.16, 0.16), def.horns, CF(side * 0.58, 0.14, 0) * ANG(0, 0, side * 0.6), { material = SP })
+				add(rig, h1, "HornTip", CYL, V3(0.45, 0.1, 0.1), C3(60, 50, 44), CF(side * 0.8, 0.52, -0.05) * ANG(0, 0, side * 1.2), { material = SP })
 			else
-				-- dragon horns: swept back
-				add(rig, head, "Horn", BLOCK, V3(0.14, 0.14, 0.7), def.horns, CF(side * hw * 0.3, hh * 0.5, hl * 0.2) * ANG(math.rad(-40), 0, 0), { class = "WedgePart" })
+				add(rig, head, "Horn", BLOCK, V3(0.14, 0.14, 0.7), def.horns, CF(side * hw * 0.3, hh * 0.5, hl * 0.2) * ANG(math.rad(-40), 0, 0), { class = "WedgePart", material = SP })
 			end
 		end
 	end
 	if def.fluff then
 		for side = -1, 1, 2 do
-			add(rig, head, "CheekFur", BALL, V3(hw * 0.4, hh * 0.5, hl * 0.4), def.belly, CF(side * hw * 0.38, -hh * 0.22, -hl * 0.08))
+			add(rig, head, "CheekFur", BALL, V3(hw * 0.4, hh * 0.5, hl * 0.4), belly, CF(side * hw * 0.38, -hh * 0.22, -hl * 0.08))
 		end
 	end
 	if def.whiskers then
 		for side = -1, 1, 2 do
 			for i = -1, 1 do
-				add(rig, head, "Whisker", BLOCK, V3(sn.X * 2.2, 0.012, 0.012), C3(244, 244, 244), CF(side * (sn.X * 1.7), -hh * 0.18 + i * 0.045, tipZ + sn.Z * 0.5) * ANG(0, 0, side * (0.12 - i * 0.09)))
+				add(rig, head, "Whisker", BLOCK, V3(sn.X * 2.6, 0.012, 0.012), C3(244, 244, 244), CF(side * (sn.X * 1.9), -hh * 0.18 + i * 0.05, tipZ + sn.Z * 0.5) * ANG(0, 0, side * (0.12 - i * 0.09)), { material = SP })
 			end
 		end
 	end
@@ -359,21 +435,18 @@ local function quadruped(rig, def)
 			local wj = joint(rig, name, root, CF(side * w * 0.4, h * 0.42, -len * 0.14))
 			local span = len * 0.9
 			if def.pattern == "scales" then
-				-- bat-style: arm bone with fingers and a membrane
-				add(rig, wj, "WingArm", CYL, V3(span * 0.55, 0.14, 0.14), def.main, CF(side * span * 0.28, 0.1, 0))
-				add(rig, wj, "WingMembrane", BLOCK, V3(span * 0.95, 0.04, len * 0.55), def.wings, CF(side * span * 0.5, 0, len * 0.2), { class = "Part", transparency = 0.1 })
+				add(rig, wj, "WingArm", CYL, V3(span * 0.55, 0.14, 0.14), def.main, CF(side * span * 0.28, 0.1, 0), { material = SP })
+				add(rig, wj, "WingMembrane", BLOCK, V3(span * 0.95, 0.04, len * 0.55), def.wings, CF(side * span * 0.5, 0, len * 0.2), { material = SP, transparency = 0.1 })
 				for i = 1, 3 do
-					add(rig, wj, "WingFinger", BLOCK, V3(span * 0.8, 0.07, 0.07), def.main, CF(side * span * 0.5, 0.03, len * (0.04 + i * 0.12)) * ANG(0, side * -0.25 * i, 0))
+					add(rig, wj, "WingFinger", BLOCK, V3(span * 0.8, 0.07, 0.07), def.main, CF(side * span * 0.5, 0.03, len * (0.04 + i * 0.12)) * ANG(0, side * -0.25 * i, 0), { material = SP })
 				end
 			else
-				-- feathered wing: a row of long feathers fanning out
-				for i = 1, 7 do
-					local fl = span * (0.55 + 0.07 * (7 - i) * 0.5)
+				for i = 1, 8 do
+					local fl = span * (0.5 + 0.07 * (8 - i) * 0.5)
 					add(rig, wj, "Feather", BALL, V3(fl, 0.07, 0.34), def.wings, CF(side * fl * 0.5, 0.02 * i, len * 0.04 * (i - 2)) * ANG(0, side * -0.14 * (i - 3), side * 0.18))
 				end
 				add(rig, wj, "WingBase", BALL, V3(span * 0.4, 0.2, 0.5), def.wings, CF(side * span * 0.16, 0.08, 0))
 			end
-			-- wings rest folded back by default (they open when flapping)
 			rig.joints[name].base = rig.joints[name].weld.C0
 		end
 	end
@@ -752,9 +825,41 @@ function Audio.purchase()
 	arpeggio({ 3, 5, 8 }, 0.06, 0.55)
 end
 
-function Audio.levelUp()
-	arpeggio({ 1, 3, 5, 8, 10, 13 }, 0.07, 0.7)
-	Audio.play("Flash", 1, 0.4)
+-- A power-up fanfare: sub drop, a rising laser sweep, a bright major chord stab, then a sparkle run.
+-- Built only from the ping / bass / flash sounds that ship with Roblox, so no upload is needed.
+local function chord(speeds, volume)
+	for _, speed in speeds do
+		Audio.play("Tone", speed, volume)
+	end
+end
+
+local function sweep(count, from, to, gap, volume)
+	for i = 0, count - 1 do
+		Audio.play("Tone", from * (to / from) ^ (i / (count - 1)), volume)
+		task.wait(gap)
+	end
+end
+
+function Audio.levelUp(big)
+	task.spawn(function()
+		Audio.play("Bass", 0.5, big and 1 or 0.8)
+		Audio.play("Flash", big and 0.6 or 0.8, 0.5)
+		sweep(big and 16 or 9, 0.6, big and 2.6 or 2, 0.016, 0.3)
+		chord({ 1, 1.26, 1.5, 2 }, big and 0.65 or 0.5)
+		if big then
+			Audio.play("Bass", 0.7, 0.9)
+		end
+		task.wait(0.14)
+		local run = big and { 1.5, 1.68, 2, 2.52, 3, 3.36, 4 } or { 1.5, 2, 2.52 }
+		for _, speed in run do
+			Audio.play("Tone", speed, 0.42)
+			task.wait(0.05)
+		end
+		if big then
+			task.wait(0.06)
+			chord({ 1.33, 1.68, 2, 2.67 }, 0.6) -- the fanfare ends on a bigger chord
+		end
+	end)
 end
 
 function Audio.quest()
@@ -771,8 +876,8 @@ function Audio.event()
 end
 
 function Audio.ascend()
-	arpeggio({ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 }, 0.06, 0.7)
-	Audio.play("Flash", 0.8, 0.6)
+	Audio.levelUp(true)
+	arpeggio({ 6, 7, 8, 9, 10, 11, 12 }, 0.06, 0.6)
 end
 
 function Audio.daily()
@@ -792,8 +897,8 @@ function Audio.error()
 end
 
 function Audio.rank()
-	arpeggio({ 1, 3, 5, 8, 10, 13, 15 }, 0.08, 0.75)
-	Audio.play("Flash", 1, 0.5)
+	Audio.levelUp(true)
+	arpeggio({ 5, 8, 10, 13, 15 }, 0.08, 0.6)
 end
 
 function Audio.win()
@@ -1098,7 +1203,8 @@ end
 -- Body shape by level. Level 1 is a short, very wide, big-headed gag character; it changes
 -- fastest early on and settles into a tall, athletic look around level 1000.
 local APPEARANCE_START = { BodyHeightScale = 0.78, BodyWidthScale = 1.9, BodyDepthScale = 1.75, HeadScale = 1.35, BodyTypeScale = 0, BodyProportionScale = 0 }
-local APPEARANCE_END = { BodyHeightScale = 1.12, BodyWidthScale = 0.92, BodyDepthScale = 0.95, HeadScale = 0.95, BodyTypeScale = 0.3, BodyProportionScale = 0.3 }
+-- Tall, broad-shouldered and athletic by level 1000 (a bit over a head taller than a default avatar).
+local APPEARANCE_END = { BodyHeightScale = 1.3, BodyWidthScale = 1.02, BodyDepthScale = 0.98, HeadScale = 0.94, BodyTypeScale = 0.5, BodyProportionScale = 0.4 }
 function Config.AppearanceScales(level)
 	-- Half of the whole transformation happens in the first 50 levels (a visible step every level).
 	local L = math.clamp(level, 1, 1000)
@@ -1790,11 +1896,16 @@ function Face.build(head, folder, dims, g, w, skin)
 		stick(ball(eyeW * mix(0.3, 0.2, w), Color3.new(0, 0, 0)), head, CFrame.new(x + cross, y, z - eyeW * 0.3), folder)
 		stick(ball(eyeW * 0.1, Color3.new(1, 1, 1)), head, CFrame.new(x + cross + eyeW * 0.12, y + eyeW * 0.14, z - eyeW * 0.36), folder)
 		-- upper lid: covers more of the eye as the face gets sharper (hooded hunter eyes)
-		stick(bit({ Size = Vector3.new(eyeW * 1.1, eyeW * (0.12 + 0.2 * sharp), eyeW * 0.55), Color = skin }), head, CFrame.new(x, y + eyeW * 0.3, z - eyeW * 0.02) * CFrame.Angles(0, 0, side * g.eyeTilt), folder)
+		stick(bit({ Size = Vector3.new(eyeW * 1.1, eyeW * (0.1 + 0.3 * sharp), eyeW * 0.55), Color = skin }), head, CFrame.new(x, y + eyeW * (0.34 - 0.04 * sharp), z - eyeW * 0.02) * CFrame.Angles(0, 0, side * g.eyeTilt), folder)
+		if sharp > 0.5 then
+			-- lower lid and a darker lash line: the intense "hunter eyes" look
+			stick(bit({ Size = Vector3.new(eyeW * 1.05, eyeW * 0.1, eyeW * 0.5), Color = skin }), head, CFrame.new(x, y - eyeW * 0.4, z - eyeW * 0.02), folder)
+			stick(bit({ Size = Vector3.new(eyeW * 1.12, eyeW * 0.06, eyeW * 0.5), Color = dark }), head, CFrame.new(x, y + eyeW * 0.2, z - eyeW * 0.06), folder)
+		end
 		-- brow
-		local browAngle = g.browAngle * sharp * side * -1
+		local browAngle = g.browAngle * 1.4 * sharp * side * -1
 		if not (w > 0.6) then
-			stick(bit({ Size = Vector3.new(W * 0.3, H * 0.07 * g.browThick * (1 + 0.7 * w), D * 0.08), Color = brow }), head, CFrame.new(x, y + eyeW * 0.65, z - D * 0.01) * CFrame.Angles(0, 0, browAngle), folder)
+			stick(bit({ Size = Vector3.new(W * 0.3, H * 0.075 * g.browThick * (1 + 0.7 * w + 0.3 * sharp), D * 0.09), Color = brow }), head, CFrame.new(x, y + eyeW * (0.65 - 0.14 * sharp), z - D * 0.01) * CFrame.Angles(0, 0, browAngle), folder)
 		end
 	end
 	if w > 0.6 then
@@ -1804,7 +1915,7 @@ function Face.build(head, folder, dims, g, w, skin)
 
 	-- Nose: bridge + tip + nostrils. Bigger and rounder when goofy.
 	local noseTip = W * 0.15 * g.noseSize * (1 + 0.9 * w)
-	stick(bit({ Size = Vector3.new(W * 0.09 * g.noseWidth, H * 0.3, D * 0.13), Color = skin }), head, CFrame.new(0, -H * 0.02, z - D * 0.02), folder)
+	stick(bit({ Size = Vector3.new(W * 0.09 * g.noseWidth * (1 - 0.15 * sharp), H * 0.3, D * 0.13), Color = skin }), head, CFrame.new(0, -H * 0.02, z - D * 0.02), folder)
 	stick(ball(Vector3.new(noseTip * g.noseWidth, noseTip, noseTip), skin), head, CFrame.new(0, -H * 0.15, z - D * 0.1), folder)
 	if w > 0.25 then
 		for _, side in { -1, 1 } do
@@ -1829,15 +1940,21 @@ function Face.build(head, folder, dims, g, w, skin)
 		end
 	end
 
-	-- Jaw and chin: the jawline gets more defined with every level.
+	-- Jaw and chin: the jawline gets squarer and the chin stronger with every level.
 	local jaw = g.jaw * sharp
 	if sharp > 0.15 then
-		stick(bit({ Size = Vector3.new(W * (0.34 + 0.24 * jaw), H * 0.16, D * 0.14), Color = skin }), head, CFrame.new(0, -H * 0.46, z + D * 0.02), folder)
+		stick(bit({ Size = Vector3.new(W * (0.38 + 0.3 * jaw), H * 0.16, D * 0.14), Color = skin }), head, CFrame.new(0, -H * 0.46, z + D * 0.02), folder)
+		stick(ball(Vector3.new(W * (0.2 + 0.16 * jaw), H * 0.14, D * 0.2), skin), head, CFrame.new(0, -H * 0.5, z - D * 0.02 * sharp), folder)
+		for _, side in { -1, 1 } do
+			-- the square corners of the jaw
+			stick(bit({ Size = Vector3.new(D * 0.1, H * 0.26 * jaw, D * 0.46), Color = skin }), head, CFrame.new(side * W * 0.45, -H * 0.36, z + D * 0.3), folder)
+		end
 	end
-	-- Cheekbones
+	-- Cheekbones with a soft shadow under them
 	if w < 0.6 then
 		for _, side in { -1, 1 } do
-			stick(ball(Vector3.new(W * 0.17 * g.cheek, H * 0.1, D * 0.1) * sharp, skin:Lerp(Color3.new(1, 1, 1), 0.08)), head, CFrame.new(side * W * 0.32, -H * 0.08, z + D * 0.04), folder)
+			stick(ball(Vector3.new(W * 0.2 * g.cheek, H * 0.11, D * 0.12) * sharp, skin:Lerp(Color3.new(1, 1, 1), 0.1)), head, CFrame.new(side * W * 0.33, -H * 0.06, z + D * 0.04), folder)
+			stick(ball(Vector3.new(W * 0.2 * g.cheek, H * 0.07, D * 0.1) * sharp, dark), head, CFrame.new(side * W * 0.31, -H * 0.17, z + D * 0.05), folder).Transparency = 0.72
 		end
 	end
 	-- Ears
@@ -1860,15 +1977,19 @@ function Face.build(head, folder, dims, g, w, skin)
 	end
 
 	-- Facial hair (only once the face has sharpened; the gag mustache covers the early levels)
-	if w < 0.55 and g.beard ~= "none" then
+	local beard = g.beard
+	if beard == "none" and w < 0.12 and g.chadStubble then
+		beard = "stubble"
+	end
+	if w < 0.55 and beard ~= "none" then
 		local hair = g.hairColor
-		if g.beard == "stubble" then
+		if beard == "stubble" then
 			local rng = Random.new(29)
 			for _ = 1, 26 do
 				local x = (rng:NextNumber() - 0.5) * W * 0.8
 				stick(ball(W * 0.025, hair), head, CFrame.new(x, -H * (0.3 + rng:NextNumber() * 0.2), z - D * 0.01 + (math.abs(x) / W) * D * 0.15), folder)
 			end
-		elseif g.beard == "goatee" then
+		elseif beard == "goatee" then
 			stick(bit({ Size = Vector3.new(W * 0.2, H * 0.2, D * 0.1), Color = hair }), head, CFrame.new(0, -H * 0.47, z - D * 0.02), folder)
 			stick(bit({ Size = Vector3.new(W * 0.34, H * 0.05, D * 0.07), Color = hair }), head, CFrame.new(0, -H * 0.27, z - D * 0.03), folder)
 		else
@@ -1888,6 +2009,45 @@ function Face.build(head, folder, dims, g, w, skin)
 	end
 end
 
+
+-- Styled hair that replaces the avatar's own once you have levelled up a bit (see Quirks).
+function Face.hair(head, folder, dims, g, level)
+	local W, H, D = dims.X, dims.Y, dims.Z
+	local color = g.hairColor
+	local style = g.hairStyle
+	local shade = color:Lerp(Color3.new(1, 1, 1), 0.1)
+	local function hairBit(size, cf, c)
+		local part = ball(size, c or color)
+		part.Material = Enum.Material.Fabric
+		return stick(part, head, cf, folder)
+	end
+	-- base: the top of the head and the back
+	if style == "buzz" then
+		hairBit(Vector3.new(W * 1.03, H * 0.42, D * 1.04), CFrame.new(0, H * 0.42, D * 0.03), color:Lerp(Color3.new(0, 0, 0), 0.1)).Transparency = 0.15
+		return
+	end
+	hairBit(Vector3.new(W * 1.08, H * 0.52, D * 1.1), CFrame.new(0, H * 0.5, D * 0.04))
+	hairBit(Vector3.new(W * 1.02, H * 0.78, D * 0.5), CFrame.new(0, H * 0.2, D * 0.42))
+	-- sideburns
+	for _, side in { -1, 1 } do
+		stick(bit({ Size = Vector3.new(D * 0.1, H * 0.34, D * 0.3), Color = color }), head, CFrame.new(side * W * 0.52, H * 0.26, -D * 0.12), folder)
+	end
+	if style == "quiff" then
+		hairBit(Vector3.new(W * 0.76, H * 0.3, D * 0.62), CFrame.new(0, H * 0.78, -D * 0.22) * CFrame.Angles(math.rad(14), 0, 0), shade)
+		hairBit(Vector3.new(W * 0.9, H * 0.14, D * 0.2), CFrame.new(0, H * 0.52, -D * 0.5))
+	elseif style == "swept" then
+		hairBit(Vector3.new(W * 1.0, H * 0.16, D * 0.24), CFrame.new(W * 0.06, H * 0.5, -D * 0.5) * CFrame.Angles(0, 0, 0.16))
+		hairBit(Vector3.new(W * 0.55, H * 0.22, D * 0.4), CFrame.new(-W * 0.2, H * 0.7, -D * 0.28), shade)
+	elseif style == "slick" then
+		hairBit(Vector3.new(W * 1.0, H * 0.12, D * 0.9), CFrame.new(0, H * 0.7, 0), shade)
+	elseif style == "long" then
+		hairBit(Vector3.new(W * 0.98, H * 1.3, D * 0.24), CFrame.new(0, -H * 0.2, D * 0.56))
+		for _, side in { -1, 1 } do
+			stick(bit({ Size = Vector3.new(D * 0.16, H * 0.9, D * 0.3), Color = color }), head, CFrame.new(side * W * 0.54, -H * 0.1, D * 0.1), folder)
+		end
+		hairBit(Vector3.new(W * 1.0, H * 0.14, D * 0.22), CFrame.new(0, H * 0.5, -D * 0.5) * CFrame.Angles(0, 0, -0.1))
+	end
+end
 
 Face.bit, Face.ball, Face.wedge, Face.stick = bit, ball, wedge, stick
 
@@ -1910,6 +2070,7 @@ local HAIR_COLORS = {
 	Color3.fromRGB(24, 20, 18), Color3.fromRGB(48, 32, 22), Color3.fromRGB(88, 58, 34), Color3.fromRGB(150, 110, 60),
 	Color3.fromRGB(200, 160, 80), Color3.fromRGB(150, 60, 34), Color3.fromRGB(110, 110, 112),
 }
+local HAIRSTYLES = { "swept", "quiff", "slick", "buzz", "long", "swept", "quiff" }
 local BEARDS = { "none", "none", "none", "none", "stubble", "stubble", "stubble", "goatee", "goatee", "full", "full" }
 
 local cache = {}
@@ -1942,6 +2103,8 @@ function Genome.get(userId)
 		mole = rng:NextNumber() < 0.3 and (rng:NextNumber() < 0.5 and -1 or 1) or 0,
 		scar = rng:NextNumber() < 0.12 and (rng:NextNumber() < 0.5 and -1 or 1) or 0,
 		freckles = rng:NextNumber() < 0.25,
+		hairStyle = HAIRSTYLES[rng:NextInteger(1, #HAIRSTYLES)],
+		chadStubble = rng:NextNumber() < 0.55, -- a light stubble once the face is fully chiselled
 		skinShift = range(-0.3, 0.5), -- negative = lighter, positive = darker
 		height = range(0.95, 1.06),
 		width = range(0.94, 1.07),
@@ -2581,7 +2744,7 @@ local function handleAction(p, kind, a, b)
 		Shop.handle(p, kind, a)
 	elseif kind == "OpenCrate" and type(a) == "string" then
 		Crates.open(p, a)
-	elseif kind == "Hatch" or kind == "PetEquip" or kind == "PetUnequip" then
+	elseif kind == "Hatch" or kind == "PetEquip" or kind == "PetUnequip" or kind == "PetBest" then
 		Pets.handle(p, kind, a)
 	elseif kind == "TreadStop" then
 		Treadmill.stop(p)
@@ -2777,6 +2940,199 @@ return Appearance
         </Item>
         <Item class="ModuleScript" referent="15">
           <Properties>
+            <string name="Name">Architecture</string>
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: real-looking buildings. A proper shell with a foundation and entrance step, a tiled floor, walls with
+-- real windows (frame, mullions, glass, sill, lintel), a framed doorway with fluted columns and a keystone arch, corner
+-- quoins, a stepped cornice with dentils, a parapet, and a ceiling with exposed beams and recessed lights.
+local Architecture = {}
+
+local M = Enum.Material
+local C3 = Color3.fromRGB
+local STONE = C3(196, 192, 184)
+local DARKSTONE = C3(150, 146, 140)
+local FRAME = C3(52, 54, 62)
+
+local function block(parent, name, size, cf, color, material, extra)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Anchored = true
+	p.Size = size
+	p.CFrame = cf
+	p.Color = color
+	p.Material = material or M.SmoothPlastic
+	p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+	if extra then
+		for k, v in extra do
+			p[k] = v
+		end
+	end
+	p.Parent = parent
+	return p
+end
+
+local function cylinder(parent, name, length, diameter, cf, color, material)
+	-- an upright cylinder centred at cf
+	return block(parent, name, Vector3.new(length, diameter, diameter), cf * CFrame.Angles(0, 0, math.pi / 2), color, material, { Shape = Enum.PartType.Cylinder })
+end
+
+-- A window set into a wall: frame, mullion cross, glass, sill and lintel. cf is the window centre, looking out of the wall.
+local function window(parent, cf, ww, wh, thick, pal)
+	local bar = 0.28
+	block(parent, "WindowFrameL", Vector3.new(bar, wh, thick * 0.9), cf * CFrame.new(-ww / 2 + bar / 2, 0, 0), FRAME, M.Metal)
+	block(parent, "WindowFrameR", Vector3.new(bar, wh, thick * 0.9), cf * CFrame.new(ww / 2 - bar / 2, 0, 0), FRAME, M.Metal)
+	block(parent, "WindowFrameT", Vector3.new(ww, bar, thick * 0.9), cf * CFrame.new(0, wh / 2 - bar / 2, 0), FRAME, M.Metal)
+	block(parent, "WindowFrameB", Vector3.new(ww, bar, thick * 0.9), cf * CFrame.new(0, -wh / 2 + bar / 2, 0), FRAME, M.Metal)
+	block(parent, "MullionV", Vector3.new(0.16, wh - bar, thick * 0.5), cf, FRAME, M.Metal)
+	block(parent, "MullionH", Vector3.new(ww - bar, 0.16, thick * 0.5), cf * CFrame.new(0, wh * 0.12, 0), FRAME, M.Metal)
+	block(parent, "Glass", Vector3.new(ww - bar, wh - bar, 0.12), cf, C3(170, 210, 235), M.Glass, { Transparency = 0.5, CanCollide = false })
+	block(parent, "Sill", Vector3.new(ww + 0.9, 0.34, thick + 0.8), cf * CFrame.new(0, -wh / 2 - 0.1, -0.35), STONE, M.Concrete)
+	block(parent, "Lintel", Vector3.new(ww + 0.9, 0.55, thick + 0.4), cf * CFrame.new(0, wh / 2 + 0.28, -0.2), STONE, M.Concrete)
+	block(parent, "Keystone", Vector3.new(0.7, 0.8, thick + 0.55), cf * CFrame.new(0, wh / 2 + 0.34, -0.25), DARKSTONE, M.Concrete)
+	-- shutters in the building's accent colour
+	for side = -1, 1, 2 do
+		block(parent, "Shutter", Vector3.new(0.9, wh, 0.2), cf * CFrame.new(side * (ww / 2 + 0.7), 0, -thick * 0.45), pal.accent, M.Wood, { CanCollide = false })
+	end
+end
+
+-- A wall along local X with a row of windows. cf is the wall's bottom centre, the outside faces local -Z.
+local function wall(parent, cf, length, height, thick, pal, windows, ww, sill, wh)
+	local lowH = windows and sill or height
+	block(parent, "WallLow", Vector3.new(length, lowH, thick), cf * CFrame.new(0, lowH / 2, 0), pal.wall, pal.wallMat)
+	-- a stone base course
+	block(parent, "BaseCourse", Vector3.new(length + 0.4, 1.1, thick + 0.4), cf * CFrame.new(0, 0.55, -0.1), DARKSTONE, M.Concrete)
+	if not windows then
+		return
+	end
+	local highH = height - sill - wh
+	block(parent, "WallHigh", Vector3.new(length, highH, thick), cf * CFrame.new(0, sill + wh + highH / 2, 0), pal.wall, pal.wallMat)
+	local edge = -length / 2
+	for _, x in windows do
+		local pier = (x - ww / 2) - edge
+		if pier > 0.05 then
+			block(parent, "Pier", Vector3.new(pier, wh, thick), cf * CFrame.new(edge + pier / 2, sill + wh / 2, 0), pal.wall, pal.wallMat)
+		end
+		edge = x + ww / 2
+		window(parent, cf * CFrame.new(x, sill + wh / 2, 0), ww, wh, thick, pal)
+	end
+	local last = length / 2 - edge
+	if last > 0.05 then
+		block(parent, "Pier", Vector3.new(last, wh, thick), cf * CFrame.new(edge + last / 2, sill + wh / 2, 0), pal.wall, pal.wallMat)
+	end
+end
+
+local function column(parent, cf, height, pal)
+	block(parent, "ColumnPlinth", Vector3.new(2.6, 0.7, 2.6), cf * CFrame.new(0, 0.35, 0), STONE, M.Concrete)
+	block(parent, "ColumnBase", Vector3.new(2.2, 0.5, 2.2), cf * CFrame.new(0, 0.95, 0), DARKSTONE, M.Concrete)
+	cylinder(parent, "ColumnShaft", height - 2.2, 1.6, cf * CFrame.new(0, 1.2 + (height - 2.2) / 2, 0), C3(236, 234, 228), M.Marble)
+	-- flutes: thin ribs around the shaft
+	for i = 1, 8 do
+		local a = (i / 8) * math.pi * 2
+		block(parent, "Flute", Vector3.new(0.12, height - 2.6, 0.12), cf * CFrame.new(math.cos(a) * 0.82, 1.2 + (height - 2.2) / 2, math.sin(a) * 0.82), C3(214, 212, 206), M.Marble, { CanCollide = false })
+	end
+	block(parent, "CapitalNeck", Vector3.new(1.9, 0.4, 1.9), cf * CFrame.new(0, height - 0.95, 0), DARKSTONE, M.Concrete)
+	block(parent, "Capital", Vector3.new(2.7, 0.5, 2.7), cf * CFrame.new(0, height - 0.55, 0), STONE, M.Concrete)
+	block(parent, "CapitalTop", Vector3.new(3.1, 0.35, 3.1), cf * CFrame.new(0, height - 0.15, 0), pal.accent, M.SmoothPlastic)
+	for side = -1, 1, 2 do
+		local scroll = block(parent, "Scroll", Vector3.new(0.7, 0.7, 0.7), cf * CFrame.new(side * 1.25, height - 0.7, 0), STONE, M.Concrete, { Shape = Enum.PartType.Ball })
+		scroll.CanCollide = false
+	end
+end
+
+-- cf: the building frame (floor top at y = 0.9, entrance toward local -Z). pal: wall, wallMat, accent, floorA, floorB, floorMat, roof.
+function Architecture.pavilion(parent, cf, pal)
+	local W, D = 32, 30 -- footprint
+	local H = 12.3 -- wall height above the floor
+	local folder = Instance.new("Folder")
+	folder.Name = "Shell"
+	folder.Parent = parent
+	local floorY = 0.9
+
+	-- foundation, floor slab, tiled floor, entrance step
+	block(folder, "Foundation", Vector3.new(W + 3, 0.6, D + 3), cf * CFrame.new(0, 0.1, 0), DARKSTONE, M.Concrete)
+	block(folder, "Floor", Vector3.new(W, 0.8, D), cf * CFrame.new(0, 0.5, 0), pal.floorB, pal.floorMat)
+	for ix = 0, 7 do
+		for iz = 0, 6 do
+			if (ix + iz) % 2 == 0 then
+				block(folder, "Tile", Vector3.new(W / 8 - 0.05, 0.05, D / 7 - 0.05), cf * CFrame.new(-W / 2 + (ix + 0.5) * W / 8, floorY + 0.03, -D / 2 + (iz + 0.5) * D / 7), pal.floorA, pal.floorMat, { CanCollide = false })
+			end
+		end
+	end
+	block(folder, "EntryStep", Vector3.new(15, 0.3, 2.4), cf * CFrame.new(0, 0.6, -D / 2 - 1.6), STONE, M.Concrete)
+
+	-- walls: back (plain), sides (3 windows each), front (two shop windows either side of a wide doorway)
+	local backCF = cf * CFrame.new(0, floorY, D / 2 + 0.4) * CFrame.Angles(0, math.pi, 0)
+	wall(folder, backCF, W + 1.6, H, 0.9, pal, nil)
+	for side = -1, 1, 2 do
+		local sideCF = cf * CFrame.new(side * (W / 2 + 0.4), floorY, 0) * CFrame.Angles(0, -side * math.pi / 2, 0)
+		wall(folder, sideCF, D, H, 0.9, pal, { -9, 0, 9 }, 5.2, 3.4, 5.2)
+	end
+	local frontZ = -D / 2 - 0.4
+	for side = -1, 1, 2 do
+		-- front wall segment beside the doorway, with a big shop window
+		local segCF = cf * CFrame.new(side * 11.6, floorY, frontZ)
+		wall(folder, segCF, 8.8, H, 0.9, pal, { 0 }, 5.4, 3.0, 5.6)
+	end
+	-- header above the doorway
+	block(folder, "DoorHeader", Vector3.new(14.4, H - 8.6, 0.9), cf * CFrame.new(0, floorY + 8.6 + (H - 8.6) / 2, frontZ), pal.wall, pal.wallMat)
+	block(folder, "DoorLintel", Vector3.new(15.2, 0.7, 1.3), cf * CFrame.new(0, floorY + 8.6, frontZ - 0.15), STONE, M.Concrete)
+	block(folder, "DoorKeystone", Vector3.new(1.4, 1.3, 1.5), cf * CFrame.new(0, floorY + 8.9, frontZ - 0.2), DARKSTONE, M.Concrete)
+	-- door posts and the two fluted columns that frame the entrance
+	for side = -1, 1, 2 do
+		column(folder, cf * CFrame.new(side * 7.6, floorY, frontZ - 1.2), 11.2, pal)
+	end
+
+	-- corner quoins (alternating stone blocks up each outside corner)
+	for sx = -1, 1, 2 do
+		for _, sz in { -1, 1 } do
+			for i = 0, 7 do
+				local long = i % 2 == 0
+				block(folder, "Quoin", Vector3.new(long and 2.2 or 1.6, 1.4, long and 1.6 or 2.2), cf * CFrame.new(sx * (W / 2 + 0.55), floorY + 1.6 + i * 1.45, sz * (D / 2 + 0.55)), STONE, M.Concrete)
+			end
+		end
+	end
+
+	-- stepped cornice with dentils, then the roof, parapet and ceiling
+	block(folder, "CorniceLow", Vector3.new(W + 3.4, 0.45, D + 3.4), cf * CFrame.new(0, floorY + H - 0.1, 0), STONE, M.Concrete)
+	block(folder, "CorniceHigh", Vector3.new(W + 4.4, 0.4, D + 4.4), cf * CFrame.new(0, floorY + H + 0.3, 0), DARKSTONE, M.Concrete)
+	for i = 0, 15 do
+		local t = -W / 2 + (i + 0.5) * W / 16
+		block(folder, "Dentil", Vector3.new(0.7, 0.45, 0.7), cf * CFrame.new(t, floorY + H - 0.55, -D / 2 - 1.5), STONE, M.Concrete, { CanCollide = false })
+		block(folder, "Dentil", Vector3.new(0.7, 0.45, 0.7), cf * CFrame.new(t, floorY + H - 0.55, D / 2 + 1.5), STONE, M.Concrete, { CanCollide = false })
+	end
+	-- the roof must not make the camera zoom in: it is not collidable (nobody can reach it anyway)
+	block(folder, "Roof", Vector3.new(W + 4.6, 1.4, D + 4.6), cf * CFrame.new(0, floorY + H + 1.2, 0), pal.roof, M.Metal, { CanCollide = false })
+	for _, edge in { { 0, -(D + 4.6) / 2, W + 4.6, 0.7 }, { 0, (D + 4.6) / 2, W + 4.6, 0.7 } } do
+		block(folder, "Parapet", Vector3.new(edge[3], 0.9, edge[4]), cf * CFrame.new(edge[1], floorY + H + 2.3, edge[2]), STONE, M.Concrete, { CanCollide = false })
+	end
+	for side = -1, 1, 2 do
+		block(folder, "Parapet", Vector3.new(0.7, 0.9, D + 4.6), cf * CFrame.new(side * (W + 4.6) / 2, floorY + H + 2.3, 0), STONE, M.Concrete, { CanCollide = false })
+	end
+	-- ceiling with exposed beams and recessed lights
+	block(folder, "Ceiling", Vector3.new(W, 0.4, D), cf * CFrame.new(0, floorY + H - 0.7, 0), C3(236, 232, 224), M.SmoothPlastic, { CanCollide = false })
+	for i = -2, 2 do
+		block(folder, "Beam", Vector3.new(0.9, 0.9, D), cf * CFrame.new(i * 7, floorY + H - 1.4, 0), C3(98, 70, 50), M.Wood, { CanCollide = false })
+	end
+	for _, z in { -8, 0, 8 } do
+		for _, x in { -10.5, 0, 10.5 } do
+			local panel = block(folder, "CeilingLight", Vector3.new(3.2, 0.12, 3.2), cf * CFrame.new(x, floorY + H - 0.95, z), C3(255, 248, 226), M.SmoothPlastic, { CanCollide = false })
+			if (x == 0) or (z == 0) then
+				local light = Instance.new("PointLight")
+				light.Range = 26
+				light.Brightness = 0.7
+				light.Color = C3(255, 238, 205)
+				light.Parent = panel
+			end
+		end
+	end
+	return folder
+end
+
+return Architecture
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="16">
+          <Properties>
             <string name="Name">Aura</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the aura around your character grows with every level. More sparks, then flames, a glowing
 -- ring on the ground, a light and finally a halo. Colour follows your looks tier. Everyone can see it.
@@ -2897,7 +3253,7 @@ return Aura
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="16">
+        <Item class="ModuleScript" referent="17">
           <Properties>
             <string name="Name">Board</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the "Top Moggers" screen: the highest levels on this server.
@@ -2939,7 +3295,7 @@ return Board
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="17">
+        <Item class="ModuleScript" referent="18">
           <Properties>
             <string name="Name">Buildings</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: building unlocks. Every building costs Aura; the price tells you how strong you need to be.
@@ -2977,7 +3333,7 @@ return Buildings
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="18">
+        <Item class="ModuleScript" referent="19">
           <Properties>
             <string name="Name">Competition</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Mog Competition. Every few minutes entries open at the central stage.
@@ -3278,7 +3634,7 @@ return Competition
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="19">
+        <Item class="ModuleScript" referent="20">
           <Properties>
             <string name="Name">Cosmetics</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the wardrobe. Owns the inventory (with star levels) and builds the glowing
@@ -3640,7 +3996,7 @@ return Cosmetics
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="20">
+        <Item class="ModuleScript" referent="21">
           <Properties>
             <string name="Name">Crates</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: crate opening. The server decides every roll; the client only plays the reveal.
@@ -3743,7 +4099,7 @@ return Crates
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="21">
+        <Item class="ModuleScript" referent="22">
           <Properties>
             <string name="Name">Daily</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: 7-day login streak. Missing a day restarts the cycle.
@@ -3799,7 +4155,7 @@ return Daily
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="22">
+        <Item class="ModuleScript" referent="23">
           <Properties>
             <string name="Name">Data</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: player save data. Loads/saves with DataStores when available; the game also runs
@@ -3940,7 +4296,7 @@ return Data
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="23">
+        <Item class="ModuleScript" referent="24">
           <Properties>
             <string name="Name">Decor</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: makes every building feel rich. Each one gets its own colour theme, chimneys that puff coloured
@@ -3963,6 +4319,7 @@ local function part(parent, props)
 	p.TopSurface = Enum.SurfaceType.Smooth
 	p.BottomSurface = Enum.SurfaceType.Smooth
 	p.Material = M.SmoothPlastic
+	p.CanCollide = false -- decoration never blocks players (or the camera)
 	for k, v in props do
 		p[k] = v
 	end
@@ -4061,6 +4418,104 @@ function Decor.chimneys(parent, cf, y, spread, color, z)
 	end
 end
 
+
+--------------------------------------------------------------------------------
+-- Interior props that make each building feel like what it is
+--------------------------------------------------------------------------------
+local WOODC = C3(120, 84, 58)
+
+local function gymProps(parent, cf)
+	-- rubber floor mat, squat rack, kettlebells, a plate tree and a pull-up frame
+	block(parent, "RubberMat", Vector3.new(12, 0.07, 9), cf * CFrame.new(9, 0.95, 5), C3(36, 36, 40), M.Rubber)
+	for side = -1, 1, 2 do
+		block(parent, "RackUpright", Vector3.new(0.5, 8, 0.5), cf * CFrame.new(9 + side * 2.2, 4.9, 5), C3(50, 52, 60), M.Metal, { CanCollide = true })
+		block(parent, "RackFoot", Vector3.new(0.6, 0.4, 4), cf * CFrame.new(9 + side * 2.2, 1.1, 5), C3(50, 52, 60), M.Metal)
+	end
+	block(parent, "RackTop", Vector3.new(5.2, 0.5, 0.5), cf * CFrame.new(9, 8.9, 5), C3(50, 52, 60), M.Metal)
+	block(parent, "SquatBar", Vector3.new(7, 0.3, 0.3), cf * CFrame.new(9, 6.4, 5), C3(210, 214, 222), M.Metal)
+	for side = -1, 1, 2 do
+		part(parent, { Name = "BarPlate", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 2.4, 2.4), CFrame = cf * CFrame.new(9 + side * 3.1, 6.4, 5) * CFrame.Angles(0, 0, math.pi / 2), Color = C3(30, 30, 34), Material = M.Metal })
+	end
+	for i = 1, 5 do
+		local x, z = -13, -4 + i * 2.2
+		part(parent, { Name = "Kettlebell", Shape = Enum.PartType.Ball, Size = Vector3.one * (1.1 + i * 0.12), CFrame = cf * CFrame.new(x, 1.7 + i * 0.05, z), Color = i % 2 == 0 and C3(210, 60, 50) or C3(40, 40, 46), Material = M.Metal })
+		part(parent, { Name = "KettlebellHandle", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.18, 0.9, 0.9), CFrame = cf * CFrame.new(x, 2.5 + i * 0.1, z) * CFrame.Angles(0, 0, math.pi / 2), Color = C3(40, 40, 46), Material = M.Metal })
+	end
+	for i = 1, 4 do
+		part(parent, { Name = "WallPlate", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 2.6 - i * 0.25, 2.6 - i * 0.25), CFrame = cf * CFrame.new(14.6, 3 + i * 1.5, -5) * CFrame.Angles(0, 0, 0), Color = i % 2 == 0 and C3(210, 60, 50) or C3(30, 30, 34), Material = M.Metal })
+	end
+end
+
+local function studioProps(parent, cf)
+	-- wash basins along the side wall, pendant lamps over the barber chairs, a waiting bench
+	for i = 1, 2 do
+		local z = -3 + i * 5
+		block(parent, "BasinCabinet", Vector3.new(2.6, 2.6, 3), cf * CFrame.new(-14.2, 2.2, z), C3(246, 242, 238), M.SmoothPlastic, { CanCollide = true })
+		part(parent, { Name = "Basin", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 2.2, 2.2), CFrame = cf * CFrame.new(-14.2, 3.6, z) * CFrame.Angles(0, 0, math.pi / 2), Color = C3(236, 240, 246), Material = M.Marble })
+		block(parent, "Faucet", Vector3.new(0.2, 1.2, 0.2), cf * CFrame.new(-14.9, 4.4, z), C3(210, 214, 222), M.Metal)
+		block(parent, "FaucetSpout", Vector3.new(0.9, 0.18, 0.18), cf * CFrame.new(-14.5, 5, z), C3(210, 214, 222), M.Metal)
+	end
+	for _, x in { -7, 7 } do
+		block(parent, "PendantCord", Vector3.new(0.1, 3.5, 0.1), cf * CFrame.new(x, 10.7, 2), DARK, M.Metal)
+		local lamp = part(parent, { Name = "PendantLamp", Shape = Enum.PartType.Ball, Size = Vector3.new(2.4, 1.8, 2.4), CFrame = cf * CFrame.new(x, 8.8, 2), Color = C3(255, 236, 214), Transparency = 0.1 })
+		glowLight(lamp, C3(255, 226, 190), 24, 1)
+	end
+	block(parent, "WaitingBench", Vector3.new(7, 0.6, 2), cf * CFrame.new(11, 1.8, -3), C3(60, 50, 56), M.Leather, { CanCollide = true })
+	block(parent, "WaitingBenchBack", Vector3.new(7, 2.2, 0.5), cf * CFrame.new(11, 3, -2.2), C3(60, 50, 56), M.Leather)
+	for sx = -1, 1, 2 do
+		block(parent, "WaitingBenchLeg", Vector3.new(0.4, 1.4, 1.6), cf * CFrame.new(11 + sx * 3.2, 1.2, -3), DARK, M.Metal)
+	end
+	-- a rack of products on the back wall
+	for row = 1, 3 do
+		block(parent, "ProductShelf", Vector3.new(7, 0.25, 1), cf * CFrame.new(-11, 3 + row * 2.2, 13.4), C3(236, 230, 224), M.Marble)
+		for i = 1, 6 do
+			part(parent, { Name = "Product", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1, 0.55, 0.55), CFrame = cf * CFrame.new(-13.2 + i * 0.85, 3.7 + row * 2.2, 13.4) * CFrame.Angles(0, 0, math.pi / 2), Color = Color3.fromHSV((i * 0.17 + row * 0.1) % 1, 0.5, 0.95), Material = M.Glass })
+		end
+	end
+end
+
+local function loungeProps(parent, cf)
+	-- a stone fireplace with a real fire and a full bookshelf on the back wall, and two armchairs
+	local fp = cf * CFrame.new(-10.5, 0.9, 13.5)
+	block(parent, "FireplaceStone", Vector3.new(8, 8, 1.8), fp * CFrame.new(0, 4, 0), C3(150, 144, 136), M.Brick, { CanCollide = true })
+	block(parent, "FireplaceHole", Vector3.new(4.4, 3.4, 1.9), fp * CFrame.new(0, 2.4, -0.15), C3(24, 20, 20), M.SmoothPlastic)
+	block(parent, "Mantel", Vector3.new(9, 0.5, 2.6), fp * CFrame.new(0, 5.6, -0.3), WOODC, M.Wood)
+	for i = -1, 1 do
+		part(parent, { Name = "Log", Shape = Enum.PartType.Cylinder, Size = Vector3.new(3.4, 0.7, 0.7), CFrame = fp * CFrame.new(i * 0.9, 1.2 + (i == 0 and 0.5 or 0), -0.6) * CFrame.Angles(0, math.pi / 2, 0), Color = C3(80, 52, 34), Material = M.Wood })
+	end
+	local base = block(parent, "FireBase", Vector3.new(3, 0.4, 1), fp * CFrame.new(0, 1.5, -0.6), C3(255, 140, 40), M.SmoothPlastic, { Transparency = 1 })
+	local flame = Instance.new("Fire")
+	flame.Color = C3(255, 140, 40)
+	flame.SecondaryColor = C3(255, 70, 20)
+	flame.Size = 6
+	flame.Heat = 8
+	flame.Parent = base
+	glowLight(base, C3(255, 150, 70), 28, 1.4)
+	local shelf = cf * CFrame.new(10.8, 0.9, 13.8)
+	block(parent, "BookshelfFrame", Vector3.new(8, 10, 1.4), shelf * CFrame.new(0, 5, 0), WOODC, M.Wood, { CanCollide = true })
+	for row = 1, 4 do
+		block(parent, "Shelf", Vector3.new(7.6, 0.3, 1.5), shelf * CFrame.new(0, row * 2.1, -0.1), C3(98, 68, 46), M.Wood)
+		local rng = Random.new(row * 31)
+		local xpos = -3.6
+		while xpos < 3.4 do
+			local bw = 0.3 + rng:NextNumber() * 0.4
+			local bh = 1.2 + rng:NextNumber() * 0.7
+			block(parent, "Book", Vector3.new(bw, bh, 0.9), shelf * CFrame.new(xpos + bw / 2, row * 2.1 - 2.1 + 0.15 + bh / 2 + 0.0, -0.35), Color3.fromHSV(rng:NextNumber(), 0.55, 0.8), M.SmoothPlastic)
+			xpos += bw + 0.05
+		end
+	end
+	for _, x in { -7, 7 } do
+		local chair = cf * CFrame.new(x, 0.9, 1.5) * CFrame.Angles(0, x < 0 and math.rad(40) or math.rad(-40), 0)
+		block(parent, "ArmchairSeat", Vector3.new(3.4, 1.2, 3.4), chair * CFrame.new(0, 1.2, 0), C3(176, 76, 84), M.Fabric, { CanCollide = true })
+		block(parent, "ArmchairBack", Vector3.new(3.4, 3.2, 0.9), chair * CFrame.new(0, 3, 1.4), C3(160, 66, 74), M.Fabric)
+		for side = -1, 1, 2 do
+			block(parent, "ArmchairArm", Vector3.new(0.7, 2.2, 3.4), chair * CFrame.new(side * 1.9, 1.9, 0), C3(160, 66, 74), M.Fabric)
+		end
+	end
+end
+
+
+
 -- Full interior + exterior treatment for the open pavilions (Gym, Studio, Lounge, Crate Shop).
 -- cf is the pavilion frame (floor top at y = 0.9, entrance toward local -Z, roof at y = 14.4).
 function Decor.pavilion(parent, id, cf)
@@ -4071,22 +4526,9 @@ function Decor.pavilion(parent, id, cf)
 	local lamp = part(parent, { Name = "AuraBeacon", Shape = Enum.PartType.Ball, Size = Vector3.one * 2.6, CFrame = cf * CFrame.new(0, 17, 0), Color = glow, Transparency = 0.15, CanCollide = false })
 	glowLight(lamp, glow, 60, 1.4)
 	Decor.groundAura(parent, cf.Position, 30, glow)
-	-- patterned floor: two coloured rings and a centre medallion
-	for i, r in { 12.5, 8.5, 4.5 } do
-		local ring = part(parent, { Name = "FloorRing", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.06, r * 2, r * 2), CFrame = cf * CFrame.new(0, 0.93 + i * 0.01, 0) * CFrame.Angles(0, 0, math.pi / 2), Color = (i % 2 == 1) and main or main:Lerp(Color3.new(1, 1, 1), 0.6), CanCollide = false })
-		ring.Transparency = 0.1
-	end
-	-- accent light strips under the roof edge
-	for _, z in { -15.5, 15.5 } do
-		local strip = block(parent, "LightStrip", Vector3.new(33, 0.5, 0.5), cf * CFrame.new(0, 13, z), glow, M.SmoothPlastic, { CanCollide = false })
-		glowLight(strip, glow, 24, 0.9)
-	end
-	-- pillar caps in the building colour
-	for sx = -1, 1, 2 do
-		for sz = -1, 1, 2 do
-			block(parent, "PillarCap", Vector3.new(2.6, 0.9, 2.6), cf * CFrame.new(sx * 14.5, 13.8, sz * 13.5), main, M.SmoothPlastic)
-			block(parent, "PillarBase", Vector3.new(2.6, 0.9, 2.6), cf * CFrame.new(sx * 14.5, 1.3, sz * 13.5), main, M.SmoothPlastic)
-		end
+	-- a floor medallion in the building colours under the chandelier
+	for i, r in { 4.4, 3.8, 2.2 } do
+		part(parent, { Name = "FloorMedallion", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.06, r * 2, r * 2), CFrame = cf * CFrame.new(0, 0.95 + i * 0.01, 2) * CFrame.Angles(0, 0, math.pi / 2), Color = (i % 2 == 1) and main or main:Lerp(Color3.new(1, 1, 1), 0.7) })
 	end
 	-- chandelier: a hanging ring of glowing glass balls
 	local chand = cf * CFrame.new(0, 10.5, 2)
@@ -4109,6 +4551,13 @@ function Decor.pavilion(parent, id, cf)
 	block(parent, "Carpet", Vector3.new(6, 0.08, 14), cf * CFrame.new(0, 0.95, -9), main, M.Fabric, { CanCollide = false })
 	block(parent, "CarpetTrim", Vector3.new(6.6, 0.07, 14.6), cf * CFrame.new(0, 0.94, -9), glow, M.Fabric, { CanCollide = false })
 	Decor.exterior(parent, id, cf)
+	if id == "gym" then
+		gymProps(parent, cf)
+	elseif id == "studio" then
+		studioProps(parent, cf)
+	elseif id == "lounge" then
+		loungeProps(parent, cf)
+	end
 end
 
 -- Extra exterior detail for the pavilions: roof tiles, gutters, lanterns, flower boxes, a stone path, floor trim.
@@ -4121,31 +4570,22 @@ function Decor.exterior(parent, id, cf)
 	for i = 1, 6 do
 		block(parent, "RoofTile", Vector3.new(36, 0.3, 5.2), cf * CFrame.new(0, 15.25, -15 + (i - 1) * 6), i % 2 == 0 and main or dark, M.SmoothPlastic)
 	end
-	block(parent, "RoofRidge", Vector3.new(37, 0.8, 1.2), cf * CFrame.new(0, 15.7, 0), glow, M.SmoothPlastic)
-	for _, z in { -16.7, 16.7 } do
-		part(parent, { Name = "Gutter", Shape = Enum.PartType.Cylinder, Size = Vector3.new(36, 0.7, 0.7), CFrame = cf * CFrame.new(0, 14.2, z) * CFrame.Angles(0, 0, 0), Color = DARK, Material = M.Metal, CanCollide = false })
-	end
-	-- floor trim in the building colour
-	block(parent, "TrimFront", Vector3.new(32, 0.12, 0.9), cf * CFrame.new(0, 0.96, -14.4), main, M.SmoothPlastic, { CanCollide = false })
-	block(parent, "TrimBack", Vector3.new(32, 0.12, 0.9), cf * CFrame.new(0, 0.96, 14.0), main, M.SmoothPlastic, { CanCollide = false })
-	for side = -1, 1, 2 do
-		block(parent, "TrimSide", Vector3.new(0.9, 0.12, 29), cf * CFrame.new(side * 15.4, 0.96, 0), main, M.SmoothPlastic, { CanCollide = false })
-	end
+	block(parent, "RoofRidge", Vector3.new(37, 0.8, 1.2), cf * CFrame.new(0, 15.7, 0), glow, M.SmoothPlastic, { CanCollide = false })
 	-- lanterns hanging from the front pillars
 	for side = -1, 1, 2 do
-		block(parent, "LanternChain", Vector3.new(0.12, 1.4, 0.12), cf * CFrame.new(side * 14.5, 12.4, -14.9), DARK, M.Metal, { CanCollide = false })
-		local lantern = block(parent, "Lantern", Vector3.new(1.1, 1.6, 1.1), cf * CFrame.new(side * 14.5, 10.9, -14.9), glow, M.Glass, { Transparency = 0.25, CanCollide = false })
+		block(parent, "LanternChain", Vector3.new(0.12, 1.4, 0.12), cf * CFrame.new(side * 7.6, 11.4, -17.0), DARK, M.Metal, { CanCollide = false })
+		local lantern = block(parent, "Lantern", Vector3.new(1.1, 1.6, 1.1), cf * CFrame.new(side * 7.6, 9.9, -17.0), glow, M.Glass, { Transparency = 0.25, CanCollide = false })
 		glowLight(lantern, glow, 22, 1)
-		block(parent, "LanternCap", Vector3.new(1.4, 0.3, 1.4), cf * CFrame.new(side * 14.5, 11.9, -14.9), DARK, M.Metal, { CanCollide = false })
+		block(parent, "LanternCap", Vector3.new(1.4, 0.3, 1.4), cf * CFrame.new(side * 7.6, 10.9, -17.0), DARK, M.Metal, { CanCollide = false })
 	end
 	-- flower boxes beside the entrance
 	for side = -1, 1, 2 do
-		local box = cf * CFrame.new(side * 9, 0.9, -16.4)
-		block(parent, "FlowerBox", Vector3.new(7, 1.3, 1.8), box * CFrame.new(0, 0.65, 0), C3(120, 82, 56), M.Wood)
-		part(parent, { Name = "Bush", Shape = Enum.PartType.Ball, Size = Vector3.new(6.4, 1.2, 1.5), CFrame = box * CFrame.new(0, 1.5, 0), Color = C3(60, 140, 62), Material = M.Grass, CanCollide = false })
+		local box = cf * CFrame.new(side * 12.8, 0.9, -17.2)
+		block(parent, "FlowerBox", Vector3.new(5.2, 1.3, 1.8), box * CFrame.new(0, 0.65, 0), C3(120, 82, 56), M.Wood)
+		part(parent, { Name = "Bush", Shape = Enum.PartType.Ball, Size = Vector3.new(4.8, 1.2, 1.5), CFrame = box * CFrame.new(0, 1.5, 0), Color = C3(60, 140, 62), Material = M.Grass, CanCollide = false })
 		for i = 1, 8 do
 			local color = ({ main, glow, Color3.new(1, 1, 1), C3(255, 220, 90) })[rng:NextInteger(1, 4)]
-			part(parent, { Name = "Flower", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.6, CFrame = box * CFrame.new(-3 + (i - 1) * 0.85, 2.1 + rng:NextNumber() * 0.2, (rng:NextNumber() - 0.5) * 0.8), Color = color, CanCollide = false })
+			part(parent, { Name = "Flower", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.6, CFrame = box * CFrame.new(-2.3 + (i - 1) * 0.65, 2.1 + rng:NextNumber() * 0.2, (rng:NextNumber() - 0.5) * 0.8), Color = color, CanCollide = false })
 		end
 	end
 	-- a stone path leading out from the entrance
@@ -4167,7 +4607,7 @@ return Decor
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="24">
+        <Item class="ModuleScript" referent="25">
           <Properties>
             <string name="Name">Duels</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: "mog" duels. Two players (or a player and a bot) face off in a 7-second tap battle.
@@ -4492,7 +4932,7 @@ return Duels
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="25">
+        <Item class="ModuleScript" referent="26">
           <Properties>
             <string name="Name">Events</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: a server-wide event every few minutes. Clients read the "Event" attributes on workspace.
@@ -4547,7 +4987,7 @@ return Events
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="26">
+        <Item class="ModuleScript" referent="27">
           <Properties>
             <string name="Name">Hammers</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: click / tap to swing a hammer, plus buying and equipping hammers.
@@ -4712,7 +5152,7 @@ return Hammers
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="27">
+        <Item class="ModuleScript" referent="28">
           <Properties>
             <string name="Name">Nameplate</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the tag above every player. It says what they are (their looks tier)
@@ -4800,7 +5240,7 @@ return Nameplate
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="28">
+        <Item class="ModuleScript" referent="29">
           <Properties>
             <string name="Name">Pets</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: pets. Hatch eggs, equip up to 3; they follow you around (everyone sees them),
@@ -4905,8 +5345,33 @@ function Pets.unequip(p, id)
 	Pets.refresh(p)
 end
 
+-- Equips the strongest pets you own.
+function Pets.best(p)
+	local profile = Data.get(p)
+	if not profile then
+		return
+	end
+	local owned = {}
+	for id, copies in profile.Pets do
+		local pet = Config.PetById[id]
+		if pet then
+			table.insert(owned, { id = id, power = Config.PetMult(pet, copies) })
+		end
+	end
+	table.sort(owned, function(a, b)
+		return a.power > b.power
+	end)
+	profile.PetsEq = {}
+	for i = 1, math.min(Config.PetSlots, #owned) do
+		table.insert(profile.PetsEq, owned[i].id)
+	end
+	Stats.recompute(p)
+end
+
 function Pets.handle(p, kind, id)
-	if kind == "Hatch" and type(id) == "string" then
+	if kind == "PetBest" then
+		Pets.best(p)
+	elseif kind == "Hatch" and type(id) == "string" then
 		Pets.hatch(p, id)
 	elseif kind == "PetEquip" and type(id) == "string" then
 		Pets.equip(p, id)
@@ -4926,7 +5391,7 @@ return Pets
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="29">
+        <Item class="ModuleScript" referent="30">
           <Properties>
             <string name="Name">Playtime</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: play-time gifts. Stay in the server and gifts arrive on their own (Aura + crates),
@@ -4976,7 +5441,7 @@ return Playtime
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="30">
+        <Item class="ModuleScript" referent="31">
           <Properties>
             <string name="Name">Quests</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: an endless chain of small goals. There is always exactly one active quest.
@@ -5042,7 +5507,7 @@ return Quests
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="31">
+        <Item class="ModuleScript" referent="32">
           <Properties>
             <string name="Name">Quirks</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: faces, hair and muscles. Every player has their own face (see Genome) that starts goofy
@@ -5075,40 +5540,74 @@ local function limb(char, r15, r6)
 end
 
 --------------------------------------------------------------------------------
--- Muscles: pecs, shoulders, biceps, thighs and abs grow with level
+-- Muscles: traps, lats (the V-taper), pecs, abs, delts, biceps, forearms, thighs and calves grow with level
 --------------------------------------------------------------------------------
 local function buildPhysique(char, torso, folder, T, level, w, skin)
-	local m = math.clamp((level - 15) / 500, 0, 1)
+	local m = math.clamp((level - 8) / 300, 0, 1)
 	if m <= 0.02 then
 		return
 	end
-	local line = skin:Lerp(Color3.new(0, 0, 0), 0.18)
-	-- pecs
+	local line = skin:Lerp(Color3.new(0, 0, 0), 0.2)
+	local light = skin:Lerp(Color3.new(1, 1, 1), 0.06)
 	for _, side in { -1, 1 } do
-		stick(ball(Vector3.new(T.X * (0.22 + 0.2 * m), T.Y * (0.14 + 0.12 * m), T.Z * (0.18 + 0.18 * m)), skin), torso, CFrame.new(side * T.X * 0.2, T.Y * 0.22, -T.Z * 0.5), folder)
+		-- pecs
+		stick(ball(Vector3.new(T.X * (0.22 + 0.2 * m), T.Y * (0.14 + 0.12 * m), T.Z * (0.18 + 0.2 * m)), skin), torso, CFrame.new(side * T.X * 0.2, T.Y * 0.2, -T.Z * 0.5), folder)
+		-- traps rising to the neck, lats flaring out under the arms (the V-taper)
+		stick(ball(Vector3.new(T.X * (0.18 + 0.12 * m), T.Y * (0.14 + 0.12 * m), T.Z * 0.5), skin), torso, CFrame.new(side * T.X * 0.2, T.Y * 0.5, T.Z * 0.05), folder)
+		stick(ball(Vector3.new(T.X * (0.12 + 0.2 * m), T.Y * 0.62, T.Z * (0.28 + 0.2 * m)), skin), torso, CFrame.new(side * T.X * 0.5, T.Y * 0.02, T.Z * 0.18), folder)
 	end
-	-- abs (only when the belly is gone)
+	stick(bit({ Size = Vector3.new(T.X * 0.03, T.Y * 0.16, T.Z * 0.03), Color = line }), torso, CFrame.new(0, T.Y * 0.2, -T.Z * 0.5), folder)
+	-- abs (a six-pack once the belly is gone)
 	if w < 0.35 and m > 0.12 then
-		for row = 0, 2 do
+		for row = 0, 3 do
 			for _, side in { -1, 1 } do
-				stick(bit({ Size = Vector3.new(T.X * 0.17, T.Y * 0.1, T.Z * 0.06), Color = skin:Lerp(Color3.new(1, 1, 1), 0.05) }), torso, CFrame.new(side * T.X * 0.1, T.Y * (0.0 - row * 0.12), -T.Z * 0.5), folder)
+				stick(bit({ Size = Vector3.new(T.X * 0.18, T.Y * 0.1, T.Z * 0.06), Color = light }), torso, CFrame.new(side * T.X * 0.105, T.Y * (0.0 - row * 0.115), -T.Z * 0.5), folder)
 			end
 		end
-		stick(bit({ Size = Vector3.new(T.X * 0.025, T.Y * 0.4, T.Z * 0.03), Color = line }), torso, CFrame.new(0, -T.Y * 0.1, -T.Z * 0.5), folder)
+		stick(bit({ Size = Vector3.new(T.X * 0.025, T.Y * 0.5, T.Z * 0.03), Color = line }), torso, CFrame.new(0, -T.Y * 0.1, -T.Z * 0.5), folder)
 	end
-	-- shoulders, biceps
-	for _, name in { { "LeftUpperArm", "Left Arm" }, { "RightUpperArm", "Right Arm" } } do
+	-- arms: delts, biceps, triceps, forearms
+	for _, name in { { "LeftUpperArm", "Left Arm", "LeftLowerArm" }, { "RightUpperArm", "Right Arm", "RightLowerArm" } } do
 		local arm = limb(char, name[1], name[2])
 		if arm then
-			stick(ball(arm.Size.X * (1.1 + 0.9 * m), skin), arm, CFrame.new(0, arm.Size.Y * 0.32, 0), folder)
-			stick(ball(Vector3.new(arm.Size.X * (0.9 + 0.7 * m), arm.Size.Y * 0.4, arm.Size.Z * (0.9 + 0.8 * m)), skin), arm, CFrame.new(0, -arm.Size.Y * 0.02, -arm.Size.Z * 0.15), folder)
+			stick(ball(arm.Size.X * (1.15 + 1.1 * m), skin), arm, CFrame.new(0, arm.Size.Y * 0.32, 0), folder)
+			stick(ball(Vector3.new(arm.Size.X * (0.9 + 0.8 * m), arm.Size.Y * 0.42, arm.Size.Z * (0.9 + 0.9 * m)), skin), arm, CFrame.new(0, -arm.Size.Y * 0.02, -arm.Size.Z * 0.15), folder)
+			stick(ball(Vector3.new(arm.Size.X * (0.8 + 0.6 * m), arm.Size.Y * 0.4, arm.Size.Z * (0.8 + 0.6 * m)), skin), arm, CFrame.new(0, -arm.Size.Y * 0.02, arm.Size.Z * 0.2), folder)
+		end
+		local fore = char:FindFirstChild(name[3])
+		if fore then
+			stick(ball(Vector3.new(fore.Size.X * (0.95 + 0.5 * m), fore.Size.Y * 0.5, fore.Size.Z * (0.95 + 0.5 * m)), skin), fore, CFrame.new(0, fore.Size.Y * 0.2, 0), folder)
 		end
 	end
-	-- thighs
-	for _, name in { { "LeftUpperLeg", "Left Leg" }, { "RightUpperLeg", "Right Leg" } } do
+	-- thighs and calves
+	for _, name in { { "LeftUpperLeg", "Left Leg", "LeftLowerLeg" }, { "RightUpperLeg", "Right Leg", "RightLowerLeg" } } do
 		local leg = limb(char, name[1], name[2])
 		if leg and m > 0.2 then
-			stick(ball(Vector3.new(leg.Size.X * (0.95 + 0.5 * m), leg.Size.Y * 0.5, leg.Size.Z * (0.95 + 0.5 * m)), skin), leg, CFrame.new(0, leg.Size.Y * 0.1, -leg.Size.Z * 0.05), folder)
+			stick(ball(Vector3.new(leg.Size.X * (0.95 + 0.55 * m), leg.Size.Y * 0.5, leg.Size.Z * (0.95 + 0.55 * m)), skin), leg, CFrame.new(0, leg.Size.Y * 0.1, -leg.Size.Z * 0.05), folder)
+		end
+		local calf = char:FindFirstChild(name[3])
+		if calf and m > 0.25 then
+			stick(ball(Vector3.new(calf.Size.X * (0.9 + 0.5 * m), calf.Size.Y * 0.5, calf.Size.Z * (0.9 + 0.5 * m)), skin), calf, CFrame.new(0, calf.Size.Y * 0.15, calf.Size.Z * 0.1), folder)
+		end
+	end
+end
+
+-- Hides the avatar's own hair while our styled hair is on (and brings it back at low levels).
+local function setAvatarHair(char, hidden)
+	for _, acc in char:GetChildren() do
+		if acc:IsA("Accessory") and acc.AccessoryType == Enum.AccessoryType.Hair then
+			local handle = acc:FindFirstChild("Handle")
+			if handle then
+				if hidden then
+					if handle:GetAttribute("GlowOrigT") == nil then
+						handle:SetAttribute("GlowOrigT", handle.Transparency)
+					end
+					handle.Transparency = 1
+				else
+					handle.Transparency = handle:GetAttribute("GlowOrigT") or 0
+					handle:SetAttribute("GlowOrigT", nil)
+				end
+			end
 		end
 	end
 end
@@ -5148,6 +5647,11 @@ function Quirks.apply(p)
 	-- Every player gets their own custom face (the default sticker face is hidden).
 	setFace(head, false)
 	Face.build(head, folder, dims, g, w, skin)
+	local styled = profile.Level >= 40
+	setAvatarHair(char, styled)
+	if styled then
+		Face.hair(head, folder, dims, g, profile.Level)
+	end
 
 	if w > 0.02 then
 		-- Hair all over the face
@@ -5200,7 +5704,7 @@ return Quirks
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="32">
+        <Item class="ModuleScript" referent="33">
           <Properties>
             <string name="Name">Runway</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the runway in the middle of the district. Walk it for a steady Aura trickle that
@@ -5241,7 +5745,7 @@ return Runway
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="33">
+        <Item class="ModuleScript" referent="34">
           <Properties>
             <string name="Name">Shards</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the gym-and-health pickups scattered around the plaza: apples, protein shakes,
@@ -5487,7 +5991,7 @@ return Shards
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="34">
+        <Item class="ModuleScript" referent="35">
           <Properties>
             <string name="Name">Shop</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades and rebirth.
@@ -5559,7 +6063,7 @@ return Shop
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="35">
+        <Item class="ModuleScript" referent="36">
           <Properties>
             <string name="Name">Stats</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the heart of progression. Owns Aura, stats, Glow Score, rank and the
@@ -5947,7 +6451,7 @@ return Stats
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="36">
+        <Item class="ModuleScript" referent="37">
           <Properties>
             <string name="Name">Store</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: real-money store (game passes + Aura packs). Nothing is charged until you paste real ids into
@@ -6024,7 +6528,7 @@ return Store
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="37">
+        <Item class="ModuleScript" referent="38">
           <Properties>
             <string name="Name">Training</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame. A marker sweeps a bar; hit the zone for stat gains.
@@ -6202,7 +6706,7 @@ return Training
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="38">
+        <Item class="ModuleScript" referent="39">
           <Properties>
             <string name="Name">Treadmill</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: treadmills. Buy one with Aura, press the use button to hop on and run. You earn Aura (and a little
@@ -6434,7 +6938,7 @@ return Treadmill
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="39">
+        <Item class="ModuleScript" referent="40">
           <Properties>
             <string name="Name">Tutorial</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the first-time tutorial. Five short steps that teach the core loop (swing, hammer, train, pet,
@@ -6541,7 +7045,7 @@ return Tutorial
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="40">
+        <Item class="ModuleScript" referent="41">
           <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: builds the whole town from code (nothing to import).
@@ -6552,6 +7056,7 @@ local Lighting = game:GetService("Lighting")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Decor = require(script.Parent.Decor)
+local Architecture = require(script.Parent.Architecture)
 local Util = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"))
 local HammerModel = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HammerModel"))
 
@@ -6758,18 +7263,19 @@ end
 --------------------------------------------------------------------------------
 -- Pavilions (training stations)
 --------------------------------------------------------------------------------
-local function pavilion(parent, pos, inward, roofColor, signText, signColor, floorColor, floorMaterial, wallColor)
+local function pavilion(parent, pos, inward, roofColor, signText, signColor, floorColor, floorMaterial, wallColor, wallMaterial)
 	local cf = CFrame.lookAt(pos, pos + inward)
-	block(parent, "Floor", Vector3.new(32, 0.8, 30), cf * CFrame.new(0, 0.5, 0), floorColor or C3(160, 160, 166), floorMaterial or M.Concrete)
-	for sx = -1, 1, 2 do
-		for sz = -1, 1, 2 do
-			block(parent, "Pillar", Vector3.new(1.8, 13, 1.8), cf * CFrame.new(sx * 14.5, 7.3, sz * 13.5), WHITE, M.Concrete)
-		end
-	end
-	block(parent, "Roof", Vector3.new(35, 1.4, 33), cf * CFrame.new(0, 14.4, 0), roofColor)
-	block(parent, "RoofTrim", Vector3.new(36, 0.6, 34), cf * CFrame.new(0, 13.5, 0), WHITE)
-	block(parent, "BackWall", Vector3.new(32, 12, 1), cf * CFrame.new(0, 7, 14.6), wallColor or C3(214, 208, 196), M.Concrete)
-	sign(parent, (cf * CFrame.new(0, 18.6, -16)).Position, inward, Vector3.new(26, 5, 0.6), signText, signColor)
+	local floor = floorColor or C3(160, 160, 166)
+	Architecture.pavilion(parent, cf, {
+		wall = wallColor or C3(214, 208, 196),
+		wallMat = wallMaterial or M.Concrete,
+		accent = signColor or RED,
+		floorA = floor:Lerp(WHITE, 0.35),
+		floorB = floor:Lerp(DARK, 0.2),
+		floorMat = floorMaterial or M.Concrete,
+		roof = roofColor,
+	})
+	sign(parent, (cf * CFrame.new(0, 19.2, -16)).Position, inward, Vector3.new(26, 5, 0.6), signText, signColor)
 	return cf
 end
 
@@ -7054,7 +7560,7 @@ end
 
 local function buildGym(parent)
 	local pos, inward = stationAt("Gym")
-	local cf = pavilion(parent, pos, inward, RED, "💪  GYM", C3(150, 30, 20), C3(48, 50, 56), M.Slate, C3(150, 60, 55))
+	local cf = pavilion(parent, pos, inward, RED, "💪  GYM", C3(150, 30, 20), C3(48, 50, 56), M.Slate, C3(150, 64, 56), M.Brick)
 	Decor.pavilion(parent, "gym", cf)
 	-- Bench press
 	block(parent, "Bench", Vector3.new(2.4, 1.2, 6.5), cf * CFrame.new(0, 1.9, 2), C3(40, 40, 46), M.SmoothPlastic)
@@ -7081,7 +7587,7 @@ end
 
 local function buildStudio(parent)
 	local pos, inward = stationAt("Studio")
-	local cf = pavilion(parent, pos, inward, C3(190, 70, 140), "💈  STYLE STUDIO", C3(130, 40, 100), C3(242, 190, 214), M.Marble, C3(236, 170, 200))
+	local cf = pavilion(parent, pos, inward, C3(190, 70, 140), "💈  STYLE STUDIO", C3(130, 40, 100), C3(242, 190, 214), M.Marble, C3(238, 196, 214), M.Marble)
 	Decor.pavilion(parent, "studio", cf)
 	for i, x in { -7, 7 } do
 		local c = cf * CFrame.new(x, 0, 2)
@@ -7107,7 +7613,7 @@ end
 
 local function buildLounge(parent)
 	local pos, inward = stationAt("Lounge")
-	local cf = pavilion(parent, pos, inward, C3(60, 140, 190), "🛋️  CHARM LOUNGE", C3(30, 90, 140), C3(170, 122, 84), M.WoodPlanks, C3(96, 170, 190))
+	local cf = pavilion(parent, pos, inward, C3(60, 140, 190), "🛋️  CHARM LOUNGE", C3(30, 90, 140), C3(170, 122, 84), M.WoodPlanks, C3(90, 168, 188), M.Concrete)
 	Decor.pavilion(parent, "lounge", cf)
 	disk(parent, "Rug", (cf * CFrame.new(0, 0.9, 1)).Position, 9, 0.1, C3(190, 70, 90), M.Fabric)
 	block(parent, "SofaSeat", Vector3.new(11, 1.6, 4), cf * CFrame.new(0, 2, 11), C3(120, 80, 150), M.Fabric)
@@ -7505,15 +8011,15 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="41">
+  <Item class="StarterPlayer" referent="42">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="42">
+    <Item class="StarterPlayerScripts" referent="43">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="43">
+      <Item class="LocalScript" referent="44">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: client entry point. Builds the interface, wires the menu tabs, and routes everything
@@ -7684,7 +8190,7 @@ end
 
 -- Plain level-ups stay small (a toast); every 10th level gets a proper moment.
 function handlers.level(level, aura, crates)
-	Audio.quest()
+	Audio.levelUp(level % 10 == 0)
 	Audio.say("levelup")
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	if root then
@@ -7693,7 +8199,6 @@ function handlers.level(level, aura, crates)
 		Fx.burst(root.Position, UI.Colors.Gold, level % 10 == 0 and 50 or 16)
 	end
 	if level % 10 == 0 then
-		Audio.levelUp()
 		Fx.shake(0.3, 0.4)
 		Fx.flash(UI.Colors.Gold, 0.25, 0.6)
 		Fx.announce("LEVEL " .. level, "+" .. Util.fmt(aura) .. " Aura" .. (crates > 0 and "  +  free crate" or ""), UI.Colors.Gold, 0.3)
@@ -7812,7 +8317,7 @@ end
 
 function handlers.tutorialDone(aura, crates)
 	Audio.say("done")
-	Audio.levelUp()
+	Audio.levelUp(true)
 	Fx.flash(UI.Colors.Gold, 0.3, 0.6)
 	Fx.announce("TUTORIAL COMPLETE", string.format("+%s Aura  +%d crates. Now go mog them all!", Util.fmt(aura), crates), UI.Colors.Gold, 0.22)
 end
@@ -7820,7 +8325,7 @@ end
 function handlers.building(id)
 	local def = Config.Buildings[id]
 	Audio.say("unlock")
-	Audio.levelUp()
+	Audio.levelUp(true)
 	Fx.shake(0.35, 0.4)
 	Fx.flash(def.Glow, 0.3, 0.6)
 	local pos = Config.BuildingPos[id]()
@@ -7909,11 +8414,11 @@ task.spawn(function()
 end)
 ]]></string>
         </Properties>
-        <Item class="Folder" referent="44">
+        <Item class="Folder" referent="45">
           <Properties>
             <string name="Name">Modules</string>
           </Properties>
-          <Item class="ModuleScript" referent="45">
+          <Item class="ModuleScript" referent="46">
             <Properties>
               <string name="Name">CompetitionUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: Mog Competition overlay. Everyone on stage flexes (taps) for 8 seconds; a live
@@ -8197,7 +8702,7 @@ return CompetitionUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="46">
+          <Item class="ModuleScript" referent="47">
             <Properties>
               <string name="Name">DuelUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: duel overlay. Both sides tap as fast as they can for 7 seconds; Mog Power gives an
@@ -8437,7 +8942,7 @@ return DuelUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="47">
+          <Item class="ModuleScript" referent="48">
             <Properties>
               <string name="Name">Fx</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
@@ -8675,7 +9180,7 @@ return Fx
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="48">
+          <Item class="ModuleScript" referent="49">
             <Properties>
               <string name="Name">Guide</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the welcome guide. Shown once on a player's very first visit (and again from the ? button):
@@ -8883,7 +9388,7 @@ return Guide
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="49">
+          <Item class="ModuleScript" referent="50">
             <Properties>
               <string name="Name">HammerRow</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: floating OWNED / EQUIPPED / price labels over every hammer pedestal.
@@ -9008,7 +9513,7 @@ return HammerRow
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="50">
+          <Item class="ModuleScript" referent="51">
             <Properties>
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the always-on screen.
@@ -9149,8 +9654,16 @@ local function buildTop(gui, Menu)
 		return label
 	end
 	refs.rebirthPill = counter(1, 90, C.Mint, C.Mint)
-	refs.multPill = counter(2, 130, C.Pink, C.Pink)
+	-- The store button only shows once at least one real purchase has been set up in Config.Store.
+	local storeLive = false
+	for _, pass in Config.Store.Passes do
+		storeLive = storeLive or pass.PassId ~= 0
+	end
+	for _, product in Config.Store.Products do
+		storeLive = storeLive or product.ProductId ~= 0
+	end
 	local store = UI.button(row, {
+		Visible = storeLive,
 		LayoutOrder = 3,
 		Size = UDim2.fromOffset(104, 30),
 		BackgroundColor3 = C.Accent2,
@@ -9710,9 +10223,8 @@ function Hud.refresh()
 
 	-- Banner + pills
 	local mult = Hud.swingMult()
-	refs.banner.Text = string.format("Click / tap to train  •  ×%s Aura  •  Rebirth at Level %d", Util.fmt(mult), need)
+	refs.banner.Text = string.format("Click to swing  •  ×%s  •  Rebirth at Lv %d", Util.fmt(mult), need)
 	refs.rebirthPill.Text = "★ " .. rebirths
-	refs.multPill.Text = "×" .. Util.fmt(mult) .. " per swing"
 
 	-- Rebirth button percentage + window
 	local pct = math.clamp(level / need, 0, 1)
@@ -9771,7 +10283,7 @@ function Hud.refresh()
 	local left = (workspace:GetAttribute("EventEnd") or 0) - workspace:GetServerTimeNow()
 	if ev and left > 0 then
 		refs.event.Visible = true
-		refs.eventText.Text = string.format("%s %s  %s  ·  %s", ev.Icon, ev.Name, Util.clock(left), ev.Desc)
+		refs.eventText.Text = string.format("%s %s  %s", ev.Icon, ev.Name, Util.clock(left))
 		refs.eventText.TextColor3 = C.Pink
 	else
 		refs.event.Visible = false
@@ -9782,7 +10294,7 @@ function Hud.refresh()
 	local compLeft = (workspace:GetAttribute("CompEnd") or 0) - workspace:GetServerTimeNow()
 	if compState == "open" and compLeft > 0 then
 		refs.comp.Visible = true
-		refs.compText.Text = string.format("🏆 MOG COMPETITION OPEN %s  ·  press MOG", Util.clock(compLeft))
+		refs.compText.Text = string.format("🏆 Mog Competition OPEN  %s", Util.clock(compLeft))
 		refs.compText.TextColor3 = C.Orange
 	elseif compState == "idle" and compLeft > 0 then
 		refs.comp.Visible = true
@@ -9815,7 +10327,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="51">
+          <Item class="ModuleScript" referent="52">
             <Properties>
               <string name="Name">Interact</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: "use" button for every place and hammer. Stand near something and a big button
@@ -10020,7 +10532,7 @@ return Interact
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="52">
+          <Item class="ModuleScript" referent="53">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the one main menu. A single window with a tab list so the screen never fills up with
@@ -10265,7 +10777,7 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="53">
+          <Item class="ModuleScript" referent="54">
             <Properties>
               <string name="Name">Orbs</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: pickups bob and spin locally so the server never has to animate them, and
@@ -10322,7 +10834,7 @@ return Orbs
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="54">
+          <Item class="ModuleScript" referent="55">
             <Properties>
               <string name="Name">PetsView</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: draws every player's equipped pets on your own screen. They trot after their owner with real
@@ -10361,7 +10873,7 @@ local function rebuild(view, eq)
 		local rig = def and Animals.build(def.Species)
 		if rig then
 			rig.model.Parent = folder
-			table.insert(view.pets, { rig = rig, pos = nil, yaw = 0, groundY = nil, lastRay = 0 })
+			table.insert(view.pets, { rig = rig, pos = nil, yaw = 0, groundY = nil, lastRay = 0, shown = true })
 		end
 	end
 end
@@ -10423,6 +10935,11 @@ local function step(player, view, dt, now)
 		local diff = (targetYaw - pet.yaw + math.pi) % (math.pi * 2) - math.pi
 		pet.yaw += diff * math.min(1, dt * 8)
 		local near = (camera.CFrame.Position - pet.pos).Magnitude < NEAR
+		-- far-away pets are taken out of the world entirely (they have 100+ parts each)
+		if near ~= pet.shown then
+			pet.shown = near
+			rig.model.Parent = near and folder or nil
+		end
 		local breath = near and Animals.animate(rig, dt, speed) or 0
 		local bob = 0
 		if rig.def.float and rig.def.float > 0 then
@@ -10468,7 +10985,7 @@ return PetsView
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="55">
+          <Item class="ModuleScript" referent="56">
             <Properties>
               <string name="Name">Runner</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: everything you see and feel while running on a treadmill: the run animation, a wider field of
@@ -10594,7 +11111,7 @@ return Runner
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="56">
+          <Item class="ModuleScript" referent="57">
             <Properties>
               <string name="Name">Swing</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: click / tap anywhere (or hold) to swing your hammer at your own face.
@@ -10739,7 +11256,7 @@ return Swing
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="57">
+          <Item class="ModuleScript" referent="58">
             <Properties>
               <string name="Name">TabCrates</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: crates tab. The server rolls; this plays the reveal (a spinning reel that slows
@@ -11038,7 +11555,7 @@ return TabCrates
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="58">
+          <Item class="ModuleScript" referent="59">
             <Properties>
               <string name="Name">TabPets</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Pets tab. Hatch eggs at the top, manage your pets below.
@@ -11082,6 +11599,19 @@ function TabPets.build(parent, Action)
 		TextWrapped = false,
 		Text = "🐾  Pets",
 	})
+	local best = UI.button(parent, {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -52, 0, 0),
+		Size = UDim2.fromOffset(120, 26),
+		BackgroundColor3 = C.Gold,
+		Text = "⭐ EQUIP BEST",
+		TextSize = 12,
+		Radius = 8,
+	}, "card")
+	best.Activated:Connect(function()
+		Audio.click()
+		Action:FireServer("PetBest")
+	end)
 	local summary = UI.label(parent, {
 		Position = UDim2.fromOffset(0, 28),
 		Size = UDim2.new(1, 0, 0, 20),
@@ -11221,7 +11751,7 @@ function TabPets.build(parent, Action)
 		for _ in on do
 			count += 1
 		end
-		summary.Text = string.format("Equipped %d/%d   ·   Pet bonus +%d%% Aura   ·   click a pet to equip it", count, Config.PetSlots, math.floor((player:GetAttribute("PetMult") or 0) * 100 + 0.5))
+		summary.Text = string.format("Equipped %d/%d   ·   Pet bonus +%d%% Aura", count, Config.PetSlots, math.floor((player:GetAttribute("PetMult") or 0) * 100 + 0.5))
 		for id, cost in eggButtons do
 			local egg = Config.EggById[id]
 			cost.TextColor3 = aura >= egg.Cost and C.Yellow or C.Danger
@@ -11248,7 +11778,7 @@ return TabPets
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="59">
+          <Item class="ModuleScript" referent="60">
             <Properties>
               <string name="Name">TabProfile</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: your character sheet: rank, stats, duel record and the current quest.
@@ -11427,7 +11957,7 @@ return TabProfile
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="60">
+          <Item class="ModuleScript" referent="61">
             <Properties>
               <string name="Name">TabRewards</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: daily streak rewards and the current server event.
@@ -11553,7 +12083,7 @@ return TabRewards
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="61">
+          <Item class="ModuleScript" referent="62">
             <Properties>
               <string name="Name">TabSettings</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: simple toggles. Settings are saved on the server so they follow the player.
@@ -11658,7 +12188,7 @@ return TabSettings
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="62">
+          <Item class="ModuleScript" referent="63">
             <Properties>
               <string name="Name">TabStore</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Store tab (real Robux). Offers without a real id yet show "COMING SOON".
@@ -11779,7 +12309,7 @@ return TabStore
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="63">
+          <Item class="ModuleScript" referent="64">
             <Properties>
               <string name="Name">TabUpgrades</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades (bought with Aura) and the rebirth button.
@@ -11939,7 +12469,7 @@ return TabUpgrades
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="64">
+          <Item class="ModuleScript" referent="65">
             <Properties>
               <string name="Name">TabWardrobe</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the wardrobe. A collection grid: owned items can be worn, unowned ones show as locked
@@ -12166,7 +12696,7 @@ return TabWardrobe
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="65">
+          <Item class="ModuleScript" referent="66">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -12276,7 +12806,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="66">
+          <Item class="ModuleScript" referent="67">
             <Properties>
               <string name="Name">TrainingUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame overlay. A marker sweeps a bar; press Space (or tap) while it
@@ -12541,7 +13071,7 @@ return TrainingUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="67">
+          <Item class="ModuleScript" referent="68">
             <Properties>
               <string name="Name">Tutorial</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the first-time tutorial card and the bouncing arrow that points at where to go.
@@ -12741,7 +13271,7 @@ return Tutorial
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="68">
+          <Item class="ModuleScript" referent="69">
             <Properties>
               <string name="Name">WorldTags</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: floating signs over every building and treadmill that show what it costs, what it gives and
@@ -12818,20 +13348,18 @@ local function buildBuildingTags()
 		local def = Config.Buildings[id]
 		local at = Config.BuildingPos[id]()
 		local height = (id == "stage" or id == "battle") and 40 or (id == "treadmills" and 28 or 22)
-		local frame, stroke = makeTag(anchorAt(at + Vector3.new(0, height, 0)), Vector3.zero, 190, 62, 190)
+		local frame, stroke = makeTag(anchorAt(at + Vector3.new(0, height, 0)), Vector3.zero, 180, 46, 190)
 		line(frame, 3, 18, 13, def.Main:Lerp(Color3.new(1, 1, 1), 0.4), def.Name:upper())
-		line(frame, 21, 14, 10, C.Muted, "Aura: " .. def.Aura, UI.Fonts.Bold)
-		local status = line(frame, 37, 20, 15, C.Yellow, "")
+		local status = line(frame, 22, 20, 15, C.Yellow, "")
 		buildingTags[id] = { status = status, stroke = stroke, def = def }
 	end
 end
 
 local function buildTreadTags(row)
 	for _, t in Config.Treadmills do
-		local frame, stroke = makeTag(anchorAt(Config.TreadPos(t.Id) + Vector3.new(0, 12.5, 0)), Vector3.zero, 118, 58, 80)
-		line(frame, 3, 14, 11, t.Color, (t.Name:gsub(" Treadmill", "")):upper() .. " TREADMILL")
-		line(frame, 17, 22, 18, t.Color, "+" .. Util.fmt(t.Rate) .. "/s")
-		local status = line(frame, 39, 16, 12, C.Yellow, "")
+		local frame, stroke = makeTag(anchorAt(Config.TreadPos(t.Id) + Vector3.new(0, 12.5, 0)), Vector3.zero, 110, 44, 80)
+		line(frame, 3, 22, 18, t.Color, "+" .. Util.fmt(t.Rate) .. "/s")
+		local status = line(frame, 25, 16, 12, C.Yellow, "")
 		treadTags[t.Id] = { status = status, stroke = stroke, def = t }
 	end
 end
@@ -12891,7 +13419,7 @@ return WorldTags
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="69">
+  <Item class="Workspace" referent="70">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>
