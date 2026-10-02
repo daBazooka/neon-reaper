@@ -55,6 +55,20 @@ function Stats.computeScore(profile)
 	return math.floor(total * Config.RebirthMult(profile.Rebirths))
 end
 
+-- Extra Aura multiplier and Aura/second from equipped pets.
+function Stats.petBonus(profile)
+	local mult, aps = 0, 0
+	for _, id in profile.PetsEq do
+		local pet = Config.PetById[id]
+		local copies = profile.Pets[id]
+		if pet and copies then
+			mult += Config.PetMult(pet, copies)
+			aps += Config.PetAps(pet, copies)
+		end
+	end
+	return mult, aps
+end
+
 function Stats.computeRate(profile)
 	local total = 0
 	for slot, id in profile.Eq do
@@ -64,7 +78,8 @@ function Stats.computeRate(profile)
 			total += Config.CosmeticAps(c, stars)
 		end
 	end
-	return total * Config.RebirthMult(profile.Rebirths) * Config.BoostMult(profile.Levels.Boost or 0)
+	local _, petAps = Stats.petBonus(profile)
+	return (total + petAps) * Config.RebirthMult(profile.Rebirths) * Config.BoostMult(profile.Levels.Boost or 0)
 end
 
 function Stats.score(p)
@@ -114,6 +129,15 @@ function Stats.recompute(p)
 	p:SetAttribute("Hammer", profile.Hammer)
 	p:SetAttribute("HammersOwned", Stats.ownedString(profile))
 	p:SetAttribute("Swings", profile.Swings)
+	local petMult = Stats.petBonus(profile)
+	p:SetAttribute("PetMult", petMult)
+	p:SetAttribute("PetsEq", table.concat(profile.PetsEq, ","))
+	local owned = {}
+	for id, n in profile.Pets do
+		table.insert(owned, id .. ":" .. n)
+	end
+	table.sort(owned)
+	p:SetAttribute("Pets", table.concat(owned, ","))
 	setLeaderstat(p, "Level", profile.Level)
 	setLeaderstat(p, "Rebirths", profile.Rebirths)
 
@@ -236,6 +260,7 @@ function Stats.addAura(p, base, opts)
 			* Config.RebirthMult(profile.Rebirths)
 			* Config.BoostMult(profile.Levels.Boost or 0)
 			* Stats.eventMult("AuraMult")
+			* (1 + (Stats.petBonus(profile)))
 	end
 	amount = math.max(0, math.floor(amount + 0.5))
 	profile.Aura += amount

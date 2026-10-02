@@ -23,7 +23,7 @@ check(true, "render loop runs")
 
 -- every tab opens + refreshes
 local Menu = require(ModN.children.Menu)
-for _, name in {"Wardrobe", "Crates", "Upgrades", "Profile", "Rewards", "Settings"} do
+for _, name in {"Wardrobe", "Crates", "Pets", "Upgrades", "Profile", "Rewards", "Settings"} do
 	local ok2, e2 = pcall(Menu.open, name)
 	check(ok2, "open tab " .. name .. " " .. tostring(e2))
 	local ok3, e3 = pcall(Menu.refresh)
@@ -74,8 +74,10 @@ advance(1)
 send("duelEnd", false, 40, 20, 50, 40, 70, 0)
 advance(5)
 -- hammers + interact button + click to swing
+a.Pets = "cat:2,dragon:1"; a.PetsEq = "cat,dragon"; a.PetMult = 5.3
 a.Hammer = 1; a.HammersOwned = "1,2"; a.Swings = 10; a.RebirthNeed = 35
 send("swing", 14); send("swing", 14); send("swing", 14); send("swing", 14)
+send("hatch", "gold", "dragon", 1); send("hatch", "basic", "cat", 3); send("hatch", "mog", "angel", 1)
 send("hammer", 3, "bought"); send("hammer", 1, "equipped")
 local Config = require(RS.children.Shared.children.Config)
 local places = {

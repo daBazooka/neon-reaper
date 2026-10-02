@@ -22,6 +22,7 @@ local Hud = require(Modules.Hud)
 local TabWardrobe = require(Modules.TabWardrobe)
 local TabCrates = require(Modules.TabCrates)
 local TabUpgrades = require(Modules.TabUpgrades)
+local TabPets = require(Modules.TabPets)
 local TabProfile = require(Modules.TabProfile)
 local TabRewards = require(Modules.TabRewards)
 local TabSettings = require(Modules.TabSettings)
@@ -57,6 +58,9 @@ Menu.addTab("Wardrobe", "👗", function(page)
 end)
 Menu.addTab("Crates", "🎁", function(page)
 	return TabCrates.build(page, Action)
+end)
+Menu.addTab("Pets", "🐾", function(page)
+	return TabPets.build(page, Action)
 end)
 Menu.addTab("Upgrades", "⬆️", function(page)
 	return TabUpgrades.build(page, Action)
@@ -207,6 +211,15 @@ function handlers.hammer(id, how)
 		Fx.burst(root.Position, hammer.Head, 20)
 	end
 	Toasts.push(string.format("%s %s  ·  x%d Aura per swing", hammer.Name, how == "bought" and "bought and equipped" or "equipped", hammer.Mult), "gold")
+end
+
+function handlers.hatch(eggId, petId, copies)
+	local pet = Config.PetById[petId]
+	local rarity = Config.Rarities[pet.Rarity]
+	Audio.reveal(Config.Rarities[pet.Rarity].Order)
+	Fx.shake(0.15 + rarity.Order * 0.08, 0.3)
+	Fx.flash(rarity.Color, 0.15 + rarity.Order * 0.05, 0.5)
+	Fx.announce(pet.Name:upper(), string.format("%s pet  ·  +%d%% Aura%s", pet.Rarity, math.floor(Config.PetMult(pet, copies) * 100 + 0.5), copies > 1 and ("  ·  " .. string.rep("★", Config.PetStars(copies))) or "  ·  NEW!"), rarity.Color, 0.25)
 end
 
 function handlers.openMenu(tab)

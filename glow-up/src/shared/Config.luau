@@ -178,6 +178,49 @@ function Config.SwingBase(level)
 end
 
 --------------------------------------------------------------------------------
+-- Pets: hatch eggs, equip up to 3. Each pet adds to your Aura multiplier and earns Aura per second.
+--------------------------------------------------------------------------------
+Config.PetSlots = 3
+Config.Pets = {
+	{ Id = "cat", Name = "Chubby Cat", Rarity = "Common", Mult = 0.2, Aps = 1, Color = C(240, 190, 120), Style = "ears" },
+	{ Id = "pup", Name = "Pudgy Pup", Rarity = "Common", Mult = 0.25, Aps = 1, Color = C(200, 160, 110), Style = "floppy" },
+	{ Id = "mouse", Name = "Mirror Mouse", Rarity = "Common", Mult = 0.3, Aps = 2, Color = C(200, 205, 215), Style = "ears" },
+	{ Id = "gorilla", Name = "Gym Gorilla", Rarity = "Rare", Mult = 0.6, Aps = 5, Color = C(80, 80, 95), Style = "ears" },
+	{ Id = "owl", Name = "Mewing Owl", Rarity = "Rare", Mult = 0.7, Aps = 6, Color = C(150, 110, 80), Style = "horns" },
+	{ Id = "shark", Name = "Jaw Shark", Rarity = "Rare", Mult = 0.8, Aps = 8, Color = C(90, 150, 220), Style = "fin" },
+	{ Id = "wolf", Name = "Sigma Wolf", Rarity = "Epic", Mult = 1.5, Aps = 20, Color = C(120, 130, 160), Style = "ears" },
+	{ Id = "fox", Name = "Rizz Fox", Rarity = "Epic", Mult = 1.8, Aps = 25, Color = C(255, 140, 60), Style = "ears" },
+	{ Id = "bull", Name = "Chad Bull", Rarity = "Epic", Mult = 2.0, Aps = 30, Color = C(170, 60, 60), Style = "horns" },
+	{ Id = "lion", Name = "Alpha Lion", Rarity = "Legendary", Mult = 4, Aps = 80, Color = C(255, 190, 60), Style = "mane" },
+	{ Id = "dragon", Name = "Aura Dragon", Rarity = "Legendary", Mult = 5, Aps = 100, Color = C(120, 220, 140), Style = "horns" },
+	{ Id = "angel", Name = "True Adam Angel", Rarity = "Mythic", Mult = 10, Aps = 300, Color = C(255, 244, 200), Style = "halo" },
+	{ Id = "phoenix", Name = "Void Phoenix", Rarity = "Mythic", Mult = 12, Aps = 400, Color = C(255, 90, 170), Style = "halo" },
+}
+Config.PetById = {}
+for _, pet in Config.Pets do
+	Config.PetById[pet.Id] = pet
+end
+Config.Eggs = {
+	{ Id = "basic", Name = "Basic Egg", Cost = 500, Color = C(240, 230, 210), Odds = { Common = 70, Rare = 25, Epic = 5 } },
+	{ Id = "gold", Name = "Golden Egg", Cost = 20000, Color = C(255, 205, 60), Odds = { Rare = 50, Epic = 35, Legendary = 14, Mythic = 1 } },
+	{ Id = "mog", Name = "Mog Egg", Cost = 600000, Color = C(255, 90, 170), Odds = { Epic = 50, Legendary = 40, Mythic = 10 } },
+}
+Config.EggById = {}
+for _, egg in Config.Eggs do
+	Config.EggById[egg.Id] = egg
+end
+-- Each extra copy of a pet (up to 5 stars) makes it 25% stronger.
+function Config.PetStars(copies)
+	return math.clamp(copies or 1, 1, 5)
+end
+function Config.PetMult(pet, copies)
+	return pet.Mult * (1 + 0.25 * (Config.PetStars(copies) - 1))
+end
+function Config.PetAps(pet, copies)
+	return pet.Aps * (1 + 0.25 * (Config.PetStars(copies) - 1))
+end
+
+--------------------------------------------------------------------------------
 -- Things you can interact with (press E, or tap the on-screen button). These work from any camera
 -- angle because they use the character's position, not the camera.
 --------------------------------------------------------------------------------

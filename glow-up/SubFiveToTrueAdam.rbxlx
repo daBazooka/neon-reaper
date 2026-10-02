@@ -478,6 +478,49 @@ function Config.SwingBase(level)
 end
 
 --------------------------------------------------------------------------------
+-- Pets: hatch eggs, equip up to 3. Each pet adds to your Aura multiplier and earns Aura per second.
+--------------------------------------------------------------------------------
+Config.PetSlots = 3
+Config.Pets = {
+	{ Id = "cat", Name = "Chubby Cat", Rarity = "Common", Mult = 0.2, Aps = 1, Color = C(240, 190, 120), Style = "ears" },
+	{ Id = "pup", Name = "Pudgy Pup", Rarity = "Common", Mult = 0.25, Aps = 1, Color = C(200, 160, 110), Style = "floppy" },
+	{ Id = "mouse", Name = "Mirror Mouse", Rarity = "Common", Mult = 0.3, Aps = 2, Color = C(200, 205, 215), Style = "ears" },
+	{ Id = "gorilla", Name = "Gym Gorilla", Rarity = "Rare", Mult = 0.6, Aps = 5, Color = C(80, 80, 95), Style = "ears" },
+	{ Id = "owl", Name = "Mewing Owl", Rarity = "Rare", Mult = 0.7, Aps = 6, Color = C(150, 110, 80), Style = "horns" },
+	{ Id = "shark", Name = "Jaw Shark", Rarity = "Rare", Mult = 0.8, Aps = 8, Color = C(90, 150, 220), Style = "fin" },
+	{ Id = "wolf", Name = "Sigma Wolf", Rarity = "Epic", Mult = 1.5, Aps = 20, Color = C(120, 130, 160), Style = "ears" },
+	{ Id = "fox", Name = "Rizz Fox", Rarity = "Epic", Mult = 1.8, Aps = 25, Color = C(255, 140, 60), Style = "ears" },
+	{ Id = "bull", Name = "Chad Bull", Rarity = "Epic", Mult = 2.0, Aps = 30, Color = C(170, 60, 60), Style = "horns" },
+	{ Id = "lion", Name = "Alpha Lion", Rarity = "Legendary", Mult = 4, Aps = 80, Color = C(255, 190, 60), Style = "mane" },
+	{ Id = "dragon", Name = "Aura Dragon", Rarity = "Legendary", Mult = 5, Aps = 100, Color = C(120, 220, 140), Style = "horns" },
+	{ Id = "angel", Name = "True Adam Angel", Rarity = "Mythic", Mult = 10, Aps = 300, Color = C(255, 244, 200), Style = "halo" },
+	{ Id = "phoenix", Name = "Void Phoenix", Rarity = "Mythic", Mult = 12, Aps = 400, Color = C(255, 90, 170), Style = "halo" },
+}
+Config.PetById = {}
+for _, pet in Config.Pets do
+	Config.PetById[pet.Id] = pet
+end
+Config.Eggs = {
+	{ Id = "basic", Name = "Basic Egg", Cost = 500, Color = C(240, 230, 210), Odds = { Common = 70, Rare = 25, Epic = 5 } },
+	{ Id = "gold", Name = "Golden Egg", Cost = 20000, Color = C(255, 205, 60), Odds = { Rare = 50, Epic = 35, Legendary = 14, Mythic = 1 } },
+	{ Id = "mog", Name = "Mog Egg", Cost = 600000, Color = C(255, 90, 170), Odds = { Epic = 50, Legendary = 40, Mythic = 10 } },
+}
+Config.EggById = {}
+for _, egg in Config.Eggs do
+	Config.EggById[egg.Id] = egg
+end
+-- Each extra copy of a pet (up to 5 stars) makes it 25% stronger.
+function Config.PetStars(copies)
+	return math.clamp(copies or 1, 1, 5)
+end
+function Config.PetMult(pet, copies)
+	return pet.Mult * (1 + 0.25 * (Config.PetStars(copies) - 1))
+end
+function Config.PetAps(pet, copies)
+	return pet.Aps * (1 + 0.25 * (Config.PetStars(copies) - 1))
+end
+
+--------------------------------------------------------------------------------
 -- Things you can interact with (press E, or tap the on-screen button). These work from any camera
 -- angle because they use the character's position, not the camera.
 --------------------------------------------------------------------------------
@@ -1122,6 +1165,7 @@ local Events = require(Modules.Events)
 local Runway = require(Modules.Runway)
 local Board = require(Modules.Board)
 local Hammers = require(Modules.Hammers)
+local Pets = require(Modules.Pets)
 local World = require(Modules.World)
 
 --------------------------------------------------------------------------------
@@ -1146,6 +1190,7 @@ end)
 Shards.init()
 Competition.init()
 Training.init()
+Pets.init()
 Runway.init()
 Events.init()
 Data.init()
@@ -1165,6 +1210,7 @@ local function onCharacter(p)
 	Cosmetics.onCharacter(p)
 	Nameplate.onCharacter(p)
 	Hammers.attach(p)
+	Pets.refresh(p)
 end
 
 local function onPlayer(p)
@@ -1201,6 +1247,7 @@ end
 Players.PlayerRemoving:Connect(function(p)
 	Training.release(p)
 	Hammers.release(p)
+	Pets.release(p)
 	Duels.release(p)
 	Competition.release(p)
 	Stats.forget(p)
@@ -1303,6 +1350,8 @@ Action.OnServerEvent:Connect(function(p, kind, a, b)
 		Shop.handle(p, kind, a)
 	elseif kind == "OpenCrate" and type(a) == "string" then
 		Crates.open(p, a)
+	elseif kind == "Hatch" or kind == "PetEquip" or kind == "PetUnequip" then
+		Pets.handle(p, kind, a)
 	elseif kind == "Swing" then
 		Hammers.swing(p)
 	elseif kind == "Interact" and type(a) == "string" then
@@ -2357,6 +2406,9 @@ local function defaults()
 		BestStreak = 0,
 		Reps = 0,
 		Swings = 0,
+		Pets = {}, -- pet id -> copies owned
+		PetsEq = {}, -- list of equipped pet ids
+		Hatched = 0,
 		Hammer = 1,
 		HammersOwned = { ["1"] = true },
 		Perfects = 0,
@@ -2979,6 +3031,261 @@ return Nameplate
         </Item>
         <Item class="ModuleScript" referent="22">
           <Properties>
+            <string name="Name">Pets</string>
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: pets. Hatch eggs, equip up to 3; they follow you around (everyone sees them),
+-- add to your Aura multiplier and earn Aura per second. The server decides every roll.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Data = require(script.Parent.Data)
+local Stats = require(script.Parent.Stats)
+
+local Pets = {}
+
+local rng = Random.new()
+local followers = {} -- player -> { { model, id } }
+local folder
+
+local SIZE = { Common = 1, Rare = 1.15, Epic = 1.3, Legendary = 1.5, Mythic = 1.75 }
+local OFFSETS = { Vector3.new(-4, -1.4, 4.5), Vector3.new(0, -1.4, 7), Vector3.new(4, -1.4, 4.5) }
+
+--------------------------------------------------------------------------------
+-- Rolling
+--------------------------------------------------------------------------------
+local function rollPet(egg, luck)
+	local lowest = math.huge
+	for name in egg.Odds do
+		lowest = math.min(lowest, Config.Rarities[name].Order)
+	end
+	local total, weights = 0, {}
+	for _, name in Config.RarityOrder do
+		local base = egg.Odds[name]
+		if base then
+			local w = Config.Rarities[name].Order == lowest and base or base * luck
+			weights[name] = w
+			total += w
+		end
+	end
+	local roll = rng:NextNumber() * total
+	local rarity = Config.RarityOrder[1]
+	for _, name in Config.RarityOrder do
+		local w = weights[name]
+		if w then
+			roll -= w
+			rarity = name
+			if roll <= 0 then
+				break
+			end
+		end
+	end
+	local pool = {}
+	for _, pet in Config.Pets do
+		if pet.Rarity == rarity then
+			table.insert(pool, pet)
+		end
+	end
+	return pool[rng:NextInteger(1, #pool)]
+end
+
+function Pets.hatch(p, eggId)
+	local egg = Config.EggById[eggId]
+	local profile = Data.get(p)
+	if not egg or not profile then
+		return
+	end
+	if not Stats.spend(p, egg.Cost) then
+		Stats.toast(p, "Not enough Aura for a " .. egg.Name, "bad")
+		return
+	end
+	local pet = rollPet(egg, Config.LuckMult(profile.Levels.Luck or 0))
+	local copies = (profile.Pets[pet.Id] or 0) + 1
+	profile.Pets[pet.Id] = copies
+	profile.Hatched += 1
+	-- A new pet goes straight into an empty slot.
+	if #profile.PetsEq < Config.PetSlots and not table.find(profile.PetsEq, pet.Id) then
+		table.insert(profile.PetsEq, pet.Id)
+	end
+	Stats.recompute(p)
+	Stats.addXP(p, 5)
+	Pets.refresh(p)
+	Stats.send(p, "hatch", egg.Id, pet.Id, copies)
+end
+
+function Pets.equip(p, id)
+	local profile = Data.get(p)
+	if not profile or not profile.Pets[id] or not Config.PetById[id] then
+		return
+	end
+	if table.find(profile.PetsEq, id) then
+		return
+	end
+	if #profile.PetsEq >= Config.PetSlots then
+		Stats.toast(p, "All " .. Config.PetSlots .. " pet slots are full. Unequip one first.", "bad")
+		return
+	end
+	table.insert(profile.PetsEq, id)
+	Stats.recompute(p)
+	Pets.refresh(p)
+end
+
+function Pets.unequip(p, id)
+	local profile = Data.get(p)
+	local at = profile and table.find(profile.PetsEq, id)
+	if not at then
+		return
+	end
+	table.remove(profile.PetsEq, at)
+	Stats.recompute(p)
+	Pets.refresh(p)
+end
+
+function Pets.handle(p, kind, id)
+	if kind == "Hatch" and type(id) == "string" then
+		Pets.hatch(p, id)
+	elseif kind == "PetEquip" and type(id) == "string" then
+		Pets.equip(p, id)
+	elseif kind == "PetUnequip" and type(id) == "string" then
+		Pets.unequip(p, id)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Followers (simple models made of balls)
+--------------------------------------------------------------------------------
+local function ball(model, name, size, color, material)
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Shape = Enum.PartType.Ball
+	part.Size = Vector3.one * size
+	part.Color = color
+	part.Material = material or Enum.Material.SmoothPlastic
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.Massless = true
+	part.Parent = model
+	return part
+end
+
+local function buildPet(pet)
+	local s = SIZE[pet.Rarity] or 1
+	local model = Instance.new("Model")
+	model.Name = "Pet_" .. pet.Id
+	local body = ball(model, "Body", 2.4 * s, pet.Color)
+	model.PrimaryPart = body
+	local offsets = { [body] = CFrame.new() }
+	local function add(part, cf)
+		offsets[part] = cf
+	end
+	add(ball(model, "Head", 1.9 * s, pet.Color), CFrame.new(0, 1.7 * s, -0.3 * s))
+	for side = -1, 1, 2 do
+		add(ball(model, "Eye", 0.5 * s, Color3.new(1, 1, 1)), CFrame.new(side * 0.45 * s, 1.95 * s, -1.05 * s))
+		add(ball(model, "Pupil", 0.25 * s, Color3.new(0, 0, 0)), CFrame.new(side * 0.45 * s, 1.95 * s, -1.25 * s))
+		if pet.Style == "ears" or pet.Style == "mane" then
+			add(ball(model, "Ear", 0.7 * s, pet.Color), CFrame.new(side * 0.8 * s, 2.7 * s, -0.2 * s))
+		elseif pet.Style == "floppy" then
+			add(ball(model, "Ear", 0.8 * s, pet.Color:Lerp(Color3.new(0, 0, 0), 0.25)), CFrame.new(side * 1.05 * s, 1.9 * s, -0.2 * s))
+		elseif pet.Style == "horns" then
+			add(ball(model, "Horn", 0.55 * s, Color3.fromRGB(250, 240, 220)), CFrame.new(side * 0.7 * s, 2.8 * s, -0.2 * s))
+		elseif pet.Style == "fin" then
+			add(ball(model, "Fin", 0.6 * s, pet.Color:Lerp(Color3.new(1, 1, 1), 0.3)), CFrame.new(side * 1.3 * s, 0.3 * s, 0))
+		end
+	end
+	if pet.Style == "mane" then
+		add(ball(model, "Mane", 2.8 * s, Color3.fromRGB(190, 110, 30)), CFrame.new(0, 1.7 * s, 0.4 * s))
+	elseif pet.Style == "fin" then
+		add(ball(model, "Fin", 0.7 * s, pet.Color:Lerp(Color3.new(1, 1, 1), 0.3)), CFrame.new(0, 3 * s, 0))
+	elseif pet.Style == "halo" then
+		local halo = Instance.new("Part")
+		halo.Name = "Halo"
+		halo.Shape = Enum.PartType.Cylinder
+		halo.Size = Vector3.new(0.2, 1.8 * s, 1.8 * s)
+		halo.Color = Color3.fromRGB(255, 232, 120)
+		halo.Material = Enum.Material.SmoothPlastic
+		halo.Anchored, halo.CanCollide, halo.CanQuery, halo.CanTouch, halo.Massless = true, false, false, false, true
+		halo.Parent = model
+		add(halo, CFrame.new(0, 3.1 * s, -0.3 * s) * CFrame.Angles(0, 0, math.pi / 2))
+		local light = Instance.new("PointLight")
+		light.Color = pet.Color
+		light.Range = 12
+		light.Brightness = 1
+		light.Parent = body
+	end
+	add(ball(model, "Tail", 0.9 * s, pet.Color), CFrame.new(0, 0.2 * s, 1.4 * s))
+	return model, offsets
+end
+
+local function clearFollowers(p)
+	local list = followers[p]
+	if list then
+		for _, f in list do
+			f.model:Destroy()
+		end
+	end
+	followers[p] = nil
+end
+
+-- Rebuilds the visible pets so they match the equipped list.
+function Pets.refresh(p)
+	clearFollowers(p)
+	local profile = Data.get(p)
+	local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+	if not profile or not root or not folder then
+		return
+	end
+	local list = {}
+	for i, id in profile.PetsEq do
+		local pet = Config.PetById[id]
+		if pet then
+			local model, offsets = buildPet(pet)
+			model.Parent = folder
+			local cf = root.CFrame * CFrame.new(OFFSETS[i] or OFFSETS[2])
+			table.insert(list, { model = model, offsets = offsets, slot = i, cf = cf })
+		end
+	end
+	followers[p] = list
+end
+
+function Pets.release(p)
+	clearFollowers(p)
+end
+
+function Pets.init()
+	folder = Instance.new("Folder")
+	folder.Name = "GlowPets"
+	folder.Parent = workspace
+	local last = 0
+	RunService.Heartbeat:Connect(function(dt)
+		local now = os.clock()
+		if now - last < 0.05 then
+			return
+		end
+		last = now
+		for p, list in followers do
+			local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+			if root then
+				for _, f in list do
+					local target = root.CFrame * CFrame.new(OFFSETS[f.slot] or OFFSETS[2]) * CFrame.new(0, math.sin(now * 3 + f.slot) * 0.4, 0)
+					f.cf = f.cf:Lerp(target, 0.3)
+					-- face the same way as the owner
+					local flat = CFrame.new(f.cf.Position) * (root.CFrame - root.CFrame.Position)
+					for part, off in f.offsets do
+						part.CFrame = flat * off
+					end
+				end
+			end
+		end
+	end)
+end
+
+return Pets
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="23">
+          <Properties>
             <string name="Name">Quests</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: an endless chain of small goals. There is always exactly one active quest.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -3043,7 +3350,7 @@ return Quests
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="23">
+        <Item class="ModuleScript" referent="24">
           <Properties>
             <string name="Name">Quirks</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the gag that gives the game its name. Everyone starts with a goofy face, a big
@@ -3228,7 +3535,7 @@ return Quirks
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="24">
+        <Item class="ModuleScript" referent="25">
           <Properties>
             <string name="Name">Runway</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the runway in the middle of the district. Walk it for a steady Aura trickle that
@@ -3269,7 +3576,7 @@ return Runway
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="25">
+        <Item class="ModuleScript" referent="26">
           <Properties>
             <string name="Name">Shards</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the gym-and-health pickups scattered around the plaza: apples, protein shakes,
@@ -3515,7 +3822,7 @@ return Shards
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="26">
+        <Item class="ModuleScript" referent="27">
           <Properties>
             <string name="Name">Shop</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades and rebirth.
@@ -3587,7 +3894,7 @@ return Shop
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="27">
+        <Item class="ModuleScript" referent="28">
           <Properties>
             <string name="Name">Stats</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the heart of progression. Owns Aura, stats, Glow Score, rank and the
@@ -3647,6 +3954,20 @@ function Stats.computeScore(profile)
 	return math.floor(total * Config.RebirthMult(profile.Rebirths))
 end
 
+-- Extra Aura multiplier and Aura/second from equipped pets.
+function Stats.petBonus(profile)
+	local mult, aps = 0, 0
+	for _, id in profile.PetsEq do
+		local pet = Config.PetById[id]
+		local copies = profile.Pets[id]
+		if pet and copies then
+			mult += Config.PetMult(pet, copies)
+			aps += Config.PetAps(pet, copies)
+		end
+	end
+	return mult, aps
+end
+
 function Stats.computeRate(profile)
 	local total = 0
 	for slot, id in profile.Eq do
@@ -3656,7 +3977,8 @@ function Stats.computeRate(profile)
 			total += Config.CosmeticAps(c, stars)
 		end
 	end
-	return total * Config.RebirthMult(profile.Rebirths) * Config.BoostMult(profile.Levels.Boost or 0)
+	local _, petAps = Stats.petBonus(profile)
+	return (total + petAps) * Config.RebirthMult(profile.Rebirths) * Config.BoostMult(profile.Levels.Boost or 0)
 end
 
 function Stats.score(p)
@@ -3706,6 +4028,15 @@ function Stats.recompute(p)
 	p:SetAttribute("Hammer", profile.Hammer)
 	p:SetAttribute("HammersOwned", Stats.ownedString(profile))
 	p:SetAttribute("Swings", profile.Swings)
+	local petMult = Stats.petBonus(profile)
+	p:SetAttribute("PetMult", petMult)
+	p:SetAttribute("PetsEq", table.concat(profile.PetsEq, ","))
+	local owned = {}
+	for id, n in profile.Pets do
+		table.insert(owned, id .. ":" .. n)
+	end
+	table.sort(owned)
+	p:SetAttribute("Pets", table.concat(owned, ","))
 	setLeaderstat(p, "Level", profile.Level)
 	setLeaderstat(p, "Rebirths", profile.Rebirths)
 
@@ -3828,6 +4159,7 @@ function Stats.addAura(p, base, opts)
 			* Config.RebirthMult(profile.Rebirths)
 			* Config.BoostMult(profile.Levels.Boost or 0)
 			* Stats.eventMult("AuraMult")
+			* (1 + (Stats.petBonus(profile)))
 	end
 	amount = math.max(0, math.floor(amount + 0.5))
 	profile.Aura += amount
@@ -3919,7 +4251,7 @@ return Stats
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="28">
+        <Item class="ModuleScript" referent="29">
           <Properties>
             <string name="Name">Training</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame. A marker sweeps a bar; hit the zone for stat gains.
@@ -4097,7 +4429,7 @@ return Training
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="29">
+        <Item class="ModuleScript" referent="30">
           <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: builds the whole town from code (nothing to import).
@@ -4797,15 +5129,15 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="30">
+  <Item class="StarterPlayer" referent="31">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="31">
+    <Item class="StarterPlayerScripts" referent="32">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="32">
+      <Item class="LocalScript" referent="33">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: client entry point. Builds the interface, wires the menu tabs, and routes everything
@@ -4832,6 +5164,7 @@ local Hud = require(Modules.Hud)
 local TabWardrobe = require(Modules.TabWardrobe)
 local TabCrates = require(Modules.TabCrates)
 local TabUpgrades = require(Modules.TabUpgrades)
+local TabPets = require(Modules.TabPets)
 local TabProfile = require(Modules.TabProfile)
 local TabRewards = require(Modules.TabRewards)
 local TabSettings = require(Modules.TabSettings)
@@ -4867,6 +5200,9 @@ Menu.addTab("Wardrobe", "👗", function(page)
 end)
 Menu.addTab("Crates", "🎁", function(page)
 	return TabCrates.build(page, Action)
+end)
+Menu.addTab("Pets", "🐾", function(page)
+	return TabPets.build(page, Action)
 end)
 Menu.addTab("Upgrades", "⬆️", function(page)
 	return TabUpgrades.build(page, Action)
@@ -5019,6 +5355,15 @@ function handlers.hammer(id, how)
 	Toasts.push(string.format("%s %s  ·  x%d Aura per swing", hammer.Name, how == "bought" and "bought and equipped" or "equipped", hammer.Mult), "gold")
 end
 
+function handlers.hatch(eggId, petId, copies)
+	local pet = Config.PetById[petId]
+	local rarity = Config.Rarities[pet.Rarity]
+	Audio.reveal(Config.Rarities[pet.Rarity].Order)
+	Fx.shake(0.15 + rarity.Order * 0.08, 0.3)
+	Fx.flash(rarity.Color, 0.15 + rarity.Order * 0.05, 0.5)
+	Fx.announce(pet.Name:upper(), string.format("%s pet  ·  +%d%% Aura%s", pet.Rarity, math.floor(Config.PetMult(pet, copies) * 100 + 0.5), copies > 1 and ("  ·  " .. string.rep("★", Config.PetStars(copies))) or "  ·  NEW!"), rarity.Color, 0.25)
+end
+
 function handlers.openMenu(tab)
 	Menu.open(tab)
 end
@@ -5077,11 +5422,11 @@ task.spawn(function()
 end)
 ]]></string>
         </Properties>
-        <Item class="Folder" referent="33">
+        <Item class="Folder" referent="34">
           <Properties>
             <string name="Name">Modules</string>
           </Properties>
-          <Item class="ModuleScript" referent="34">
+          <Item class="ModuleScript" referent="35">
             <Properties>
               <string name="Name">CompetitionUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: Mog Competition overlay. Everyone on stage flexes (taps) for 8 seconds; a live
@@ -5365,7 +5710,7 @@ return CompetitionUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="35">
+          <Item class="ModuleScript" referent="36">
             <Properties>
               <string name="Name">DuelUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: duel overlay. Both sides tap as fast as they can for 7 seconds; Mog Power gives an
@@ -5605,7 +5950,7 @@ return DuelUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="36">
+          <Item class="ModuleScript" referent="37">
             <Properties>
               <string name="Name">Fx</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
@@ -5798,7 +6143,7 @@ return Fx
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="37">
+          <Item class="ModuleScript" referent="38">
             <Properties>
               <string name="Name">HammerRow</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: floating OWNED / EQUIPPED / price labels over every hammer pedestal.
@@ -5923,7 +6268,7 @@ return HammerRow
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="38">
+          <Item class="ModuleScript" referent="39">
             <Properties>
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the always-on screen.
@@ -6161,24 +6506,27 @@ local function buildSides(gui, Menu)
 		Name = "RightButtons",
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -8, 0.5, -10),
-		Size = UDim2.fromOffset(52, 5 * 52 + 4 * 6),
+		Size = UDim2.fromOffset(52, 6 * 52 + 5 * 6),
 		BackgroundTransparency = 1,
 	}, gui)
 	addFit(right)
 	UI.new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, right)
 	sideButton(right, 1, 52, C.Mint, "🔨", "Hammers", TELEPORTS.Hammers)
-	local _, _, wardrobeBadge = sideButton(right, 2, 52, C.Purple, "👗", "Wardrobe", function()
+	sideButton(right, 2, 52, C.Pink, "🐾", "Pets", function()
+		Menu.toggle("Pets")
+	end)
+	local _, _, wardrobeBadge = sideButton(right, 3, 52, C.Purple, "👗", "Wardrobe", function()
 		Menu.toggle("Wardrobe")
 	end)
 	refs.badges.Wardrobe = wardrobeBadge
-	local _, _, crateBadge = sideButton(right, 3, 52, C.Sky, "📦", "Crates", function()
+	local _, _, crateBadge = sideButton(right, 4, 52, C.Sky, "📦", "Crates", function()
 		Menu.toggle("Crates")
 	end)
 	refs.badges.Crates = crateBadge
-	sideButton(right, 4, 52, C.Accent, "📈", "Profile", function()
+	sideButton(right, 5, 52, C.Accent, "📈", "Profile", function()
 		Menu.toggle("Profile")
 	end)
-	sideButton(right, 5, 52, C.Disabled, "⚙️", "Settings", function()
+	sideButton(right, 6, 52, C.Disabled, "⚙️", "Settings", function()
 		Menu.toggle("Settings")
 	end)
 end
@@ -6439,14 +6787,14 @@ function Hud.pulseQuest()
 	UI.pop(refs.questScale, 1.15)
 end
 
--- The total multiplier on every swing (hammer x rebirth x boost x event).
+-- The total multiplier on every swing (hammer x pets x rebirth x boost x event).
 function Hud.swingMult()
 	local hammer = Config.HammerById[player:GetAttribute("Hammer") or 1] or Config.Hammers[1]
 	local rebirths = player:GetAttribute("Rebirths") or 0
 	local ev = workspace:GetAttribute("Event")
 	local evDef = ev and ev ~= "" and Config.EventById[ev]
 	local boost = Config.BoostMult(player:GetAttribute("Lv_Boost") or 0)
-	return hammer.Mult * Config.RebirthMult(rebirths) * boost * ((evDef and evDef.AuraMult) or 1)
+	return hammer.Mult * (1 + (player:GetAttribute("PetMult") or 0)) * Config.RebirthMult(rebirths) * boost * ((evDef and evDef.AuraMult) or 1)
 end
 
 function Hud.refresh()
@@ -6546,7 +6894,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="39">
+          <Item class="ModuleScript" referent="40">
             <Properties>
               <string name="Name">Interact</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: "use" button for every place and hammer. Stand near something and a big button
@@ -6695,7 +7043,7 @@ return Interact
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="40">
+          <Item class="ModuleScript" referent="41">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the one main menu. A single window with a tab list so the screen never fills up with
@@ -6940,7 +7288,7 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="41">
+          <Item class="ModuleScript" referent="42">
             <Properties>
               <string name="Name">Orbs</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: pickups bob and spin locally so the server never has to animate them, and
@@ -6997,7 +7345,7 @@ return Orbs
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="42">
+          <Item class="ModuleScript" referent="43">
             <Properties>
               <string name="Name">Swing</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: click / tap anywhere (or hold) to swing your hammer at your own face.
@@ -7122,7 +7470,7 @@ return Swing
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="43">
+          <Item class="ModuleScript" referent="44">
             <Properties>
               <string name="Name">TabCrates</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: crates tab. The server rolls; this plays the reveal (a spinning reel that slows
@@ -7421,7 +7769,207 @@ return TabCrates
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="44">
+          <Item class="ModuleScript" referent="45">
+            <Properties>
+              <string name="Name">TabPets</string>
+              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Pets tab. Hatch eggs at the top, manage your pets below.
+-- Tap a pet to equip / unequip it (3 slots).
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(Shared:WaitForChild("UI"))
+local Util = require(Shared:WaitForChild("Util"))
+local Audio = require(Shared:WaitForChild("Audio"))
+
+local player = Players.LocalPlayer
+local C = UI.Colors
+
+local TabPets = {}
+
+local function owned()
+	local map = {}
+	for id, n in string.gmatch(player:GetAttribute("Pets") or "", "(%w+):(%d+)") do
+		map[id] = tonumber(n)
+	end
+	return map
+end
+
+local function equipped()
+	local set = {}
+	for id in string.gmatch(player:GetAttribute("PetsEq") or "", "%w+") do
+		set[id] = true
+	end
+	return set
+end
+
+function TabPets.build(parent, Action)
+	UI.label(parent, {
+		Size = UDim2.new(1, 0, 0, 26),
+		Font = UI.Fonts.Title,
+		TextSize = 20,
+		TextWrapped = false,
+		Text = "🐾  Pets",
+	})
+	local summary = UI.label(parent, {
+		Position = UDim2.fromOffset(0, 28),
+		Size = UDim2.new(1, 0, 0, 20),
+		Font = UI.Fonts.Bold,
+		TextSize = 13,
+		TextColor3 = C.Mint,
+		TextWrapped = false,
+		Text = "",
+	})
+
+	-- Eggs
+	local eggRow = UI.new("Frame", { Position = UDim2.fromOffset(0, 54), Size = UDim2.new(1, -8, 0, 92), BackgroundTransparency = 1 }, parent)
+	UI.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder }, eggRow)
+	local eggButtons = {}
+	for i, egg in Config.Eggs do
+		local btn = UI.button(eggRow, {
+			LayoutOrder = i,
+			Size = UDim2.new(1 / #Config.Eggs, -7, 1, 0),
+			BackgroundColor3 = egg.Color:Lerp(C.Card, 0.55),
+			Text = "",
+			Radius = 12,
+		}, "card")
+		UI.label(btn, {
+			Position = UDim2.fromOffset(8, 4),
+			Size = UDim2.new(1, -16, 0, 22),
+			Font = UI.Fonts.Title,
+			TextSize = 15,
+			TextColor3 = egg.Color,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			TextWrapped = false,
+			Text = "🥚 " .. egg.Name,
+		})
+		local odds = {}
+		for _, rarity in Config.RarityOrder do
+			if egg.Odds[rarity] then
+				table.insert(odds, string.format("%s %d%%", rarity, egg.Odds[rarity]))
+			end
+		end
+		UI.label(btn, {
+			Position = UDim2.fromOffset(6, 26),
+			Size = UDim2.new(1, -12, 0, 36),
+			Font = UI.Fonts.Body,
+			TextSize = 10,
+			TextColor3 = C.Muted,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Text = table.concat(odds, " · "),
+		})
+		local cost = UI.label(btn, {
+			Position = UDim2.new(0, 0, 1, -26),
+			Size = UDim2.new(1, 0, 0, 22),
+			Font = UI.Fonts.Title,
+			TextSize = 16,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			TextWrapped = false,
+			Text = "🏆 " .. Util.fmt(egg.Cost),
+		})
+		btn.Activated:Connect(function()
+			Audio.click()
+			Action:FireServer("Hatch", egg.Id)
+		end)
+		eggButtons[egg.Id] = cost
+	end
+
+	-- Pet grid
+	local scroll = UI.new("ScrollingFrame", {
+		Position = UDim2.fromOffset(0, 154),
+		Size = UDim2.new(1, -8, 1, -154),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 4,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	}, parent)
+	UI.new("UIGridLayout", {
+		CellSize = UDim2.fromOffset(112, 96),
+		CellPadding = UDim2.fromOffset(8, 8),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, scroll)
+	local cards = {}
+	for i, pet in Config.Pets do
+		local color = Config.Rarities[pet.Rarity].Color
+		local card = UI.button(scroll, {
+			LayoutOrder = i,
+			BackgroundColor3 = C.Card,
+			Text = "",
+			Radius = 10,
+		}, "card")
+		UI.label(card, {
+			Position = UDim2.fromOffset(4, 4),
+			Size = UDim2.new(1, -8, 0, 28),
+			Font = UI.Fonts.Title,
+			TextSize = 22,
+			TextColor3 = pet.Color,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			TextWrapped = false,
+			Text = "🐾",
+		})
+		UI.label(card, {
+			Position = UDim2.fromOffset(4, 32),
+			Size = UDim2.new(1, -8, 0, 28),
+			Font = UI.Fonts.Bold,
+			TextSize = 11,
+			TextColor3 = color,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Text = pet.Name,
+		})
+		local stat = UI.label(card, {
+			Position = UDim2.fromOffset(4, 60),
+			Size = UDim2.new(1, -8, 0, 30),
+			Font = UI.Fonts.Body,
+			TextSize = 10,
+			TextColor3 = C.Muted,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Text = "",
+		})
+		card.Activated:Connect(function()
+			Audio.click()
+			local on = equipped()[pet.Id]
+			Action:FireServer(on and "PetUnequip" or "PetEquip", pet.Id)
+		end)
+		cards[pet.Id] = { card = card, stat = stat, color = color }
+	end
+
+	local function refresh()
+		local have, on = owned(), equipped()
+		local aura = player:GetAttribute("Aura") or 0
+		local count = 0
+		for _ in on do
+			count += 1
+		end
+		summary.Text = string.format("Equipped %d/%d   ·   Pet bonus +%d%% Aura   ·   click a pet to equip it", count, Config.PetSlots, math.floor((player:GetAttribute("PetMult") or 0) * 100 + 0.5))
+		for id, cost in eggButtons do
+			local egg = Config.EggById[id]
+			cost.TextColor3 = aura >= egg.Cost and C.Yellow or C.Danger
+		end
+		for id, ref in cards do
+			local pet = Config.PetById[id]
+			local copies = have[id]
+			local stroke = ref.card:FindFirstChildOfClass("UIStroke")
+			if copies then
+				ref.card.BackgroundTransparency = 0
+				ref.stat.Text = string.format("+%d%% Aura  ·  %s Aura/s\n%s%s", math.floor(Config.PetMult(pet, copies) * 100 + 0.5), Util.fmt(Config.PetAps(pet, copies)), string.rep("★", Config.PetStars(copies)), on[id] and "  EQUIPPED" or "")
+				stroke.Color = on[id] and C.Good or ref.color
+			else
+				ref.card.BackgroundTransparency = 0.6
+				ref.stat.Text = "not found yet"
+				stroke.Color = C.Stroke
+			end
+		end
+	end
+	return { refresh = refresh }
+end
+
+return TabPets
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="46">
             <Properties>
               <string name="Name">TabProfile</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: your character sheet: rank, stats, duel record and the current quest.
@@ -7600,7 +8148,7 @@ return TabProfile
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="45">
+          <Item class="ModuleScript" referent="47">
             <Properties>
               <string name="Name">TabRewards</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: daily streak rewards and the current server event.
@@ -7726,7 +8274,7 @@ return TabRewards
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="46">
+          <Item class="ModuleScript" referent="48">
             <Properties>
               <string name="Name">TabSettings</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: simple toggles. Settings are saved on the server so they follow the player.
@@ -7829,7 +8377,7 @@ return TabSettings
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="47">
+          <Item class="ModuleScript" referent="49">
             <Properties>
               <string name="Name">TabUpgrades</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades (bought with Aura) and the rebirth button.
@@ -7989,7 +8537,7 @@ return TabUpgrades
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="48">
+          <Item class="ModuleScript" referent="50">
             <Properties>
               <string name="Name">TabWardrobe</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the wardrobe. A collection grid: owned items can be worn, unowned ones show as locked
@@ -8216,7 +8764,7 @@ return TabWardrobe
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="49">
+          <Item class="ModuleScript" referent="51">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -8326,7 +8874,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="50">
+          <Item class="ModuleScript" referent="52">
             <Properties>
               <string name="Name">TrainingUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame overlay. A marker sweeps a bar; press Space (or tap) while it
@@ -8595,7 +9143,7 @@ return TrainingUI
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="51">
+  <Item class="Workspace" referent="53">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

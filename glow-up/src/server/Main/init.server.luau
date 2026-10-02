@@ -36,6 +36,7 @@ local Events = require(Modules.Events)
 local Runway = require(Modules.Runway)
 local Board = require(Modules.Board)
 local Hammers = require(Modules.Hammers)
+local Pets = require(Modules.Pets)
 local World = require(Modules.World)
 
 --------------------------------------------------------------------------------
@@ -60,6 +61,7 @@ end)
 Shards.init()
 Competition.init()
 Training.init()
+Pets.init()
 Runway.init()
 Events.init()
 Data.init()
@@ -79,6 +81,7 @@ local function onCharacter(p)
 	Cosmetics.onCharacter(p)
 	Nameplate.onCharacter(p)
 	Hammers.attach(p)
+	Pets.refresh(p)
 end
 
 local function onPlayer(p)
@@ -115,6 +118,7 @@ end
 Players.PlayerRemoving:Connect(function(p)
 	Training.release(p)
 	Hammers.release(p)
+	Pets.release(p)
 	Duels.release(p)
 	Competition.release(p)
 	Stats.forget(p)
@@ -217,6 +221,8 @@ Action.OnServerEvent:Connect(function(p, kind, a, b)
 		Shop.handle(p, kind, a)
 	elseif kind == "OpenCrate" and type(a) == "string" then
 		Crates.open(p, a)
+	elseif kind == "Hatch" or kind == "PetEquip" or kind == "PetUnequip" then
+		Pets.handle(p, kind, a)
 	elseif kind == "Swing" then
 		Hammers.swing(p)
 	elseif kind == "Interact" and type(a) == "string" then

@@ -233,24 +233,27 @@ local function buildSides(gui, Menu)
 		Name = "RightButtons",
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -8, 0.5, -10),
-		Size = UDim2.fromOffset(52, 5 * 52 + 4 * 6),
+		Size = UDim2.fromOffset(52, 6 * 52 + 5 * 6),
 		BackgroundTransparency = 1,
 	}, gui)
 	addFit(right)
 	UI.new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, right)
 	sideButton(right, 1, 52, C.Mint, "🔨", "Hammers", TELEPORTS.Hammers)
-	local _, _, wardrobeBadge = sideButton(right, 2, 52, C.Purple, "👗", "Wardrobe", function()
+	sideButton(right, 2, 52, C.Pink, "🐾", "Pets", function()
+		Menu.toggle("Pets")
+	end)
+	local _, _, wardrobeBadge = sideButton(right, 3, 52, C.Purple, "👗", "Wardrobe", function()
 		Menu.toggle("Wardrobe")
 	end)
 	refs.badges.Wardrobe = wardrobeBadge
-	local _, _, crateBadge = sideButton(right, 3, 52, C.Sky, "📦", "Crates", function()
+	local _, _, crateBadge = sideButton(right, 4, 52, C.Sky, "📦", "Crates", function()
 		Menu.toggle("Crates")
 	end)
 	refs.badges.Crates = crateBadge
-	sideButton(right, 4, 52, C.Accent, "📈", "Profile", function()
+	sideButton(right, 5, 52, C.Accent, "📈", "Profile", function()
 		Menu.toggle("Profile")
 	end)
-	sideButton(right, 5, 52, C.Disabled, "⚙️", "Settings", function()
+	sideButton(right, 6, 52, C.Disabled, "⚙️", "Settings", function()
 		Menu.toggle("Settings")
 	end)
 end
@@ -511,14 +514,14 @@ function Hud.pulseQuest()
 	UI.pop(refs.questScale, 1.15)
 end
 
--- The total multiplier on every swing (hammer x rebirth x boost x event).
+-- The total multiplier on every swing (hammer x pets x rebirth x boost x event).
 function Hud.swingMult()
 	local hammer = Config.HammerById[player:GetAttribute("Hammer") or 1] or Config.Hammers[1]
 	local rebirths = player:GetAttribute("Rebirths") or 0
 	local ev = workspace:GetAttribute("Event")
 	local evDef = ev and ev ~= "" and Config.EventById[ev]
 	local boost = Config.BoostMult(player:GetAttribute("Lv_Boost") or 0)
-	return hammer.Mult * Config.RebirthMult(rebirths) * boost * ((evDef and evDef.AuraMult) or 1)
+	return hammer.Mult * (1 + (player:GetAttribute("PetMult") or 0)) * Config.RebirthMult(rebirths) * boost * ((evDef and evDef.AuraMult) or 1)
 end
 
 function Hud.refresh()

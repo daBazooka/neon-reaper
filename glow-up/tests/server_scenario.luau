@@ -254,6 +254,35 @@ do
 	check(a1.Rebirths == r0 + 1 and a1.Hammer == 3, "rebirth works and keeps the hammer")
 end
 
+
+-- Pets: hatch, equip, multiplier, idle rate
+do
+	local d = Data.get(p1)
+	Stats.setAura(p1, 50000000)
+	local mult0 = a1.PetMult or 0
+	for i = 1, 30 do fireAll("Action", p1, "Hatch", ({"basic", "gold", "mog"})[i % 3 + 1]); advance(0.1) end
+	check((d.Hatched or 0) == 30, "30 eggs hatched")
+	check(#d.PetsEq == Config.PetSlots, "pets auto-equip up to the slot limit: " .. #d.PetsEq)
+	check((a1.PetMult or 0) > mult0, "pet multiplier attribute: " .. tostring(a1.PetMult))
+	check(#(a1.Pets or "") > 0 and #(a1.PetsEq or "") > 0, "pet attributes replicate: " .. tostring(a1.PetsEq))
+	local first = d.PetsEq[1]
+	fireAll("Action", p1, "PetUnequip", first); advance(0.1)
+	check(#d.PetsEq == Config.PetSlots - 1, "unequip frees a slot")
+	fireAll("Action", p1, "PetEquip", first); fireAll("Action", p1, "PetEquip", first); advance(0.1)
+	check(#d.PetsEq == Config.PetSlots, "re-equip works and does not duplicate")
+	fireAll("Action", p1, "PetEquip", "not_a_pet"); fireAll("Action", p1, "Hatch", "fake"); fireAll("Action", p1, "Hatch", 5)
+	check(true, "bad pet requests ignored")
+	for i = 1, 6 do fireAll("Heartbeat", 0.1); advance(0.1) end
+	local before = a1.Aura
+	a1.Training = false; a1.InDuel = false
+	advance(1); fireAll("Action", p1, "Swing")
+	check(a1.Aura > before, "pet bonus applied to Aura")
+	Stats.setAura(p1, 10)
+	local hatched = d.Hatched
+	fireAll("Action", p1, "Hatch", "mog"); advance(0.1)
+	check(d.Hatched == hatched, "cannot hatch without Aura")
+end
+
 -- Mog Competition: run a full cycle with one human
 Data.get(p1).Level = 20; Stats.recompute(p1)
 local Competition = require(ModN.children.Competition)

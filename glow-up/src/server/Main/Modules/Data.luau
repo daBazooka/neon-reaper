@@ -35,6 +35,9 @@ local function defaults()
 		BestStreak = 0,
 		Reps = 0,
 		Swings = 0,
+		Pets = {}, -- pet id -> copies owned
+		PetsEq = {}, -- list of equipped pet ids
+		Hatched = 0,
 		Hammer = 1,
 		HammersOwned = { ["1"] = true },
 		Perfects = 0,
