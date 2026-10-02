@@ -5,7 +5,31 @@ Config.ComboWindow = 3 -- seconds to grab the next orb before the combo breaks
 Config.ComboMax = 50
 Config.RespawnTime = 4
 Config.StartingMagnet = 8
-Config.PickupSoundId = "" -- optional: "rbxassetid://<id>" of a chime; pitch rises with combo
+
+-- Audio. These point at sounds that ship inside the Roblox client, so nothing needs uploading.
+-- Want richer sound? Paste any audio asset id from the Creator Store, e.g. "rbxassetid://1234567".
+Config.Sounds = {
+	Tone = "rbxasset://sounds/electronicpingshort.wav", -- short bell-like blip: pickups + generative music
+	Bass = "rbxasset://sounds/bass.wav",
+	Click = "rbxasset://sounds/button.wav",
+	Flash = "rbxasset://sounds/flashbulb.wav",
+}
+Config.MusicTrackId = "" -- optional: a looping song id. Leave empty for the generative ambient music.
+Config.MusicVolume = 0.3
+Config.SfxVolume = 0.8
+
+-- Progression
+Config.MaxLevel = 100
+Config.LuckyChance = 0.04 -- chance that any orb pays out x5
+Config.LuckyMult = 5
+Config.ComboMilestones = {
+	[5] = "GOOD!",
+	[10] = "NICE!",
+	[15] = "GREAT!",
+	[25] = "AMAZING!",
+	[35] = "INSANE!",
+	[50] = "GODLIKE!",
+}
 
 Config.OrbTypes = {
 	{ Name = "Spark", Value = 1, Weight = 70, Scale = 0, Color = Color3.fromRGB(90, 210, 255) },
@@ -93,6 +117,48 @@ function Config.WispRate(ids, ascensions)
 	return sum * (1 + 0.5 * ascensions)
 end
 
+function Config.XPForLevel(level)
+	return math.floor(40 * 1.28 ^ (level - 1))
+end
+
+function Config.LevelBonus(level)
+	return 1 + 0.03 * ((level or 1) - 1)
+end
+
+function Config.TierIndex(name)
+	for i, t in Config.OrbTypes do
+		if t.Name == name then
+			return i
+		end
+	end
+	return 1
+end
+
+-- Endless chain of small goals. n = quests completed so far.
+local QUEST_KINDS = { "orbs", "combo", "rare" }
+function Config.MakeQuest(n, ascensions)
+	local kind = QUEST_KINDS[n % #QUEST_KINDS + 1]
+	local step = n // #QUEST_KINDS
+	local goal, per
+	if kind == "orbs" then
+		goal, per = math.min(25 + step * 10, 200), 4
+	elseif kind == "combo" then
+		goal, per = math.min(8 + step * 2, 45), 20
+	else
+		goal, per = math.min(4 + step * 2, 40), 25
+	end
+	return { Kind = kind, Goal = goal, Reward = math.floor(goal * per * (1 + ascensions)) }
+end
+
+function Config.QuestText(kind, goal)
+	if kind == "orbs" then
+		return string.format("Collect %d orbs", goal)
+	elseif kind == "combo" then
+		return string.format("Reach a x%d combo", goal)
+	end
+	return string.format("Collect %d Bloom orbs or better", goal)
+end
+
 function Config.UpgradeCost(def, level)
 	return math.floor(def.Base * def.Growth ^ level)
 end
@@ -105,8 +171,8 @@ function Config.ComboMult(combo)
 	return 1 + math.min(combo, Config.ComboMax) * 0.1
 end
 
-function Config.Multiplier(valueLevel, ascensions, combo)
-	return (1 + 0.5 * valueLevel) * (1 + 0.5 * ascensions) * Config.ComboMult(combo)
+function Config.Multiplier(valueLevel, ascensions, combo, playerLevel)
+	return (1 + 0.5 * valueLevel) * (1 + 0.5 * ascensions) * Config.ComboMult(combo) * Config.LevelBonus(playerLevel)
 end
 
 function Config.MagnetRadius(level)

@@ -17,6 +17,13 @@ Researched what's currently topping Roblox (Grow a Garden, Steal a Brainrot, Ado
 - 🌌 **Cosmic events** every few minutes: Golden Hour (x2 dust), Starfall (50 rich orbs land), Aurora (mutations 8x likelier) with a screen tint and countdown banner.
 - ✨ **Mutations** - any orb can roll Golden (x3) or Prismatic (x10).
 
+## Game feel (v2)
+- 🎵 **Sound** - every orb plays the next note of a pentatonic scale, so a long combo literally plays a rising melody. Level-up, quest, hatch and event fanfares. Generative ambient music (toggle with the 🎵 button). All built from sounds that ship with Roblox; swap any in `Config.Sounds`, or set `Config.MusicTrackId` to a real song.
+- 📈 **Levels** - every orb gives XP. Each level pays dust, +3% dust forever, and a free egg every 5 levels.
+- 🎯 **Endless quests** - always one small goal on screen (collect orbs / reach a combo / collect rare orbs) that pays dust + XP, then instantly hands you the next one.
+- 🍀 **Lucky orbs** - any orb has a 4% chance of paying x5.
+- 💥 **Juice** - camera punch on pickups, screen shake and flash on big moments, particle bursts, rolling dust counter, combo milestone callouts (GOOD! NICE! ... GODLIKE!).
+
 Progress saves with DataStores (leaderstats show Stardust and Ascensions).
 
 ## Run it
@@ -25,7 +32,7 @@ Progress saves with DataStores (leaderstats show Stardust and Ascensions).
 2. Open the place and press Play.
 
 **Without Rojo** — in a blank Studio baseplate, create:
-- `ReplicatedStorage > Shared` (Folder) containing a **ModuleScript** named `Config` ← `src/shared/Config.luau`
+- `ReplicatedStorage > Shared` (Folder) containing two **ModuleScripts**: `Config` ← `src/shared/Config.luau` and `Audio` ← `src/shared/Audio.luau`
 - `ServerScriptService` **Script** `Main` ← `src/server/Main.server.luau`
 - `StarterPlayer > StarterPlayerScripts` **LocalScript** `Hud` ← `src/client/Hud.client.luau`
 - a second **LocalScript** `Extras` ← `src/client/Extras.client.luau`

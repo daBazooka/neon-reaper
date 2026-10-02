@@ -5,7 +5,9 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Audio = require(Shared:WaitForChild("Audio"))
 local Action = ReplicatedStorage:WaitForChild("Action")
 local Popup = ReplicatedStorage:WaitForChild("Popup")
 
@@ -153,6 +155,7 @@ local lastEvent = ""
 workspace:GetAttributeChangedSignal("Event"):Connect(function()
 	local id = workspace:GetAttribute("Event") or ""
 	if id ~= "" and id ~= lastEvent and eventById[id] then
+		Audio.event()
 		toast(eventById[id].Name .. " has begun!", GOLD)
 	end
 	lastEvent = id
@@ -199,9 +202,11 @@ local claimButton = make("TextButton", {
 }, dailyPanel)
 make("UICorner", { CornerRadius = UDim.new(0, 10) }, claimButton)
 claimButton.Activated:Connect(function()
+	Audio.click()
 	Action:FireServer("Claim")
 end)
 dailyButton.Activated:Connect(function()
+	Audio.click()
 	dailyPanel.Visible = not dailyPanel.Visible
 end)
 
@@ -269,9 +274,11 @@ local hatchButton = make("TextButton", {
 }, eggPanel)
 make("UICorner", { CornerRadius = UDim.new(0, 10) }, hatchButton)
 hatchButton.Activated:Connect(function()
+	Audio.click()
 	Action:FireServer("Hatch")
 end)
 eggButton.Activated:Connect(function()
+	Audio.click()
 	eggPanel.Visible = not eggPanel.Visible
 end)
 
@@ -358,6 +365,7 @@ local function showHatch(id, status)
 	revealEgg.Visible = true
 	for i = 1, 8 do
 		revealEgg.Rotation = (i % 2 == 0 and 1 or -1) * (6 + i * 2)
+		Audio.hatchTick(i)
 		task.wait(0.12)
 	end
 	if token ~= revealToken then
@@ -365,6 +373,13 @@ local function showHatch(id, status)
 	end
 	revealEgg.Visible = false
 	revealEgg.Rotation = 0
+	local rank = 1
+	for i, wisp in Config.Wisps do
+		if wisp.Id == id then
+			rank = i
+		end
+	end
+	Audio.reveal(rank)
 	revealName.Text = w.Name
 	revealName.TextColor3 = w.Color
 	revealInfo.Text = string.format(
@@ -387,6 +402,7 @@ Popup.OnClientEvent:Connect(function(kind, a, b, c)
 	if kind == "hatch" then
 		task.spawn(showHatch, a, b)
 	elseif kind == "daily" then
+		Audio.daily()
 		toast(string.format("Day %d claimed: +%s dust%s", a, fmt(b), c > 0 and (" +" .. c .. " 🥚") or ""), GOLD)
 	end
 end)

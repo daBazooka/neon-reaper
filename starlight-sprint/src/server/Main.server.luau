@@ -399,6 +399,62 @@ local function applyStats(p)
 	hum.JumpHeight = 7.2 + (p:GetAttribute("Lv_Jump") or 0) * 0.9
 end
 
+local function grantXP(p, amount)
+	local level = p:GetAttribute("Level") or 1
+	if level >= Config.MaxLevel then
+		return
+	end
+	local xp = (p:GetAttribute("XP") or 0) + amount
+	local needed = Config.XPForLevel(level)
+	while xp >= needed and level < Config.MaxLevel do
+		xp -= needed
+		level += 1
+		needed = Config.XPForLevel(level)
+		local dust = level * 40 * (1 + (p:GetAttribute("Ascensions") or 0))
+		local eggs = level % 5 == 0 and 1 or 0
+		setDust(p, getDust(p) + dust)
+		if eggs > 0 then
+			p:SetAttribute("FreeEggs", (p:GetAttribute("FreeEggs") or 0) + eggs)
+		end
+		Popup:FireClient(p, "level", level, dust, eggs)
+	end
+	p:SetAttribute("Level", level)
+	p:SetAttribute("XP", xp)
+	p:SetAttribute("XPNeeded", needed)
+	local ls = p:FindFirstChild("leaderstats")
+	if ls and ls:FindFirstChild("Level") then
+		ls.Level.Value = level
+	end
+end
+
+local function newQuest(p)
+	local q = Config.MakeQuest(p:GetAttribute("QuestsDone") or 0, p:GetAttribute("Ascensions") or 0)
+	p:SetAttribute("QuestKind", q.Kind)
+	p:SetAttribute("QuestGoal", q.Goal)
+	p:SetAttribute("QuestReward", q.Reward)
+	p:SetAttribute("QuestProgress", 0)
+end
+
+local function addQuestProgress(p, kind, amount, absolute)
+	if p:GetAttribute("QuestKind") ~= kind then
+		return
+	end
+	local progress = p:GetAttribute("QuestProgress") or 0
+	progress = absolute and math.max(progress, amount) or progress + amount
+	local goal = p:GetAttribute("QuestGoal") or 1
+	if progress < goal then
+		p:SetAttribute("QuestProgress", progress)
+		return
+	end
+	local reward = p:GetAttribute("QuestReward") or 0
+	local done = (p:GetAttribute("QuestsDone") or 0) + 1
+	setDust(p, getDust(p) + reward)
+	p:SetAttribute("QuestsDone", done)
+	Popup:FireClient(p, "quest", Config.QuestText(kind, goal), reward)
+	newQuest(p)
+	grantXP(p, 25 + done * 5)
+end
+
 local function loadPlayer(p)
 	local ls = Instance.new("Folder")
 	ls.Name = "leaderstats"
@@ -408,6 +464,9 @@ local function loadPlayer(p)
 	local ascVal = Instance.new("IntValue")
 	ascVal.Name = "Ascensions"
 	ascVal.Parent = ls
+	local lvlVal = Instance.new("IntValue")
+	lvlVal.Name = "Level"
+	lvlVal.Parent = ls
 	ls.Parent = p
 
 	local data
@@ -440,6 +499,20 @@ local function loadPlayer(p)
 	end
 	setWisps(p, ids)
 	setDust(p, data.Dust or 0)
+	local level = math.clamp(data.Level or 1, 1, Config.MaxLevel)
+	p:SetAttribute("Level", level)
+	p:SetAttribute("XP", data.XP or 0)
+	p:SetAttribute("XPNeeded", Config.XPForLevel(level))
+	p:SetAttribute("QuestsDone", data.QuestsDone or 0)
+	lvlVal.Value = level
+	if data.QuestKind and data.QuestGoal then
+		p:SetAttribute("QuestKind", data.QuestKind)
+		p:SetAttribute("QuestGoal", data.QuestGoal)
+		p:SetAttribute("QuestReward", data.QuestReward or 0)
+		p:SetAttribute("QuestProgress", data.QuestProgress or 0)
+	else
+		newQuest(p)
+	end
 	ascVal.Value = p:GetAttribute("Ascensions")
 	refreshDaily(p)
 	applyStats(p)
@@ -472,6 +545,13 @@ local function savePlayer(p)
 		DailyStreak = p:GetAttribute("DailyStreak") or 0,
 		FreeEggs = p:GetAttribute("FreeEggs") or 0,
 		LastSeen = os.time(),
+		Level = p:GetAttribute("Level") or 1,
+		XP = p:GetAttribute("XP") or 0,
+		QuestsDone = p:GetAttribute("QuestsDone") or 0,
+		QuestKind = p:GetAttribute("QuestKind"),
+		QuestGoal = p:GetAttribute("QuestGoal"),
+		QuestReward = p:GetAttribute("QuestReward"),
+		QuestProgress = p:GetAttribute("QuestProgress") or 0,
 	}
 	local ok, err = pcall(function()
 		store:SetAsync("u" .. p.UserId, payload)
@@ -539,12 +619,30 @@ local function collect(p, orb, root)
 	p:SetAttribute("Combo", combo)
 	p:SetAttribute("ComboExpire", now + Config.ComboWindow)
 
-	local mult = Config.Multiplier(p:GetAttribute("Lv_Value") or 0, p:GetAttribute("Ascensions") or 0, combo)
+	local mult = Config.Multiplier(
+		p:GetAttribute("Lv_Value") or 0,
+		p:GetAttribute("Ascensions") or 0,
+		combo,
+		p:GetAttribute("Level") or 1
+	)
 	mult *= currentEvent and currentEvent.Mult or 1
-	local gained = math.max(1, math.floor(orb:GetAttribute("Value") * mult))
+	local lucky = rng:NextNumber() < Config.LuckyChance
+	if lucky then
+		mult *= Config.LuckyMult
+	end
+	local baseValue = orb:GetAttribute("Value")
+	local tier = orb:GetAttribute("Tier")
+	local gained = math.max(1, math.floor(baseValue * mult))
 	setDust(p, getDust(p) + gained)
 
-	Popup:FireClient(p, "orb", orb.Position, gained, combo, orb:GetAttribute("Tier"), orb.Color, orb:GetAttribute("Mut"))
+	Popup:FireClient(p, "orb", orb.Position, gained, combo, tier, orb.Color, orb:GetAttribute("Mut"), lucky)
+
+	addQuestProgress(p, "orbs", 1)
+	if Config.TierIndex(tier) >= 2 then
+		addQuestProgress(p, "rare", 1)
+	end
+	addQuestProgress(p, "combo", combo, true)
+	grantXP(p, math.ceil(baseValue))
 
 	-- Fly into the player, then vanish.
 	local tween = TweenService:Create(orb, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
