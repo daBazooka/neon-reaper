@@ -301,7 +301,14 @@ end
 --------------------------------------------------------------------------------
 -- Player state
 --------------------------------------------------------------------------------
-local store = DataStoreService:GetDataStore("StarlightSprintV1")
+-- GetDataStore throws in unpublished places, so treat saving as optional.
+local storeOk, store = pcall(function()
+	return DataStoreService:GetDataStore("StarlightSprintV1")
+end)
+if not storeOk then
+	warn("[Starlight] Saving disabled (publish the place to enable it):", store)
+	store = nil
+end
 local loaded = {}
 
 local function getDust(p)
@@ -404,13 +411,15 @@ local function loadPlayer(p)
 	ls.Parent = p
 
 	local data
-	local ok, err = pcall(function()
-		data = store:GetAsync("u" .. p.UserId)
-	end)
-	if not ok then
-		warn("[Starlight] load failed (saving disabled for this session):", err)
-	else
-		loaded[p] = true
+	if store then
+		local ok, err = pcall(function()
+			data = store:GetAsync("u" .. p.UserId)
+		end)
+		if not ok then
+			warn("[Starlight] load failed (saving disabled for this session):", err)
+		else
+			loaded[p] = true
+		end
 	end
 	data = data or {}
 
@@ -447,7 +456,7 @@ local function loadPlayer(p)
 end
 
 local function savePlayer(p)
-	if not loaded[p] then
+	if not store or not loaded[p] then
 		return
 	end
 	local levels = {}
