@@ -67,7 +67,12 @@ local function scan()
 	for _, entry in Config.Interactables do
 		local d = flat(pos, Config.InteractPos(entry))
 		if d <= entry.Radius and (not bestScore or d / entry.Radius < bestScore) then
-			best, bestScore = { id = entry.Id, text = entry.Action, color = C.Good }, d / entry.Radius
+			local text = entry.Action
+			if entry.Id == "Battle" then
+				local stage = math.min((player:GetAttribute("Stage") or 0) + 1, Config.Battle.Count)
+				text = string.format("Stage %d battle: %s", stage, Config.Battle.Stages[stage].Name)
+			end
+			best, bestScore = { id = entry.Id, text = text, color = C.Good }, d / entry.Radius
 		end
 	end
 	return best

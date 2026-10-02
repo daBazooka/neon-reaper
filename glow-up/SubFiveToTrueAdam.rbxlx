@@ -193,8 +193,71 @@ function Audio.crateTick(i)
 	Audio.play("Tone", 0.9 + (i % 6) * 0.08, 0.35)
 end
 
-function Audio.countdown(final)
+function Audio.countdown(final, n)
 	Audio.play("Tone", final and 2.2 or 1.2, 0.6)
+	if final then
+		Audio.say("go")
+	elseif n then
+		Audio.say(tostring(n))
+	end
+end
+
+-- Deep announcer voice: "3, 2, 1, Go!", "Level up!", "Rebirth ready!". Uses your recorded audio when an id is
+-- set in Config.VoiceSoundIds, otherwise Roblox text-to-speech (slowed and pitched down).
+local voices = {} -- kind -> { sound = Sound } or { tts = AudioTextToSpeech }
+local voiceOut
+function Audio.say(kind)
+	if sfxGroup and sfxGroup.Volume <= 0 then
+		return
+	end
+	task.spawn(function()
+		local ok, err = pcall(function()
+			local cached = voices[kind]
+			if cached == nil then
+				local id = Config.VoiceSoundIds[kind]
+				if id and id ~= 0 then
+					local sound = Instance.new("Sound")
+					sound.SoundId = "rbxassetid://" .. id
+					sound.Volume = Config.Voice.Volume
+					sound.Parent = SoundService
+					cached = { sound = sound }
+				elseif Config.VoiceText[kind] then
+					local tts = Instance.new("AudioTextToSpeech")
+					tts.Text = Config.VoiceText[kind]
+					tts.VoiceId = Config.Voice.VoiceId
+					tts.Pitch = Config.Voice.Pitch
+					tts.Speed = Config.Voice.Speed
+					tts.Volume = Config.Voice.Volume
+					tts.Parent = SoundService
+					if not voiceOut then
+						voiceOut = Instance.new("AudioDeviceOutput")
+						voiceOut.Parent = SoundService
+					end
+					local wire = Instance.new("Wire")
+					wire.SourceInstance = tts
+					wire.TargetInstance = voiceOut
+					wire.Parent = tts
+					tts:LoadAsync()
+					cached = { tts = tts }
+				else
+					cached = false
+				end
+				voices[kind] = cached
+			end
+			if cached then
+				if cached.sound then
+					cached.sound:Play()
+				else
+					cached.tts.TimePosition = 0
+					cached.tts:Play()
+				end
+			end
+		end)
+		if not ok then
+			voices[kind] = false
+			warn("[TrueAdam] voice line '" .. tostring(kind) .. "' unavailable:", err)
+		end
+	end)
 end
 
 function Audio.setSfx(on)
@@ -386,7 +449,14 @@ end
 local APPEARANCE_START = { BodyHeightScale = 0.78, BodyWidthScale = 1.9, BodyDepthScale = 1.75, HeadScale = 1.35, BodyTypeScale = 0, BodyProportionScale = 0 }
 local APPEARANCE_END = { BodyHeightScale = 1.12, BodyWidthScale = 0.92, BodyDepthScale = 0.95, HeadScale = 0.95, BodyTypeScale = 0.3, BodyProportionScale = 0.3 }
 function Config.AppearanceScales(level)
-	local t = math.clamp((level - 1) / 999, 0, 1) ^ 0.55
+	-- Half of the whole transformation happens in the first 50 levels (a visible step every level).
+	local L = math.clamp(level, 1, 1000)
+	local t
+	if L <= 50 then
+		t = 0.5 * ((L - 1) / 49) ^ 0.85
+	else
+		t = 0.5 + 0.5 * ((L - 50) / 950) ^ 0.6
+	end
 	local out = {}
 	for key, from in APPEARANCE_START do
 		out[key] = from + (APPEARANCE_END[key] - from) * t
@@ -395,8 +465,19 @@ function Config.AppearanceScales(level)
 end
 
 -- How "weird" a character is (goofy face, hairy, big belly): 1 at level 1, gone by level ~600.
+-- 1 = full gag (hair everywhere, goofy face), 0 = gone. Drops fast early so every level looks different.
 function Config.Weirdness(level)
-	return math.clamp(1 - (level - 1) / 600, 0, 1)
+	if level <= 100 then
+		return 1 - (level - 1) * 0.0075
+	end
+	return math.clamp(0.2575 * (1 - (level - 100) / 300), 0, 1)
+end
+
+-- Skin goes from a sickly pale tone to a healthy glowing tan as you level.
+local SKIN_START, SKIN_END = C3(196, 204, 168), C3(236, 186, 140)
+function Config.SkinTone(level)
+	local t = math.clamp((level - 1) / 400, 0, 1) ^ 0.7
+	return SKIN_START:Lerp(SKIN_END, t)
 end
 
 --------------------------------------------------------------------------------
@@ -541,6 +622,47 @@ function Config.GiftAura(level, size)
 end
 
 --------------------------------------------------------------------------------
+-- Stage battles: beat 15 opponents in a row, each tougher than the last (a tap battle like the duel ring)
+--------------------------------------------------------------------------------
+Config.BattleAngle, Config.BattleRadius = 4, 108
+function Config.BattlePos()
+	local a = math.rad(Config.BattleAngle)
+	return Vector3.new(math.cos(a) * Config.BattleRadius, 0, math.sin(a) * Config.BattleRadius)
+end
+function Config.BattleFront()
+	local p = Config.BattlePos()
+	return Vector3.new(-p.X, 0, -p.Z).Unit
+end
+local STAGE_NAMES = {
+	"Sub 5 Steve", "Bacon Hair Ben", "Gym Bro Greg", "Mewing Mike", "Sigma Sam",
+	"Rizz Ron", "Jawline Jack", "Chad Chris", "Hunter Eyes Hank", "Mogger Max",
+	"Chadlite Carl", "Alpha Alex", "Adamlite Andy", "Adam Anthony", "True Adam",
+}
+Config.Battle = { Stages = {}, Count = #STAGE_NAMES }
+for i, name in STAGE_NAMES do
+	Config.Battle.Stages[i] = {
+		Index = i,
+		Name = name,
+		Power = math.floor(25 * 1.55 ^ (i - 1)), -- compared with your Mog Power
+		Rate = 4 + i * 0.45, -- taps per second the opponent manages
+		Rank = math.min(#Config.Ranks, 1 + math.floor((i - 1) * 1.9)),
+		Reward = math.floor(150 * 1.85 ^ (i - 1)),
+		Color = Color3.fromHSV((i * 0.067) % 1, 0.45, 0.85),
+	}
+end
+
+--------------------------------------------------------------------------------
+-- Voice lines. Plays with Roblox's text-to-speech (deep and slow). To use your own recorded voice,
+-- upload audio you own and paste the ids into VoiceSoundIds (e.g. VoiceSoundIds.levelup = 1234567890).
+--------------------------------------------------------------------------------
+Config.Voice = { VoiceId = "3", Pitch = 0.6, Speed = 0.85, Volume = 1.6 }
+Config.VoiceSoundIds = { ["3"] = 0, ["2"] = 0, ["1"] = 0, go = 0, levelup = 0, rebirth = 0, stage = 0, win = 0 }
+Config.VoiceText = {
+	["3"] = "Three!", ["2"] = "Two!", ["1"] = "One!", go = "Go!",
+	levelup = "Level up!", rebirth = "Rebirth ready!", stage = "Stage cleared!", win = "Mogged!",
+}
+
+--------------------------------------------------------------------------------
 -- Things you can interact with (press E, or tap the on-screen button). These work from any camera
 -- angle because they use the character's position, not the camera.
 --------------------------------------------------------------------------------
@@ -552,6 +674,7 @@ Config.Interactables = {
 	{ Id = "Crates", Object = "Crate Shop", Action = "Open crates", Pos = "station:Crates", Radius = 16 },
 	{ Id = "Ring", Object = "Duel Ring", Action = "Find a duel", Pos = "station:Ring", Radius = 24 },
 	{ Id = "Bot", Object = "Mogger Bot", Action = "Duel the bot", Pos = "bot", Radius = 9 },
+	{ Id = "Battle", Object = "Stage Battle", Action = "Stage battle", Pos = "battle", Radius = 34 },
 	{ Id = "Stage", Object = "Mog Stage", Action = "Enter competition", Pos = "stage", Radius = 24 },
 }
 -- Resolves an interactable's world position (shared by the client and the server).
@@ -559,6 +682,8 @@ function Config.InteractPos(entry)
 	local kind, arg = string.match(entry.Pos, "^(%w+):(.*)$")
 	if kind == "station" then
 		return Config.StationPos(arg)
+	elseif entry.Pos == "battle" then
+		return Config.BattlePos()
 	elseif entry.Pos == "bot" then
 		-- the training dummy stands beside the duel ring
 		local ring = Config.StationPos("Ring")
@@ -1186,6 +1311,7 @@ local Runway = require(Modules.Runway)
 local Board = require(Modules.Board)
 local Hammers = require(Modules.Hammers)
 local Pets = require(Modules.Pets)
+local Aura = require(Modules.Aura)
 local Playtime = require(Modules.Playtime)
 local World = require(Modules.World)
 
@@ -1195,7 +1321,7 @@ local World = require(Modules.World)
 print("[TrueAdam] server starting")
 local okWorld, info = pcall(World.build)
 if okWorld then
-	Duels.setArena(info.arena)
+	Duels.setArena(info.arena, info.battle)
 	Competition.setStage(info.stage, info.compBoard)
 	Shards.build(info.slots)
 	Board.init(info.board)
@@ -1207,6 +1333,7 @@ end
 Appearance.setHook(function(p)
 	Quirks.apply(p)
 	Cosmetics.apply(p)
+	Aura.apply(p)
 end)
 Shards.init()
 Competition.init()
@@ -1319,6 +1446,7 @@ local interactions = {
 		Stats.send(p, "openMenu", "Crates")
 	end,
 	Ring = Duels.joinQueue,
+	Battle = Duels.stageFight,
 	Bot = Duels.duelBot,
 	Stage = Competition.enter,
 }
@@ -1490,6 +1618,16 @@ function Appearance.update(p, instant)
 	end
 	local target = Config.AppearanceScales(profile.Level)
 
+	-- Skin tone also improves with every level.
+	local colors = char:FindFirstChildOfClass("BodyColors")
+	if colors then
+		local tone = Config.SkinTone(profile.Level)
+		colors.HeadColor3 = tone
+		colors.TorsoColor3 = tone
+		colors.LeftArmColor3 = tone
+		colors.RightArmColor3 = tone
+	end
+
 	if hum.RigType == Enum.HumanoidRigType.R15 then
 		for _, name in SCALE_VALUES do
 			local value = hum:FindFirstChild(name)
@@ -1531,6 +1669,128 @@ return Appearance
         </Item>
         <Item class="ModuleScript" referent="12">
           <Properties>
+            <string name="Name">Aura</string>
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the aura around your character grows with every level. More sparks, then flames, a glowing
+-- ring on the ground, a light and finally a halo. Colour follows your looks tier. Everyone can see it.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Data = require(script.Parent.Data)
+
+local Aura = {}
+
+local TAG = "GlowAuraFx"
+local SPARKS = "rbxasset://textures/particles/sparkles_main.dds"
+local FIRE = "rbxasset://textures/particles/fire_main.dds"
+
+local function clear(char)
+	for _, child in char:GetDescendants() do
+		if child.Name == TAG then
+			child:Destroy()
+		end
+	end
+end
+
+local function emitter(parent, props)
+	local e = Instance.new("ParticleEmitter")
+	e.Name = TAG
+	e.Speed = NumberRange.new(1, 3)
+	e.SpreadAngle = Vector2.new(180, 180)
+	e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+	for k, v in props do
+		e[k] = v
+	end
+	e.Parent = parent
+	return e
+end
+
+function Aura.apply(p)
+	local char = p.Character
+	local profile = Data.get(p)
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not char or not profile or not root then
+		return
+	end
+	clear(char)
+	local level = profile.Level
+	local tier = Config.RankFor(level)
+	local color = Config.Ranks[tier].Color
+	local bright = color:Lerp(Color3.new(1, 1, 1), 0.35)
+
+	-- Layer 1: sparks that rise around you (always on, denser every level)
+	emitter(root, {
+		Texture = SPARKS,
+		Color = ColorSequence.new(bright, color),
+		LightEmission = 0.5,
+		Rate = math.min(3 + level * 0.1, 70),
+		Lifetime = NumberRange.new(1, 1.6),
+		Acceleration = Vector3.new(0, 3, 0),
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5 + math.min(level / 100, 2)), NumberSequenceKeypoint.new(1, 0) }),
+	})
+	-- Layer 2: flames from tier 6 up
+	if tier >= 6 then
+		emitter(root, {
+			Texture = FIRE,
+			Color = ColorSequence.new(color, color:Lerp(Color3.new(0, 0, 0), 0.4)),
+			LightEmission = 0.7,
+			Rate = math.min(4 + (tier - 5) * 2.5, 50),
+			Lifetime = NumberRange.new(0.6, 1),
+			Speed = NumberRange.new(2, 5),
+			SpreadAngle = Vector2.new(25, 25),
+			Acceleration = Vector3.new(0, 6, 0),
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.5 + tier * 0.1), NumberSequenceKeypoint.new(1, 0) }),
+		})
+	end
+	-- Light that gets brighter with the tier
+	local light = Instance.new("PointLight")
+	light.Name = TAG
+	light.Color = color
+	light.Brightness = 0.3 + tier * 0.06
+	light.Range = 10 + tier * 0.8
+	light.Parent = root
+	-- Layer 3: a glowing ring on the ground from tier 10 up
+	if tier >= 10 then
+		local ring = Instance.new("Part")
+		ring.Name = TAG
+		ring.Shape = Enum.PartType.Cylinder
+		ring.Size = Vector3.new(0.2, 5 + tier * 0.25, 5 + tier * 0.25)
+		ring.Color = color
+		ring.Material = Enum.Material.SmoothPlastic
+		ring.Transparency = 0.55
+		ring.CanCollide, ring.CanQuery, ring.CanTouch, ring.Massless = false, false, false, true
+		ring.CFrame = root.CFrame * CFrame.new(0, -2.9, 0) * CFrame.Angles(0, 0, math.pi / 2)
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = root
+		weld.Part1 = ring
+		weld.Parent = ring
+		ring.Parent = char
+	end
+	-- Layer 4: a halo above the head from tier 20 up
+	local head = char:FindFirstChild("Head")
+	if tier >= 20 and head then
+		local halo = Instance.new("Part")
+		halo.Name = TAG
+		halo.Shape = Enum.PartType.Cylinder
+		halo.Size = Vector3.new(0.25, 3.2, 3.2)
+		halo.Color = Color3.fromRGB(255, 236, 140)
+		halo.Material = Enum.Material.SmoothPlastic
+		halo.Transparency = 0.15
+		halo.CanCollide, halo.CanQuery, halo.CanTouch, halo.Massless = false, false, false, true
+		halo.CFrame = head.CFrame * CFrame.new(0, head.Size.Y * 0.5 + 1.4, 0) * CFrame.Angles(0, 0, math.pi / 2)
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = head
+		weld.Part1 = halo
+		weld.Parent = halo
+		halo.Parent = char
+	end
+end
+
+return Aura
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="13">
+          <Properties>
             <string name="Name">Board</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the "Top Moggers" screen: the highest levels on this server.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -1571,7 +1831,7 @@ return Board
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="13">
+        <Item class="ModuleScript" referent="14">
           <Properties>
             <string name="Name">Competition</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Mog Competition. Every few minutes entries open at the central stage.
@@ -1872,7 +2132,7 @@ return Competition
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="14">
+        <Item class="ModuleScript" referent="15">
           <Properties>
             <string name="Name">Cosmetics</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the wardrobe. Owns the inventory (with star levels) and builds the glowing
@@ -2234,7 +2494,7 @@ return Cosmetics
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="15">
+        <Item class="ModuleScript" referent="16">
           <Properties>
             <string name="Name">Crates</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: crate opening. The server decides every roll; the client only plays the reveal.
@@ -2334,7 +2594,7 @@ return Crates
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="16">
+        <Item class="ModuleScript" referent="17">
           <Properties>
             <string name="Name">Daily</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: 7-day login streak. Missing a day restarts the cycle.
@@ -2390,7 +2650,7 @@ return Daily
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="17">
+        <Item class="ModuleScript" referent="18">
           <Properties>
             <string name="Name">Data</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: player save data. Loads/saves with DataStores when available; the game also runs
@@ -2430,6 +2690,7 @@ local function defaults()
 		BestStreak = 0,
 		Reps = 0,
 		Swings = 0,
+		Stage = 0, -- stage battles cleared
 		Pets = {}, -- pet id -> copies owned
 		PetsEq = {}, -- list of equipped pet ids
 		Hatched = 0,
@@ -2525,7 +2786,7 @@ return Data
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="18">
+        <Item class="ModuleScript" referent="19">
           <Properties>
             <string name="Name">Duels</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: "mog" duels. Two players (or a player and a bot) face off in a 7-second tap battle.
@@ -2543,12 +2804,14 @@ local Duels = {}
 
 local rng = Random.new()
 local arena -- { padA = CFrame, padB = CFrame, center = Vector3 }
+local battleArena -- same, for the stage-battle lane
 local queue = {} -- ordered list of waiting players
 local duelOf = {} -- Player -> duel
 local lastEnd = {} -- Player -> os.clock() of last duel end
 
-function Duels.setArena(info)
+function Duels.setArena(info, battle)
 	arena = info
+	battleArena = battle
 end
 
 local function removeFromQueue(p)
@@ -2558,12 +2821,12 @@ local function removeFromQueue(p)
 	end
 end
 
-local function canDuel(p)
+local function canDuel(p, forBattle)
 	local profile = Data.get(p)
-	if not profile or not arena then
+	if not profile or not (forBattle and battleArena or arena) then
 		return false, "Duels aren't ready yet"
 	end
-	if not profile.Settings.Duels then
+	if not forBattle and not profile.Settings.Duels then
 		return false, "Turn Duels on in Settings first"
 	end
 	if duelOf[p] or p:GetAttribute("InDuel") then
@@ -2591,11 +2854,11 @@ local function setFrozen(p, frozen)
 	end
 end
 
-local function place(p, cf)
+local function place(p, cf, where)
 	local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
 	if root then
 		root.AssemblyLinearVelocity = Vector3.zero
-		root.CFrame = CFrame.lookAt(cf.Position + Vector3.new(0, 3, 0), arena.center + Vector3.new(0, 3, 0))
+		root.CFrame = CFrame.lookAt(cf.Position + Vector3.new(0, 3, 0), where.center + Vector3.new(0, 3, 0))
 	end
 end
 
@@ -2631,6 +2894,20 @@ local function finish(duel)
 		setFrozen(p, false)
 
 		local reward = 60 + oppScore * 0.35
+		local stage = duel.stage
+		if stage then
+			local def = Config.Battle.Stages[stage]
+			reward = def.Reward
+			local first = wins and stage > (profile.Stage or 0)
+			if first then
+				profile.Stage = stage
+				p:SetAttribute("Stage", stage)
+				Stats.addFreeCrates(p, stage % 5 == 0 and 2 or 0)
+			else
+				reward *= 0.4
+			end
+			Stats.send(p, "stageResult", stage, wins, first, profile.Stage or 0)
+		end
 		if wins then
 			local streak = (p:GetAttribute("DuelStreak") or 0) + 1
 			p:SetAttribute("DuelStreak", streak)
@@ -2654,7 +2931,9 @@ local function finish(duel)
 	settle(b, not aWins, duel.scoreA, tb, ta, eb, ea)
 end
 
-local function startDuel(a, b)
+local function startDuel(a, b, opts)
+	opts = opts or {}
+	local where = opts.arena or arena
 	removeFromQueue(a)
 	if b then
 		removeFromQueue(b)
@@ -2662,7 +2941,7 @@ local function startDuel(a, b)
 	local cfg = Config.Duel
 	local now = workspace:GetServerTimeNow()
 	local scoreA = Stats.score(a)
-	local scoreB = b and Stats.score(b)
+	local scoreB = opts.score or (b and Stats.score(b))
 	if not scoreB then
 		local streak = a:GetAttribute("DuelStreak") or 0
 		scoreB = math.max(20, math.floor(scoreA * (0.75 + rng:NextNumber() * 0.5) * (1 + math.min(streak, 6) * 0.04)))
@@ -2677,22 +2956,23 @@ local function startDuel(a, b)
 		tapsB = 0,
 		tStart = now + cfg.Countdown,
 		tEnd = now + cfg.Countdown + cfg.Length,
-		botRate = 6 + rng:NextNumber() * 4,
+		botRate = opts.rate or (6 + rng:NextNumber() * 4),
+		stage = opts.stage,
 		over = false,
 	}
 	duelOf[a] = duel
 	a:SetAttribute("InDuel", true)
-	place(a, arena.padA)
+	place(a, where.padA, where)
 	setFrozen(a, true)
 	if b then
 		duelOf[b] = duel
 		b:SetAttribute("InDuel", true)
-		place(b, arena.padB)
+		place(b, where.padB, where)
 		setFrozen(b, true)
 	end
 
 	local function info(p)
-		return p and { p.DisplayName, p:GetAttribute("Rank") or 1 } or { "Mogger Bot", Config.RankFor(math.max(1, math.floor(scoreB / 10))) }
+		return p and { p.DisplayName, p:GetAttribute("Rank") or 1 } or { opts.name or "Mogger Bot", opts.rank or Config.RankFor(math.max(1, math.floor(scoreB / 10))) }
 	end
 	local ia, ib = info(a), info(b)
 	Stats.send(a, "duelStart", ib[1], ib[2], scoreB, scoreA, duel.tStart, cfg.Length)
@@ -2753,6 +3033,30 @@ function Duels.joinQueue(p)
 	end)
 end
 
+-- One of the 15 stage battles. Only the next unbeaten stage (or any earlier one) can be fought.
+function Duels.stageFight(p)
+	local ok, why = canDuel(p, true)
+	if not ok then
+		Stats.toast(p, why, "bad")
+		return
+	end
+	local profile = Data.get(p)
+	local cleared = profile.Stage or 0
+	local stage = math.min(cleared + 1, Config.Battle.Count)
+	local def = Config.Battle.Stages[stage]
+	startDuel(p, nil, {
+		arena = battleArena,
+		stage = stage,
+		name = "Stage " .. stage .. ": " .. def.Name,
+		rank = def.Rank,
+		score = def.Power,
+		rate = def.Rate,
+	})
+	if battleArena.setOpponent then
+		battleArena.setOpponent(def)
+	end
+end
+
 function Duels.duelBot(p)
 	local ok, why = canDuel(p)
 	if not ok then
@@ -2807,7 +3111,7 @@ return Duels
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="19">
+        <Item class="ModuleScript" referent="20">
           <Properties>
             <string name="Name">Events</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: a server-wide event every few minutes. Clients read the "Event" attributes on workspace.
@@ -2862,7 +3166,7 @@ return Events
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="20">
+        <Item class="ModuleScript" referent="21">
           <Properties>
             <string name="Name">Hammers</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: click / tap to swing a hammer, plus buying and equipping hammers.
@@ -3027,7 +3331,7 @@ return Hammers
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="21">
+        <Item class="ModuleScript" referent="22">
           <Properties>
             <string name="Name">Nameplate</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the tag above every player. It says what they are (their looks tier)
@@ -3115,7 +3419,7 @@ return Nameplate
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="22">
+        <Item class="ModuleScript" referent="23">
           <Properties>
             <string name="Name">Pets</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: pets. Hatch eggs, equip up to 3; they follow you around (everyone sees them),
@@ -3370,7 +3674,7 @@ return Pets
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="23">
+        <Item class="ModuleScript" referent="24">
           <Properties>
             <string name="Name">Playtime</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: play-time gifts. Stay in the server and gifts arrive on their own (Aura + crates),
@@ -3420,7 +3724,7 @@ return Playtime
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="24">
+        <Item class="ModuleScript" referent="25">
           <Properties>
             <string name="Name">Quests</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: an endless chain of small goals. There is always exactly one active quest.
@@ -3486,7 +3790,7 @@ return Quests
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="25">
+        <Item class="ModuleScript" referent="26">
           <Properties>
             <string name="Name">Quirks</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the gag that gives the game its name. Everyone starts with a goofy face, a big
@@ -3587,36 +3891,42 @@ function Quirks.apply(p)
 	local skin = head.Color
 	local rng = Random.new(p.UserId) -- same layout every time, so hair doesn't "jump" between levels
 
+	-- e: how exaggerated the face still is (shrinks a little with every level)
+	local e = 0.45 + 0.55 * w
 	-- ===== The face =====
 	if w > 0.15 then
 		hideFace(head)
 		local faceZ = -D * 0.5
 		-- Mismatched, cross-eyed eyes
-		stick(ball(W * 0.34, Color3.new(1, 1, 1)), head, CFrame.new(-W * 0.22, H * 0.1, faceZ), folder)
+		stick(ball(W * 0.34 * e, Color3.new(1, 1, 1)), head, CFrame.new(-W * 0.22, H * 0.1, faceZ), folder)
 		stick(ball(W * 0.2, Color3.new(1, 1, 1)), head, CFrame.new(W * 0.2, H * 0.2, faceZ), folder)
 		stick(ball(W * 0.13, Color3.new(0, 0, 0)), head, CFrame.new(-W * 0.14, H * 0.08, faceZ - W * 0.15), folder)
 		stick(ball(W * 0.09, Color3.new(0, 0, 0)), head, CFrame.new(W * 0.15, H * 0.18, faceZ - W * 0.08), folder)
 		-- One big hairy unibrow
-		stick(bit({ Size = Vector3.new(W * 0.8, H * 0.13, D * 0.12), Color = FUR }), head, CFrame.new(0, H * 0.34, faceZ) * CFrame.Angles(0, 0, 0.12), folder)
+		stick(bit({ Size = Vector3.new(W * 0.8, H * 0.13 * e, D * 0.12), Color = FUR }), head, CFrame.new(0, H * 0.34, faceZ) * CFrame.Angles(0, 0, 0.12), folder)
 		-- Giant nose with nostrils
-		stick(ball(W * 0.3, skin), head, CFrame.new(0, -H * 0.1, faceZ - W * 0.08), folder)
+		stick(ball(W * 0.3 * e, skin), head, CFrame.new(0, -H * 0.1, faceZ - W * 0.08), folder)
 		stick(ball(W * 0.07, Color3.fromRGB(40, 20, 20)), head, CFrame.new(-W * 0.07, -H * 0.16, faceZ - W * 0.28), folder)
 		stick(ball(W * 0.07, Color3.fromRGB(40, 20, 20)), head, CFrame.new(W * 0.07, -H * 0.16, faceZ - W * 0.28), folder)
 		-- Crooked mouth with buck teeth
 		stick(bit({ Size = Vector3.new(W * 0.5, H * 0.1, D * 0.06), Color = Color3.fromRGB(70, 20, 30) }), head, CFrame.new(W * 0.04, -H * 0.34, faceZ) * CFrame.Angles(0, 0, 0.14), folder)
 		for side = -1, 1, 2 do
+			if w > 0.45 then
 			stick(bit({ Size = Vector3.new(W * 0.11, H * 0.17, D * 0.06), Color = Color3.fromRGB(250, 248, 235) }), head, CFrame.new(W * 0.04 + side * W * 0.065, -H * 0.4, faceZ - D * 0.02), folder)
+			end
 		end
 		-- Bushy mustache
 		for side = -1, 1, 2 do
+			if w > 0.3 then
 			stick(bit({ Size = Vector3.new(W * 0.3, H * 0.12, D * 0.1), Color = FUR }), head, CFrame.new(side * W * 0.16, -H * 0.24, faceZ - D * 0.04) * CFrame.Angles(0, 0, -side * 0.18), folder)
+			end
 		end
 	else
 		restoreFace(head)
 	end
 
 	-- ===== Hair all over the face =====
-	local faceHair = math.ceil(18 * w)
+	local faceHair = math.ceil(34 * w)
 	for _ = 1, faceHair do
 		local x = (rng:NextNumber() - 0.5) * W * 0.95
 		local y = -H * (0.12 + rng:NextNumber() * 0.4)
@@ -3626,7 +3936,7 @@ function Quirks.apply(p)
 		stick(ball(W * (0.1 + rng:NextNumber() * 0.12), FUR), head, CFrame.new(xSide, y, z), folder)
 	end
 	-- Messy hair on top
-	local topHair = math.ceil(9 * w)
+	local topHair = math.ceil(16 * w)
 	for _ = 1, topHair do
 		local x = (rng:NextNumber() - 0.5) * W * 0.8
 		local z = (rng:NextNumber() - 0.5) * D * 0.8
@@ -3645,7 +3955,7 @@ function Quirks.apply(p)
 		limb(char, "LeftUpperArm", "Left Arm"),
 		limb(char, "RightUpperArm", "Right Arm"),
 	}
-	local bodyHair = math.ceil(30 * w)
+	local bodyHair = math.ceil(60 * w)
 	for i = 1, bodyHair do
 		local base, offset
 		if i % 3 == 0 and arms[1] then
@@ -3671,7 +3981,7 @@ return Quirks
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="26">
+        <Item class="ModuleScript" referent="27">
           <Properties>
             <string name="Name">Runway</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the runway in the middle of the district. Walk it for a steady Aura trickle that
@@ -3712,7 +4022,7 @@ return Runway
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="27">
+        <Item class="ModuleScript" referent="28">
           <Properties>
             <string name="Name">Shards</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the gym-and-health pickups scattered around the plaza: apples, protein shakes,
@@ -3958,7 +4268,7 @@ return Shards
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="28">
+        <Item class="ModuleScript" referent="29">
           <Properties>
             <string name="Name">Shop</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades and rebirth.
@@ -4030,7 +4340,7 @@ return Shop
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="29">
+        <Item class="ModuleScript" referent="30">
           <Properties>
             <string name="Name">Stats</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the heart of progression. Owns Aura, stats, Glow Score, rank and the
@@ -4164,6 +4474,7 @@ function Stats.recompute(p)
 	p:SetAttribute("Hammer", profile.Hammer)
 	p:SetAttribute("HammersOwned", Stats.ownedString(profile))
 	p:SetAttribute("Swings", profile.Swings)
+	p:SetAttribute("Stage", profile.Stage)
 	local petMult = Stats.petBonus(profile)
 	p:SetAttribute("PetMult", petMult)
 	p:SetAttribute("PetsEq", table.concat(profile.PetsEq, ","))
@@ -4387,7 +4698,7 @@ return Stats
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="30">
+        <Item class="ModuleScript" referent="31">
           <Properties>
             <string name="Name">Training</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame. A marker sweeps a bar; hit the zone for stat gains.
@@ -4565,7 +4876,7 @@ return Training
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="31">
+        <Item class="ModuleScript" referent="32">
           <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: builds the whole town from code (nothing to import).
@@ -4842,6 +5153,149 @@ local function buildHammerRow(parent)
 	for side = -1, 1, 2 do
 		block(row, "SignPost", Vector3.new(1.2, 16, 1.2), CFrame.new(side * 18, 8, Config.HammerRowZ + 14.4), DARK, M.Metal)
 	end
+end
+
+
+--------------------------------------------------------------------------------
+-- Platforms: raised, studded round platforms where training and battles happen
+--------------------------------------------------------------------------------
+-- `cf` sits on the surface the platform stands on. Returns the CFrame of the platform's top.
+local function platform(parent, cf, radius, color, text)
+	local h = 1.2
+	local origin = cf.Position
+	disk(parent, "PlatformBase", origin + Vector3.new(0, h, 0), radius + 1.2, h, C3(70, 74, 92), M.Concrete)
+	local top = disk(parent, "PlatformTop", origin + Vector3.new(0, h + 0.3, 0), radius, 0.3, color, M.SmoothPlastic)
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = radius * 3
+	light.Brightness = 0.9
+	light.Parent = top
+	for i = 1, 14 do
+		local a = (i / 14) * math.pi * 2
+		part(parent, {
+			Name = "Stud",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.4, 1.7, 1.7),
+			CFrame = CFrame.new(origin + Vector3.new(math.cos(a) * radius * 0.78, h + 0.65, math.sin(a) * radius * 0.78)) * CFrame.Angles(0, 0, math.pi / 2),
+			Color = color:Lerp(WHITE, 0.35),
+			Material = M.SmoothPlastic,
+			CanCollide = false,
+		})
+	end
+	for i = 1, 16 do
+		local a = (i / 16) * math.pi * 2
+		local at = origin + Vector3.new(math.cos(a) * (radius + 0.9), h + 1.1, math.sin(a) * (radius + 0.9))
+		-- leave a gap in front (local -Z) for the steps
+		local local_ = cf:PointToObjectSpace(at)
+		if not (local_.Z < -radius * 0.55 and math.abs(local_.X) < 4.2) then
+			post(parent, "Bollard", at, 0.35, 2.2, DARK, M.Metal)
+			part(parent, { Name = "BollardCap", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.9, Position = at + Vector3.new(0, 1.3, 0), Color = color, Material = M.SmoothPlastic, CanCollide = false })
+		end
+	end
+	block(parent, "StepLow", Vector3.new(8, h * 0.45, 2.6), cf * CFrame.new(0, h * 0.225, -(radius + 2.5)), C3(150, 150, 158), M.Concrete)
+	block(parent, "StepHigh", Vector3.new(8, h * 0.9, 2.6), cf * CFrame.new(0, h * 0.45, -(radius + 0.9)), C3(165, 165, 172), M.Concrete)
+	local label = block(parent, "PlatformLabel", Vector3.new(radius * 1.3, 0.1, radius * 1.3), cf * CFrame.new(0, h + 0.5, 0), color, M.SmoothPlastic, { CanCollide = false, Transparency = 1 })
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Top
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
+	gui.CanvasSize = Vector2.new(300, 300)
+	gui.Parent = label
+	local tx = Instance.new("TextLabel")
+	tx.Size = UDim2.fromScale(1, 1)
+	tx.BackgroundTransparency = 1
+	tx.Font = Enum.Font.GothamBlack
+	tx.TextScaled = true
+	tx.TextColor3 = WHITE
+	tx.TextStrokeTransparency = 0
+	tx.Text = text
+	tx.Parent = gui
+	return cf * CFrame.new(0, h + 0.45, 0)
+end
+
+local function trainingPlatforms(parent)
+	for name, info in { Gym = { RED, "💪 TRAIN" }, Studio = { C3(150, 70, 190), "💈 STYLE" }, Lounge = { C3(40, 130, 150), "🛋️ CHARM" } } do
+		local pos, inward = stationAt(name)
+		local cf = CFrame.lookAt(pos, pos + inward) * CFrame.new(0, 0.9, -7)
+		platform(parent, cf, 6, info[1], info[2])
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Stage battle arena: a long studded lane, opaque side walls, a glass back wall, and an NPC opponent
+--------------------------------------------------------------------------------
+local function studded(parent, name, size, cf, color, extra)
+	local p = block(parent, name, size, cf, color, M.Plastic, extra)
+	p.TopSurface = Enum.SurfaceType.Studs
+	return p
+end
+
+local function buildBattle(parent)
+	local pos, inward = Config.BattlePos(), Config.BattleFront()
+	local cf = CFrame.lookAt(pos, pos + inward)
+	local LANE = 64
+	studded(parent, "BattleFloor", Vector3.new(30, 1, LANE), cf * CFrame.new(0, 0.5, 0), C3(176, 190, 214))
+	for side = -1, 1, 2 do
+		studded(parent, "BattleWall", Vector3.new(2, 18, LANE), cf * CFrame.new(side * 16, 9.5, 0), C3(70, 92, 180))
+	end
+	block(parent, "BattleGlass", Vector3.new(30, 18, 1.2), cf * CFrame.new(0, 9.5, LANE / 2), C3(150, 200, 235), M.SmoothPlastic, { Transparency = 0.4 })
+	-- entry arch + sign (faces the plaza)
+	for side = -1, 1, 2 do
+		block(parent, "BattlePillar", Vector3.new(2, 20, 2), cf * CFrame.new(side * 15, 10.5, -LANE / 2), DARK, M.Metal)
+	end
+	block(parent, "BattleBeam", Vector3.new(32, 2, 2), cf * CFrame.new(0, 21, -LANE / 2), DARK, M.Metal)
+	sign(parent, (cf * CFrame.new(0, 25, -LANE / 2)).Position, cf.LookVector, Vector3.new(28, 5, 0.6), "⚔️  STAGE BATTLE", C3(40, 70, 170))
+	block(parent, "BattleRamp", Vector3.new(16, 0.5, 4), cf * CFrame.new(0, 0.25, -LANE / 2 - 2), C3(150, 150, 158), M.Concrete)
+
+	local padA = platform(parent, cf * CFrame.new(0, 1, -14), 5.5, C3(250, 205, 50), "YOU")
+	local padB = platform(parent, cf * CFrame.new(0, 1, 14), 5.5, C3(150, 60, 220), "VS")
+
+	-- The opponent: a blocky NPC whose look changes with the stage.
+	local npc = Instance.new("Model")
+	npc.Name = "StageOpponent"
+	npc.Parent = parent
+	local standCF = padB * CFrame.Angles(0, math.pi, 0)
+	local skin = C3(214, 190, 150)
+	local torso = block(npc, "NpcTorso", Vector3.new(4, 4.4, 2.2), standCF * CFrame.new(0, 4.8, 0), BLUE, M.SmoothPlastic)
+	local head = part(npc, { Name = "NpcHead", Shape = Enum.PartType.Ball, Size = Vector3.one * 3, Position = (standCF * CFrame.new(0, 8.4, 0)).Position, Color = skin, Material = M.SmoothPlastic })
+	local belly = part(npc, { Name = "NpcBelly", Shape = Enum.PartType.Ball, Size = Vector3.one * 4.4, Position = (standCF * CFrame.new(0, 3.9, -0.7)).Position, Color = skin, Material = M.SmoothPlastic })
+	for _, d in { { -0.6, 0.3 }, { 0.6, 0.3 } } do
+		part(npc, { Name = "NpcEye", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.6, Position = (standCF * CFrame.new(d[1], 8.7, -1.35)).Position, Color = WHITE, Material = M.SmoothPlastic, CanCollide = false })
+		part(npc, { Name = "NpcPupil", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.3, Position = (standCF * CFrame.new(d[1], 8.7, -1.65)).Position, Color = C3(0, 0, 0), Material = M.SmoothPlastic, CanCollide = false })
+	end
+	block(npc, "NpcMouth", Vector3.new(1.2, 0.25, 0.2), standCF * CFrame.new(0, 7.9, -1.45), C3(110, 30, 40), M.SmoothPlastic, { CanCollide = false })
+	for side = -1, 1, 2 do
+		block(npc, "NpcArm", Vector3.new(1.4, 4.2, 1.4), standCF * CFrame.new(side * 3, 4.9, 0) * CFrame.Angles(0, 0, side * 0.2), skin, M.SmoothPlastic)
+		block(npc, "NpcLeg", Vector3.new(1.8, 3.2, 1.8), standCF * CFrame.new(side * 1, 1.6, 0), DARK, M.SmoothPlastic)
+	end
+	local tag = Instance.new("BillboardGui")
+	tag.Size = UDim2.fromOffset(280, 54)
+	tag.StudsOffset = Vector3.new(0, 4.2, 0)
+	tag.MaxDistance = 120
+	tag.AlwaysOnTop = true
+	tag.Adornee = head
+	tag.Parent = head
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBlack
+	label.TextSize = 20
+	label.TextColor3 = WHITE
+	label.TextStrokeTransparency = 0
+	label.TextWrapped = true
+	label.Text = "STAGE 1\n" .. Config.Battle.Stages[1].Name
+	label.Parent = tag
+
+	local function setOpponent(def)
+		label.Text = string.format("STAGE %d / %d\n%s", def.Index, Config.Battle.Count, def.Name)
+		label.TextColor3 = Config.Ranks[def.Rank].Color
+		torso.Color = def.Color
+		local fat = math.max(0, 1 - (def.Index - 1) / 8)
+		belly.Transparency = fat > 0.05 and 0 or 1
+		belly.Size = Vector3.one * (2 + 2.4 * fat)
+		torso.Size = Vector3.new(3.2 + 1.2 * fat, 4.4, 2.2)
+	end
+	setOpponent(Config.Battle.Stages[1])
+	return { padA = padA, padB = padB, center = (cf * CFrame.new(0, 2.5, 0)).Position, setOpponent = setOpponent }
 end
 
 local function buildGym(parent)
@@ -5243,8 +5697,10 @@ function World.build()
 	buildLounge(world)
 	buildCrateShop(world)
 	local arena = buildRing(world)
+	trainingPlatforms(world)
+	local battle = buildBattle(world)
 
-	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 124), r = 56 } }
+	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 124), r = 56 }, { pos = Config.BattlePos(), r = 40 } }
 	for name in Config.Stations do
 		table.insert(avoid, { pos = (stationAt(name)), r = 28 })
 	end
@@ -5252,6 +5708,7 @@ function World.build()
 	return {
 		slots = shardSlots(avoid),
 		arena = arena,
+		battle = battle,
 		board = boardLabel,
 		compBoard = compBoard,
 		stage = { center = Vector3.new(0, 1.8, 0) },
@@ -5265,15 +5722,15 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="32">
+  <Item class="StarterPlayer" referent="33">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="33">
+    <Item class="StarterPlayerScripts" referent="34">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="34">
+      <Item class="LocalScript" referent="35">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: client entry point. Builds the interface, wires the menu tabs, and routes everything
@@ -5430,6 +5887,7 @@ end
 -- Plain level-ups stay small (a toast); every 10th level gets a proper moment.
 function handlers.level(level, aura, crates)
 	Audio.quest()
+	Audio.say("levelup")
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	if root then
 		Fx.ring(root.Position, UI.Colors.Gold, level % 10 == 0 and 40 or 18)
@@ -5535,6 +5993,18 @@ function handlers.hatch(eggId, petId, copies)
 	Fx.announce(pet.Name:upper(), string.format("%s pet  ·  +%d%% Aura%s", pet.Rarity, math.floor(Config.PetMult(pet, copies) * 100 + 0.5), copies > 1 and ("  ·  " .. string.rep("★", Config.PetStars(copies))) or "  ·  NEW!"), rarity.Color, 0.25)
 end
 
+function handlers.stageResult(stage, won, first, cleared)
+	local def = Config.Battle.Stages[stage]
+	if won then
+		Audio.say(first and "stage" or "win")
+		if first then
+			Fx.announce("STAGE " .. stage .. " CLEARED!", stage < Config.Battle.Count and ("Next: " .. Config.Battle.Stages[stage + 1].Name) or "You beat every opponent!", def.Color, 0.25)
+		end
+	else
+		Toasts.push("Stage " .. stage .. " (" .. def.Name .. ") beat you. Level up and try again!", "bad")
+	end
+end
+
 function handlers.openMenu(tab)
 	Menu.open(tab)
 end
@@ -5593,11 +6063,11 @@ task.spawn(function()
 end)
 ]]></string>
         </Properties>
-        <Item class="Folder" referent="35">
+        <Item class="Folder" referent="36">
           <Properties>
             <string name="Name">Modules</string>
           </Properties>
-          <Item class="ModuleScript" referent="36">
+          <Item class="ModuleScript" referent="37">
             <Properties>
               <string name="Name">CompetitionUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: Mog Competition overlay. Everyone on stage flexes (taps) for 8 seconds; a live
@@ -5789,7 +6259,7 @@ function CompetitionUI.init(gui, action)
 			center.TextColor3 = C.Gold
 			if left ~= comp.lastTick then
 				comp.lastTick = left
-				Audio.countdown(false)
+				Audio.countdown(false, left)
 			end
 			tapButton.BackgroundTransparency = 0.5
 		elseif now <= comp.tStart + comp.length then
@@ -5881,7 +6351,7 @@ return CompetitionUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="37">
+          <Item class="ModuleScript" referent="38">
             <Properties>
               <string name="Name">DuelUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: duel overlay. Both sides tap as fast as they can for 7 seconds; Mog Power gives an
@@ -6036,7 +6506,7 @@ function DuelUI.init(gui, action)
 			center.TextColor3 = C.Gold
 			if left ~= duel.lastTick then
 				duel.lastTick = left
-				Audio.countdown(false)
+				Audio.countdown(false, left)
 			end
 			tapButton.BackgroundTransparency = 0.5
 		elseif now <= duel.tStart + duel.length then
@@ -6121,7 +6591,7 @@ return DuelUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="38">
+          <Item class="ModuleScript" referent="39">
             <Properties>
               <string name="Name">Fx</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
@@ -6359,7 +6829,7 @@ return Fx
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="39">
+          <Item class="ModuleScript" referent="40">
             <Properties>
               <string name="Name">HammerRow</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: floating OWNED / EQUIPPED / price labels over every hammer pedestal.
@@ -6484,13 +6954,13 @@ return HammerRow
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="40">
+          <Item class="ModuleScript" referent="41">
             <Properties>
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the always-on screen.
 --   Top centre: hint banner, then Aura / Rebirths / multiplier pills, then small status chips.
 --   Left edge: big icon buttons (Shop, Rebirth with %, Rewards, PVP, MOG).
---   Right edge: smaller buttons (Hammers, Wardrobe, Crates, Profile, Settings).
+--   Right edge: smaller buttons (Hammers, Pets, Wardrobe, Crates, Battle, Settings).
 --   Bottom centre: the big Aura counter and the wide LEVEL bar. Bottom left: the current quest.
 -- Every button is a normal on-screen button, so it works the same from any camera angle.
 local Players = game:GetService("Players")
@@ -6510,7 +6980,7 @@ local player = Players.LocalPlayer
 local camera = workspace:WaitForChild("Camera")
 local C = UI.Colors
 
-local refs = {}
+local refs: { [string]: any } = {}
 local fitScales = {} -- one UIScale per HUD block, resized together for small screens
 local shownAura = 0
 local pending, lastGain = 0, 0
@@ -6548,6 +7018,10 @@ local TELEPORTS = {
 		local ring = Config.StationPos("Ring")
 		local front = Config.StationFront("Ring")
 		teleport(ring + front * 32 + Vector3.new(0, 4, 0), ring)
+	end,
+	Battle = function()
+		local pos, front = Config.BattlePos(), Config.BattleFront()
+		teleport(pos + front * 40 + Vector3.new(0, 4, 0), pos)
 	end,
 	MOG = function()
 		teleport(Vector3.new(0, 5, 12), Vector3.new(0, 5, -20))
@@ -6743,9 +7217,7 @@ local function buildSides(gui, Menu)
 		Menu.toggle("Crates")
 	end)
 	refs.badges.Crates = crateBadge
-	sideButton(right, 5, 52, C.Accent, "📈", "Profile", function()
-		Menu.toggle("Profile")
-	end)
+	sideButton(right, 5, 52, C.Accent, "⚔️", "Battle", TELEPORTS.Battle)
 	sideButton(right, 6, 52, C.Disabled, "⚙️", "Settings", function()
 		Menu.toggle("Settings")
 	end)
@@ -7069,10 +7541,18 @@ function Hud.refresh()
 
 	-- Rebirth button percentage + window
 	local pct = math.clamp(level / need, 0, 1)
+	-- "Rebirth ready!" once, the moment you reach the level (and again after each rebirth)
+	local ready = level >= need
+	if ready and not refs.rebirthWasReady and refs.sawFirstRefresh then
+		Audio.say("rebirth")
+		Audio.rank()
+		UI.pop(refs.questScale, 1.15)
+	end
+	refs.rebirthWasReady = ready
+	refs.sawFirstRefresh = true
 	refs.rebirthCaption.Text = math.floor(pct * 100) .. "%"
 	refs.rebirthBar.set(pct)
 	if refs.rebirthWin.Visible then
-		local ready = level >= need
 		refs.rebirthInfo.Text = string.format(
 			"Reach level %d to be reborn.\nYou keep your level, hammers and outfits.\nAura, stats and upgrades reset.\nEvery rebirth adds +50%% Aura and XP forever and gives 2 free crates.",
 			need
@@ -7143,7 +7623,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="41">
+          <Item class="ModuleScript" referent="42">
             <Properties>
               <string name="Name">Interact</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: "use" button for every place and hammer. Stand near something and a big button
@@ -7215,7 +7695,12 @@ local function scan()
 	for _, entry in Config.Interactables do
 		local d = flat(pos, Config.InteractPos(entry))
 		if d <= entry.Radius and (not bestScore or d / entry.Radius < bestScore) then
-			best, bestScore = { id = entry.Id, text = entry.Action, color = C.Good }, d / entry.Radius
+			local text = entry.Action
+			if entry.Id == "Battle" then
+				local stage = math.min((player:GetAttribute("Stage") or 0) + 1, Config.Battle.Count)
+				text = string.format("Stage %d battle: %s", stage, Config.Battle.Stages[stage].Name)
+			end
+			best, bestScore = { id = entry.Id, text = text, color = C.Good }, d / entry.Radius
 		end
 	end
 	return best
@@ -7292,7 +7777,7 @@ return Interact
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="42">
+          <Item class="ModuleScript" referent="43">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the one main menu. A single window with a tab list so the screen never fills up with
@@ -7537,7 +8022,7 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="43">
+          <Item class="ModuleScript" referent="44">
             <Properties>
               <string name="Name">Orbs</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: pickups bob and spin locally so the server never has to animate them, and
@@ -7594,7 +8079,7 @@ return Orbs
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="44">
+          <Item class="ModuleScript" referent="45">
             <Properties>
               <string name="Name">Swing</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: click / tap anywhere (or hold) to swing your hammer at your own face.
@@ -7739,7 +8224,7 @@ return Swing
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="45">
+          <Item class="ModuleScript" referent="46">
             <Properties>
               <string name="Name">TabCrates</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: crates tab. The server rolls; this plays the reveal (a spinning reel that slows
@@ -8038,7 +8523,7 @@ return TabCrates
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="46">
+          <Item class="ModuleScript" referent="47">
             <Properties>
               <string name="Name">TabPets</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Pets tab. Hatch eggs at the top, manage your pets below.
@@ -8238,7 +8723,7 @@ return TabPets
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="47">
+          <Item class="ModuleScript" referent="48">
             <Properties>
               <string name="Name">TabProfile</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: your character sheet: rank, stats, duel record and the current quest.
@@ -8417,7 +8902,7 @@ return TabProfile
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="48">
+          <Item class="ModuleScript" referent="49">
             <Properties>
               <string name="Name">TabRewards</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: daily streak rewards and the current server event.
@@ -8543,7 +9028,7 @@ return TabRewards
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="49">
+          <Item class="ModuleScript" referent="50">
             <Properties>
               <string name="Name">TabSettings</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: simple toggles. Settings are saved on the server so they follow the player.
@@ -8646,7 +9131,7 @@ return TabSettings
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="50">
+          <Item class="ModuleScript" referent="51">
             <Properties>
               <string name="Name">TabUpgrades</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades (bought with Aura) and the rebirth button.
@@ -8806,7 +9291,7 @@ return TabUpgrades
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="51">
+          <Item class="ModuleScript" referent="52">
             <Properties>
               <string name="Name">TabWardrobe</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the wardrobe. A collection grid: owned items can be worn, unowned ones show as locked
@@ -9033,7 +9518,7 @@ return TabWardrobe
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="52">
+          <Item class="ModuleScript" referent="53">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -9143,7 +9628,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="53">
+          <Item class="ModuleScript" referent="54">
             <Properties>
               <string name="Name">TrainingUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame overlay. A marker sweeps a bar; press Space (or tap) while it
@@ -9412,7 +9897,7 @@ return TrainingUI
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="54">
+  <Item class="Workspace" referent="55">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

@@ -176,8 +176,71 @@ function Audio.crateTick(i)
 	Audio.play("Tone", 0.9 + (i % 6) * 0.08, 0.35)
 end
 
-function Audio.countdown(final)
+function Audio.countdown(final, n)
 	Audio.play("Tone", final and 2.2 or 1.2, 0.6)
+	if final then
+		Audio.say("go")
+	elseif n then
+		Audio.say(tostring(n))
+	end
+end
+
+-- Deep announcer voice: "3, 2, 1, Go!", "Level up!", "Rebirth ready!". Uses your recorded audio when an id is
+-- set in Config.VoiceSoundIds, otherwise Roblox text-to-speech (slowed and pitched down).
+local voices = {} -- kind -> { sound = Sound } or { tts = AudioTextToSpeech }
+local voiceOut
+function Audio.say(kind)
+	if sfxGroup and sfxGroup.Volume <= 0 then
+		return
+	end
+	task.spawn(function()
+		local ok, err = pcall(function()
+			local cached = voices[kind]
+			if cached == nil then
+				local id = Config.VoiceSoundIds[kind]
+				if id and id ~= 0 then
+					local sound = Instance.new("Sound")
+					sound.SoundId = "rbxassetid://" .. id
+					sound.Volume = Config.Voice.Volume
+					sound.Parent = SoundService
+					cached = { sound = sound }
+				elseif Config.VoiceText[kind] then
+					local tts = Instance.new("AudioTextToSpeech")
+					tts.Text = Config.VoiceText[kind]
+					tts.VoiceId = Config.Voice.VoiceId
+					tts.Pitch = Config.Voice.Pitch
+					tts.Speed = Config.Voice.Speed
+					tts.Volume = Config.Voice.Volume
+					tts.Parent = SoundService
+					if not voiceOut then
+						voiceOut = Instance.new("AudioDeviceOutput")
+						voiceOut.Parent = SoundService
+					end
+					local wire = Instance.new("Wire")
+					wire.SourceInstance = tts
+					wire.TargetInstance = voiceOut
+					wire.Parent = tts
+					tts:LoadAsync()
+					cached = { tts = tts }
+				else
+					cached = false
+				end
+				voices[kind] = cached
+			end
+			if cached then
+				if cached.sound then
+					cached.sound:Play()
+				else
+					cached.tts.TimePosition = 0
+					cached.tts:Play()
+				end
+			end
+		end)
+		if not ok then
+			voices[kind] = false
+			warn("[TrueAdam] voice line '" .. tostring(kind) .. "' unavailable:", err)
+		end
+	end)
 end
 
 function Audio.setSfx(on)

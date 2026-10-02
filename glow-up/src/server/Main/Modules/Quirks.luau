@@ -96,36 +96,42 @@ function Quirks.apply(p)
 	local skin = head.Color
 	local rng = Random.new(p.UserId) -- same layout every time, so hair doesn't "jump" between levels
 
+	-- e: how exaggerated the face still is (shrinks a little with every level)
+	local e = 0.45 + 0.55 * w
 	-- ===== The face =====
 	if w > 0.15 then
 		hideFace(head)
 		local faceZ = -D * 0.5
 		-- Mismatched, cross-eyed eyes
-		stick(ball(W * 0.34, Color3.new(1, 1, 1)), head, CFrame.new(-W * 0.22, H * 0.1, faceZ), folder)
+		stick(ball(W * 0.34 * e, Color3.new(1, 1, 1)), head, CFrame.new(-W * 0.22, H * 0.1, faceZ), folder)
 		stick(ball(W * 0.2, Color3.new(1, 1, 1)), head, CFrame.new(W * 0.2, H * 0.2, faceZ), folder)
 		stick(ball(W * 0.13, Color3.new(0, 0, 0)), head, CFrame.new(-W * 0.14, H * 0.08, faceZ - W * 0.15), folder)
 		stick(ball(W * 0.09, Color3.new(0, 0, 0)), head, CFrame.new(W * 0.15, H * 0.18, faceZ - W * 0.08), folder)
 		-- One big hairy unibrow
-		stick(bit({ Size = Vector3.new(W * 0.8, H * 0.13, D * 0.12), Color = FUR }), head, CFrame.new(0, H * 0.34, faceZ) * CFrame.Angles(0, 0, 0.12), folder)
+		stick(bit({ Size = Vector3.new(W * 0.8, H * 0.13 * e, D * 0.12), Color = FUR }), head, CFrame.new(0, H * 0.34, faceZ) * CFrame.Angles(0, 0, 0.12), folder)
 		-- Giant nose with nostrils
-		stick(ball(W * 0.3, skin), head, CFrame.new(0, -H * 0.1, faceZ - W * 0.08), folder)
+		stick(ball(W * 0.3 * e, skin), head, CFrame.new(0, -H * 0.1, faceZ - W * 0.08), folder)
 		stick(ball(W * 0.07, Color3.fromRGB(40, 20, 20)), head, CFrame.new(-W * 0.07, -H * 0.16, faceZ - W * 0.28), folder)
 		stick(ball(W * 0.07, Color3.fromRGB(40, 20, 20)), head, CFrame.new(W * 0.07, -H * 0.16, faceZ - W * 0.28), folder)
 		-- Crooked mouth with buck teeth
 		stick(bit({ Size = Vector3.new(W * 0.5, H * 0.1, D * 0.06), Color = Color3.fromRGB(70, 20, 30) }), head, CFrame.new(W * 0.04, -H * 0.34, faceZ) * CFrame.Angles(0, 0, 0.14), folder)
 		for side = -1, 1, 2 do
+			if w > 0.45 then
 			stick(bit({ Size = Vector3.new(W * 0.11, H * 0.17, D * 0.06), Color = Color3.fromRGB(250, 248, 235) }), head, CFrame.new(W * 0.04 + side * W * 0.065, -H * 0.4, faceZ - D * 0.02), folder)
+			end
 		end
 		-- Bushy mustache
 		for side = -1, 1, 2 do
+			if w > 0.3 then
 			stick(bit({ Size = Vector3.new(W * 0.3, H * 0.12, D * 0.1), Color = FUR }), head, CFrame.new(side * W * 0.16, -H * 0.24, faceZ - D * 0.04) * CFrame.Angles(0, 0, -side * 0.18), folder)
+			end
 		end
 	else
 		restoreFace(head)
 	end
 
 	-- ===== Hair all over the face =====
-	local faceHair = math.ceil(18 * w)
+	local faceHair = math.ceil(34 * w)
 	for _ = 1, faceHair do
 		local x = (rng:NextNumber() - 0.5) * W * 0.95
 		local y = -H * (0.12 + rng:NextNumber() * 0.4)
@@ -135,7 +141,7 @@ function Quirks.apply(p)
 		stick(ball(W * (0.1 + rng:NextNumber() * 0.12), FUR), head, CFrame.new(xSide, y, z), folder)
 	end
 	-- Messy hair on top
-	local topHair = math.ceil(9 * w)
+	local topHair = math.ceil(16 * w)
 	for _ = 1, topHair do
 		local x = (rng:NextNumber() - 0.5) * W * 0.8
 		local z = (rng:NextNumber() - 0.5) * D * 0.8
@@ -154,7 +160,7 @@ function Quirks.apply(p)
 		limb(char, "LeftUpperArm", "Left Arm"),
 		limb(char, "RightUpperArm", "Right Arm"),
 	}
-	local bodyHair = math.ceil(30 * w)
+	local bodyHair = math.ceil(60 * w)
 	for i = 1, bodyHair do
 		local base, offset
 		if i % 3 == 0 and arms[1] then

@@ -1,7 +1,7 @@
 -- SUB 5 TO TRUE ADAM: the always-on screen.
 --   Top centre: hint banner, then Aura / Rebirths / multiplier pills, then small status chips.
 --   Left edge: big icon buttons (Shop, Rebirth with %, Rewards, PVP, MOG).
---   Right edge: smaller buttons (Hammers, Wardrobe, Crates, Profile, Settings).
+--   Right edge: smaller buttons (Hammers, Pets, Wardrobe, Crates, Battle, Settings).
 --   Bottom centre: the big Aura counter and the wide LEVEL bar. Bottom left: the current quest.
 -- Every button is a normal on-screen button, so it works the same from any camera angle.
 local Players = game:GetService("Players")
@@ -21,7 +21,7 @@ local player = Players.LocalPlayer
 local camera = workspace:WaitForChild("Camera")
 local C = UI.Colors
 
-local refs = {}
+local refs: { [string]: any } = {}
 local fitScales = {} -- one UIScale per HUD block, resized together for small screens
 local shownAura = 0
 local pending, lastGain = 0, 0
@@ -59,6 +59,10 @@ local TELEPORTS = {
 		local ring = Config.StationPos("Ring")
 		local front = Config.StationFront("Ring")
 		teleport(ring + front * 32 + Vector3.new(0, 4, 0), ring)
+	end,
+	Battle = function()
+		local pos, front = Config.BattlePos(), Config.BattleFront()
+		teleport(pos + front * 40 + Vector3.new(0, 4, 0), pos)
 	end,
 	MOG = function()
 		teleport(Vector3.new(0, 5, 12), Vector3.new(0, 5, -20))
@@ -254,9 +258,7 @@ local function buildSides(gui, Menu)
 		Menu.toggle("Crates")
 	end)
 	refs.badges.Crates = crateBadge
-	sideButton(right, 5, 52, C.Accent, "📈", "Profile", function()
-		Menu.toggle("Profile")
-	end)
+	sideButton(right, 5, 52, C.Accent, "⚔️", "Battle", TELEPORTS.Battle)
 	sideButton(right, 6, 52, C.Disabled, "⚙️", "Settings", function()
 		Menu.toggle("Settings")
 	end)
@@ -580,10 +582,18 @@ function Hud.refresh()
 
 	-- Rebirth button percentage + window
 	local pct = math.clamp(level / need, 0, 1)
+	-- "Rebirth ready!" once, the moment you reach the level (and again after each rebirth)
+	local ready = level >= need
+	if ready and not refs.rebirthWasReady and refs.sawFirstRefresh then
+		Audio.say("rebirth")
+		Audio.rank()
+		UI.pop(refs.questScale, 1.15)
+	end
+	refs.rebirthWasReady = ready
+	refs.sawFirstRefresh = true
 	refs.rebirthCaption.Text = math.floor(pct * 100) .. "%"
 	refs.rebirthBar.set(pct)
 	if refs.rebirthWin.Visible then
-		local ready = level >= need
 		refs.rebirthInfo.Text = string.format(
 			"Reach level %d to be reborn.\nYou keep your level, hammers and outfits.\nAura, stats and upgrades reset.\nEvery rebirth adds +50%% Aura and XP forever and gives 2 free crates.",
 			need

@@ -81,6 +81,16 @@ function Appearance.update(p, instant)
 	end
 	local target = Config.AppearanceScales(profile.Level)
 
+	-- Skin tone also improves with every level.
+	local colors = char:FindFirstChildOfClass("BodyColors")
+	if colors then
+		local tone = Config.SkinTone(profile.Level)
+		colors.HeadColor3 = tone
+		colors.TorsoColor3 = tone
+		colors.LeftArmColor3 = tone
+		colors.RightArmColor3 = tone
+	end
+
 	if hum.RigType == Enum.HumanoidRigType.R15 then
 		for _, name in SCALE_VALUES do
 			local value = hum:FindFirstChild(name)

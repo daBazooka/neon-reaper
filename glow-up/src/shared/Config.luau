@@ -86,7 +86,14 @@ end
 local APPEARANCE_START = { BodyHeightScale = 0.78, BodyWidthScale = 1.9, BodyDepthScale = 1.75, HeadScale = 1.35, BodyTypeScale = 0, BodyProportionScale = 0 }
 local APPEARANCE_END = { BodyHeightScale = 1.12, BodyWidthScale = 0.92, BodyDepthScale = 0.95, HeadScale = 0.95, BodyTypeScale = 0.3, BodyProportionScale = 0.3 }
 function Config.AppearanceScales(level)
-	local t = math.clamp((level - 1) / 999, 0, 1) ^ 0.55
+	-- Half of the whole transformation happens in the first 50 levels (a visible step every level).
+	local L = math.clamp(level, 1, 1000)
+	local t
+	if L <= 50 then
+		t = 0.5 * ((L - 1) / 49) ^ 0.85
+	else
+		t = 0.5 + 0.5 * ((L - 50) / 950) ^ 0.6
+	end
 	local out = {}
 	for key, from in APPEARANCE_START do
 		out[key] = from + (APPEARANCE_END[key] - from) * t
@@ -95,8 +102,19 @@ function Config.AppearanceScales(level)
 end
 
 -- How "weird" a character is (goofy face, hairy, big belly): 1 at level 1, gone by level ~600.
+-- 1 = full gag (hair everywhere, goofy face), 0 = gone. Drops fast early so every level looks different.
 function Config.Weirdness(level)
-	return math.clamp(1 - (level - 1) / 600, 0, 1)
+	if level <= 100 then
+		return 1 - (level - 1) * 0.0075
+	end
+	return math.clamp(0.2575 * (1 - (level - 100) / 300), 0, 1)
+end
+
+-- Skin goes from a sickly pale tone to a healthy glowing tan as you level.
+local SKIN_START, SKIN_END = C3(196, 204, 168), C3(236, 186, 140)
+function Config.SkinTone(level)
+	local t = math.clamp((level - 1) / 400, 0, 1) ^ 0.7
+	return SKIN_START:Lerp(SKIN_END, t)
 end
 
 --------------------------------------------------------------------------------
@@ -241,6 +259,47 @@ function Config.GiftAura(level, size)
 end
 
 --------------------------------------------------------------------------------
+-- Stage battles: beat 15 opponents in a row, each tougher than the last (a tap battle like the duel ring)
+--------------------------------------------------------------------------------
+Config.BattleAngle, Config.BattleRadius = 4, 108
+function Config.BattlePos()
+	local a = math.rad(Config.BattleAngle)
+	return Vector3.new(math.cos(a) * Config.BattleRadius, 0, math.sin(a) * Config.BattleRadius)
+end
+function Config.BattleFront()
+	local p = Config.BattlePos()
+	return Vector3.new(-p.X, 0, -p.Z).Unit
+end
+local STAGE_NAMES = {
+	"Sub 5 Steve", "Bacon Hair Ben", "Gym Bro Greg", "Mewing Mike", "Sigma Sam",
+	"Rizz Ron", "Jawline Jack", "Chad Chris", "Hunter Eyes Hank", "Mogger Max",
+	"Chadlite Carl", "Alpha Alex", "Adamlite Andy", "Adam Anthony", "True Adam",
+}
+Config.Battle = { Stages = {}, Count = #STAGE_NAMES }
+for i, name in STAGE_NAMES do
+	Config.Battle.Stages[i] = {
+		Index = i,
+		Name = name,
+		Power = math.floor(25 * 1.55 ^ (i - 1)), -- compared with your Mog Power
+		Rate = 4 + i * 0.45, -- taps per second the opponent manages
+		Rank = math.min(#Config.Ranks, 1 + math.floor((i - 1) * 1.9)),
+		Reward = math.floor(150 * 1.85 ^ (i - 1)),
+		Color = Color3.fromHSV((i * 0.067) % 1, 0.45, 0.85),
+	}
+end
+
+--------------------------------------------------------------------------------
+-- Voice lines. Plays with Roblox's text-to-speech (deep and slow). To use your own recorded voice,
+-- upload audio you own and paste the ids into VoiceSoundIds (e.g. VoiceSoundIds.levelup = 1234567890).
+--------------------------------------------------------------------------------
+Config.Voice = { VoiceId = "3", Pitch = 0.6, Speed = 0.85, Volume = 1.6 }
+Config.VoiceSoundIds = { ["3"] = 0, ["2"] = 0, ["1"] = 0, go = 0, levelup = 0, rebirth = 0, stage = 0, win = 0 }
+Config.VoiceText = {
+	["3"] = "Three!", ["2"] = "Two!", ["1"] = "One!", go = "Go!",
+	levelup = "Level up!", rebirth = "Rebirth ready!", stage = "Stage cleared!", win = "Mogged!",
+}
+
+--------------------------------------------------------------------------------
 -- Things you can interact with (press E, or tap the on-screen button). These work from any camera
 -- angle because they use the character's position, not the camera.
 --------------------------------------------------------------------------------
@@ -252,6 +311,7 @@ Config.Interactables = {
 	{ Id = "Crates", Object = "Crate Shop", Action = "Open crates", Pos = "station:Crates", Radius = 16 },
 	{ Id = "Ring", Object = "Duel Ring", Action = "Find a duel", Pos = "station:Ring", Radius = 24 },
 	{ Id = "Bot", Object = "Mogger Bot", Action = "Duel the bot", Pos = "bot", Radius = 9 },
+	{ Id = "Battle", Object = "Stage Battle", Action = "Stage battle", Pos = "battle", Radius = 34 },
 	{ Id = "Stage", Object = "Mog Stage", Action = "Enter competition", Pos = "stage", Radius = 24 },
 }
 -- Resolves an interactable's world position (shared by the client and the server).
@@ -259,6 +319,8 @@ function Config.InteractPos(entry)
 	local kind, arg = string.match(entry.Pos, "^(%w+):(.*)$")
 	if kind == "station" then
 		return Config.StationPos(arg)
+	elseif entry.Pos == "battle" then
+		return Config.BattlePos()
 	elseif entry.Pos == "bot" then
 		-- the training dummy stands beside the duel ring
 		local ring = Config.StationPos("Ring")

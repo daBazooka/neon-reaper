@@ -274,6 +274,149 @@ local function buildHammerRow(parent)
 	end
 end
 
+
+--------------------------------------------------------------------------------
+-- Platforms: raised, studded round platforms where training and battles happen
+--------------------------------------------------------------------------------
+-- `cf` sits on the surface the platform stands on. Returns the CFrame of the platform's top.
+local function platform(parent, cf, radius, color, text)
+	local h = 1.2
+	local origin = cf.Position
+	disk(parent, "PlatformBase", origin + Vector3.new(0, h, 0), radius + 1.2, h, C3(70, 74, 92), M.Concrete)
+	local top = disk(parent, "PlatformTop", origin + Vector3.new(0, h + 0.3, 0), radius, 0.3, color, M.SmoothPlastic)
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = radius * 3
+	light.Brightness = 0.9
+	light.Parent = top
+	for i = 1, 14 do
+		local a = (i / 14) * math.pi * 2
+		part(parent, {
+			Name = "Stud",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.4, 1.7, 1.7),
+			CFrame = CFrame.new(origin + Vector3.new(math.cos(a) * radius * 0.78, h + 0.65, math.sin(a) * radius * 0.78)) * CFrame.Angles(0, 0, math.pi / 2),
+			Color = color:Lerp(WHITE, 0.35),
+			Material = M.SmoothPlastic,
+			CanCollide = false,
+		})
+	end
+	for i = 1, 16 do
+		local a = (i / 16) * math.pi * 2
+		local at = origin + Vector3.new(math.cos(a) * (radius + 0.9), h + 1.1, math.sin(a) * (radius + 0.9))
+		-- leave a gap in front (local -Z) for the steps
+		local local_ = cf:PointToObjectSpace(at)
+		if not (local_.Z < -radius * 0.55 and math.abs(local_.X) < 4.2) then
+			post(parent, "Bollard", at, 0.35, 2.2, DARK, M.Metal)
+			part(parent, { Name = "BollardCap", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.9, Position = at + Vector3.new(0, 1.3, 0), Color = color, Material = M.SmoothPlastic, CanCollide = false })
+		end
+	end
+	block(parent, "StepLow", Vector3.new(8, h * 0.45, 2.6), cf * CFrame.new(0, h * 0.225, -(radius + 2.5)), C3(150, 150, 158), M.Concrete)
+	block(parent, "StepHigh", Vector3.new(8, h * 0.9, 2.6), cf * CFrame.new(0, h * 0.45, -(radius + 0.9)), C3(165, 165, 172), M.Concrete)
+	local label = block(parent, "PlatformLabel", Vector3.new(radius * 1.3, 0.1, radius * 1.3), cf * CFrame.new(0, h + 0.5, 0), color, M.SmoothPlastic, { CanCollide = false, Transparency = 1 })
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Top
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
+	gui.CanvasSize = Vector2.new(300, 300)
+	gui.Parent = label
+	local tx = Instance.new("TextLabel")
+	tx.Size = UDim2.fromScale(1, 1)
+	tx.BackgroundTransparency = 1
+	tx.Font = Enum.Font.GothamBlack
+	tx.TextScaled = true
+	tx.TextColor3 = WHITE
+	tx.TextStrokeTransparency = 0
+	tx.Text = text
+	tx.Parent = gui
+	return cf * CFrame.new(0, h + 0.45, 0)
+end
+
+local function trainingPlatforms(parent)
+	for name, info in { Gym = { RED, "💪 TRAIN" }, Studio = { C3(150, 70, 190), "💈 STYLE" }, Lounge = { C3(40, 130, 150), "🛋️ CHARM" } } do
+		local pos, inward = stationAt(name)
+		local cf = CFrame.lookAt(pos, pos + inward) * CFrame.new(0, 0.9, -7)
+		platform(parent, cf, 6, info[1], info[2])
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Stage battle arena: a long studded lane, opaque side walls, a glass back wall, and an NPC opponent
+--------------------------------------------------------------------------------
+local function studded(parent, name, size, cf, color, extra)
+	local p = block(parent, name, size, cf, color, M.Plastic, extra)
+	p.TopSurface = Enum.SurfaceType.Studs
+	return p
+end
+
+local function buildBattle(parent)
+	local pos, inward = Config.BattlePos(), Config.BattleFront()
+	local cf = CFrame.lookAt(pos, pos + inward)
+	local LANE = 64
+	studded(parent, "BattleFloor", Vector3.new(30, 1, LANE), cf * CFrame.new(0, 0.5, 0), C3(176, 190, 214))
+	for side = -1, 1, 2 do
+		studded(parent, "BattleWall", Vector3.new(2, 18, LANE), cf * CFrame.new(side * 16, 9.5, 0), C3(70, 92, 180))
+	end
+	block(parent, "BattleGlass", Vector3.new(30, 18, 1.2), cf * CFrame.new(0, 9.5, LANE / 2), C3(150, 200, 235), M.SmoothPlastic, { Transparency = 0.4 })
+	-- entry arch + sign (faces the plaza)
+	for side = -1, 1, 2 do
+		block(parent, "BattlePillar", Vector3.new(2, 20, 2), cf * CFrame.new(side * 15, 10.5, -LANE / 2), DARK, M.Metal)
+	end
+	block(parent, "BattleBeam", Vector3.new(32, 2, 2), cf * CFrame.new(0, 21, -LANE / 2), DARK, M.Metal)
+	sign(parent, (cf * CFrame.new(0, 25, -LANE / 2)).Position, cf.LookVector, Vector3.new(28, 5, 0.6), "⚔️  STAGE BATTLE", C3(40, 70, 170))
+	block(parent, "BattleRamp", Vector3.new(16, 0.5, 4), cf * CFrame.new(0, 0.25, -LANE / 2 - 2), C3(150, 150, 158), M.Concrete)
+
+	local padA = platform(parent, cf * CFrame.new(0, 1, -14), 5.5, C3(250, 205, 50), "YOU")
+	local padB = platform(parent, cf * CFrame.new(0, 1, 14), 5.5, C3(150, 60, 220), "VS")
+
+	-- The opponent: a blocky NPC whose look changes with the stage.
+	local npc = Instance.new("Model")
+	npc.Name = "StageOpponent"
+	npc.Parent = parent
+	local standCF = padB * CFrame.Angles(0, math.pi, 0)
+	local skin = C3(214, 190, 150)
+	local torso = block(npc, "NpcTorso", Vector3.new(4, 4.4, 2.2), standCF * CFrame.new(0, 4.8, 0), BLUE, M.SmoothPlastic)
+	local head = part(npc, { Name = "NpcHead", Shape = Enum.PartType.Ball, Size = Vector3.one * 3, Position = (standCF * CFrame.new(0, 8.4, 0)).Position, Color = skin, Material = M.SmoothPlastic })
+	local belly = part(npc, { Name = "NpcBelly", Shape = Enum.PartType.Ball, Size = Vector3.one * 4.4, Position = (standCF * CFrame.new(0, 3.9, -0.7)).Position, Color = skin, Material = M.SmoothPlastic })
+	for _, d in { { -0.6, 0.3 }, { 0.6, 0.3 } } do
+		part(npc, { Name = "NpcEye", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.6, Position = (standCF * CFrame.new(d[1], 8.7, -1.35)).Position, Color = WHITE, Material = M.SmoothPlastic, CanCollide = false })
+		part(npc, { Name = "NpcPupil", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.3, Position = (standCF * CFrame.new(d[1], 8.7, -1.65)).Position, Color = C3(0, 0, 0), Material = M.SmoothPlastic, CanCollide = false })
+	end
+	block(npc, "NpcMouth", Vector3.new(1.2, 0.25, 0.2), standCF * CFrame.new(0, 7.9, -1.45), C3(110, 30, 40), M.SmoothPlastic, { CanCollide = false })
+	for side = -1, 1, 2 do
+		block(npc, "NpcArm", Vector3.new(1.4, 4.2, 1.4), standCF * CFrame.new(side * 3, 4.9, 0) * CFrame.Angles(0, 0, side * 0.2), skin, M.SmoothPlastic)
+		block(npc, "NpcLeg", Vector3.new(1.8, 3.2, 1.8), standCF * CFrame.new(side * 1, 1.6, 0), DARK, M.SmoothPlastic)
+	end
+	local tag = Instance.new("BillboardGui")
+	tag.Size = UDim2.fromOffset(280, 54)
+	tag.StudsOffset = Vector3.new(0, 4.2, 0)
+	tag.MaxDistance = 120
+	tag.AlwaysOnTop = true
+	tag.Adornee = head
+	tag.Parent = head
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBlack
+	label.TextSize = 20
+	label.TextColor3 = WHITE
+	label.TextStrokeTransparency = 0
+	label.TextWrapped = true
+	label.Text = "STAGE 1\n" .. Config.Battle.Stages[1].Name
+	label.Parent = tag
+
+	local function setOpponent(def)
+		label.Text = string.format("STAGE %d / %d\n%s", def.Index, Config.Battle.Count, def.Name)
+		label.TextColor3 = Config.Ranks[def.Rank].Color
+		torso.Color = def.Color
+		local fat = math.max(0, 1 - (def.Index - 1) / 8)
+		belly.Transparency = fat > 0.05 and 0 or 1
+		belly.Size = Vector3.one * (2 + 2.4 * fat)
+		torso.Size = Vector3.new(3.2 + 1.2 * fat, 4.4, 2.2)
+	end
+	setOpponent(Config.Battle.Stages[1])
+	return { padA = padA, padB = padB, center = (cf * CFrame.new(0, 2.5, 0)).Position, setOpponent = setOpponent }
+end
+
 local function buildGym(parent)
 	local pos, inward = stationAt("Gym")
 	local cf = pavilion(parent, pos, inward, RED, "💪  GYM", C3(150, 30, 20), C3(48, 50, 56), M.Slate, C3(150, 60, 55))
@@ -673,8 +816,10 @@ function World.build()
 	buildLounge(world)
 	buildCrateShop(world)
 	local arena = buildRing(world)
+	trainingPlatforms(world)
+	local battle = buildBattle(world)
 
-	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 124), r = 56 } }
+	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 124), r = 56 }, { pos = Config.BattlePos(), r = 40 } }
 	for name in Config.Stations do
 		table.insert(avoid, { pos = (stationAt(name)), r = 28 })
 	end
@@ -682,6 +827,7 @@ function World.build()
 	return {
 		slots = shardSlots(avoid),
 		arena = arena,
+		battle = battle,
 		board = boardLabel,
 		compBoard = compBoard,
 		stage = { center = Vector3.new(0, 1.8, 0) },

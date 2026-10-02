@@ -13,12 +13,14 @@ local Duels = {}
 
 local rng = Random.new()
 local arena -- { padA = CFrame, padB = CFrame, center = Vector3 }
+local battleArena -- same, for the stage-battle lane
 local queue = {} -- ordered list of waiting players
 local duelOf = {} -- Player -> duel
 local lastEnd = {} -- Player -> os.clock() of last duel end
 
-function Duels.setArena(info)
+function Duels.setArena(info, battle)
 	arena = info
+	battleArena = battle
 end
 
 local function removeFromQueue(p)
@@ -28,12 +30,12 @@ local function removeFromQueue(p)
 	end
 end
 
-local function canDuel(p)
+local function canDuel(p, forBattle)
 	local profile = Data.get(p)
-	if not profile or not arena then
+	if not profile or not (forBattle and battleArena or arena) then
 		return false, "Duels aren't ready yet"
 	end
-	if not profile.Settings.Duels then
+	if not forBattle and not profile.Settings.Duels then
 		return false, "Turn Duels on in Settings first"
 	end
 	if duelOf[p] or p:GetAttribute("InDuel") then
@@ -61,11 +63,11 @@ local function setFrozen(p, frozen)
 	end
 end
 
-local function place(p, cf)
+local function place(p, cf, where)
 	local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
 	if root then
 		root.AssemblyLinearVelocity = Vector3.zero
-		root.CFrame = CFrame.lookAt(cf.Position + Vector3.new(0, 3, 0), arena.center + Vector3.new(0, 3, 0))
+		root.CFrame = CFrame.lookAt(cf.Position + Vector3.new(0, 3, 0), where.center + Vector3.new(0, 3, 0))
 	end
 end
 
@@ -101,6 +103,20 @@ local function finish(duel)
 		setFrozen(p, false)
 
 		local reward = 60 + oppScore * 0.35
+		local stage = duel.stage
+		if stage then
+			local def = Config.Battle.Stages[stage]
+			reward = def.Reward
+			local first = wins and stage > (profile.Stage or 0)
+			if first then
+				profile.Stage = stage
+				p:SetAttribute("Stage", stage)
+				Stats.addFreeCrates(p, stage % 5 == 0 and 2 or 0)
+			else
+				reward *= 0.4
+			end
+			Stats.send(p, "stageResult", stage, wins, first, profile.Stage or 0)
+		end
 		if wins then
 			local streak = (p:GetAttribute("DuelStreak") or 0) + 1
 			p:SetAttribute("DuelStreak", streak)
@@ -124,7 +140,9 @@ local function finish(duel)
 	settle(b, not aWins, duel.scoreA, tb, ta, eb, ea)
 end
 
-local function startDuel(a, b)
+local function startDuel(a, b, opts)
+	opts = opts or {}
+	local where = opts.arena or arena
 	removeFromQueue(a)
 	if b then
 		removeFromQueue(b)
@@ -132,7 +150,7 @@ local function startDuel(a, b)
 	local cfg = Config.Duel
 	local now = workspace:GetServerTimeNow()
 	local scoreA = Stats.score(a)
-	local scoreB = b and Stats.score(b)
+	local scoreB = opts.score or (b and Stats.score(b))
 	if not scoreB then
 		local streak = a:GetAttribute("DuelStreak") or 0
 		scoreB = math.max(20, math.floor(scoreA * (0.75 + rng:NextNumber() * 0.5) * (1 + math.min(streak, 6) * 0.04)))
@@ -147,22 +165,23 @@ local function startDuel(a, b)
 		tapsB = 0,
 		tStart = now + cfg.Countdown,
 		tEnd = now + cfg.Countdown + cfg.Length,
-		botRate = 6 + rng:NextNumber() * 4,
+		botRate = opts.rate or (6 + rng:NextNumber() * 4),
+		stage = opts.stage,
 		over = false,
 	}
 	duelOf[a] = duel
 	a:SetAttribute("InDuel", true)
-	place(a, arena.padA)
+	place(a, where.padA, where)
 	setFrozen(a, true)
 	if b then
 		duelOf[b] = duel
 		b:SetAttribute("InDuel", true)
-		place(b, arena.padB)
+		place(b, where.padB, where)
 		setFrozen(b, true)
 	end
 
 	local function info(p)
-		return p and { p.DisplayName, p:GetAttribute("Rank") or 1 } or { "Mogger Bot", Config.RankFor(math.max(1, math.floor(scoreB / 10))) }
+		return p and { p.DisplayName, p:GetAttribute("Rank") or 1 } or { opts.name or "Mogger Bot", opts.rank or Config.RankFor(math.max(1, math.floor(scoreB / 10))) }
 	end
 	local ia, ib = info(a), info(b)
 	Stats.send(a, "duelStart", ib[1], ib[2], scoreB, scoreA, duel.tStart, cfg.Length)
@@ -221,6 +240,30 @@ function Duels.joinQueue(p)
 			startDuel(p, nil)
 		end
 	end)
+end
+
+-- One of the 15 stage battles. Only the next unbeaten stage (or any earlier one) can be fought.
+function Duels.stageFight(p)
+	local ok, why = canDuel(p, true)
+	if not ok then
+		Stats.toast(p, why, "bad")
+		return
+	end
+	local profile = Data.get(p)
+	local cleared = profile.Stage or 0
+	local stage = math.min(cleared + 1, Config.Battle.Count)
+	local def = Config.Battle.Stages[stage]
+	startDuel(p, nil, {
+		arena = battleArena,
+		stage = stage,
+		name = "Stage " .. stage .. ": " .. def.Name,
+		rank = def.Rank,
+		score = def.Power,
+		rate = def.Rate,
+	})
+	if battleArena.setOpponent then
+		battleArena.setOpponent(def)
+	end
 end
 
 function Duels.duelBot(p)

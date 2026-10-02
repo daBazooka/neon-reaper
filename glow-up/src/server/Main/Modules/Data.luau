@@ -35,6 +35,7 @@ local function defaults()
 		BestStreak = 0,
 		Reps = 0,
 		Swings = 0,
+		Stage = 0, -- stage battles cleared
 		Pets = {}, -- pet id -> copies owned
 		PetsEq = {}, -- list of equipped pet ids
 		Hatched = 0,

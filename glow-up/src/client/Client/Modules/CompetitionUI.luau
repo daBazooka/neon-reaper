@@ -187,7 +187,7 @@ function CompetitionUI.init(gui, action)
 			center.TextColor3 = C.Gold
 			if left ~= comp.lastTick then
 				comp.lastTick = left
-				Audio.countdown(false)
+				Audio.countdown(false, left)
 			end
 			tapButton.BackgroundTransparency = 0.5
 		elseif now <= comp.tStart + comp.length then

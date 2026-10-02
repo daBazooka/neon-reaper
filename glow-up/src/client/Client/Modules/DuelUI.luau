@@ -150,7 +150,7 @@ function DuelUI.init(gui, action)
 			center.TextColor3 = C.Gold
 			if left ~= duel.lastTick then
 				duel.lastTick = left
-				Audio.countdown(false)
+				Audio.countdown(false, left)
 			end
 			tapButton.BackgroundTransparency = 0.5
 		elseif now <= duel.tStart + duel.length then

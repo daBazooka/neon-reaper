@@ -28,7 +28,7 @@ local function newPlayer(id, name)
 	end
 	local hum = {RigType = Enum.HumanoidRigType.R15, FindFirstChild = function(_, n) return scaleVals[n] end, WaitForChild = function(_, n) return scaleVals[n] end, WalkSpeed = 16, Health = 100}
 	p.scaleVals = scaleVals; p.hum = hum
-	char = {FindFirstChild = function() return U("part") end, FindFirstChildOfClass = function() return hum end, WaitForChild = function() return hum end, GetScale = function() return 1 end, ScaleTo = function() end}
+	char = {GetDescendants = function() return {} end, FindFirstChild = function() return U("part") end, FindFirstChildOfClass = function() return hum end, WaitForChild = function() return hum end, GetScale = function() return 1 end, ScaleTo = function() end}
 	p.Character = char
 	p.CharacterAdded = {Connect = function() end}
 	-- leaderstats is created via Instance.new in Stats.init; give it settable values
@@ -307,6 +307,58 @@ do
 	local giftMsgs = 0
 	for _, m in notifyLog do if m[1] == "gift" then giftMsgs += 1 end end
 	check(giftMsgs >= 3 and giftMsgs <= #Config.Gifts, "play-time gifts delivered in order: " .. giftMsgs)
+end
+
+
+-- Stage battles + per-level looks + aura
+do
+	local d = Data.get(p1)
+	d.Level = 300; Stats.recompute(p1)
+	a1.InDuel = false; a1.Training = false
+	advance(10)
+	local stage0 = d.Stage or 0
+	p1.root.Position = Vector3.new(0, 3, 0)
+	fireAll("Action", p1, "Interact", "Battle"); advance(0.1)
+	check(a1.InDuel ~= true, "stage battle refuses from far away")
+	p1.root.Position = Config.BattlePos() + Vector3.new(0, 3, 0)
+	fireAll("Action", p1, "Interact", "Battle"); advance(0.1)
+	check(a1.InDuel == true, "stage battle starts at the arena")
+	local started
+	for _, m in notifyLog do if m[1] == "duelStart" and string.find(tostring(m[2]), "Stage") then started = m end end
+	check(started ~= nil, "opponent announced: " .. tostring(started and started[2]))
+	advance(Config.Duel.Countdown + 0.3)
+	for i = 1, 60 do fireAll("Action", p1, "DuelTaps", 1); advance(0.11) end
+	advance(2)
+	local result
+	for i = #notifyLog, 1, -1 do if notifyLog[i][1] == "stageResult" then result = notifyLog[i]; break end end
+	check(result ~= nil and result[3] == true, "won stage " .. tostring(stage0 + 1))
+	check((a1.Stage or 0) == stage0 + 1, "stage progress saved: " .. tostring(a1.Stage))
+	check(a1.InDuel == false, "player released after stage battle")
+	-- weak player loses a late stage
+	advance(6)
+	d.Level = 1; d.Stage = 14; Stats.recompute(p1)
+	fireAll("Action", p1, "Interact", "Battle"); advance(Config.Duel.Countdown + 0.3)
+	advance(Config.Duel.Length + 1)
+	local result2
+	for i = #notifyLog, 1, -1 do if notifyLog[i][1] == "stageResult" then result2 = notifyLog[i]; break end end
+	check(result2 ~= nil and result2[2] == 15 and result2[3] == false, "weak player loses stage 15")
+	check((a1.Stage or 0) == 14, "failed stage does not advance")
+	-- looks change every level
+	local last
+	local changed = 0
+	for lvl = 1, 40 do
+		d.Level = lvl; Stats.recompute(p1)
+		Config2 = Config
+		local sc = Config.AppearanceScales(lvl).BodyWidthScale
+		if last and math.abs(sc - last) > 0.002 then changed += 1 end
+		last = sc
+	end
+	check(changed >= 38, "body width changes at (almost) every level: " .. changed .. "/39")
+	check(Config.Weirdness(2) < Config.Weirdness(1) and Config.Weirdness(60) < Config.Weirdness(59), "weirdness drops every level")
+	local Aura = require(ModN.children.Aura)
+	for _, lvl in {1, 20, 120, 400, 1100} do d.Level = lvl; Aura.apply(p1) end
+	check(true, "aura builds at levels 1/20/120/400/1100")
+	d.Level = 20; Stats.recompute(p1)
 end
 
 -- Mog Competition: run a full cycle with one human

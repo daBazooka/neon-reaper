@@ -37,6 +37,7 @@ local Runway = require(Modules.Runway)
 local Board = require(Modules.Board)
 local Hammers = require(Modules.Hammers)
 local Pets = require(Modules.Pets)
+local Aura = require(Modules.Aura)
 local Playtime = require(Modules.Playtime)
 local World = require(Modules.World)
 
@@ -46,7 +47,7 @@ local World = require(Modules.World)
 print("[TrueAdam] server starting")
 local okWorld, info = pcall(World.build)
 if okWorld then
-	Duels.setArena(info.arena)
+	Duels.setArena(info.arena, info.battle)
 	Competition.setStage(info.stage, info.compBoard)
 	Shards.build(info.slots)
 	Board.init(info.board)
@@ -58,6 +59,7 @@ end
 Appearance.setHook(function(p)
 	Quirks.apply(p)
 	Cosmetics.apply(p)
+	Aura.apply(p)
 end)
 Shards.init()
 Competition.init()
@@ -170,6 +172,7 @@ local interactions = {
 		Stats.send(p, "openMenu", "Crates")
 	end,
 	Ring = Duels.joinQueue,
+	Battle = Duels.stageFight,
 	Bot = Duels.duelBot,
 	Stage = Competition.enter,
 }

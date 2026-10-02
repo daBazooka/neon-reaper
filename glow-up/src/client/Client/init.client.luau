@@ -152,6 +152,7 @@ end
 -- Plain level-ups stay small (a toast); every 10th level gets a proper moment.
 function handlers.level(level, aura, crates)
 	Audio.quest()
+	Audio.say("levelup")
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	if root then
 		Fx.ring(root.Position, UI.Colors.Gold, level % 10 == 0 and 40 or 18)
@@ -255,6 +256,18 @@ function handlers.hatch(eggId, petId, copies)
 		Fx.burst(root.Position, rarity.Color, 20 + rarity.Order * 10)
 	end
 	Fx.announce(pet.Name:upper(), string.format("%s pet  ·  +%d%% Aura%s", pet.Rarity, math.floor(Config.PetMult(pet, copies) * 100 + 0.5), copies > 1 and ("  ·  " .. string.rep("★", Config.PetStars(copies))) or "  ·  NEW!"), rarity.Color, 0.25)
+end
+
+function handlers.stageResult(stage, won, first, cleared)
+	local def = Config.Battle.Stages[stage]
+	if won then
+		Audio.say(first and "stage" or "win")
+		if first then
+			Fx.announce("STAGE " .. stage .. " CLEARED!", stage < Config.Battle.Count and ("Next: " .. Config.Battle.Stages[stage + 1].Name) or "You beat every opponent!", def.Color, 0.25)
+		end
+	else
+		Toasts.push("Stage " .. stage .. " (" .. def.Name .. ") beat you. Level up and try again!", "bad")
+	end
 end
 
 function handlers.openMenu(tab)
