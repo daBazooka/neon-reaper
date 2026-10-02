@@ -69,6 +69,22 @@ function Stats.petBonus(profile)
 	return mult, aps
 end
 
+-- Game-pass multipliers (2x Aura, 2x XP, VIP bonus).
+function Stats.passMult(profile, kind)
+	local m = 1
+	if kind == "aura" then
+		if profile.Passes.x2aura then
+			m *= 2
+		end
+		if profile.Passes.vip then
+			m *= 1.25
+		end
+	elseif kind == "xp" and profile.Passes.x2xp then
+		m *= 2
+	end
+	return m
+end
+
 function Stats.computeRate(profile)
 	local total = 0
 	for slot, id in profile.Eq do
@@ -129,6 +145,19 @@ function Stats.recompute(p)
 	p:SetAttribute("Hammer", profile.Hammer)
 	p:SetAttribute("HammersOwned", Stats.ownedString(profile))
 	p:SetAttribute("Swings", profile.Swings)
+	local own = {}
+	for _, id in Config.BuildingOrder do
+		if Config.BuildingOwned(profile.Buildings, id) then
+			table.insert(own, id)
+		end
+	end
+	p:SetAttribute("Own", table.concat(own, ","))
+	local treads = {}
+	for k in profile.Treads do
+		table.insert(treads, tonumber(k))
+	end
+	table.sort(treads)
+	p:SetAttribute("Treads", table.concat(treads, ","))
 	p:SetAttribute("Stage", profile.Stage)
 	local petMult = Stats.petBonus(profile)
 	p:SetAttribute("PetMult", petMult)
@@ -165,7 +194,7 @@ function Stats.xpMult(p)
 			power += Config.CosmeticPower(c, stars)
 		end
 	end
-	return (1 + power / 120) * Config.RebirthMult(profile.Rebirths)
+	return (1 + power / 120) * Config.RebirthMult(profile.Rebirths) * Stats.passMult(profile, "xp")
 end
 
 function Stats.addXP(p, base)
@@ -262,6 +291,7 @@ function Stats.addAura(p, base, opts)
 			* Config.BoostMult(profile.Levels.Boost or 0)
 			* Stats.eventMult("AuraMult")
 			* (1 + (Stats.petBonus(profile)))
+			* Stats.passMult(profile, "aura")
 	end
 	amount = math.max(0, math.floor(amount + 0.5))
 	profile.Aura += amount

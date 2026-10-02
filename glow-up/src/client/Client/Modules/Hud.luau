@@ -75,7 +75,7 @@ local TELEPORTS = {
 --------------------------------------------------------------------------------
 -- Top: banner, pills, chips
 --------------------------------------------------------------------------------
-local function buildTop(gui)
+local function buildTop(gui, Menu)
 	local stack = UI.new("Frame", {
 		Name = "Top",
 		AnchorPoint = Vector2.new(0.5, 0),
@@ -126,6 +126,18 @@ local function buildTop(gui)
 	end
 	refs.rebirthPill = counter(1, 90, C.Mint, C.Mint)
 	refs.multPill = counter(2, 130, C.Pink, C.Pink)
+	local store = UI.button(row, {
+		LayoutOrder = 3,
+		Size = UDim2.fromOffset(104, 30),
+		BackgroundColor3 = C.Accent2,
+		Text = "💎 STORE",
+		TextSize = 13,
+		Radius = 10,
+	}, "primary")
+	store.Activated:Connect(function()
+		Audio.click()
+		Menu.toggle("Store")
+	end)
 
 	-- Chips (chain, event, competition), only visible while relevant
 	local chips = UI.new("Frame", { Name = "Chips", Size = UDim2.fromOffset(440, 70), BackgroundTransparency = 1, LayoutOrder = 3 }, stack)
@@ -437,7 +449,7 @@ end
 -- Init
 --------------------------------------------------------------------------------
 function Hud.init(gui, Menu, Action)
-	buildTop(gui)
+	buildTop(gui, Menu)
 	buildSides(gui, Menu)
 	buildBottom(gui)
 	buildRebirth(gui, Action)

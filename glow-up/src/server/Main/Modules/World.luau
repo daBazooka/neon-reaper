@@ -5,6 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Decor = require(script.Parent.Decor)
+local Util = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"))
 local HammerModel = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HammerModel"))
 
 local World = {}
@@ -263,6 +265,7 @@ local function buildHammerRow(parent)
 		light.Range = 16
 		light.Brightness = 1.2
 		light.Parent = pedestal
+		Decor.smoke(row, pos + Vector3.new(0, 2.2, 0), color, 0.35 + hammer.Id * 0.04)
 		local display = HammerModel.build(hammer, CFrame.new(pos + Vector3.new(0, 6.6, 0)) * CFrame.Angles(0, math.rad(30), math.rad(-18)), row, { anchored = true })
 		display.Name = "HammerDisplay"
 		local face = sign(row, pos + Vector3.new(0, 3.3, 3.6), Vector3.new(0, 0, 1), Vector3.new(7.4, 1.6, 0.4), hammer.Name .. "  x" .. hammer.Mult, C3(30, 34, 52), color)
@@ -365,6 +368,12 @@ local function buildBattle(parent)
 	sign(parent, (cf * CFrame.new(0, 25, -LANE / 2)).Position, cf.LookVector, Vector3.new(28, 5, 0.6), "⚔️  STAGE BATTLE", C3(40, 70, 170))
 	block(parent, "BattleRamp", Vector3.new(16, 0.5, 4), cf * CFrame.new(0, 0.25, -LANE / 2 - 2), C3(150, 150, 158), M.Concrete)
 
+	local battleGlow = Config.Buildings.battle.Glow
+	for side = -1, 1, 2 do
+		Decor.smoke(parent, (cf * CFrame.new(side * 15, 22, -LANE / 2)).Position, battleGlow, 1)
+		Decor.smoke(parent, (cf * CFrame.new(side * 15, 19, LANE / 2 - 2)).Position, battleGlow, 0.8)
+	end
+	Decor.groundAura(parent, pos, 36, battleGlow)
 	local padA = platform(parent, cf * CFrame.new(0, 1, -14), 5.5, C3(250, 205, 50), "YOU")
 	local padB = platform(parent, cf * CFrame.new(0, 1, 14), 5.5, C3(150, 60, 220), "VS")
 
@@ -417,9 +426,73 @@ local function buildBattle(parent)
 	return { padA = padA, padB = padB, center = (cf * CFrame.new(0, 2.5, 0)).Position, setOpponent = setOpponent }
 end
 
+
+--------------------------------------------------------------------------------
+-- Treadmill Hall: ten treadmills, each a different colour, each puffing its own coloured smoke
+--------------------------------------------------------------------------------
+local function buildTreadHall(parent)
+	local def = Config.Buildings.treadmills
+	local cf = Config.TreadHallCF()
+	local W, D = 72, 34
+	block(parent, "HallFloor", Vector3.new(W, 0.8, D), cf * CFrame.new(0, 0.4, 0), C3(44, 50, 46), M.Slate)
+	block(parent, "HallAisle", Vector3.new(W - 4, 0.1, 5), cf * CFrame.new(0, 0.85, -10), def.Main, M.SmoothPlastic, { CanCollide = false })
+	block(parent, "HallBackWall", Vector3.new(W, 18, 1), cf * CFrame.new(0, 9.4, D / 2), C3(30, 38, 34), M.Concrete)
+	for side = -1, 1, 2 do
+		block(parent, "HallSideWall", Vector3.new(1, 18, D), cf * CFrame.new(side * W / 2, 9.4, 0), C3(36, 46, 40), M.Concrete)
+		for i = 1, 4 do
+			block(parent, "HallWindow", Vector3.new(0.4, 6, 5), cf * CFrame.new(side * (W / 2 - 0.2), 10, -12 + i * 6), C3(140, 255, 160), M.Glass, { Transparency = 0.5, CanCollide = false })
+		end
+	end
+	block(parent, "HallRoof", Vector3.new(W + 2, 1.4, D + 2), cf * CFrame.new(0, 19, 0), C3(24, 30, 28), M.Metal)
+	block(parent, "HallRoofTrim", Vector3.new(W + 3, 0.7, D + 3), cf * CFrame.new(0, 18, 0), def.Main, M.SmoothPlastic)
+	for _, x in { -W / 2, W / 2 } do
+		for _, z in { -D / 2, D / 2 } do
+			block(parent, "HallPillar", Vector3.new(2.2, 18, 2.2), cf * CFrame.new(x, 9.4, z), WHITE, M.Concrete)
+		end
+	end
+	sign(parent, (cf * CFrame.new(0, 24, -D / 2 - 1)).Position, cf.LookVector, Vector3.new(34, 6, 0.6), "🏃  TREADMILL HALL", C3(30, 110, 40), C3(210, 255, 190))
+	for _, z in { -8, 4, 12 } do
+		local strip = block(parent, "HallLightStrip", Vector3.new(W - 6, 0.5, 0.6), cf * CFrame.new(0, 17.4, z), def.Glow, M.SmoothPlastic, { CanCollide = false })
+		local l = Instance.new("PointLight")
+		l.Color = def.Glow
+		l.Range = 40
+		l.Brightness = 0.8
+		l.Parent = strip
+	end
+	for _, x in { -W / 3, 0, W / 3 } do
+		Decor.smoke(parent, (cf * CFrame.new(x, 21, 6)).Position, def.Glow, 1.1)
+	end
+	Decor.groundAura(parent, cf.Position, 48, def.Glow)
+
+	for _, t in Config.Treadmills do
+		local at = cf * CFrame.new((t.Id - 5.5) * Config.TreadSpacing, 0.8, 2)
+		block(parent, "TreadBase", Vector3.new(4.8, 0.9, 11.4), at * CFrame.new(0, 0.45, 0), C3(30, 32, 40), M.Metal)
+		local belt = block(parent, "TreadBelt", Vector3.new(3.8, 0.3, 10.4), at * CFrame.new(0, 1.05, 0), C3(24, 24, 28), M.Rubber)
+		belt:SetAttribute("TreadId", t.Id)
+		for i = 1, 7 do
+			block(parent, "BeltStripe", Vector3.new(3.8, 0.06, 0.45), at * CFrame.new(0, 1.22, -4.6 + (i - 1) * 1.55), t.Color, M.SmoothPlastic, { CanCollide = false })
+		end
+		for side = -1, 1, 2 do
+			block(parent, "TreadRail", Vector3.new(0.5, 0.7, 10.6), at * CFrame.new(side * 2.2, 1.2, 0), t.Color, M.SmoothPlastic)
+			block(parent, "TreadHandle", Vector3.new(0.4, 0.4, 5), at * CFrame.new(side * 2.2, 4.2, 4.2), t.Color, M.Metal)
+			block(parent, "TreadHandlePost", Vector3.new(0.4, 3, 0.4), at * CFrame.new(side * 2.2, 2.7, 6.4), t.Color, M.Metal)
+		end
+		block(parent, "ConsolePost", Vector3.new(0.7, 6, 0.7), at * CFrame.new(0, 3.9, 6.6), C3(40, 42, 52), M.Metal)
+		sign(parent, (at * CFrame.new(0, 7.4, 6.6)).Position, cf.LookVector, Vector3.new(4.6, 2.4, 0.4), string.format("%s\n+%s/s", (t.Name:gsub(" Treadmill", "")), Util.fmt(t.Rate)), C3(18, 20, 28), t.Color)
+		local top = part(parent, { Name = "ConsoleGem", Shape = Enum.PartType.Ball, Size = Vector3.one * 1.1, CFrame = at * CFrame.new(0, 9.2, 6.6), Color = t.Color, Transparency = 0.1, CanCollide = false })
+		local light = Instance.new("PointLight")
+		light.Color = t.Color
+		light.Range = 22
+		light.Brightness = 1.1
+		light.Parent = top
+		Decor.smoke(parent, (at * CFrame.new(0, 9.8, 6.6)).Position, t.Color, 0.45 + t.Id * 0.05)
+	end
+end
+
 local function buildGym(parent)
 	local pos, inward = stationAt("Gym")
 	local cf = pavilion(parent, pos, inward, RED, "💪  GYM", C3(150, 30, 20), C3(48, 50, 56), M.Slate, C3(150, 60, 55))
+	Decor.pavilion(parent, "gym", cf)
 	-- Bench press
 	block(parent, "Bench", Vector3.new(2.4, 1.2, 6.5), cf * CFrame.new(0, 1.9, 2), C3(40, 40, 46), M.SmoothPlastic)
 	for side = -1, 1, 2 do
@@ -446,6 +519,7 @@ end
 local function buildStudio(parent)
 	local pos, inward = stationAt("Studio")
 	local cf = pavilion(parent, pos, inward, C3(190, 70, 140), "💈  STYLE STUDIO", C3(130, 40, 100), C3(242, 190, 214), M.Marble, C3(236, 170, 200))
+	Decor.pavilion(parent, "studio", cf)
 	for i, x in { -7, 7 } do
 		local c = cf * CFrame.new(x, 0, 2)
 		post(parent, "ChairBase", (c * CFrame.new(0, 1, 0)).Position, 1.3, 0.6, DARK, M.Metal)
@@ -471,6 +545,7 @@ end
 local function buildLounge(parent)
 	local pos, inward = stationAt("Lounge")
 	local cf = pavilion(parent, pos, inward, C3(60, 140, 190), "🛋️  CHARM LOUNGE", C3(30, 90, 140), C3(170, 122, 84), M.WoodPlanks, C3(96, 170, 190))
+	Decor.pavilion(parent, "lounge", cf)
 	disk(parent, "Rug", (cf * CFrame.new(0, 0.9, 1)).Position, 9, 0.1, C3(190, 70, 90), M.Fabric)
 	block(parent, "SofaSeat", Vector3.new(11, 1.6, 4), cf * CFrame.new(0, 2, 11), C3(120, 80, 150), M.Fabric)
 	block(parent, "SofaBack", Vector3.new(11, 3.6, 1), cf * CFrame.new(0, 4, 12.6), C3(100, 64, 130), M.Fabric)
@@ -505,6 +580,17 @@ local function buildCrateShop(parent)
 		block(parent, "Awning", Vector3.new(2.5, 0.4, 15), cf * CFrame.new(x, 12.4, -1) * CFrame.Angles(math.rad(-9), 0, 0), i % 2 == 0 and WHITE or RED, M.Fabric)
 	end
 	sign(parent, (cf * CFrame.new(0, 17, -8.8)).Position, inward, Vector3.new(22, 4.4, 0.6), "🎁  CRATE SHOP", C3(30, 90, 140))
+	Decor.chimneys(parent, cf, 11.8, 8, Config.Buildings.crates.Glow, 10.5)
+	Decor.groundAura(parent, pos, 26, Config.Buildings.crates.Glow)
+	for side = -1, 1, 2 do
+		block(parent, "GoldPost", Vector3.new(1.6, 0.8, 1.6), cf * CFrame.new(side * 12, 13.4, -6), Config.Buildings.crates.Main, M.SmoothPlastic)
+	end
+	local gem = part(parent, { Name = "AuraBeacon", Shape = Enum.PartType.Ball, Size = Vector3.one * 2.6, CFrame = cf * CFrame.new(0, 20, 4), Color = Config.Buildings.crates.Glow, Transparency = 0.15, CanCollide = false })
+	local gl = Instance.new("PointLight")
+	gl.Color = Config.Buildings.crates.Glow
+	gl.Range = 50
+	gl.Brightness = 1.4
+	gl.Parent = gem
 	for i, crate in Config.Crates do
 		local box = cf * CFrame.new((i - 2) * 4.4, 5.8, 1.5)
 		block(parent, "CrateDisplay", Vector3.new(2.6, 2.6, 2.6), box, WOOD, M.Wood)
@@ -577,6 +663,13 @@ local function buildRing(parent)
 		block(parent, "SignPost", Vector3.new(1.2, 15, 1.2), cf * CFrame.new(side * 15, 7.5, 20), DARK, M.Metal)
 	end
 	buildDummy(parent, (cf * CFrame.new(-26, 0.4, -8)).Position, inward)
+	local ringGlow = Config.Buildings.ring.Glow
+	for sx = -1, 1, 2 do
+		for sz = -1, 1, 2 do
+			Decor.smoke(parent, (cf * CFrame.new(sx * 17.4, 9.8, sz * 17.4)).Position, ringGlow, 0.8)
+		end
+	end
+	Decor.groundAura(parent, pos, 32, ringGlow)
 	return { padA = padA, padB = padB, center = pos + Vector3.new(0, 2.8, 0) }
 end
 
@@ -607,6 +700,13 @@ local function buildStage(parent)
 		light.Color = C3(255, 244, 220)
 		light.Parent = lampPart
 	end
+	local stageGlow = Config.Buildings.stage.Glow
+	for sx = -1, 1, 2 do
+		for sz = -1, 1, 2 do
+			Decor.smoke(parent, Vector3.new(sx * 32, 31.5, sz * 22), stageGlow, 1.1)
+		end
+	end
+	Decor.groundAura(parent, Vector3.zero, 40, stageGlow)
 	-- Banners
 	sign(parent, Vector3.new(0, 25.5, 23), Vector3.new(0, 0, 1), Vector3.new(48, 9, 0.8), "SUB 5 TO TRUE ADAM", C3(20, 70, 140), C3(255, 214, 70))
 	local _, boardLabel = sign(parent, Vector3.new(0, 14.5, 23), Vector3.new(0, 0, 1), Vector3.new(34, 8, 0.8), "MOG COMPETITION\nsoon...", C3(30, 30, 38), WHITE)
@@ -817,9 +917,10 @@ function World.build()
 	buildCrateShop(world)
 	local arena = buildRing(world)
 	trainingPlatforms(world)
+	buildTreadHall(world)
 	local battle = buildBattle(world)
 
-	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 124), r = 56 }, { pos = Config.BattlePos(), r = 40 } }
+	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 124), r = 56 }, { pos = Config.BattlePos(), r = 40 }, { pos = Config.TreadHallPos(), r = 62 } }
 	for name in Config.Stations do
 		table.insert(avoid, { pos = (stationAt(name)), r = 28 })
 	end

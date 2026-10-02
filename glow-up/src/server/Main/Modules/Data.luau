@@ -35,6 +35,9 @@ local function defaults()
 		BestStreak = 0,
 		Reps = 0,
 		Swings = 0,
+		Buildings = {}, -- building id -> true once unlocked
+		Treads = { ["1"] = true }, -- treadmills unlocked
+		Passes = {}, -- game pass id -> true
 		Tut = 1, -- tutorial step (7 = finished or skipped)
 		Stage = 0, -- stage battles cleared
 		Pets = {}, -- pet id -> copies owned

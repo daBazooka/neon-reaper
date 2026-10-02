@@ -37,6 +37,35 @@ local function owned(id)
 	return false
 end
 
+local function ownedBuilding(id)
+	for b in string.gmatch(player:GetAttribute("Own") or "gym", "%w+") do
+		if b == id then
+			return true
+		end
+	end
+	return false
+end
+
+local function ownedTread(id)
+	for n in string.gmatch(player:GetAttribute("Treads") or "1", "%d+") do
+		if tonumber(n) == id then
+			return true
+		end
+	end
+	return false
+end
+
+local function treadText(t)
+	local running = player:GetAttribute("Running") or 0
+	if running == t.Id then
+		return "Stop running", C.Danger
+	elseif ownedTread(t.Id) then
+		return string.format("Run on %s  ·  +%s/s", t.Name, Util.fmt(t.Rate)), C.Good
+	end
+	local canBuy = (player:GetAttribute("Aura") or 0) >= t.Price
+	return string.format("Buy %s  ·  🏆 %s", t.Name, Util.fmt(t.Price)), canBuy and C.Gold or C.Danger
+end
+
 local function hammerText(hammer)
 	if (player:GetAttribute("Hammer") or 1) == hammer.Id then
 		return hammer.Name .. " (equipped)", C.Disabled
@@ -55,6 +84,10 @@ local function scan()
 	if not root or menu.isOpen() or player:GetAttribute("Training") or player:GetAttribute("InDuel") then
 		return nil
 	end
+	-- While running on a treadmill the only thing you can do is step off.
+	if (player:GetAttribute("Running") or 0) > 0 then
+		return { id = "TreadStop", text = "Stop running", color = C.Danger }
+	end
 	local best, bestScore
 	local pos = root.Position
 	for _, hammer in Config.Hammers do
@@ -62,6 +95,14 @@ local function scan()
 		if d <= Config.HammerRadius and (not bestScore or d / Config.HammerRadius < bestScore) then
 			local text, color = hammerText(hammer)
 			best, bestScore = { id = "Hammer:" .. hammer.Id, text = text, color = color }, d / Config.HammerRadius
+		end
+	end
+	for _, t in Config.Treadmills do
+		local d = flat(pos, Config.TreadPos(t.Id))
+		local r = Config.TreadRadius
+		if d <= r and (not bestScore or d / r < bestScore) then
+			local text, color = treadText(t)
+			best, bestScore = { id = "Tread:" .. t.Id, text = text, color = color }, d / r
 		end
 	end
 	for _, entry in Config.Interactables do
@@ -72,7 +113,13 @@ local function scan()
 				local stage = math.min((player:GetAttribute("Stage") or 0) + 1, Config.Battle.Count)
 				text = string.format("Stage %d battle: %s", stage, Config.Battle.Stages[stage].Name)
 			end
-			best, bestScore = { id = entry.Id, text = text, color = C.Good }, d / entry.Radius
+			local color = C.Good
+			if entry.Building and not ownedBuilding(entry.Building) then
+				local def = Config.Buildings[entry.Building]
+				text = string.format("🔒 Unlock %s  ·  🏆 %s", def.Name, Util.fmt(def.Cost))
+				color = (player:GetAttribute("Aura") or 0) >= def.Cost and C.Gold or C.Danger
+			end
+			best, bestScore = { id = entry.Id, text = text, color = color }, d / entry.Radius
 		end
 	end
 	return best
@@ -88,7 +135,11 @@ end
 function Interact.init(gui, Action, Menu)
 	menu = Menu
 	actionFn = function(id)
-		Action:FireServer("Interact", id)
+		if id == "TreadStop" then
+			Action:FireServer("TreadStop")
+		else
+			Action:FireServer("Interact", id)
+		end
 	end
 	button = UI.button(gui, {
 		Name = "InteractButton",

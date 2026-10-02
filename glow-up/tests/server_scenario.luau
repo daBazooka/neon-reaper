@@ -62,6 +62,7 @@ for _, m in notifyLog do if m[1] == "shard" then shardMsgs += 1 end end
 check(shardMsgs > 20, "shard notifications sent: " .. shardMsgs)
 
 -- crates
+Data.get(p1).Buildings.crates = true
 Stats.addAura(p1, 500000, {raw = true})
 for i = 1, 6 do fireAll("Action", p1, "OpenCrate", "street"); advance(0.1) end
 for i = 1, 4 do fireAll("Action", p1, "OpenCrate", "neon"); advance(0.1) end
@@ -321,6 +322,13 @@ do
 	fireAll("Action", p1, "Interact", "Battle"); advance(0.1)
 	check(a1.InDuel ~= true, "stage battle refuses from far away")
 	p1.root.Position = Config.BattlePos() + Vector3.new(0, 3, 0)
+	Stats.setAura(p1, 100)
+	fireAll("Action", p1, "Interact", "Battle"); advance(0.1)
+	check(a1.InDuel ~= true and not string.find(a1.Own, "battle"), "locked arena cannot be used without Aura")
+	Stats.setAura(p1, 10000)
+	fireAll("Action", p1, "Interact", "Battle"); advance(0.1)
+	check(string.find(a1.Own, "battle") ~= nil and a1.InDuel ~= true, "first press unlocks the arena (and spends Aura): " .. tostring(a1.Aura))
+	advance(5)
 	fireAll("Action", p1, "Interact", "Battle"); advance(0.1)
 	check(a1.InDuel == true, "stage battle starts at the arena")
 	local started
@@ -392,6 +400,52 @@ do
 	fireAll("PlayerAdded", p3); advance(1)
 	fireAll("Action", p3, "TutorialSkip"); advance(0.5)
 	check(a3.TutStep == #Config.Tutorial + 1, "skip ends the tutorial")
+end
+
+
+-- Buildings, treadmills, store
+do
+	local d = Data.get(p1)
+	a1.Training = false; a1.InDuel = false
+	check(string.find(a1.Own, "gym") ~= nil and not string.find(a1.Own, "lounge"), "Gym free, Lounge locked: " .. tostring(a1.Own))
+	p1.root.Position = Config.StationPos("Lounge") + Vector3.new(0, 3, 0)
+	Stats.setAura(p1, 100)
+	fireAll("Action", p1, "Interact", "Lounge"); advance(0.2)
+	check(a1.Training ~= true, "locked Lounge cannot be used")
+	Stats.setAura(p1, Config.Buildings.lounge.Cost + 5)
+	fireAll("Action", p1, "Interact", "Lounge"); advance(0.2)
+	check(string.find(a1.Own, "lounge") ~= nil and a1.Aura == 5, "Lounge unlocked for exactly its price")
+	fireAll("Action", p1, "Interact", "Lounge"); advance(0.2)
+	check(a1.Training == true, "unlocked Lounge starts training")
+	fireAll("Action", p1, "TrainCancel"); advance(0.5); a1.Training = false
+
+	-- treadmills
+	local function treadAt(i) p1.root.Position = Config.TreadPos(i) + Vector3.new(0, 3, 0) end
+	treadAt(2); Stats.setAura(p1, 10)
+	fireAll("Action", p1, "Interact", "Tread:2"); advance(0.2)
+	check((a1.Running or 0) ~= 2 and not string.find(a1.Treads, "2"), "cannot run on a treadmill you cannot afford")
+	Stats.setAura(p1, Config.Treadmills[2].Price + 100)
+	fireAll("Action", p1, "Interact", "Tread:2"); advance(0.2)
+	check(a1.Running == 2 and string.find(a1.Treads, "2") ~= nil, "bought and started running on treadmill 2")
+	local before = a1.Aura
+	advance(5)
+	check(a1.Aura - before >= Config.Treadmills[2].Rate * 4, "running pays Aura every second: +" .. (a1.Aura - before))
+	local sw = a1.Swings
+	fireAll("Action", p1, "Swing"); advance(0.2)
+	fireAll("Action", p1, "TreadStop"); advance(0.2)
+	check(a1.Running == 0, "stop button ends the run")
+	check(require(ModN.children.Treadmill).isRunning(p1) == nil, "treadmill module agrees the run has stopped")
+	fireAll("Action", p1, "Interact", "Tread:99"); fireAll("Action", p1, "Interact", "Tread:x")
+	treadAt(1); fireAll("Action", p1, "Interact", "Tread:1"); advance(0.2)
+	check(a1.Running == 1, "free starter treadmill works")
+	fireAll("Action", p1, "Interact", "Tread:1"); advance(0.2)
+	check(a1.Running == 0, "pressing the same treadmill again steps off")
+	-- store: 2x Aura pass doubles income
+	local base = Stats.addAura(p1, 100)
+	d.Passes.x2aura = true
+	local doubled = Stats.addAura(p1, 100)
+	check(doubled >= base * 1.9, "2x Aura pass doubles Aura: " .. base .. " -> " .. doubled)
+	d.Passes.x2aura = nil
 end
 
 -- Mog Competition: run a full cycle with one human

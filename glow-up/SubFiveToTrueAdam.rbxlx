@@ -692,11 +692,11 @@ end
 --------------------------------------------------------------------------------
 -- Shifter < 1 drops the voice an octave-ish; Bass boosts the low end (dB); Volume is loudness.
 Config.Voice = { VoiceId = "3", Pitch = 0.8, Speed = 0.8, Shifter = 0.7, Bass = 12, Treble = -12, Volume = 2.2 }
-Config.VoiceSoundIds = { ["3"] = 0, ["2"] = 0, ["1"] = 0, go = 0, levelup = 0, rebirth = 0, stage = 0, win = 0, welcome = 0, nice = 0, done = 0 }
+Config.VoiceSoundIds = { ["3"] = 0, ["2"] = 0, ["1"] = 0, go = 0, levelup = 0, rebirth = 0, stage = 0, win = 0, welcome = 0, unlock = 0, nice = 0, done = 0 }
 Config.VoiceText = {
 	["3"] = "Three!", ["2"] = "Two!", ["1"] = "One!", go = "Go!",
 	levelup = "Level up!", rebirth = "Rebirth ready!", stage = "Stage cleared!", win = "Mogged!",
-	welcome = "Welcome! Let us make you a Chad.", nice = "Nice!", done = "Training complete. Now go mog them all!",
+	welcome = "Welcome! Let us make you a Chad.", unlock = "Unlocked!", nice = "Nice!", done = "Training complete. Now go mog them all!",
 }
 
 --------------------------------------------------------------------------------
@@ -707,9 +707,90 @@ Config.Tutorial = {
 	{ Title = "Buy the Stone Hammer", Text = "Walk to the glowing Stone Hammer and press the big button at the bottom. Bigger hammer, more Aura per swing.", Gift = 60 },
 	{ Title = "Train on a platform", Text = "Walk onto the Gym platform, press the big button, then hit SPACE (or tap) when the marker is in the green.", Goal = 3 },
 	{ Title = "Hatch a pet", Text = "Press the 🐾 Pets button on the right and hatch a Basic Egg. Pets boost your Aura.", Gift = 500 },
-	{ Title = "Fight Stage 1", Text = "Press the ⚔️ Battle button, then the big button, and tap as fast as you can!" },
+	{ Title = "Fight Stage 1", Text = "Press the ⚔️ Battle button. Press the big button to unlock the arena (free gift), press it again to fight, and tap fast!", Gift = 2600 },
 }
 Config.TutorialReward = { Aura = 1000, Crates = 2 }
+
+--------------------------------------------------------------------------------
+-- Buildings: each one must be unlocked with Aura. Every building has its own colours, smoke and aura.
+--------------------------------------------------------------------------------
+Config.Buildings = {
+	gym = { Name = "Gym", Cost = 0, Main = C(210, 55, 50), Glow = C(255, 130, 40), Aura = "Raw power" },
+	battle = { Name = "Stage Battle Arena", Cost = 2500, Main = C(70, 110, 230), Glow = C(120, 170, 255), Aura = "Fight 15 stages" },
+	studio = { Name = "Style Studio", Cost = 4000, Main = C(235, 90, 185), Glow = C(255, 140, 225), Aura = "Style" },
+	stage = { Name = "Mog Stage", Cost = 15000, Main = C(140, 80, 230), Glow = C(195, 140, 255), Aura = "Competitions" },
+	lounge = { Name = "Charm Lounge", Cost = 30000, Main = C(40, 185, 200), Glow = C(100, 245, 235), Aura = "Charm" },
+	ring = { Name = "Duel Ring", Cost = 75000, Main = C(230, 50, 70), Glow = C(255, 90, 90), Aura = "PvP duels" },
+	crates = { Name = "Crate Shop", Cost = 120000, Main = C(245, 185, 40), Glow = C(255, 215, 100), Aura = "Loot" },
+	treadmills = { Name = "Treadmill Hall", Cost = 0, Main = C(90, 215, 95), Glow = C(160, 255, 130), Aura = "Passive Aura" },
+}
+Config.BuildingOrder = { "gym", "battle", "studio", "stage", "lounge", "ring", "crates", "treadmills" }
+function Config.BuildingOwned(profileBuildings, id)
+	local b = Config.Buildings[id]
+	return b ~= nil and (b.Cost == 0 or (profileBuildings ~= nil and profileBuildings[id] == true))
+end
+-- Which building each interactable belongs to.
+Config.BuildingPos = {
+	gym = function() return Config.StationPos("Gym") end,
+	studio = function() return Config.StationPos("Studio") end,
+	lounge = function() return Config.StationPos("Lounge") end,
+	crates = function() return Config.StationPos("Crates") end,
+	ring = function() return Config.StationPos("Ring") end,
+	battle = function() return Config.BattlePos() end,
+	stage = function() return Vector3.new(0, 0, 0) end,
+	treadmills = function() return Config.TreadHallPos() end,
+}
+
+--------------------------------------------------------------------------------
+-- Treadmills: stand on one and run to earn Aura every second. Better ones cost more Aura to unlock.
+--------------------------------------------------------------------------------
+Config.TreadHallAngle, Config.TreadHallRadius = 148, 104
+function Config.TreadHallPos()
+	local a = math.rad(Config.TreadHallAngle)
+	return Vector3.new(math.cos(a) * Config.TreadHallRadius, 0, math.sin(a) * Config.TreadHallRadius)
+end
+function Config.TreadHallCF()
+	local pos = Config.TreadHallPos()
+	return CFrame.lookAt(pos, Vector3.new(0, 0, 0))
+end
+Config.Treadmills = {}
+do
+	local names = { "Starter", "Jogger", "Sprinter", "Athlete", "Champion", "Titan", "Legend", "Mythic", "Divine", "True Adam" }
+	local prices = { 0, 400, 4000, 35000, 300000, 2500000, 22000000, 190000000, 1600000000, 14000000000 }
+	local rates = { 2, 8, 30, 110, 400, 1500, 6000, 24000, 100000, 450000 }
+	local colors = {
+		C(150, 160, 175), C(80, 200, 120), C(70, 150, 240), C(170, 90, 240), C(255, 90, 170),
+		C(255, 150, 50), C(255, 220, 60), C(60, 235, 220), C(255, 80, 80), C(255, 244, 190),
+	}
+	for i = 1, #names do
+		Config.Treadmills[i] = { Id = i, Name = names[i] .. " Treadmill", Price = prices[i], Rate = rates[i], Color = colors[i] }
+	end
+end
+Config.TreadRadius = 4.5
+Config.TreadSpacing = 6.2
+function Config.TreadPos(i)
+	return (Config.TreadHallCF() * CFrame.new((i - 5.5) * Config.TreadSpacing, 0, 2)).Position
+end
+
+--------------------------------------------------------------------------------
+-- Store (real Robux). Create the passes / products on create.roblox.com and paste their ids here.
+-- An id of 0 means "not set up yet" and the offer is shown as coming soon.
+--------------------------------------------------------------------------------
+Config.Store = {
+	Passes = {
+		{ Id = "x2aura", Name = "2x Aura", Desc = "Doubles all Aura you earn, forever.", PassId = 0 },
+		{ Id = "x2xp", Name = "2x XP", Desc = "Level up twice as fast, forever.", PassId = 0 },
+		{ Id = "vip", Name = "VIP", Desc = "Gold VIP tag, +25% Aura and a free crate every day.", PassId = 0 },
+	},
+	Products = {
+		{ Id = "aura_s", Name = "Aura Pack S", Size = 20, ProductId = 0 },
+		{ Id = "aura_m", Name = "Aura Pack M", Size = 120, ProductId = 0 },
+		{ Id = "aura_l", Name = "Aura Pack L", Size = 800, ProductId = 0 },
+	},
+}
+function Config.ProductAura(level, size)
+	return math.floor(size * 40 * (1 + level * 0.3))
+end
 
 --------------------------------------------------------------------------------
 -- Things you can interact with (press E, or tap the on-screen button). These work from any camera
@@ -717,14 +798,14 @@ Config.TutorialReward = { Aura = 1000, Crates = 2 }
 --------------------------------------------------------------------------------
 Config.HammerRadius = 8
 Config.Interactables = {
-	{ Id = "Gym", Object = "Gym", Action = "Train Power", Pos = "station:Gym", Radius = 17 },
-	{ Id = "Studio", Object = "Style Studio", Action = "Train Style", Pos = "station:Studio", Radius = 17 },
-	{ Id = "Lounge", Object = "Charm Lounge", Action = "Train Charm", Pos = "station:Lounge", Radius = 17 },
-	{ Id = "Crates", Object = "Crate Shop", Action = "Open crates", Pos = "station:Crates", Radius = 16 },
-	{ Id = "Ring", Object = "Duel Ring", Action = "Find a duel", Pos = "station:Ring", Radius = 24 },
-	{ Id = "Bot", Object = "Mogger Bot", Action = "Duel the bot", Pos = "bot", Radius = 9 },
-	{ Id = "Battle", Object = "Stage Battle", Action = "Stage battle", Pos = "battle", Radius = 34 },
-	{ Id = "Stage", Object = "Mog Stage", Action = "Enter competition", Pos = "stage", Radius = 24 },
+	{ Id = "Gym", Object = "Gym", Action = "Train Power", Pos = "station:Gym", Radius = 17, Building = "gym" },
+	{ Id = "Studio", Object = "Style Studio", Action = "Train Style", Pos = "station:Studio", Radius = 17, Building = "studio" },
+	{ Id = "Lounge", Object = "Charm Lounge", Action = "Train Charm", Pos = "station:Lounge", Radius = 17, Building = "lounge" },
+	{ Id = "Crates", Object = "Crate Shop", Action = "Open crates", Pos = "station:Crates", Radius = 16, Building = "crates" },
+	{ Id = "Ring", Object = "Duel Ring", Action = "Find a duel", Pos = "station:Ring", Radius = 24, Building = "ring" },
+	{ Id = "Bot", Object = "Mogger Bot", Action = "Duel the bot", Pos = "bot", Radius = 9, Building = "ring" },
+	{ Id = "Battle", Object = "Stage Battle", Action = "Stage battle", Pos = "battle", Radius = 34, Building = "battle" },
+	{ Id = "Stage", Object = "Mog Stage", Action = "Enter competition", Pos = "stage", Radius = 24, Building = "stage" },
 }
 -- Resolves an interactable's world position (shared by the client and the server).
 function Config.InteractPos(entry)
@@ -1363,6 +1444,9 @@ local Pets = require(Modules.Pets)
 local Aura = require(Modules.Aura)
 local Playtime = require(Modules.Playtime)
 local Tutorial = require(Modules.Tutorial)
+local Buildings = require(Modules.Buildings)
+local Treadmill = require(Modules.Treadmill)
+local Store = require(Modules.Store)
 local World = require(Modules.World)
 
 --------------------------------------------------------------------------------
@@ -1389,6 +1473,7 @@ Shards.init()
 Competition.init()
 Training.init()
 Pets.init()
+Store.start()
 Runway.init()
 Events.init()
 Data.init()
@@ -1418,6 +1503,7 @@ local function onPlayer(p)
 	Daily.refresh(p)
 	Playtime.init(p)
 	Tutorial.init(p)
+	Store.init(p)
 	Nameplate.init(p)
 	Cosmetics.sync(p)
 
@@ -1450,6 +1536,7 @@ Players.PlayerRemoving:Connect(function(p)
 	Pets.release(p)
 	Playtime.release(p)
 	Tutorial.release(p)
+	Treadmill.release(p)
 	Duels.release(p)
 	Competition.release(p)
 	Stats.forget(p)
@@ -1471,6 +1558,7 @@ task.spawn(function()
 				end
 				Playtime.tick(p)
 				Tutorial.tick(p)
+				Treadmill.tick(p)
 				if tick % 30 == 0 then
 					Daily.refresh(p)
 				end
@@ -1514,6 +1602,14 @@ local function nearTo(p, pos, radius)
 end
 
 local function interact(p, id)
+	local treadId = string.match(id, "^Tread:(%d+)$")
+	if treadId then
+		local n = tonumber(treadId)
+		if Config.Treadmills[n] and nearTo(p, Config.TreadPos(n), Config.TreadRadius) then
+			Treadmill.use(p, n)
+		end
+		return
+	end
 	local hammerId = string.match(id, "^Hammer:(%d+)$")
 	if hammerId then
 		local n = tonumber(hammerId)
@@ -1525,6 +1621,14 @@ local function interact(p, id)
 	local handler = interactions[id]
 	for _, entry in Config.Interactables do
 		if entry.Id == id and handler and nearTo(p, Config.InteractPos(entry), entry.Radius) then
+			-- Buildings must be unlocked first; the press that buys it does not also use it.
+			if entry.Building and not Buildings.owned(p, entry.Building) then
+				Buildings.unlock(p, entry.Building)
+				return
+			end
+			if Treadmill.isRunning(p) then
+				return
+			end
 			handler(p)
 			return
 		end
@@ -1557,6 +1661,8 @@ Action.OnServerEvent:Connect(function(p, kind, a, b)
 		Crates.open(p, a)
 	elseif kind == "Hatch" or kind == "PetEquip" or kind == "PetUnequip" then
 		Pets.handle(p, kind, a)
+	elseif kind == "TreadStop" then
+		Treadmill.stop(p)
 	elseif kind == "TutorialSkip" then
 		Tutorial.skip(p)
 	elseif kind == "Swing" then
@@ -1888,6 +1994,44 @@ return Board
         </Item>
         <Item class="ModuleScript" referent="14">
           <Properties>
+            <string name="Name">Buildings</string>
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: building unlocks. Every building costs Aura; the price tells you how strong you need to be.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Data = require(script.Parent.Data)
+local Stats = require(script.Parent.Stats)
+
+local Buildings = {}
+
+function Buildings.owned(p, id)
+	local profile = Data.get(p)
+	return profile ~= nil and Config.BuildingOwned(profile.Buildings, id)
+end
+
+-- Returns true when the player already owns the building (or has just bought it, which uses their press).
+function Buildings.unlock(p, id)
+	local profile = Data.get(p)
+	local def = Config.Buildings[id]
+	if not profile or not def or Config.BuildingOwned(profile.Buildings, id) then
+		return false
+	end
+	if not Stats.spend(p, def.Cost) then
+		Stats.toast(p, string.format("%s costs %s Aura", def.Name, require(ReplicatedStorage.Shared.Util).fmt(def.Cost)), "bad")
+		return false
+	end
+	profile.Buildings[id] = true
+	Stats.recompute(p)
+	Stats.send(p, "building", id)
+	return true
+end
+
+return Buildings
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="15">
+          <Properties>
             <string name="Name">Competition</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Mog Competition. Every few minutes entries open at the central stage.
 -- Everyone who entered flexes (taps) for 8 seconds; the higher your Mog Power and the faster you
@@ -2187,7 +2331,7 @@ return Competition
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="15">
+        <Item class="ModuleScript" referent="16">
           <Properties>
             <string name="Name">Cosmetics</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the wardrobe. Owns the inventory (with star levels) and builds the glowing
@@ -2549,7 +2693,7 @@ return Cosmetics
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="16">
+        <Item class="ModuleScript" referent="17">
           <Properties>
             <string name="Name">Crates</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: crate opening. The server decides every roll; the client only plays the reveal.
@@ -2607,6 +2751,9 @@ function Crates.open(p, crateId)
 	if crateId == "street" and profile.FreeCrates > 0 then
 		profile.FreeCrates -= 1
 		p:SetAttribute("FreeCrates", profile.FreeCrates)
+	elseif not Config.BuildingOwned(profile.Buildings, "crates") then
+		Stats.toast(p, "Unlock the Crate Shop (walk up to it) to buy crates", "bad")
+		return
 	elseif not Stats.spend(p, crate.Cost) then
 		Stats.toast(p, "Not enough Aura for a " .. crate.Name, "bad")
 		return
@@ -2649,7 +2796,7 @@ return Crates
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="17">
+        <Item class="ModuleScript" referent="18">
           <Properties>
             <string name="Name">Daily</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: 7-day login streak. Missing a day restarts the cycle.
@@ -2705,7 +2852,7 @@ return Daily
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="18">
+        <Item class="ModuleScript" referent="19">
           <Properties>
             <string name="Name">Data</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: player save data. Loads/saves with DataStores when available; the game also runs
@@ -2745,6 +2892,9 @@ local function defaults()
 		BestStreak = 0,
 		Reps = 0,
 		Swings = 0,
+		Buildings = {}, -- building id -> true once unlocked
+		Treads = { ["1"] = true }, -- treadmills unlocked
+		Passes = {}, -- game pass id -> true
 		Tut = 1, -- tutorial step (7 = finished or skipped)
 		Stage = 0, -- stage battles cleared
 		Pets = {}, -- pet id -> copies owned
@@ -2842,7 +2992,167 @@ return Data
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="19">
+        <Item class="ModuleScript" referent="20">
+          <Properties>
+            <string name="Name">Decor</string>
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: makes every building feel rich. Each one gets its own colour theme, chimneys that puff coloured
+-- smoke, a ground aura ring, accent lights, a chandelier, a patterned floor and hanging banners.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+
+local Decor = {}
+
+local M = Enum.Material
+local SMOKE = "rbxasset://textures/particles/smoke_main.dds"
+local SPARKS = "rbxasset://textures/particles/sparkles_main.dds"
+local DARK = Color3.fromRGB(46, 48, 58)
+
+local function part(parent, props)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Material = M.SmoothPlastic
+	for k, v in props do
+		p[k] = v
+	end
+	p.Parent = parent
+	return p
+end
+
+local function block(parent, name, size, cf, color, material, extra)
+	local props = { Name = name, Size = size, CFrame = cf, Color = color, Material = material or M.SmoothPlastic }
+	if extra then
+		for k, v in extra do
+			props[k] = v
+		end
+	end
+	return part(parent, props)
+end
+
+-- Coloured smoke (and a few sparks) rising from a point. scale 1 = a chimney, 0.4 = a small vent.
+function Decor.smoke(parent, position, color, scale)
+	scale = scale or 1
+	local anchor = part(parent, { Name = "SmokeSource", Size = Vector3.one * 0.5, Position = position, Transparency = 1, CanCollide = false, CanQuery = false, CanTouch = false })
+	local e = Instance.new("ParticleEmitter")
+	e.Name = "Smoke"
+	e.Texture = SMOKE
+	e.Color = ColorSequence.new(color:Lerp(Color3.new(1, 1, 1), 0.25), color)
+	e.LightEmission = 0.35
+	e.Rate = 7 + 6 * scale
+	e.Lifetime = NumberRange.new(3, 5)
+	e.Speed = NumberRange.new(3, 6)
+	e.SpreadAngle = Vector2.new(14, 14)
+	e.Acceleration = Vector3.new(0, 2, 0)
+	e.Rotation = NumberRange.new(0, 360)
+	e.RotSpeed = NumberRange.new(-20, 20)
+	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 2 * scale), NumberSequenceKeypoint.new(1, 9 * scale) })
+	e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.45), NumberSequenceKeypoint.new(0.7, 0.75), NumberSequenceKeypoint.new(1, 1) })
+	e.Parent = anchor
+	local sparks = Instance.new("ParticleEmitter")
+	sparks.Name = "Sparks"
+	sparks.Texture = SPARKS
+	sparks.Color = ColorSequence.new(Color3.new(1, 1, 1), color)
+	sparks.LightEmission = 0.7
+	sparks.Rate = 3 + 3 * scale
+	sparks.Lifetime = NumberRange.new(1.5, 2.5)
+	sparks.Speed = NumberRange.new(4, 9)
+	sparks.SpreadAngle = Vector2.new(25, 25)
+	sparks.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.7 * scale), NumberSequenceKeypoint.new(1, 0) })
+	sparks.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1) })
+	sparks.Parent = anchor
+	return anchor
+end
+
+local function glowLight(parent, color, range, brightness)
+	local l = Instance.new("PointLight")
+	l.Color = color
+	l.Range = range
+	l.Brightness = brightness
+	l.Parent = parent
+end
+
+-- A big flat ring on the ground that tints the area around a building with its aura colour.
+function Decor.groundAura(parent, centerPos, radius, color)
+	local ring = part(parent, {
+		Name = "AuraRing",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.12, radius * 2, radius * 2),
+		CFrame = CFrame.new(centerPos.X, 0.36, centerPos.Z) * CFrame.Angles(0, 0, math.pi / 2),
+		Color = color,
+		Transparency = 0.8,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+	})
+	return ring
+end
+
+-- Two chimneys on the roof, each puffing smoke in the building's colour.
+function Decor.chimneys(parent, cf, y, spread, color, z)
+	for side = -1, 1, 2 do
+		local base = cf * CFrame.new(side * spread, y, z or 4)
+		part(parent, { Name = "Chimney", Shape = Enum.PartType.Cylinder, Size = Vector3.new(7, 3.4, 3.4), CFrame = base * CFrame.new(0, 3.5, 0) * CFrame.Angles(0, 0, math.pi / 2), Color = DARK, Material = M.Metal })
+		part(parent, { Name = "ChimneyRim", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.8, 4, 4), CFrame = base * CFrame.new(0, 7.2, 0) * CFrame.Angles(0, 0, math.pi / 2), Color = color, Material = M.SmoothPlastic })
+		Decor.smoke(parent, (base * CFrame.new(0, 8, 0)).Position, color, 1)
+	end
+end
+
+-- Full interior + exterior treatment for the open pavilions (Gym, Studio, Lounge, Crate Shop).
+-- cf is the pavilion frame (floor top at y = 0.9, entrance toward local -Z, roof at y = 14.4).
+function Decor.pavilion(parent, id, cf)
+	local def = Config.Buildings[id]
+	local main, glow = def.Main, def.Glow
+	-- chimneys with smoke + aura light on the roof
+	Decor.chimneys(parent, cf, 15, 10, glow)
+	local lamp = part(parent, { Name = "AuraBeacon", Shape = Enum.PartType.Ball, Size = Vector3.one * 2.6, CFrame = cf * CFrame.new(0, 17, 0), Color = glow, Transparency = 0.15, CanCollide = false })
+	glowLight(lamp, glow, 60, 1.4)
+	Decor.groundAura(parent, cf.Position, 30, glow)
+	-- patterned floor: two coloured rings and a centre medallion
+	for i, r in { 12.5, 8.5, 4.5 } do
+		local ring = part(parent, { Name = "FloorRing", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.06, r * 2, r * 2), CFrame = cf * CFrame.new(0, 0.93 + i * 0.01, 0) * CFrame.Angles(0, 0, math.pi / 2), Color = (i % 2 == 1) and main or main:Lerp(Color3.new(1, 1, 1), 0.6), CanCollide = false })
+		ring.Transparency = 0.1
+	end
+	-- accent light strips under the roof edge
+	for _, z in { -15.5, 15.5 } do
+		local strip = block(parent, "LightStrip", Vector3.new(33, 0.5, 0.5), cf * CFrame.new(0, 13, z), glow, M.SmoothPlastic, { CanCollide = false })
+		glowLight(strip, glow, 24, 0.9)
+	end
+	-- pillar caps in the building colour
+	for sx = -1, 1, 2 do
+		for sz = -1, 1, 2 do
+			block(parent, "PillarCap", Vector3.new(2.6, 0.9, 2.6), cf * CFrame.new(sx * 14.5, 13.8, sz * 13.5), main, M.SmoothPlastic)
+			block(parent, "PillarBase", Vector3.new(2.6, 0.9, 2.6), cf * CFrame.new(sx * 14.5, 1.3, sz * 13.5), main, M.SmoothPlastic)
+		end
+	end
+	-- chandelier: a hanging ring of glowing glass balls
+	local chand = cf * CFrame.new(0, 10.5, 2)
+	block(parent, "ChandelierChain", Vector3.new(0.3, 3.4, 0.3), chand * CFrame.new(0, 2.2, 0), DARK, M.Metal, { CanCollide = false })
+	block(parent, "ChandelierRing", Vector3.new(5, 0.4, 5), chand, main, M.Metal, { CanCollide = false, Shape = Enum.PartType.Cylinder })
+	for i = 1, 8 do
+		local a = (i / 8) * math.pi * 2
+		local bulb = part(parent, { Name = "Crystal", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.9, CFrame = chand * CFrame.new(math.cos(a) * 2.3, -0.7, math.sin(a) * 2.3), Color = glow, Transparency = 0.1, CanCollide = false })
+		if i % 4 == 0 then
+			glowLight(bulb, glow, 26, 1.1)
+		end
+	end
+	-- hanging banners on the back wall
+	for _, x in { -11, 11 } do
+		block(parent, "Banner", Vector3.new(3.6, 8, 0.3), cf * CFrame.new(x, 8, 13.2), main, M.Fabric, { CanCollide = false })
+		block(parent, "BannerTrim", Vector3.new(3.9, 0.5, 0.4), cf * CFrame.new(x, 12.1, 13.2), glow, M.SmoothPlastic, { CanCollide = false })
+		block(parent, "BannerEmblem", Vector3.new(1.8, 1.8, 0.35), cf * CFrame.new(x, 8.5, 13.0) * CFrame.Angles(0, 0, math.pi / 4), glow, M.SmoothPlastic, { CanCollide = false })
+	end
+	-- a welcome carpet leading in
+	block(parent, "Carpet", Vector3.new(6, 0.08, 14), cf * CFrame.new(0, 0.95, -9), main, M.Fabric, { CanCollide = false })
+	block(parent, "CarpetTrim", Vector3.new(6.6, 0.07, 14.6), cf * CFrame.new(0, 0.94, -9), glow, M.Fabric, { CanCollide = false })
+end
+
+return Decor
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="21">
           <Properties>
             <string name="Name">Duels</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: "mog" duels. Two players (or a player and a bot) face off in a 7-second tap battle.
@@ -3167,7 +3477,7 @@ return Duels
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="20">
+        <Item class="ModuleScript" referent="22">
           <Properties>
             <string name="Name">Events</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: a server-wide event every few minutes. Clients read the "Event" attributes on workspace.
@@ -3222,7 +3532,7 @@ return Events
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="21">
+        <Item class="ModuleScript" referent="23">
           <Properties>
             <string name="Name">Hammers</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: click / tap to swing a hammer, plus buying and equipping hammers.
@@ -3387,7 +3697,7 @@ return Hammers
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="22">
+        <Item class="ModuleScript" referent="24">
           <Properties>
             <string name="Name">Nameplate</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the tag above every player. It says what they are (their looks tier)
@@ -3475,7 +3785,7 @@ return Nameplate
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="23">
+        <Item class="ModuleScript" referent="25">
           <Properties>
             <string name="Name">Pets</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: pets. Hatch eggs, equip up to 3; they follow you around (everyone sees them),
@@ -3730,7 +4040,7 @@ return Pets
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="24">
+        <Item class="ModuleScript" referent="26">
           <Properties>
             <string name="Name">Playtime</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: play-time gifts. Stay in the server and gifts arrive on their own (Aura + crates),
@@ -3780,7 +4090,7 @@ return Playtime
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="25">
+        <Item class="ModuleScript" referent="27">
           <Properties>
             <string name="Name">Quests</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: an endless chain of small goals. There is always exactly one active quest.
@@ -3846,7 +4156,7 @@ return Quests
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="26">
+        <Item class="ModuleScript" referent="28">
           <Properties>
             <string name="Name">Quirks</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the gag that gives the game its name. Everyone starts with a goofy face, a big
@@ -4037,7 +4347,7 @@ return Quirks
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="27">
+        <Item class="ModuleScript" referent="29">
           <Properties>
             <string name="Name">Runway</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the runway in the middle of the district. Walk it for a steady Aura trickle that
@@ -4078,7 +4388,7 @@ return Runway
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="28">
+        <Item class="ModuleScript" referent="30">
           <Properties>
             <string name="Name">Shards</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the gym-and-health pickups scattered around the plaza: apples, protein shakes,
@@ -4324,7 +4634,7 @@ return Shards
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="29">
+        <Item class="ModuleScript" referent="31">
           <Properties>
             <string name="Name">Shop</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades and rebirth.
@@ -4396,7 +4706,7 @@ return Shop
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="30">
+        <Item class="ModuleScript" referent="32">
           <Properties>
             <string name="Name">Stats</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the heart of progression. Owns Aura, stats, Glow Score, rank and the
@@ -4470,6 +4780,22 @@ function Stats.petBonus(profile)
 	return mult, aps
 end
 
+-- Game-pass multipliers (2x Aura, 2x XP, VIP bonus).
+function Stats.passMult(profile, kind)
+	local m = 1
+	if kind == "aura" then
+		if profile.Passes.x2aura then
+			m *= 2
+		end
+		if profile.Passes.vip then
+			m *= 1.25
+		end
+	elseif kind == "xp" and profile.Passes.x2xp then
+		m *= 2
+	end
+	return m
+end
+
 function Stats.computeRate(profile)
 	local total = 0
 	for slot, id in profile.Eq do
@@ -4530,6 +4856,19 @@ function Stats.recompute(p)
 	p:SetAttribute("Hammer", profile.Hammer)
 	p:SetAttribute("HammersOwned", Stats.ownedString(profile))
 	p:SetAttribute("Swings", profile.Swings)
+	local own = {}
+	for _, id in Config.BuildingOrder do
+		if Config.BuildingOwned(profile.Buildings, id) then
+			table.insert(own, id)
+		end
+	end
+	p:SetAttribute("Own", table.concat(own, ","))
+	local treads = {}
+	for k in profile.Treads do
+		table.insert(treads, tonumber(k))
+	end
+	table.sort(treads)
+	p:SetAttribute("Treads", table.concat(treads, ","))
 	p:SetAttribute("Stage", profile.Stage)
 	local petMult = Stats.petBonus(profile)
 	p:SetAttribute("PetMult", petMult)
@@ -4566,7 +4905,7 @@ function Stats.xpMult(p)
 			power += Config.CosmeticPower(c, stars)
 		end
 	end
-	return (1 + power / 120) * Config.RebirthMult(profile.Rebirths)
+	return (1 + power / 120) * Config.RebirthMult(profile.Rebirths) * Stats.passMult(profile, "xp")
 end
 
 function Stats.addXP(p, base)
@@ -4663,6 +5002,7 @@ function Stats.addAura(p, base, opts)
 			* Config.BoostMult(profile.Levels.Boost or 0)
 			* Stats.eventMult("AuraMult")
 			* (1 + (Stats.petBonus(profile)))
+			* Stats.passMult(profile, "aura")
 	end
 	amount = math.max(0, math.floor(amount + 0.5))
 	profile.Aura += amount
@@ -4754,7 +5094,84 @@ return Stats
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="31">
+        <Item class="ModuleScript" referent="33">
+          <Properties>
+            <string name="Name">Store</string>
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: real-money store (game passes + Aura packs). Nothing is charged until you paste real ids into
+-- Config.Store; offers with id 0 are shown as "coming soon". The server grants everything, never the client.
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Data = require(script.Parent.Data)
+local Stats = require(script.Parent.Stats)
+
+local Store = {}
+
+local passById = {}
+for _, pass in Config.Store.Passes do
+	passById[pass.PassId] = pass
+end
+local productById = {}
+for _, product in Config.Store.Products do
+	productById[product.ProductId] = product
+end
+
+local function grantPass(p, pass)
+	local profile = Data.get(p)
+	if not profile then
+		return
+	end
+	profile.Passes[pass.Id] = true
+	p:SetAttribute("Pass_" .. pass.Id, true)
+	Stats.recompute(p)
+	Stats.toast(p, pass.Name .. " unlocked. Thank you!", "gold")
+end
+
+-- Checks which passes the player already owns (call after the profile is loaded).
+function Store.init(p)
+	local profile = Data.get(p)
+	for _, pass in Config.Store.Passes do
+		p:SetAttribute("Pass_" .. pass.Id, profile.Passes[pass.Id] == true)
+		if pass.PassId ~= 0 then
+			task.spawn(function()
+				local ok, owns = pcall(function()
+					return MarketplaceService:UserOwnsGamePassAsync(p.UserId, pass.PassId)
+				end)
+				if ok and owns and Data.get(p) then
+					grantPass(p, pass)
+				end
+			end)
+		end
+	end
+end
+
+function Store.start()
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(p, passId, purchased)
+		local pass = passById[passId]
+		if purchased and pass and p.Parent then
+			grantPass(p, pass)
+		end
+	end)
+	MarketplaceService.ProcessReceipt = function(info)
+		local p = Players:GetPlayerByUserId(info.PlayerId)
+		local product = productById[info.ProductId]
+		local profile = p and Data.get(p)
+		if not p or not product or not profile then
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+		Stats.addAura(p, Config.ProductAura(profile.Level, product.Size), { raw = true })
+		Stats.toast(p, product.Name .. " received!", "gold")
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
+end
+
+return Store
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="34">
           <Properties>
             <string name="Name">Training</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame. A marker sweeps a bar; hit the zone for stat gains.
@@ -4932,7 +5349,124 @@ return Training
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="32">
+        <Item class="ModuleScript" referent="35">
+          <Properties>
+            <string name="Name">Treadmill</string>
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: treadmills. Buy one with Aura, press the use button to hop on and run. You earn Aura (and a little
+-- XP) every second for as long as you keep running; press the button again to step off.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Util = require(ReplicatedStorage.Shared.Util)
+local Data = require(script.Parent.Data)
+local Stats = require(script.Parent.Stats)
+
+local Treadmill = {}
+
+local running = {} -- player -> treadmill id
+
+function Treadmill.isRunning(p)
+	return running[p]
+end
+
+local function freeze(p, frozen)
+	local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+	if not hum then
+		return
+	end
+	if frozen then
+		hum.WalkSpeed = 0
+		hum.JumpHeight = 0
+	else
+		Stats.applyMovement(p)
+	end
+end
+
+function Treadmill.stop(p)
+	local id = running[p]
+	if not id then
+		return
+	end
+	running[p] = nil
+	p:SetAttribute("Running", 0)
+	freeze(p, false)
+	local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		local front = Config.TreadHallCF() * CFrame.new((id - 5.5) * Config.TreadSpacing, 3.5, -9)
+		root.CFrame = CFrame.lookAt(front.Position, front.Position + front.LookVector * 20)
+	end
+	Stats.send(p, "runStop")
+end
+
+function Treadmill.start(p, id)
+	local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+	if not root or p:GetAttribute("Training") or p:GetAttribute("InDuel") then
+		return
+	end
+	local belt = Config.TreadHallCF() * CFrame.new((id - 5.5) * Config.TreadSpacing, 1.6, 2)
+	root.AssemblyLinearVelocity = Vector3.zero
+	-- the runner faces the back wall of the hall
+	root.CFrame = CFrame.lookAt(belt.Position + Vector3.new(0, 3, 0), belt.Position - belt.LookVector * 20 + Vector3.new(0, 3, 0))
+	freeze(p, true)
+	running[p] = id
+	p:SetAttribute("Running", id)
+	Stats.send(p, "run", id)
+end
+
+-- Use: buy it if locked, hop on if owned, step off if you are already on it.
+function Treadmill.use(p, id)
+	local profile = Data.get(p)
+	local def = Config.Treadmills[id]
+	if not profile or not def then
+		return
+	end
+	if running[p] == id then
+		Treadmill.stop(p)
+		return
+	end
+	local key = tostring(id)
+	if not profile.Treads[key] then
+		if not Stats.spend(p, def.Price) then
+			Stats.toast(p, string.format("%s needs %s Aura", def.Name, Util.fmt(def.Price)), "bad")
+			return
+		end
+		profile.Treads[key] = true
+		Stats.recompute(p)
+		Stats.send(p, "treadBought", id)
+	end
+	if running[p] then
+		Treadmill.stop(p)
+	end
+	Treadmill.start(p, id)
+end
+
+-- Called once a second for every player.
+function Treadmill.tick(p)
+	local id = running[p]
+	if not id then
+		return
+	end
+	local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+	local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+	if not root or not hum or hum.Health <= 0 then
+		running[p] = nil
+		p:SetAttribute("Running", 0)
+		return
+	end
+	local def = Config.Treadmills[id]
+	Stats.addAura(p, def.Rate)
+	Stats.addXP(p, 0.4 + id * 0.25)
+end
+
+function Treadmill.release(p)
+	running[p] = nil
+end
+
+return Treadmill
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="36">
           <Properties>
             <string name="Name">Tutorial</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the first-time tutorial. Five short steps that teach the core loop (swing, hammer, train, pet,
@@ -5039,7 +5573,7 @@ return Tutorial
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="33">
+        <Item class="ModuleScript" referent="37">
           <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: builds the whole town from code (nothing to import).
@@ -5049,6 +5583,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Decor = require(script.Parent.Decor)
+local Util = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"))
 local HammerModel = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HammerModel"))
 
 local World = {}
@@ -5307,6 +5843,7 @@ local function buildHammerRow(parent)
 		light.Range = 16
 		light.Brightness = 1.2
 		light.Parent = pedestal
+		Decor.smoke(row, pos + Vector3.new(0, 2.2, 0), color, 0.35 + hammer.Id * 0.04)
 		local display = HammerModel.build(hammer, CFrame.new(pos + Vector3.new(0, 6.6, 0)) * CFrame.Angles(0, math.rad(30), math.rad(-18)), row, { anchored = true })
 		display.Name = "HammerDisplay"
 		local face = sign(row, pos + Vector3.new(0, 3.3, 3.6), Vector3.new(0, 0, 1), Vector3.new(7.4, 1.6, 0.4), hammer.Name .. "  x" .. hammer.Mult, C3(30, 34, 52), color)
@@ -5409,6 +5946,12 @@ local function buildBattle(parent)
 	sign(parent, (cf * CFrame.new(0, 25, -LANE / 2)).Position, cf.LookVector, Vector3.new(28, 5, 0.6), "⚔️  STAGE BATTLE", C3(40, 70, 170))
 	block(parent, "BattleRamp", Vector3.new(16, 0.5, 4), cf * CFrame.new(0, 0.25, -LANE / 2 - 2), C3(150, 150, 158), M.Concrete)
 
+	local battleGlow = Config.Buildings.battle.Glow
+	for side = -1, 1, 2 do
+		Decor.smoke(parent, (cf * CFrame.new(side * 15, 22, -LANE / 2)).Position, battleGlow, 1)
+		Decor.smoke(parent, (cf * CFrame.new(side * 15, 19, LANE / 2 - 2)).Position, battleGlow, 0.8)
+	end
+	Decor.groundAura(parent, pos, 36, battleGlow)
 	local padA = platform(parent, cf * CFrame.new(0, 1, -14), 5.5, C3(250, 205, 50), "YOU")
 	local padB = platform(parent, cf * CFrame.new(0, 1, 14), 5.5, C3(150, 60, 220), "VS")
 
@@ -5461,9 +6004,73 @@ local function buildBattle(parent)
 	return { padA = padA, padB = padB, center = (cf * CFrame.new(0, 2.5, 0)).Position, setOpponent = setOpponent }
 end
 
+
+--------------------------------------------------------------------------------
+-- Treadmill Hall: ten treadmills, each a different colour, each puffing its own coloured smoke
+--------------------------------------------------------------------------------
+local function buildTreadHall(parent)
+	local def = Config.Buildings.treadmills
+	local cf = Config.TreadHallCF()
+	local W, D = 72, 34
+	block(parent, "HallFloor", Vector3.new(W, 0.8, D), cf * CFrame.new(0, 0.4, 0), C3(44, 50, 46), M.Slate)
+	block(parent, "HallAisle", Vector3.new(W - 4, 0.1, 5), cf * CFrame.new(0, 0.85, -10), def.Main, M.SmoothPlastic, { CanCollide = false })
+	block(parent, "HallBackWall", Vector3.new(W, 18, 1), cf * CFrame.new(0, 9.4, D / 2), C3(30, 38, 34), M.Concrete)
+	for side = -1, 1, 2 do
+		block(parent, "HallSideWall", Vector3.new(1, 18, D), cf * CFrame.new(side * W / 2, 9.4, 0), C3(36, 46, 40), M.Concrete)
+		for i = 1, 4 do
+			block(parent, "HallWindow", Vector3.new(0.4, 6, 5), cf * CFrame.new(side * (W / 2 - 0.2), 10, -12 + i * 6), C3(140, 255, 160), M.Glass, { Transparency = 0.5, CanCollide = false })
+		end
+	end
+	block(parent, "HallRoof", Vector3.new(W + 2, 1.4, D + 2), cf * CFrame.new(0, 19, 0), C3(24, 30, 28), M.Metal)
+	block(parent, "HallRoofTrim", Vector3.new(W + 3, 0.7, D + 3), cf * CFrame.new(0, 18, 0), def.Main, M.SmoothPlastic)
+	for _, x in { -W / 2, W / 2 } do
+		for _, z in { -D / 2, D / 2 } do
+			block(parent, "HallPillar", Vector3.new(2.2, 18, 2.2), cf * CFrame.new(x, 9.4, z), WHITE, M.Concrete)
+		end
+	end
+	sign(parent, (cf * CFrame.new(0, 24, -D / 2 - 1)).Position, cf.LookVector, Vector3.new(34, 6, 0.6), "🏃  TREADMILL HALL", C3(30, 110, 40), C3(210, 255, 190))
+	for _, z in { -8, 4, 12 } do
+		local strip = block(parent, "HallLightStrip", Vector3.new(W - 6, 0.5, 0.6), cf * CFrame.new(0, 17.4, z), def.Glow, M.SmoothPlastic, { CanCollide = false })
+		local l = Instance.new("PointLight")
+		l.Color = def.Glow
+		l.Range = 40
+		l.Brightness = 0.8
+		l.Parent = strip
+	end
+	for _, x in { -W / 3, 0, W / 3 } do
+		Decor.smoke(parent, (cf * CFrame.new(x, 21, 6)).Position, def.Glow, 1.1)
+	end
+	Decor.groundAura(parent, cf.Position, 48, def.Glow)
+
+	for _, t in Config.Treadmills do
+		local at = cf * CFrame.new((t.Id - 5.5) * Config.TreadSpacing, 0.8, 2)
+		block(parent, "TreadBase", Vector3.new(4.8, 0.9, 11.4), at * CFrame.new(0, 0.45, 0), C3(30, 32, 40), M.Metal)
+		local belt = block(parent, "TreadBelt", Vector3.new(3.8, 0.3, 10.4), at * CFrame.new(0, 1.05, 0), C3(24, 24, 28), M.Rubber)
+		belt:SetAttribute("TreadId", t.Id)
+		for i = 1, 7 do
+			block(parent, "BeltStripe", Vector3.new(3.8, 0.06, 0.45), at * CFrame.new(0, 1.22, -4.6 + (i - 1) * 1.55), t.Color, M.SmoothPlastic, { CanCollide = false })
+		end
+		for side = -1, 1, 2 do
+			block(parent, "TreadRail", Vector3.new(0.5, 0.7, 10.6), at * CFrame.new(side * 2.2, 1.2, 0), t.Color, M.SmoothPlastic)
+			block(parent, "TreadHandle", Vector3.new(0.4, 0.4, 5), at * CFrame.new(side * 2.2, 4.2, 4.2), t.Color, M.Metal)
+			block(parent, "TreadHandlePost", Vector3.new(0.4, 3, 0.4), at * CFrame.new(side * 2.2, 2.7, 6.4), t.Color, M.Metal)
+		end
+		block(parent, "ConsolePost", Vector3.new(0.7, 6, 0.7), at * CFrame.new(0, 3.9, 6.6), C3(40, 42, 52), M.Metal)
+		sign(parent, (at * CFrame.new(0, 7.4, 6.6)).Position, cf.LookVector, Vector3.new(4.6, 2.4, 0.4), string.format("%s\n+%s/s", (t.Name:gsub(" Treadmill", "")), Util.fmt(t.Rate)), C3(18, 20, 28), t.Color)
+		local top = part(parent, { Name = "ConsoleGem", Shape = Enum.PartType.Ball, Size = Vector3.one * 1.1, CFrame = at * CFrame.new(0, 9.2, 6.6), Color = t.Color, Transparency = 0.1, CanCollide = false })
+		local light = Instance.new("PointLight")
+		light.Color = t.Color
+		light.Range = 22
+		light.Brightness = 1.1
+		light.Parent = top
+		Decor.smoke(parent, (at * CFrame.new(0, 9.8, 6.6)).Position, t.Color, 0.45 + t.Id * 0.05)
+	end
+end
+
 local function buildGym(parent)
 	local pos, inward = stationAt("Gym")
 	local cf = pavilion(parent, pos, inward, RED, "💪  GYM", C3(150, 30, 20), C3(48, 50, 56), M.Slate, C3(150, 60, 55))
+	Decor.pavilion(parent, "gym", cf)
 	-- Bench press
 	block(parent, "Bench", Vector3.new(2.4, 1.2, 6.5), cf * CFrame.new(0, 1.9, 2), C3(40, 40, 46), M.SmoothPlastic)
 	for side = -1, 1, 2 do
@@ -5490,6 +6097,7 @@ end
 local function buildStudio(parent)
 	local pos, inward = stationAt("Studio")
 	local cf = pavilion(parent, pos, inward, C3(190, 70, 140), "💈  STYLE STUDIO", C3(130, 40, 100), C3(242, 190, 214), M.Marble, C3(236, 170, 200))
+	Decor.pavilion(parent, "studio", cf)
 	for i, x in { -7, 7 } do
 		local c = cf * CFrame.new(x, 0, 2)
 		post(parent, "ChairBase", (c * CFrame.new(0, 1, 0)).Position, 1.3, 0.6, DARK, M.Metal)
@@ -5515,6 +6123,7 @@ end
 local function buildLounge(parent)
 	local pos, inward = stationAt("Lounge")
 	local cf = pavilion(parent, pos, inward, C3(60, 140, 190), "🛋️  CHARM LOUNGE", C3(30, 90, 140), C3(170, 122, 84), M.WoodPlanks, C3(96, 170, 190))
+	Decor.pavilion(parent, "lounge", cf)
 	disk(parent, "Rug", (cf * CFrame.new(0, 0.9, 1)).Position, 9, 0.1, C3(190, 70, 90), M.Fabric)
 	block(parent, "SofaSeat", Vector3.new(11, 1.6, 4), cf * CFrame.new(0, 2, 11), C3(120, 80, 150), M.Fabric)
 	block(parent, "SofaBack", Vector3.new(11, 3.6, 1), cf * CFrame.new(0, 4, 12.6), C3(100, 64, 130), M.Fabric)
@@ -5549,6 +6158,17 @@ local function buildCrateShop(parent)
 		block(parent, "Awning", Vector3.new(2.5, 0.4, 15), cf * CFrame.new(x, 12.4, -1) * CFrame.Angles(math.rad(-9), 0, 0), i % 2 == 0 and WHITE or RED, M.Fabric)
 	end
 	sign(parent, (cf * CFrame.new(0, 17, -8.8)).Position, inward, Vector3.new(22, 4.4, 0.6), "🎁  CRATE SHOP", C3(30, 90, 140))
+	Decor.chimneys(parent, cf, 11.8, 8, Config.Buildings.crates.Glow, 10.5)
+	Decor.groundAura(parent, pos, 26, Config.Buildings.crates.Glow)
+	for side = -1, 1, 2 do
+		block(parent, "GoldPost", Vector3.new(1.6, 0.8, 1.6), cf * CFrame.new(side * 12, 13.4, -6), Config.Buildings.crates.Main, M.SmoothPlastic)
+	end
+	local gem = part(parent, { Name = "AuraBeacon", Shape = Enum.PartType.Ball, Size = Vector3.one * 2.6, CFrame = cf * CFrame.new(0, 20, 4), Color = Config.Buildings.crates.Glow, Transparency = 0.15, CanCollide = false })
+	local gl = Instance.new("PointLight")
+	gl.Color = Config.Buildings.crates.Glow
+	gl.Range = 50
+	gl.Brightness = 1.4
+	gl.Parent = gem
 	for i, crate in Config.Crates do
 		local box = cf * CFrame.new((i - 2) * 4.4, 5.8, 1.5)
 		block(parent, "CrateDisplay", Vector3.new(2.6, 2.6, 2.6), box, WOOD, M.Wood)
@@ -5621,6 +6241,13 @@ local function buildRing(parent)
 		block(parent, "SignPost", Vector3.new(1.2, 15, 1.2), cf * CFrame.new(side * 15, 7.5, 20), DARK, M.Metal)
 	end
 	buildDummy(parent, (cf * CFrame.new(-26, 0.4, -8)).Position, inward)
+	local ringGlow = Config.Buildings.ring.Glow
+	for sx = -1, 1, 2 do
+		for sz = -1, 1, 2 do
+			Decor.smoke(parent, (cf * CFrame.new(sx * 17.4, 9.8, sz * 17.4)).Position, ringGlow, 0.8)
+		end
+	end
+	Decor.groundAura(parent, pos, 32, ringGlow)
 	return { padA = padA, padB = padB, center = pos + Vector3.new(0, 2.8, 0) }
 end
 
@@ -5651,6 +6278,13 @@ local function buildStage(parent)
 		light.Color = C3(255, 244, 220)
 		light.Parent = lampPart
 	end
+	local stageGlow = Config.Buildings.stage.Glow
+	for sx = -1, 1, 2 do
+		for sz = -1, 1, 2 do
+			Decor.smoke(parent, Vector3.new(sx * 32, 31.5, sz * 22), stageGlow, 1.1)
+		end
+	end
+	Decor.groundAura(parent, Vector3.zero, 40, stageGlow)
 	-- Banners
 	sign(parent, Vector3.new(0, 25.5, 23), Vector3.new(0, 0, 1), Vector3.new(48, 9, 0.8), "SUB 5 TO TRUE ADAM", C3(20, 70, 140), C3(255, 214, 70))
 	local _, boardLabel = sign(parent, Vector3.new(0, 14.5, 23), Vector3.new(0, 0, 1), Vector3.new(34, 8, 0.8), "MOG COMPETITION\nsoon...", C3(30, 30, 38), WHITE)
@@ -5861,9 +6495,10 @@ function World.build()
 	buildCrateShop(world)
 	local arena = buildRing(world)
 	trainingPlatforms(world)
+	buildTreadHall(world)
 	local battle = buildBattle(world)
 
-	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 124), r = 56 }, { pos = Config.BattlePos(), r = 40 } }
+	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 124), r = 56 }, { pos = Config.BattlePos(), r = 40 }, { pos = Config.TreadHallPos(), r = 62 } }
 	for name in Config.Stations do
 		table.insert(avoid, { pos = (stationAt(name)), r = 28 })
 	end
@@ -5885,15 +6520,15 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="34">
+  <Item class="StarterPlayer" referent="38">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="35">
+    <Item class="StarterPlayerScripts" referent="39">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="36">
+      <Item class="LocalScript" referent="40">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: client entry point. Builds the interface, wires the menu tabs, and routes everything
@@ -5932,6 +6567,9 @@ local Interact = require(Modules.Interact)
 local HammerRow = require(Modules.HammerRow)
 local Swing = require(Modules.Swing)
 local Tutorial = require(Modules.Tutorial)
+local WorldTags = require(Modules.WorldTags)
+local Runner = require(Modules.Runner)
+local TabStore = require(Modules.TabStore)
 
 -- Wait for the server to finish setting this player up.
 while not player:GetAttribute("Ready") do
@@ -5961,6 +6599,9 @@ end)
 Menu.addTab("Pets", "🐾", function(page)
 	return TabPets.build(page, Action)
 end)
+Menu.addTab("Store", "💎", function(page)
+	return TabStore.build(page)
+end)
 Menu.addTab("Upgrades", "⬆️", function(page)
 	return TabUpgrades.build(page, Action)
 end)
@@ -5982,6 +6623,7 @@ Interact.init(gui, Action, Menu)
 HammerRow.init()
 Swing.init(gui, Action, Menu)
 Tutorial.init(gui, Action)
+WorldTags.init()
 
 TabSettings.apply()
 Audio.startMusic()
@@ -6184,6 +6826,36 @@ function handlers.tutorialDone(aura, crates)
 	Fx.announce("TUTORIAL COMPLETE", string.format("+%s Aura  +%d crates. Now go mog them all!", Util.fmt(aura), crates), UI.Colors.Gold, 0.22)
 end
 
+function handlers.building(id)
+	local def = Config.Buildings[id]
+	Audio.say("unlock")
+	Audio.levelUp()
+	Fx.shake(0.35, 0.4)
+	Fx.flash(def.Glow, 0.3, 0.6)
+	local pos = Config.BuildingPos[id]()
+	Fx.ring(pos, def.Glow, 45)
+	Fx.pillar(pos, def.Glow, 120)
+	Fx.burst(pos + Vector3.new(0, 4, 0), def.Glow, 70)
+	Fx.announce(def.Name:upper() .. " UNLOCKED", "Aura: " .. def.Aura, def.Glow, 0.22)
+end
+
+function handlers.treadBought(id)
+	local t = Config.Treadmills[id]
+	Audio.purchase()
+	Fx.burst(Config.TreadPos(id) + Vector3.new(0, 4, 0), t.Color, 40)
+	Fx.ring(Config.TreadPos(id), t.Color, 14)
+	Toasts.push(string.format("%s unlocked  ·  +%s Aura per second", t.Name, Util.fmt(t.Rate)), "gold")
+end
+
+function handlers.run(id)
+	Runner.start(id)
+	Toasts.push("Running! Aura every second. Press the red button to stop.", "info")
+end
+
+function handlers.runStop()
+	Runner.stop()
+end
+
 function handlers.openMenu(tab)
 	Menu.open(tab)
 end
@@ -6242,11 +6914,11 @@ task.spawn(function()
 end)
 ]]></string>
         </Properties>
-        <Item class="Folder" referent="37">
+        <Item class="Folder" referent="41">
           <Properties>
             <string name="Name">Modules</string>
           </Properties>
-          <Item class="ModuleScript" referent="38">
+          <Item class="ModuleScript" referent="42">
             <Properties>
               <string name="Name">CompetitionUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: Mog Competition overlay. Everyone on stage flexes (taps) for 8 seconds; a live
@@ -6530,7 +7202,7 @@ return CompetitionUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="39">
+          <Item class="ModuleScript" referent="43">
             <Properties>
               <string name="Name">DuelUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: duel overlay. Both sides tap as fast as they can for 7 seconds; Mog Power gives an
@@ -6770,7 +7442,7 @@ return DuelUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="40">
+          <Item class="ModuleScript" referent="44">
             <Properties>
               <string name="Name">Fx</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
@@ -7008,7 +7680,7 @@ return Fx
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="41">
+          <Item class="ModuleScript" referent="45">
             <Properties>
               <string name="Name">HammerRow</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: floating OWNED / EQUIPPED / price labels over every hammer pedestal.
@@ -7133,7 +7805,7 @@ return HammerRow
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="42">
+          <Item class="ModuleScript" referent="46">
             <Properties>
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the always-on screen.
@@ -7213,7 +7885,7 @@ local TELEPORTS = {
 --------------------------------------------------------------------------------
 -- Top: banner, pills, chips
 --------------------------------------------------------------------------------
-local function buildTop(gui)
+local function buildTop(gui, Menu)
 	local stack = UI.new("Frame", {
 		Name = "Top",
 		AnchorPoint = Vector2.new(0.5, 0),
@@ -7264,6 +7936,18 @@ local function buildTop(gui)
 	end
 	refs.rebirthPill = counter(1, 90, C.Mint, C.Mint)
 	refs.multPill = counter(2, 130, C.Pink, C.Pink)
+	local store = UI.button(row, {
+		LayoutOrder = 3,
+		Size = UDim2.fromOffset(104, 30),
+		BackgroundColor3 = C.Accent2,
+		Text = "💎 STORE",
+		TextSize = 13,
+		Radius = 10,
+	}, "primary")
+	store.Activated:Connect(function()
+		Audio.click()
+		Menu.toggle("Store")
+	end)
 
 	-- Chips (chain, event, competition), only visible while relevant
 	local chips = UI.new("Frame", { Name = "Chips", Size = UDim2.fromOffset(440, 70), BackgroundTransparency = 1, LayoutOrder = 3 }, stack)
@@ -7575,7 +8259,7 @@ end
 -- Init
 --------------------------------------------------------------------------------
 function Hud.init(gui, Menu, Action)
-	buildTop(gui)
+	buildTop(gui, Menu)
 	buildSides(gui, Menu)
 	buildBottom(gui)
 	buildRebirth(gui, Action)
@@ -7800,7 +8484,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="43">
+          <Item class="ModuleScript" referent="47">
             <Properties>
               <string name="Name">Interact</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: "use" button for every place and hammer. Stand near something and a big button
@@ -7842,6 +8526,35 @@ local function owned(id)
 	return false
 end
 
+local function ownedBuilding(id)
+	for b in string.gmatch(player:GetAttribute("Own") or "gym", "%w+") do
+		if b == id then
+			return true
+		end
+	end
+	return false
+end
+
+local function ownedTread(id)
+	for n in string.gmatch(player:GetAttribute("Treads") or "1", "%d+") do
+		if tonumber(n) == id then
+			return true
+		end
+	end
+	return false
+end
+
+local function treadText(t)
+	local running = player:GetAttribute("Running") or 0
+	if running == t.Id then
+		return "Stop running", C.Danger
+	elseif ownedTread(t.Id) then
+		return string.format("Run on %s  ·  +%s/s", t.Name, Util.fmt(t.Rate)), C.Good
+	end
+	local canBuy = (player:GetAttribute("Aura") or 0) >= t.Price
+	return string.format("Buy %s  ·  🏆 %s", t.Name, Util.fmt(t.Price)), canBuy and C.Gold or C.Danger
+end
+
 local function hammerText(hammer)
 	if (player:GetAttribute("Hammer") or 1) == hammer.Id then
 		return hammer.Name .. " (equipped)", C.Disabled
@@ -7860,6 +8573,10 @@ local function scan()
 	if not root or menu.isOpen() or player:GetAttribute("Training") or player:GetAttribute("InDuel") then
 		return nil
 	end
+	-- While running on a treadmill the only thing you can do is step off.
+	if (player:GetAttribute("Running") or 0) > 0 then
+		return { id = "TreadStop", text = "Stop running", color = C.Danger }
+	end
 	local best, bestScore
 	local pos = root.Position
 	for _, hammer in Config.Hammers do
@@ -7867,6 +8584,14 @@ local function scan()
 		if d <= Config.HammerRadius and (not bestScore or d / Config.HammerRadius < bestScore) then
 			local text, color = hammerText(hammer)
 			best, bestScore = { id = "Hammer:" .. hammer.Id, text = text, color = color }, d / Config.HammerRadius
+		end
+	end
+	for _, t in Config.Treadmills do
+		local d = flat(pos, Config.TreadPos(t.Id))
+		local r = Config.TreadRadius
+		if d <= r and (not bestScore or d / r < bestScore) then
+			local text, color = treadText(t)
+			best, bestScore = { id = "Tread:" .. t.Id, text = text, color = color }, d / r
 		end
 	end
 	for _, entry in Config.Interactables do
@@ -7877,7 +8602,13 @@ local function scan()
 				local stage = math.min((player:GetAttribute("Stage") or 0) + 1, Config.Battle.Count)
 				text = string.format("Stage %d battle: %s", stage, Config.Battle.Stages[stage].Name)
 			end
-			best, bestScore = { id = entry.Id, text = text, color = C.Good }, d / entry.Radius
+			local color = C.Good
+			if entry.Building and not ownedBuilding(entry.Building) then
+				local def = Config.Buildings[entry.Building]
+				text = string.format("🔒 Unlock %s  ·  🏆 %s", def.Name, Util.fmt(def.Cost))
+				color = (player:GetAttribute("Aura") or 0) >= def.Cost and C.Gold or C.Danger
+			end
+			best, bestScore = { id = entry.Id, text = text, color = color }, d / entry.Radius
 		end
 	end
 	return best
@@ -7893,7 +8624,11 @@ end
 function Interact.init(gui, Action, Menu)
 	menu = Menu
 	actionFn = function(id)
-		Action:FireServer("Interact", id)
+		if id == "TreadStop" then
+			Action:FireServer("TreadStop")
+		else
+			Action:FireServer("Interact", id)
+		end
 	end
 	button = UI.button(gui, {
 		Name = "InteractButton",
@@ -7954,7 +8689,7 @@ return Interact
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="44">
+          <Item class="ModuleScript" referent="48">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the one main menu. A single window with a tab list so the screen never fills up with
@@ -8077,7 +8812,7 @@ function Menu.init(gui)
 		BackgroundTransparency = 1,
 		ZIndex = 22,
 	}, window)
-	UI.new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, sidebar)
+	UI.new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, sidebar)
 	Menu.sidebar = sidebar
 
 	content = UI.new("Frame", {
@@ -8093,7 +8828,7 @@ function Menu.addTab(name, icon, builder)
 	local index = #tabs + 1
 	local button = UI.button(Menu.sidebar, {
 		LayoutOrder = index,
-		Size = UDim2.new(1, 0, 0, 46),
+		Size = UDim2.new(1, 0, 0, 38),
 		BackgroundTransparency = 0.35,
 		Text = "",
 		ZIndex = 23,
@@ -8102,7 +8837,7 @@ function Menu.addTab(name, icon, builder)
 		Position = UDim2.fromOffset(14, 0),
 		Size = UDim2.new(1, -20, 1, 0),
 		Font = UI.Fonts.Bold,
-		TextSize = 16,
+		TextSize = 15,
 		Text = icon .. "   " .. name,
 		TextWrapped = false,
 		ZIndex = 24,
@@ -8199,7 +8934,7 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="45">
+          <Item class="ModuleScript" referent="49">
             <Properties>
               <string name="Name">Orbs</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: pickups bob and spin locally so the server never has to animate them, and
@@ -8256,7 +8991,53 @@ return Orbs
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="46">
+          <Item class="ModuleScript" referent="50">
+            <Properties>
+              <string name="Name">Runner</string>
+              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: plays the running animation while you are on a treadmill (the server does the freezing and the
+-- Aura). Uses Roblox's own default run animations, so nothing has to be uploaded.
+local Players = game:GetService("Players")
+
+local Runner = {}
+
+local player = Players.LocalPlayer
+local RUN_R15, RUN_R6 = "rbxassetid://913376220", "rbxassetid://180426354"
+local track
+
+function Runner.stop()
+	if track then
+		pcall(function()
+			track:Stop(0.2)
+			track:Destroy()
+		end)
+		track = nil
+	end
+end
+
+function Runner.start(treadmillId)
+	Runner.stop()
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	local animator = hum and hum:FindFirstChildOfClass("Animator")
+	if not animator then
+		return
+	end
+	pcall(function()
+		local anim = Instance.new("Animation")
+		anim.AnimationId = hum.RigType == Enum.HumanoidRigType.R15 and RUN_R15 or RUN_R6
+		track = animator:LoadAnimation(anim)
+		track.Looped = true
+		track.Priority = Enum.AnimationPriority.Action
+		track:Play(0.2)
+		track:AdjustSpeed(1 + treadmillId * 0.12)
+	end)
+end
+
+return Runner
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="51">
             <Properties>
               <string name="Name">Swing</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: click / tap anywhere (or hold) to swing your hammer at your own face.
@@ -8401,7 +9182,7 @@ return Swing
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="47">
+          <Item class="ModuleScript" referent="52">
             <Properties>
               <string name="Name">TabCrates</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: crates tab. The server rolls; this plays the reveal (a spinning reel that slows
@@ -8700,7 +9481,7 @@ return TabCrates
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="48">
+          <Item class="ModuleScript" referent="53">
             <Properties>
               <string name="Name">TabPets</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Pets tab. Hatch eggs at the top, manage your pets below.
@@ -8900,7 +9681,7 @@ return TabPets
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="49">
+          <Item class="ModuleScript" referent="54">
             <Properties>
               <string name="Name">TabProfile</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: your character sheet: rank, stats, duel record and the current quest.
@@ -9079,7 +9860,7 @@ return TabProfile
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="50">
+          <Item class="ModuleScript" referent="55">
             <Properties>
               <string name="Name">TabRewards</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: daily streak rewards and the current server event.
@@ -9205,7 +9986,7 @@ return TabRewards
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="51">
+          <Item class="ModuleScript" referent="56">
             <Properties>
               <string name="Name">TabSettings</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: simple toggles. Settings are saved on the server so they follow the player.
@@ -9310,7 +10091,128 @@ return TabSettings
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="52">
+          <Item class="ModuleScript" referent="57">
+            <Properties>
+              <string name="Name">TabStore</string>
+              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Store tab (real Robux). Offers without a real id yet show "COMING SOON".
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(Shared:WaitForChild("UI"))
+local Util = require(Shared:WaitForChild("Util"))
+local Audio = require(Shared:WaitForChild("Audio"))
+
+local player = Players.LocalPlayer
+local C = UI.Colors
+
+local TabStore = {}
+
+local function offerRow(parent, order, y, title, desc, color)
+	local row = UI.panel(parent, { LayoutOrder = order, Size = UDim2.new(1, -8, 0, 54), Radius = 10 })
+	row:FindFirstChildOfClass("UIStroke").Color = color
+	UI.label(row, {
+		Position = UDim2.fromOffset(12, 5),
+		Size = UDim2.new(1, -140, 0, 20),
+		Font = UI.Fonts.Title,
+		TextSize = 15,
+		TextColor3 = color,
+		TextWrapped = false,
+		Text = title,
+	})
+	local d = UI.label(row, {
+		Position = UDim2.fromOffset(12, 26),
+		Size = UDim2.new(1, -140, 0, 24),
+		Font = UI.Fonts.Body,
+		TextSize = 11,
+		TextColor3 = C.Muted,
+		Text = desc,
+	})
+	local button = UI.button(row, {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -10, 0.5, 0),
+		Size = UDim2.fromOffset(112, 38),
+		Text = "",
+		TextSize = 13,
+	}, "primary")
+	return row, button, d
+end
+
+function TabStore.build(parent)
+	UI.label(parent, {
+		Size = UDim2.new(1, 0, 0, 26),
+		Font = UI.Fonts.Title,
+		TextSize = 20,
+		TextWrapped = false,
+		Text = "💎  Store",
+	})
+	local scroll = UI.new("ScrollingFrame", {
+		Position = UDim2.fromOffset(0, 34),
+		Size = UDim2.new(1, -4, 1, -34),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 4,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	}, parent)
+	UI.new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, scroll)
+	local refreshers = {}
+
+	for i, pass in Config.Store.Passes do
+		local _, button = offerRow(scroll, i, 0, "⭐ " .. pass.Name, pass.Desc, C.Gold)
+		button.Activated:Connect(function()
+			Audio.click()
+			if pass.PassId ~= 0 and player:GetAttribute("Pass_" .. pass.Id) ~= true then
+				pcall(function()
+					MarketplaceService:PromptGamePassPurchase(player, pass.PassId)
+				end)
+			end
+		end)
+		table.insert(refreshers, function()
+			if player:GetAttribute("Pass_" .. pass.Id) == true then
+				button.Text, button.BackgroundColor3 = "OWNED", C.Good
+			elseif pass.PassId == 0 then
+				button.Text, button.BackgroundColor3 = "COMING SOON", C.Disabled
+			else
+				button.Text, button.BackgroundColor3 = "BUY WITH R$", C.Accent2
+			end
+		end)
+	end
+	for i, product in Config.Store.Products do
+		local _, button, desc = offerRow(scroll, 10 + i, 0, "🏆 " .. product.Name, "", C.Mint)
+		button.Activated:Connect(function()
+			Audio.click()
+			if product.ProductId ~= 0 then
+				pcall(function()
+					MarketplaceService:PromptProductPurchase(player, product.ProductId)
+				end)
+			end
+		end)
+		table.insert(refreshers, function()
+			desc.Text = string.format("Instantly gives %s Aura at your level.", Util.fmt(Config.ProductAura(player:GetAttribute("Level") or 1, product.Size)))
+			if product.ProductId == 0 then
+				button.Text, button.BackgroundColor3 = "COMING SOON", C.Disabled
+			else
+				button.Text, button.BackgroundColor3 = "BUY WITH R$", C.Accent2
+			end
+		end)
+	end
+	return {
+		refresh = function()
+			for _, fn in refreshers do
+				fn()
+			end
+		end,
+	}
+end
+
+return TabStore
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="58">
             <Properties>
               <string name="Name">TabUpgrades</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades (bought with Aura) and the rebirth button.
@@ -9470,7 +10372,7 @@ return TabUpgrades
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="53">
+          <Item class="ModuleScript" referent="59">
             <Properties>
               <string name="Name">TabWardrobe</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the wardrobe. A collection grid: owned items can be worn, unowned ones show as locked
@@ -9697,7 +10599,7 @@ return TabWardrobe
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="54">
+          <Item class="ModuleScript" referent="60">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -9807,7 +10709,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="55">
+          <Item class="ModuleScript" referent="61">
             <Properties>
               <string name="Name">TrainingUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame overlay. A marker sweeps a bar; press Space (or tap) while it
@@ -10072,7 +10974,7 @@ return TrainingUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="56">
+          <Item class="ModuleScript" referent="62">
             <Properties>
               <string name="Name">Tutorial</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the first-time tutorial card and the bouncing arrow that points at where to go.
@@ -10272,11 +11174,157 @@ return Tutorial
 ]]></string>
             </Properties>
           </Item>
+          <Item class="ModuleScript" referent="63">
+            <Properties>
+              <string name="Name">WorldTags</string>
+              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: floating signs over every building and treadmill that show what it costs, what it gives and
+-- whether you own it. They are different for each player, so they are drawn here instead of in the world.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(Shared:WaitForChild("UI"))
+local Util = require(Shared:WaitForChild("Util"))
+
+local WorldTags = {}
+
+local player = Players.LocalPlayer
+local C = UI.Colors
+local anchors = {} -- kept so the signs have something to attach to
+local buildingTags = {} -- id -> { status, stroke }
+local treadTags = {} -- id -> { status, stroke }
+
+local function owned(attr, fallback)
+	local set = {}
+	for key in string.gmatch(player:GetAttribute(attr) or fallback, "[%w_]+") do
+		set[tonumber(key) or key] = true
+	end
+	return set
+end
+
+local function anchorAt(position)
+	local part = UI.new("Part", {
+		Name = "TagAnchor",
+		Size = Vector3.one,
+		Position = position,
+		Transparency = 1,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+	}, workspace)
+	table.insert(anchors, part)
+	return part
+end
+
+local function makeTag(adornee, offset, width, height, maxDistance)
+	local gui = UI.new("BillboardGui", {
+		Adornee = adornee,
+		Size = UDim2.fromOffset(width, height),
+		StudsOffset = offset,
+		AlwaysOnTop = true,
+		MaxDistance = maxDistance,
+		LightInfluence = 0,
+		ResetOnSpawn = false,
+	}, player:WaitForChild("PlayerGui"))
+	local frame = UI.panel(gui, { Size = UDim2.fromScale(1, 1), Radius = 10 })
+	return frame, frame:FindFirstChildOfClass("UIStroke")
+end
+
+local function line(frame, y, h, size, color, text, font)
+	return UI.label(frame, {
+		Position = UDim2.fromOffset(4, y),
+		Size = UDim2.new(1, -8, 0, h),
+		Font = font or UI.Fonts.Title,
+		TextSize = size,
+		TextColor3 = color,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextWrapped = false,
+		TextStrokeTransparency = 0.3,
+		Text = text,
+	})
+end
+
+local function buildBuildingTags()
+	for _, id in Config.BuildingOrder do
+		local def = Config.Buildings[id]
+		local at = Config.BuildingPos[id]()
+		local height = (id == "stage" or id == "battle") and 40 or (id == "treadmills" and 28 or 22)
+		local frame, stroke = makeTag(anchorAt(at + Vector3.new(0, height, 0)), Vector3.zero, 190, 62, 190)
+		line(frame, 3, 18, 13, def.Main:Lerp(Color3.new(1, 1, 1), 0.4), def.Name:upper())
+		line(frame, 21, 14, 10, C.Muted, "Aura: " .. def.Aura, UI.Fonts.Bold)
+		local status = line(frame, 37, 20, 15, C.Yellow, "")
+		buildingTags[id] = { status = status, stroke = stroke, def = def }
+	end
+end
+
+local function buildTreadTags(row)
+	for _, t in Config.Treadmills do
+		local frame, stroke = makeTag(anchorAt(Config.TreadPos(t.Id) + Vector3.new(0, 12.5, 0)), Vector3.zero, 118, 58, 80)
+		line(frame, 3, 14, 11, t.Color, (t.Name:gsub(" Treadmill", "")):upper() .. " TREADMILL")
+		line(frame, 17, 22, 18, t.Color, "+" .. Util.fmt(t.Rate) .. "/s")
+		local status = line(frame, 39, 16, 12, C.Yellow, "")
+		treadTags[t.Id] = { status = status, stroke = stroke, def = t }
+	end
+end
+
+local function refresh()
+	local aura = player:GetAttribute("Aura") or 0
+	local own = owned("Own", "gym")
+	for id, tag in buildingTags do
+		if own[id] then
+			tag.status.Text = tag.def.Cost == 0 and "FREE" or "UNLOCKED"
+			tag.status.TextColor3 = C.Good
+			tag.stroke.Color = tag.def.Main
+		else
+			tag.status.Text = "🔒 🏆 " .. Util.fmt(tag.def.Cost)
+			local can = aura >= tag.def.Cost
+			tag.status.TextColor3 = can and C.Yellow or C.Danger
+			tag.stroke.Color = can and C.Gold or C.Stroke
+		end
+	end
+	local treads = owned("Treads", "1")
+	local running = player:GetAttribute("Running") or 0
+	for id, tag in treadTags do
+		if running == id then
+			tag.status.Text = "RUNNING"
+			tag.status.TextColor3 = C.Mint
+			tag.stroke.Color = C.Mint
+		elseif treads[id] then
+			tag.status.Text = "OWNED"
+			tag.status.TextColor3 = C.Sky
+			tag.stroke.Color = tag.def.Color
+		else
+			tag.status.Text = "🔒 🏆 " .. Util.fmt(tag.def.Price)
+			local can = aura >= tag.def.Price
+			tag.status.TextColor3 = can and C.Yellow or C.Danger
+			tag.stroke.Color = can and C.Gold or C.Stroke
+		end
+	end
+end
+
+function WorldTags.init()
+	buildBuildingTags()
+	buildTreadTags()
+	refresh()
+	task.spawn(function()
+		while true do
+			task.wait(0.4)
+			refresh()
+		end
+	end)
+end
+
+return WorldTags
+]]></string>
+            </Properties>
+          </Item>
         </Item>
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="57">
+  <Item class="Workspace" referent="64">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

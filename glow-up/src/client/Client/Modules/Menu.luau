@@ -118,7 +118,7 @@ function Menu.init(gui)
 		BackgroundTransparency = 1,
 		ZIndex = 22,
 	}, window)
-	UI.new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, sidebar)
+	UI.new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, sidebar)
 	Menu.sidebar = sidebar
 
 	content = UI.new("Frame", {
@@ -134,7 +134,7 @@ function Menu.addTab(name, icon, builder)
 	local index = #tabs + 1
 	local button = UI.button(Menu.sidebar, {
 		LayoutOrder = index,
-		Size = UDim2.new(1, 0, 0, 46),
+		Size = UDim2.new(1, 0, 0, 38),
 		BackgroundTransparency = 0.35,
 		Text = "",
 		ZIndex = 23,
@@ -143,7 +143,7 @@ function Menu.addTab(name, icon, builder)
 		Position = UDim2.fromOffset(14, 0),
 		Size = UDim2.new(1, -20, 1, 0),
 		Font = UI.Fonts.Bold,
-		TextSize = 16,
+		TextSize = 15,
 		Text = icon .. "   " .. name,
 		TextWrapped = false,
 		ZIndex = 24,

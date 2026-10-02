@@ -34,6 +34,9 @@ local Interact = require(Modules.Interact)
 local HammerRow = require(Modules.HammerRow)
 local Swing = require(Modules.Swing)
 local Tutorial = require(Modules.Tutorial)
+local WorldTags = require(Modules.WorldTags)
+local Runner = require(Modules.Runner)
+local TabStore = require(Modules.TabStore)
 
 -- Wait for the server to finish setting this player up.
 while not player:GetAttribute("Ready") do
@@ -63,6 +66,9 @@ end)
 Menu.addTab("Pets", "🐾", function(page)
 	return TabPets.build(page, Action)
 end)
+Menu.addTab("Store", "💎", function(page)
+	return TabStore.build(page)
+end)
 Menu.addTab("Upgrades", "⬆️", function(page)
 	return TabUpgrades.build(page, Action)
 end)
@@ -84,6 +90,7 @@ Interact.init(gui, Action, Menu)
 HammerRow.init()
 Swing.init(gui, Action, Menu)
 Tutorial.init(gui, Action)
+WorldTags.init()
 
 TabSettings.apply()
 Audio.startMusic()
@@ -284,6 +291,36 @@ function handlers.tutorialDone(aura, crates)
 	Audio.levelUp()
 	Fx.flash(UI.Colors.Gold, 0.3, 0.6)
 	Fx.announce("TUTORIAL COMPLETE", string.format("+%s Aura  +%d crates. Now go mog them all!", Util.fmt(aura), crates), UI.Colors.Gold, 0.22)
+end
+
+function handlers.building(id)
+	local def = Config.Buildings[id]
+	Audio.say("unlock")
+	Audio.levelUp()
+	Fx.shake(0.35, 0.4)
+	Fx.flash(def.Glow, 0.3, 0.6)
+	local pos = Config.BuildingPos[id]()
+	Fx.ring(pos, def.Glow, 45)
+	Fx.pillar(pos, def.Glow, 120)
+	Fx.burst(pos + Vector3.new(0, 4, 0), def.Glow, 70)
+	Fx.announce(def.Name:upper() .. " UNLOCKED", "Aura: " .. def.Aura, def.Glow, 0.22)
+end
+
+function handlers.treadBought(id)
+	local t = Config.Treadmills[id]
+	Audio.purchase()
+	Fx.burst(Config.TreadPos(id) + Vector3.new(0, 4, 0), t.Color, 40)
+	Fx.ring(Config.TreadPos(id), t.Color, 14)
+	Toasts.push(string.format("%s unlocked  ·  +%s Aura per second", t.Name, Util.fmt(t.Rate)), "gold")
+end
+
+function handlers.run(id)
+	Runner.start(id)
+	Toasts.push("Running! Aura every second. Press the red button to stop.", "info")
+end
+
+function handlers.runStop()
+	Runner.stop()
 end
 
 function handlers.openMenu(tab)

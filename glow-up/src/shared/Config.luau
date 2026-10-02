@@ -294,11 +294,11 @@ end
 --------------------------------------------------------------------------------
 -- Shifter < 1 drops the voice an octave-ish; Bass boosts the low end (dB); Volume is loudness.
 Config.Voice = { VoiceId = "3", Pitch = 0.8, Speed = 0.8, Shifter = 0.7, Bass = 12, Treble = -12, Volume = 2.2 }
-Config.VoiceSoundIds = { ["3"] = 0, ["2"] = 0, ["1"] = 0, go = 0, levelup = 0, rebirth = 0, stage = 0, win = 0, welcome = 0, nice = 0, done = 0 }
+Config.VoiceSoundIds = { ["3"] = 0, ["2"] = 0, ["1"] = 0, go = 0, levelup = 0, rebirth = 0, stage = 0, win = 0, welcome = 0, unlock = 0, nice = 0, done = 0 }
 Config.VoiceText = {
 	["3"] = "Three!", ["2"] = "Two!", ["1"] = "One!", go = "Go!",
 	levelup = "Level up!", rebirth = "Rebirth ready!", stage = "Stage cleared!", win = "Mogged!",
-	welcome = "Welcome! Let us make you a Chad.", nice = "Nice!", done = "Training complete. Now go mog them all!",
+	welcome = "Welcome! Let us make you a Chad.", unlock = "Unlocked!", nice = "Nice!", done = "Training complete. Now go mog them all!",
 }
 
 --------------------------------------------------------------------------------
@@ -309,9 +309,90 @@ Config.Tutorial = {
 	{ Title = "Buy the Stone Hammer", Text = "Walk to the glowing Stone Hammer and press the big button at the bottom. Bigger hammer, more Aura per swing.", Gift = 60 },
 	{ Title = "Train on a platform", Text = "Walk onto the Gym platform, press the big button, then hit SPACE (or tap) when the marker is in the green.", Goal = 3 },
 	{ Title = "Hatch a pet", Text = "Press the 🐾 Pets button on the right and hatch a Basic Egg. Pets boost your Aura.", Gift = 500 },
-	{ Title = "Fight Stage 1", Text = "Press the ⚔️ Battle button, then the big button, and tap as fast as you can!" },
+	{ Title = "Fight Stage 1", Text = "Press the ⚔️ Battle button. Press the big button to unlock the arena (free gift), press it again to fight, and tap fast!", Gift = 2600 },
 }
 Config.TutorialReward = { Aura = 1000, Crates = 2 }
+
+--------------------------------------------------------------------------------
+-- Buildings: each one must be unlocked with Aura. Every building has its own colours, smoke and aura.
+--------------------------------------------------------------------------------
+Config.Buildings = {
+	gym = { Name = "Gym", Cost = 0, Main = C(210, 55, 50), Glow = C(255, 130, 40), Aura = "Raw power" },
+	battle = { Name = "Stage Battle Arena", Cost = 2500, Main = C(70, 110, 230), Glow = C(120, 170, 255), Aura = "Fight 15 stages" },
+	studio = { Name = "Style Studio", Cost = 4000, Main = C(235, 90, 185), Glow = C(255, 140, 225), Aura = "Style" },
+	stage = { Name = "Mog Stage", Cost = 15000, Main = C(140, 80, 230), Glow = C(195, 140, 255), Aura = "Competitions" },
+	lounge = { Name = "Charm Lounge", Cost = 30000, Main = C(40, 185, 200), Glow = C(100, 245, 235), Aura = "Charm" },
+	ring = { Name = "Duel Ring", Cost = 75000, Main = C(230, 50, 70), Glow = C(255, 90, 90), Aura = "PvP duels" },
+	crates = { Name = "Crate Shop", Cost = 120000, Main = C(245, 185, 40), Glow = C(255, 215, 100), Aura = "Loot" },
+	treadmills = { Name = "Treadmill Hall", Cost = 0, Main = C(90, 215, 95), Glow = C(160, 255, 130), Aura = "Passive Aura" },
+}
+Config.BuildingOrder = { "gym", "battle", "studio", "stage", "lounge", "ring", "crates", "treadmills" }
+function Config.BuildingOwned(profileBuildings, id)
+	local b = Config.Buildings[id]
+	return b ~= nil and (b.Cost == 0 or (profileBuildings ~= nil and profileBuildings[id] == true))
+end
+-- Which building each interactable belongs to.
+Config.BuildingPos = {
+	gym = function() return Config.StationPos("Gym") end,
+	studio = function() return Config.StationPos("Studio") end,
+	lounge = function() return Config.StationPos("Lounge") end,
+	crates = function() return Config.StationPos("Crates") end,
+	ring = function() return Config.StationPos("Ring") end,
+	battle = function() return Config.BattlePos() end,
+	stage = function() return Vector3.new(0, 0, 0) end,
+	treadmills = function() return Config.TreadHallPos() end,
+}
+
+--------------------------------------------------------------------------------
+-- Treadmills: stand on one and run to earn Aura every second. Better ones cost more Aura to unlock.
+--------------------------------------------------------------------------------
+Config.TreadHallAngle, Config.TreadHallRadius = 148, 104
+function Config.TreadHallPos()
+	local a = math.rad(Config.TreadHallAngle)
+	return Vector3.new(math.cos(a) * Config.TreadHallRadius, 0, math.sin(a) * Config.TreadHallRadius)
+end
+function Config.TreadHallCF()
+	local pos = Config.TreadHallPos()
+	return CFrame.lookAt(pos, Vector3.new(0, 0, 0))
+end
+Config.Treadmills = {}
+do
+	local names = { "Starter", "Jogger", "Sprinter", "Athlete", "Champion", "Titan", "Legend", "Mythic", "Divine", "True Adam" }
+	local prices = { 0, 400, 4000, 35000, 300000, 2500000, 22000000, 190000000, 1600000000, 14000000000 }
+	local rates = { 2, 8, 30, 110, 400, 1500, 6000, 24000, 100000, 450000 }
+	local colors = {
+		C(150, 160, 175), C(80, 200, 120), C(70, 150, 240), C(170, 90, 240), C(255, 90, 170),
+		C(255, 150, 50), C(255, 220, 60), C(60, 235, 220), C(255, 80, 80), C(255, 244, 190),
+	}
+	for i = 1, #names do
+		Config.Treadmills[i] = { Id = i, Name = names[i] .. " Treadmill", Price = prices[i], Rate = rates[i], Color = colors[i] }
+	end
+end
+Config.TreadRadius = 4.5
+Config.TreadSpacing = 6.2
+function Config.TreadPos(i)
+	return (Config.TreadHallCF() * CFrame.new((i - 5.5) * Config.TreadSpacing, 0, 2)).Position
+end
+
+--------------------------------------------------------------------------------
+-- Store (real Robux). Create the passes / products on create.roblox.com and paste their ids here.
+-- An id of 0 means "not set up yet" and the offer is shown as coming soon.
+--------------------------------------------------------------------------------
+Config.Store = {
+	Passes = {
+		{ Id = "x2aura", Name = "2x Aura", Desc = "Doubles all Aura you earn, forever.", PassId = 0 },
+		{ Id = "x2xp", Name = "2x XP", Desc = "Level up twice as fast, forever.", PassId = 0 },
+		{ Id = "vip", Name = "VIP", Desc = "Gold VIP tag, +25% Aura and a free crate every day.", PassId = 0 },
+	},
+	Products = {
+		{ Id = "aura_s", Name = "Aura Pack S", Size = 20, ProductId = 0 },
+		{ Id = "aura_m", Name = "Aura Pack M", Size = 120, ProductId = 0 },
+		{ Id = "aura_l", Name = "Aura Pack L", Size = 800, ProductId = 0 },
+	},
+}
+function Config.ProductAura(level, size)
+	return math.floor(size * 40 * (1 + level * 0.3))
+end
 
 --------------------------------------------------------------------------------
 -- Things you can interact with (press E, or tap the on-screen button). These work from any camera
@@ -319,14 +400,14 @@ Config.TutorialReward = { Aura = 1000, Crates = 2 }
 --------------------------------------------------------------------------------
 Config.HammerRadius = 8
 Config.Interactables = {
-	{ Id = "Gym", Object = "Gym", Action = "Train Power", Pos = "station:Gym", Radius = 17 },
-	{ Id = "Studio", Object = "Style Studio", Action = "Train Style", Pos = "station:Studio", Radius = 17 },
-	{ Id = "Lounge", Object = "Charm Lounge", Action = "Train Charm", Pos = "station:Lounge", Radius = 17 },
-	{ Id = "Crates", Object = "Crate Shop", Action = "Open crates", Pos = "station:Crates", Radius = 16 },
-	{ Id = "Ring", Object = "Duel Ring", Action = "Find a duel", Pos = "station:Ring", Radius = 24 },
-	{ Id = "Bot", Object = "Mogger Bot", Action = "Duel the bot", Pos = "bot", Radius = 9 },
-	{ Id = "Battle", Object = "Stage Battle", Action = "Stage battle", Pos = "battle", Radius = 34 },
-	{ Id = "Stage", Object = "Mog Stage", Action = "Enter competition", Pos = "stage", Radius = 24 },
+	{ Id = "Gym", Object = "Gym", Action = "Train Power", Pos = "station:Gym", Radius = 17, Building = "gym" },
+	{ Id = "Studio", Object = "Style Studio", Action = "Train Style", Pos = "station:Studio", Radius = 17, Building = "studio" },
+	{ Id = "Lounge", Object = "Charm Lounge", Action = "Train Charm", Pos = "station:Lounge", Radius = 17, Building = "lounge" },
+	{ Id = "Crates", Object = "Crate Shop", Action = "Open crates", Pos = "station:Crates", Radius = 16, Building = "crates" },
+	{ Id = "Ring", Object = "Duel Ring", Action = "Find a duel", Pos = "station:Ring", Radius = 24, Building = "ring" },
+	{ Id = "Bot", Object = "Mogger Bot", Action = "Duel the bot", Pos = "bot", Radius = 9, Building = "ring" },
+	{ Id = "Battle", Object = "Stage Battle", Action = "Stage battle", Pos = "battle", Radius = 34, Building = "battle" },
+	{ Id = "Stage", Object = "Mog Stage", Action = "Enter competition", Pos = "stage", Radius = 24, Building = "stage" },
 }
 -- Resolves an interactable's world position (shared by the client and the server).
 function Config.InteractPos(entry)

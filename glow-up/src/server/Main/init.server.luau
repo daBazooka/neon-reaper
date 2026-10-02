@@ -40,6 +40,9 @@ local Pets = require(Modules.Pets)
 local Aura = require(Modules.Aura)
 local Playtime = require(Modules.Playtime)
 local Tutorial = require(Modules.Tutorial)
+local Buildings = require(Modules.Buildings)
+local Treadmill = require(Modules.Treadmill)
+local Store = require(Modules.Store)
 local World = require(Modules.World)
 
 --------------------------------------------------------------------------------
@@ -66,6 +69,7 @@ Shards.init()
 Competition.init()
 Training.init()
 Pets.init()
+Store.start()
 Runway.init()
 Events.init()
 Data.init()
@@ -95,6 +99,7 @@ local function onPlayer(p)
 	Daily.refresh(p)
 	Playtime.init(p)
 	Tutorial.init(p)
+	Store.init(p)
 	Nameplate.init(p)
 	Cosmetics.sync(p)
 
@@ -127,6 +132,7 @@ Players.PlayerRemoving:Connect(function(p)
 	Pets.release(p)
 	Playtime.release(p)
 	Tutorial.release(p)
+	Treadmill.release(p)
 	Duels.release(p)
 	Competition.release(p)
 	Stats.forget(p)
@@ -148,6 +154,7 @@ task.spawn(function()
 				end
 				Playtime.tick(p)
 				Tutorial.tick(p)
+				Treadmill.tick(p)
 				if tick % 30 == 0 then
 					Daily.refresh(p)
 				end
@@ -191,6 +198,14 @@ local function nearTo(p, pos, radius)
 end
 
 local function interact(p, id)
+	local treadId = string.match(id, "^Tread:(%d+)$")
+	if treadId then
+		local n = tonumber(treadId)
+		if Config.Treadmills[n] and nearTo(p, Config.TreadPos(n), Config.TreadRadius) then
+			Treadmill.use(p, n)
+		end
+		return
+	end
 	local hammerId = string.match(id, "^Hammer:(%d+)$")
 	if hammerId then
 		local n = tonumber(hammerId)
@@ -202,6 +217,14 @@ local function interact(p, id)
 	local handler = interactions[id]
 	for _, entry in Config.Interactables do
 		if entry.Id == id and handler and nearTo(p, Config.InteractPos(entry), entry.Radius) then
+			-- Buildings must be unlocked first; the press that buys it does not also use it.
+			if entry.Building and not Buildings.owned(p, entry.Building) then
+				Buildings.unlock(p, entry.Building)
+				return
+			end
+			if Treadmill.isRunning(p) then
+				return
+			end
 			handler(p)
 			return
 		end
@@ -234,6 +257,8 @@ Action.OnServerEvent:Connect(function(p, kind, a, b)
 		Crates.open(p, a)
 	elseif kind == "Hatch" or kind == "PetEquip" or kind == "PetUnequip" then
 		Pets.handle(p, kind, a)
+	elseif kind == "TreadStop" then
+		Treadmill.stop(p)
 	elseif kind == "TutorialSkip" then
 		Tutorial.skip(p)
 	elseif kind == "Swing" then

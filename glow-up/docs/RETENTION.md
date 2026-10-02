@@ -18,6 +18,8 @@ These are well-known game-design ideas (my own summary, not data from this game)
 | **Social proof** | Seeing others play makes it feel alive. | Names above heads, duels, competition with bots filling empty spots. |
 | **Pacing: easy then hard** | Fast early wins build habit; slower later wins build mastery. | Levels 1 to 50 are quick, then XP cost climbs; rebirth resets the cycle with a bonus. |
 
+| **Passive income + big purchases** | Always something to save for. | Treadmills (+2/s to +450,000/s), building unlocks with visible prices, 10 hammers, 3 eggs. |
+
 ## Moments with extra VFX
 Level-up and tier-up light pillars and shock rings, FRENZY flames, crit and jackpot bursts, rare pet hatches (Epic and up), play-time gift sparkle.
 

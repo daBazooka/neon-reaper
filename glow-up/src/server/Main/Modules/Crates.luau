@@ -53,6 +53,9 @@ function Crates.open(p, crateId)
 	if crateId == "street" and profile.FreeCrates > 0 then
 		profile.FreeCrates -= 1
 		p:SetAttribute("FreeCrates", profile.FreeCrates)
+	elseif not Config.BuildingOwned(profile.Buildings, "crates") then
+		Stats.toast(p, "Unlock the Crate Shop (walk up to it) to buy crates", "bad")
+		return
 	elseif not Stats.spend(p, crate.Cost) then
 		Stats.toast(p, "Not enough Aura for a " .. crate.Name, "bad")
 		return

@@ -23,7 +23,7 @@ check(true, "render loop runs")
 
 -- every tab opens + refreshes
 local Menu = require(ModN.children.Menu)
-for _, name in {"Wardrobe", "Crates", "Pets", "Upgrades", "Profile", "Rewards", "Settings"} do
+for _, name in {"Wardrobe", "Crates", "Pets", "Store", "Upgrades", "Profile", "Rewards", "Settings"} do
 	local ok2, e2 = pcall(Menu.open, name)
 	check(ok2, "open tab " .. name .. " " .. tostring(e2))
 	local ok3, e3 = pcall(Menu.refresh)
@@ -80,13 +80,14 @@ a.Hammer = 1; a.HammersOwned = "1,2"; a.Swings = 10; a.RebirthNeed = 35
 send("swing", 14, "crit", false); send("swing", 999, "jackpot", true); send("swing", 14, nil, true); send("frenzy", 8); send("gift", 500, 1, 3, 7); a.FrenzyEnd = clock + 6; a.SwingCombo = 12; a.GiftAt = clock + 40; advance(0.3); fireAll("RenderStepped", 0.016)
 send("swing", 14); send("swing", 14); send("swing", 14); send("swing", 14)
 send("hatch", "gold", "dragon", 1); send("hatch", "basic", "cat", 3); send("hatch", "mog", "angel", 1)
-a.Stage = 3
+a.Stage = 3; a.Own = "gym,battle"; a.Treads = "1,2"; a.Running = 0
+send("building", "studio"); send("treadBought", 3); send("run", 2); a.Running = 2; advance(0.3); fireAll("Heartbeat", 0.1); send("runStop"); a.Running = 0
 send("stageResult", 4, true, true, 4); send("stageResult", 4, false, false, 3); send("stageResult", 15, true, true, 15)
 send("hammer", 3, "bought"); send("hammer", 1, "equipped")
 local Config = require(RS.children.Shared.children.Config)
 local places = {
 	Gym = Config.StationPos("Gym"), Stage = Vector3.new(0, 3, 0), Hammer3 = Config.HammerPos(3), Hammer1 = Config.HammerPos(1),
-	Ring = Config.StationPos("Ring"), Battle = Config.BattlePos(), Bot = Config.InteractPos(Config.Interactables[6]), Nowhere = Vector3.new(0, 3, 40),
+	Ring = Config.StationPos("Ring"), Battle = Config.BattlePos(), Tread3 = Config.TreadPos(3), Tread1 = Config.TreadPos(1), Hall = Config.TreadHallPos(), Bot = Config.InteractPos(Config.Interactables[6]), Nowhere = Vector3.new(0, 3, 40),
 }
 for name, pos in places do
 	localPlayer.Character.FindFirstChild = function() return {Position = pos + Vector3.new(0, 3, 0), CFrame = {LookVector = Vector3.new(0, 0, -1)}, FindFirstChild = function() return nil end} end
