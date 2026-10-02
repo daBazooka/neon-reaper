@@ -1,0 +1,215 @@
+-- GLOW UP: client entry point. Builds the interface, wires the menu tabs, and routes everything
+-- the server tells us (pickups, rewards, training, duels) to the right place.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(Shared:WaitForChild("UI"))
+local Util = require(Shared:WaitForChild("Util"))
+local Audio = require(Shared:WaitForChild("Audio"))
+
+local Net = ReplicatedStorage:WaitForChild("Net")
+local Action = Net:WaitForChild("Action")
+local Notify = Net:WaitForChild("Notify")
+
+local Modules = script:WaitForChild("Modules")
+local Fx = require(Modules.Fx)
+local Toasts = require(Modules.Toasts)
+local Menu = require(Modules.Menu)
+local Hud = require(Modules.Hud)
+local TabWardrobe = require(Modules.TabWardrobe)
+local TabCrates = require(Modules.TabCrates)
+local TabUpgrades = require(Modules.TabUpgrades)
+local TabProfile = require(Modules.TabProfile)
+local TabRewards = require(Modules.TabRewards)
+local TabSettings = require(Modules.TabSettings)
+local TrainingUI = require(Modules.TrainingUI)
+local DuelUI = require(Modules.DuelUI)
+local Orbs = require(Modules.Orbs)
+
+-- Wait for the server to finish setting this player up.
+while not player:GetAttribute("Ready") do
+	task.wait(0.1)
+end
+
+local gui = UI.new("ScreenGui", {
+	Name = "GlowUI",
+	ResetOnSpawn = false,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	IgnoreGuiInset = false,
+}, player:WaitForChild("PlayerGui"))
+
+--------------------------------------------------------------------------------
+-- Build
+--------------------------------------------------------------------------------
+Audio.Init()
+Fx.init(gui)
+Orbs.init()
+Menu.init(gui)
+Menu.addTab("Wardrobe", "👗", function(page)
+	return TabWardrobe.build(page, Action)
+end)
+Menu.addTab("Crates", "🎁", function(page)
+	return TabCrates.build(page, Action)
+end)
+Menu.addTab("Upgrades", "⬆️", function(page)
+	return TabUpgrades.build(page, Action)
+end)
+Menu.addTab("Profile", "📈", function(page)
+	return TabProfile.build(page)
+end)
+Menu.addTab("Rewards", "📅", function(page)
+	return TabRewards.build(page, Action)
+end)
+Menu.addTab("Settings", "⚙️", function(page)
+	return TabSettings.build(page, Action)
+end)
+Hud.init(gui, Menu)
+Toasts.init(gui)
+TrainingUI.init(gui, Action)
+DuelUI.init(gui, Action)
+
+TabSettings.apply()
+Audio.startMusic()
+for _, key in { "Music", "Sfx" } do
+	player:GetAttributeChangedSignal("Set_" .. key):Connect(TabSettings.apply)
+end
+
+Menu.onChanged(function(name)
+	if name == "Wardrobe" then
+		Hud.setNewItem(false)
+	end
+end)
+
+task.spawn(function()
+	while true do
+		task.wait(0.25)
+		Menu.refresh()
+	end
+end)
+
+--------------------------------------------------------------------------------
+-- Server messages
+--------------------------------------------------------------------------------
+local handlers = {}
+
+function handlers.shard(pos, gained, tier, color, mut, chain)
+	local tierIndex = Config.ShardTier(tier)
+	Audio.pickup(chain, tierIndex + (mut and 2 or 0))
+	Fx.burst(pos, color, 5 + tierIndex * 4 + (mut and 14 or 0))
+	Fx.punch(1 + tierIndex * 0.8 + (mut and 3 or 0))
+	-- Only notable pickups get a floating number; the Aura counter covers the rest.
+	if mut or tierIndex >= 3 then
+		local text = (mut and (mut:upper() .. "! ") or "") .. "+" .. Util.fmt(gained)
+		Fx.floatText(pos, text, color, mut and 38 or 30)
+	end
+	if mut then
+		Fx.shake(0.25, 0.3)
+		Fx.flash(color, 0.22, 0.35)
+	end
+	if chain == 10 or chain == 20 or chain == Config.ChainMax then
+		Audio.milestone(chain)
+		Toasts.push("CHAIN x" .. chain .. "!", "gold")
+		Hud.pulseChain()
+	end
+end
+
+function handlers.toast(text, kind)
+	if kind == "bad" then
+		Audio.error()
+	end
+	Toasts.push(text, kind)
+end
+
+function handlers.rank(rankIndex)
+	local rank = Config.Ranks[rankIndex]
+	Audio.rank()
+	Fx.shake(0.4, 0.5)
+	Fx.flash(rank.Color, 0.35, 0.9)
+	Fx.announce(rank.Name:upper(), "NEW RANK", rank.Color, 0.28)
+end
+
+function handlers.quest(text, reward, bonus)
+	Audio.quest()
+	Hud.pulseQuest()
+	Toasts.push(string.format("Quest complete: %s  +✦%s%s", text, Util.fmt(reward), bonus or ""), "good")
+end
+
+function handlers.daily(day, aura, crates)
+	Audio.daily()
+	Toasts.push(string.format("Day %d claimed  +✦%s%s", day, Util.fmt(aura), crates > 0 and ("  +" .. crates .. " 🎁") or ""), "gold")
+end
+
+function handlers.crate(crateId, cosmeticId, status, stars, refund)
+	Menu.open("Crates")
+	TabCrates.reveal(crateId, cosmeticId, status, stars, refund)
+	if status == "new" then
+		Hud.setNewItem(true)
+	end
+end
+
+function handlers.upgrade()
+	Audio.purchase()
+end
+
+function handlers.rebirth(n)
+	Audio.ascend()
+	Fx.shake(0.7, 0.9)
+	Fx.flash(Color3.new(1, 1, 1), 1, 1.4)
+	Fx.announce("REBORN", "★" .. n .. "  ·  +25% Aura and Glow, forever", UI.Colors.Gold, 0.3)
+end
+
+function handlers.openMenu(tab)
+	Menu.open(tab)
+end
+
+function handlers.trainStart(stat, cfg)
+	Menu.close()
+	TrainingUI.start(stat, cfg)
+end
+
+function handlers.trainRep(...)
+	TrainingUI.rep(...)
+end
+
+function handlers.trainEnd(stat, total)
+	TrainingUI.finish(stat, total)
+end
+
+function handlers.duelStart(...)
+	Menu.close()
+	DuelUI.start(...)
+end
+
+function handlers.duelProgress(oppTaps)
+	DuelUI.progress(oppTaps)
+end
+
+function handlers.duelEnd(...)
+	DuelUI.finish(...)
+end
+
+Notify.OnClientEvent:Connect(function(kind, ...)
+	local handler = handlers[kind]
+	if handler then
+		local ok, err = pcall(handler, ...)
+		if not ok then
+			warn("[GlowUp] UI handler '" .. tostring(kind) .. "' failed:", err)
+		end
+	end
+end)
+
+--------------------------------------------------------------------------------
+-- Welcome back
+--------------------------------------------------------------------------------
+task.spawn(function()
+	task.wait(2)
+	local gain = player:GetAttribute("OfflineGain")
+	if gain and gain > 0 then
+		Toasts.push("Welcome back! Your look earned ✦" .. Util.fmt(gain) .. " while you were away", "gold")
+	elseif player:GetAttribute("DailyReady") then
+		Toasts.push("Your daily reward is ready", "gold")
+	end
+end)
