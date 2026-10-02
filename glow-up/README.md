@@ -23,20 +23,22 @@ import or upload.
 
 Controls: **E** interact, **Space** hit the training zone / tap in duels, **M** open the menu.
 
-## Install (easiest): one-paste installers
-1. Open a Baseplate (or any empty place) in Roblox Studio. Make sure no test is running.
-2. For each file in `install/` **in order** (`Install_1_of_7`, `Install_2_of_7`, ...):
-   open it in Notepad, **Ctrl+A**, **Ctrl+C**, click the **Command Bar** at the bottom of Studio,
-   **Ctrl+V**, press **Enter**. The Output window prints a line like `installer 2/7 done`.
-3. Press **Play**.
+## Install (easiest): open the ready-made place
+1. Download `GlowUp.rbxl` (or `GlowUp.rbxlx`, same thing in a text format).
+2. Double-click it, or in Roblox Studio use **File > Open from File** and pick it.
+3. Press **Play**. Everything is already in the right place.
 
-The first installer also deletes scripts from older versions (including Starlight Sprint).
+`GlowUp.rbxl` is built from `src/` with Rojo (`rojo build default.project.json -o GlowUp.rbxl`),
+so rebuilding after editing any file is one command. You can also run `rojo serve` and connect
+from Studio to live-sync edits.
 
-## Install (alternative): Rojo
-```
-rojo build -o GlowUp.rbxl
-```
-(or `rojo serve` and connect from Studio) using `default.project.json`.
+(Studio's Command Bar cannot take pastes this large, so there is no paste-installer.)
+
+## Install (alternative): by hand
+Create these in Explorer and paste each file's contents into the matching script:
+- `ReplicatedStorage > Shared` (Folder) with ModuleScripts `Config`, `Util`, `Audio`, `UI`
+- `ServerScriptService > Main` (Script) with a `Modules` Folder of the server ModuleScripts
+- `StarterPlayer > StarterPlayerScripts > Client` (LocalScript) with a `Modules` Folder of the client ModuleScripts
 
 ## Layout
 ```
@@ -61,5 +63,5 @@ from the Creator Store into `Config.Sounds`, or set `Config.MusicTrackId` to a l
 
 ## Tests
 `tests/` contains a Roblox mock and scenario runners (Luau CLI): `build_server_test.py`,
-`build_client_test.py`, `test_installers.py`. The mock validates every property, class and enum
+`build_client_test.py`. The mock validates every property, class and enum
 name against Roblox's official API dump.
