@@ -346,7 +346,8 @@ Config.BuildingPos = {
 --------------------------------------------------------------------------------
 -- Treadmills: stand on one and run to earn Aura every second. Better ones cost more Aura to unlock.
 --------------------------------------------------------------------------------
-Config.TreadHallAngle, Config.TreadHallRadius = 148, 104
+-- The hall stands on the grass just outside the plaza (there is no room for it between the other buildings).
+Config.TreadHallAngle, Config.TreadHallRadius = 150, 215
 function Config.TreadHallPos()
 	local a = math.rad(Config.TreadHallAngle)
 	return Vector3.new(math.cos(a) * Config.TreadHallRadius, 0, math.sin(a) * Config.TreadHallRadius)
@@ -357,21 +358,54 @@ function Config.TreadHallCF()
 end
 Config.Treadmills = {}
 do
-	local names = { "Starter", "Jogger", "Sprinter", "Athlete", "Champion", "Titan", "Legend", "Mythic", "Divine", "True Adam" }
+	local names = {
+		"Starter", "Jogger", "Sprinter", "Athlete", "Champion", "Titan", "Legend", "Mythic", "Divine", "True Adam",
+		"Chad", "Alpha", "Sigma", "Giga", "Ultra", "Cosmic", "Galactic", "Eternal", "Omega", "Infinity",
+	}
 	local prices = { 0, 400, 4000, 35000, 300000, 2500000, 22000000, 190000000, 1600000000, 14000000000 }
 	local rates = { 2, 8, 30, 110, 400, 1500, 6000, 24000, 100000, 450000 }
+	for i = 11, 20 do
+		prices[i] = prices[i - 1] * 8.5
+		rates[i] = rates[i - 1] * 4
+	end
 	local colors = {
 		C(150, 160, 175), C(80, 200, 120), C(70, 150, 240), C(170, 90, 240), C(255, 90, 170),
 		C(255, 150, 50), C(255, 220, 60), C(60, 235, 220), C(255, 80, 80), C(255, 244, 190),
+		C(120, 255, 90), C(255, 60, 120), C(90, 90, 255), C(255, 190, 255), C(40, 255, 190),
+		C(150, 60, 255), C(255, 120, 20), C(255, 255, 255), C(255, 60, 60), C(255, 255, 255),
 	}
 	for i = 1, #names do
-		Config.Treadmills[i] = { Id = i, Name = names[i] .. " Treadmill", Price = prices[i], Rate = rates[i], Color = colors[i] }
+		Config.Treadmills[i] = {
+			Id = i,
+			Name = names[i] .. " Treadmill",
+			Price = math.floor(prices[i]),
+			Rate = math.floor(rates[i]),
+			Color = colors[i],
+			Rainbow = i >= 18, -- the last three cycle through every colour
+			Effect = i <= 3 and "dust" or (i <= 6 and "sparks" or (i <= 10 and "flames" or "storm")),
+		}
 	end
 end
 Config.TreadRadius = 4.5
-Config.TreadSpacing = 6.2
+Config.TreadSpacing = 5.6
+Config.TreadRows = { -9, 15 } -- local Z of the two rows of 10
+-- Local position of treadmill i inside the hall (x, z).
+function Config.TreadLocal(i)
+	local row = i <= 10 and 1 or 2
+	local col = ((i - 1) % 10) + 1
+	return (col - 5.5) * Config.TreadSpacing, Config.TreadRows[row]
+end
+function Config.TreadCF(i)
+	local x, z = Config.TreadLocal(i)
+	return Config.TreadHallCF() * CFrame.new(x, 0.8, z)
+end
 function Config.TreadPos(i)
-	return (Config.TreadHallCF() * CFrame.new((i - 5.5) * Config.TreadSpacing, 0, 2)).Position
+	return Config.TreadCF(i).Position
+end
+-- Running builds "heat": +5% Aura per second of running, up to this many seconds.
+Config.RunHeatMax = 20
+function Config.RunHeatMult(heat)
+	return 1 + math.min(heat, Config.RunHeatMax) * 0.05
 end
 
 --------------------------------------------------------------------------------

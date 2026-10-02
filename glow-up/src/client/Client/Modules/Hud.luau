@@ -1,7 +1,7 @@
 -- SUB 5 TO TRUE ADAM: the always-on screen.
 --   Top centre: hint banner, then Aura / Rebirths / multiplier pills, then small status chips.
 --   Left edge: big icon buttons (Shop, Rebirth with %, Rewards, PVP, MOG).
---   Right edge: smaller buttons (Hammers, Pets, Wardrobe, Crates, Battle, Settings).
+--   Right edge: smaller buttons (Hammers, Pets, Wardrobe, Crates, Battle, Treadmills).
 --   Bottom centre: the big Aura counter and the wide LEVEL bar. Bottom left: the current quest.
 -- Every button is a normal on-screen button, so it works the same from any camera angle.
 local Players = game:GetService("Players")
@@ -59,6 +59,10 @@ local TELEPORTS = {
 		local ring = Config.StationPos("Ring")
 		local front = Config.StationFront("Ring")
 		teleport(ring + front * 32 + Vector3.new(0, 4, 0), ring)
+	end,
+	Treadmills = function()
+		local cf = Config.TreadHallCF() * CFrame.new(0, 4, -34)
+		teleport(cf.Position, Config.TreadHallPos())
 	end,
 	Battle = function()
 		local pos, front = Config.BattlePos(), Config.BattleFront()
@@ -138,6 +142,18 @@ local function buildTop(gui, Menu)
 		Audio.click()
 		Menu.toggle("Store")
 	end)
+	local gear = UI.button(row, {
+		LayoutOrder = 4,
+		Size = UDim2.fromOffset(34, 30),
+		BackgroundColor3 = C.Disabled,
+		Text = "⚙️",
+		TextSize = 15,
+		Radius = 10,
+	}, "card")
+	gear.Activated:Connect(function()
+		Audio.click()
+		Menu.toggle("Settings")
+	end)
 
 	-- Chips (chain, event, competition), only visible while relevant
 	local chips = UI.new("Frame", { Name = "Chips", Size = UDim2.fromOffset(440, 70), BackgroundTransparency = 1, LayoutOrder = 3 }, stack)
@@ -169,6 +185,8 @@ local function buildTop(gui, Menu)
 	refs.gift, refs.giftText = chip(4, C.Mint, 200)
 	refs.comp, refs.compText = chip(2, C.Orange, 300)
 	refs.event, refs.eventText = chip(3, C.Pink, 300)
+	refs.run, refs.runText = chip(0, C.Mint, 220)
+	refs.runBar = UI.bar(refs.run, { Position = UDim2.new(0, 10, 1, -5), Size = UDim2.new(1, -20, 0, 2) }, C.Mint)
 end
 
 --------------------------------------------------------------------------------
@@ -270,9 +288,7 @@ local function buildSides(gui, Menu)
 	end)
 	refs.badges.Crates = crateBadge
 	sideButton(right, 5, 52, C.Accent, "⚔️", "Battle", TELEPORTS.Battle)
-	sideButton(right, 6, 52, C.Disabled, "⚙️", "Settings", function()
-		Menu.toggle("Settings")
-	end)
+	sideButton(right, 6, 52, C.Good, "🏃", "Treadmills", TELEPORTS.Treadmills)
 end
 
 --------------------------------------------------------------------------------
@@ -533,6 +549,15 @@ function Hud.init(gui, Menu, Action)
 			refs.streakBar.fill.BackgroundColor3 = C.Orange
 		else
 			refs.streak.Visible = false
+		end
+		-- Treadmill heat
+		local heat = player:GetAttribute("RunHeat") or 0
+		if (player:GetAttribute("Running") or 0) > 0 then
+			refs.run.Visible = true
+			refs.runText.Text = string.format("🏃 HEAT x%.2f  ·  %ds", Config.RunHeatMult(heat), heat)
+			refs.runBar.set(heat / Config.RunHeatMax)
+		else
+			refs.run.Visible = false
 		end
 		-- Next play-time gift
 		local giftIn = (player:GetAttribute("GiftAt") or 0) - now

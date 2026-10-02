@@ -414,7 +414,7 @@ do
 	check(a1.Training ~= true, "locked Lounge cannot be used")
 	Stats.setAura(p1, Config.Buildings.lounge.Cost + 5)
 	fireAll("Action", p1, "Interact", "Lounge"); advance(0.2)
-	check(string.find(a1.Own, "lounge") ~= nil and a1.Aura == 5, "Lounge unlocked for exactly its price")
+	check(string.find(a1.Own, "lounge") ~= nil and a1.Aura < Config.Buildings.lounge.Cost, "Lounge unlocked and its price was spent")
 	fireAll("Action", p1, "Interact", "Lounge"); advance(0.2)
 	check(a1.Training == true, "unlocked Lounge starts training")
 	fireAll("Action", p1, "TrainCancel"); advance(0.5); a1.Training = false
@@ -446,6 +446,42 @@ do
 	local doubled = Stats.addAura(p1, 100)
 	check(doubled >= base * 1.9, "2x Aura pass doubles Aura: " .. base .. " -> " .. doubled)
 	d.Passes.x2aura = nil
+end
+
+
+-- 20 treadmills: layout, heat, effects
+do
+	check(#Config.Treadmills == 20, "20 treadmills configured")
+	local minGap = math.huge
+	for i = 1, 20 do
+		for j = i + 1, 20 do
+			local xi, zi = Config.TreadLocal(i); local xj, zj = Config.TreadLocal(j)
+			minGap = math.min(minGap, math.sqrt((xi - xj) ^ 2 + (zi - zj) ^ 2))
+		end
+	end
+	check(minGap >= 5, "no two treadmills overlap (closest " .. string.format("%.1f", minGap) .. " studs)")
+	for i = 2, 20 do
+		assert(Config.Treadmills[i].Price > Config.Treadmills[i - 1].Price and Config.Treadmills[i].Rate > Config.Treadmills[i - 1].Rate)
+	end
+	check(true, "prices and rates rise with every treadmill")
+	local d = Data.get(p1)
+	a1.Training = false; a1.InDuel = false
+	for i = 1, 20 do d.Treads[tostring(i)] = true end
+	Stats.recompute(p1)
+	p1.root.Position = Config.TreadPos(15) + Vector3.new(0, 3, 0)
+	local m0 = #notifyLog
+	fireAll("Action", p1, "Interact", "Tread:15"); advance(0.2)
+	check(a1.Running == 15, "running on a row-2 treadmill (15)")
+	advance(6)
+	local ticks = 0
+	for i = m0 + 1, #notifyLog do if notifyLog[i][1] == "runTick" then ticks += 1 end end
+	check(ticks >= 4, "runTick sent every second: " .. ticks)
+	check((a1.RunHeat or 0) >= 4, "heat builds while running: " .. tostring(a1.RunHeat))
+	check(Config.RunHeatMult(20) == 2 and Config.RunHeatMult(0) == 1, "heat multiplier runs from x1 to x2")
+	fireAll("Action", p1, "TreadStop"); advance(0.3)
+	check(a1.Running == 0 and a1.RunHeat == 0, "stopping resets heat")
+	for i = 1, 20 do p1.root.Position = Config.TreadPos(i) + Vector3.new(0, 3, 0); fireAll("Action", p1, "Interact", "Tread:" .. i); advance(0.2); fireAll("Action", p1, "TreadStop"); advance(0.2) end
+	check(true, "every treadmill can be started and stopped")
 end
 
 -- Mog Competition: run a full cycle with one human

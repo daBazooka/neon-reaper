@@ -91,6 +91,7 @@ HammerRow.init()
 Swing.init(gui, Action, Menu)
 Tutorial.init(gui, Action)
 WorldTags.init()
+Runner.init(gui)
 
 TabSettings.apply()
 Audio.startMusic()
@@ -317,6 +318,10 @@ end
 function handlers.run(id)
 	Runner.start(id)
 	Toasts.push("Running! Aura every second. Press the red button to stop.", "info")
+end
+
+function handlers.runTick(gained, heat, id)
+	Runner.tick(gained, heat, id)
 end
 
 function handlers.runStop()

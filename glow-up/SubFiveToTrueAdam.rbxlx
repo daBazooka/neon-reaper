@@ -744,7 +744,8 @@ Config.BuildingPos = {
 --------------------------------------------------------------------------------
 -- Treadmills: stand on one and run to earn Aura every second. Better ones cost more Aura to unlock.
 --------------------------------------------------------------------------------
-Config.TreadHallAngle, Config.TreadHallRadius = 148, 104
+-- The hall stands on the grass just outside the plaza (there is no room for it between the other buildings).
+Config.TreadHallAngle, Config.TreadHallRadius = 150, 215
 function Config.TreadHallPos()
 	local a = math.rad(Config.TreadHallAngle)
 	return Vector3.new(math.cos(a) * Config.TreadHallRadius, 0, math.sin(a) * Config.TreadHallRadius)
@@ -755,21 +756,54 @@ function Config.TreadHallCF()
 end
 Config.Treadmills = {}
 do
-	local names = { "Starter", "Jogger", "Sprinter", "Athlete", "Champion", "Titan", "Legend", "Mythic", "Divine", "True Adam" }
+	local names = {
+		"Starter", "Jogger", "Sprinter", "Athlete", "Champion", "Titan", "Legend", "Mythic", "Divine", "True Adam",
+		"Chad", "Alpha", "Sigma", "Giga", "Ultra", "Cosmic", "Galactic", "Eternal", "Omega", "Infinity",
+	}
 	local prices = { 0, 400, 4000, 35000, 300000, 2500000, 22000000, 190000000, 1600000000, 14000000000 }
 	local rates = { 2, 8, 30, 110, 400, 1500, 6000, 24000, 100000, 450000 }
+	for i = 11, 20 do
+		prices[i] = prices[i - 1] * 8.5
+		rates[i] = rates[i - 1] * 4
+	end
 	local colors = {
 		C(150, 160, 175), C(80, 200, 120), C(70, 150, 240), C(170, 90, 240), C(255, 90, 170),
 		C(255, 150, 50), C(255, 220, 60), C(60, 235, 220), C(255, 80, 80), C(255, 244, 190),
+		C(120, 255, 90), C(255, 60, 120), C(90, 90, 255), C(255, 190, 255), C(40, 255, 190),
+		C(150, 60, 255), C(255, 120, 20), C(255, 255, 255), C(255, 60, 60), C(255, 255, 255),
 	}
 	for i = 1, #names do
-		Config.Treadmills[i] = { Id = i, Name = names[i] .. " Treadmill", Price = prices[i], Rate = rates[i], Color = colors[i] }
+		Config.Treadmills[i] = {
+			Id = i,
+			Name = names[i] .. " Treadmill",
+			Price = math.floor(prices[i]),
+			Rate = math.floor(rates[i]),
+			Color = colors[i],
+			Rainbow = i >= 18, -- the last three cycle through every colour
+			Effect = i <= 3 and "dust" or (i <= 6 and "sparks" or (i <= 10 and "flames" or "storm")),
+		}
 	end
 end
 Config.TreadRadius = 4.5
-Config.TreadSpacing = 6.2
+Config.TreadSpacing = 5.6
+Config.TreadRows = { -9, 15 } -- local Z of the two rows of 10
+-- Local position of treadmill i inside the hall (x, z).
+function Config.TreadLocal(i)
+	local row = i <= 10 and 1 or 2
+	local col = ((i - 1) % 10) + 1
+	return (col - 5.5) * Config.TreadSpacing, Config.TreadRows[row]
+end
+function Config.TreadCF(i)
+	local x, z = Config.TreadLocal(i)
+	return Config.TreadHallCF() * CFrame.new(x, 0.8, z)
+end
 function Config.TreadPos(i)
-	return (Config.TreadHallCF() * CFrame.new((i - 5.5) * Config.TreadSpacing, 0, 2)).Position
+	return Config.TreadCF(i).Position
+end
+-- Running builds "heat": +5% Aura per second of running, up to this many seconds.
+Config.RunHeatMax = 20
+function Config.RunHeatMult(heat)
+	return 1 + math.min(heat, Config.RunHeatMax) * 0.05
 end
 
 --------------------------------------------------------------------------------
@@ -1474,6 +1508,7 @@ Competition.init()
 Training.init()
 Pets.init()
 Store.start()
+Treadmill.init()
 Runway.init()
 Events.init()
 Data.init()
@@ -3031,14 +3066,27 @@ local function block(parent, name, size, cf, color, material, extra)
 	return part(parent, props)
 end
 
+local function rainbow()
+	local keys = {}
+	for i = 0, 6 do
+		table.insert(keys, ColorSequenceKeypoint.new(i / 6, Color3.fromHSV(i / 6, 0.75, 1)))
+	end
+	return ColorSequence.new(keys)
+end
+
 -- Coloured smoke (and a few sparks) rising from a point. scale 1 = a chimney, 0.4 = a small vent.
+-- Pass the string "rainbow" as the colour for a smoke that cycles through every hue.
 function Decor.smoke(parent, position, color, scale)
 	scale = scale or 1
+	local isRainbow = color == "rainbow"
+	if isRainbow then
+		color = Color3.fromRGB(255, 255, 255)
+	end
 	local anchor = part(parent, { Name = "SmokeSource", Size = Vector3.one * 0.5, Position = position, Transparency = 1, CanCollide = false, CanQuery = false, CanTouch = false })
 	local e = Instance.new("ParticleEmitter")
 	e.Name = "Smoke"
 	e.Texture = SMOKE
-	e.Color = ColorSequence.new(color:Lerp(Color3.new(1, 1, 1), 0.25), color)
+	e.Color = isRainbow and rainbow() or ColorSequence.new(color:Lerp(Color3.new(1, 1, 1), 0.25), color)
 	e.LightEmission = 0.35
 	e.Rate = 7 + 6 * scale
 	e.Lifetime = NumberRange.new(3, 5)
@@ -3053,7 +3101,7 @@ function Decor.smoke(parent, position, color, scale)
 	local sparks = Instance.new("ParticleEmitter")
 	sparks.Name = "Sparks"
 	sparks.Texture = SPARKS
-	sparks.Color = ColorSequence.new(Color3.new(1, 1, 1), color)
+	sparks.Color = isRainbow and rainbow() or ColorSequence.new(Color3.new(1, 1, 1), color)
 	sparks.LightEmission = 0.7
 	sparks.Rate = 3 + 3 * scale
 	sparks.Lifetime = NumberRange.new(1.5, 2.5)
@@ -5364,6 +5412,109 @@ local Stats = require(script.Parent.Stats)
 local Treadmill = {}
 
 local running = {} -- player -> treadmill id
+local heat = {} -- player -> seconds run in a row
+local FX = "TreadFx"
+local SMOKE = "rbxasset://textures/particles/smoke_main.dds"
+local SPARKS = "rbxasset://textures/particles/sparkles_main.dds"
+local FIRE = "rbxasset://textures/particles/fire_main.dds"
+
+local function rainbow()
+	local keys = {}
+	for i = 0, 6 do
+		table.insert(keys, ColorSequenceKeypoint.new(i / 6, Color3.fromHSV(i / 6, 0.75, 1)))
+	end
+	return ColorSequence.new(keys)
+end
+
+-- Effects on the runner that everyone can see; they get wilder with the treadmill's tier.
+local function attachFx(p, def)
+	local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return
+	end
+	local feet = Instance.new("Attachment")
+	feet.Name = FX
+	feet.Position = Vector3.new(0, -2.8, 0)
+	feet.Parent = root
+	local color = def.Color
+	local seq = def.Rainbow and rainbow() or ColorSequence.new(color:Lerp(Color3.new(1, 1, 1), 0.3), color)
+	local function emitter(props)
+		local e = Instance.new("ParticleEmitter")
+		e.Name = FX
+		e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 1) })
+		e.SpreadAngle = Vector2.new(30, 30)
+		for k, v in props do
+			e[k] = v
+		end
+		e.Parent = feet
+	end
+	emitter({ Texture = SMOKE, Color = seq, Rate = 18, Lifetime = NumberRange.new(0.8, 1.4), Speed = NumberRange.new(4, 8), Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.2), NumberSequenceKeypoint.new(1, 4) }), LightEmission = 0.3 })
+	if def.Effect ~= "dust" then
+		emitter({ Texture = SPARKS, Color = seq, Rate = 40, Lifetime = NumberRange.new(0.5, 1), Speed = NumberRange.new(10, 20), SpreadAngle = Vector2.new(60, 60), Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(1, 0) }), LightEmission = 0.8 })
+	end
+	if def.Effect == "flames" or def.Effect == "storm" then
+		emitter({ Texture = FIRE, Color = seq, Rate = 36, Lifetime = NumberRange.new(0.5, 0.9), Speed = NumberRange.new(3, 7), SpreadAngle = Vector2.new(20, 20), Acceleration = Vector3.new(0, 14, 0), Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 2.2), NumberSequenceKeypoint.new(1, 0) }), LightEmission = 0.9 })
+	end
+	if def.Effect == "storm" then
+		-- lightning-like streaks shooting out sideways + a bright light
+		emitter({ Texture = SPARKS, Color = seq, Rate = 70, Lifetime = NumberRange.new(0.25, 0.5), Speed = NumberRange.new(30, 50), SpreadAngle = Vector2.new(180, 180), Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.4), NumberSequenceKeypoint.new(1, 0) }), LightEmission = 1 })
+		local light = Instance.new("PointLight")
+		light.Name = FX
+		light.Color = color
+		light.Range = 28
+		light.Brightness = 2
+		light.Parent = root
+	end
+end
+
+local function clearFx(p)
+	local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return
+	end
+	for _, child in root:GetChildren() do
+		if child.Name == FX then
+			child:Destroy()
+		end
+	end
+end
+
+-- Slides the stripes along the belt of every treadmill someone is running on.
+local function animateBelts(now)
+	local hall = workspace:FindFirstChild("GlowWorld") and workspace.GlowWorld:FindFirstChild("TreadHall")
+	if not hall then
+		return
+	end
+	local seen = {}
+	for _, id in running do
+		if not seen[id] then
+			seen[id] = true
+			local model = hall:FindFirstChild("Tread_" .. id)
+			if model then
+				local at = Config.TreadCF(id)
+				local speed = 7 + id * 1.2
+				for _, stripe in model:GetChildren() do
+					local z0 = stripe.Name == "BeltStripe" and stripe:GetAttribute("Z0")
+					if z0 then
+						local z = ((z0 + 5.2 - now * speed) % 10.4) - 5.2
+						stripe.CFrame = at * CFrame.new(0, 1.22, z)
+					end
+				end
+			end
+		end
+	end
+end
+
+function Treadmill.init()
+	local last = 0
+	game:GetService("RunService").Heartbeat:Connect(function()
+		local now = os.clock()
+		if now - last >= 0.05 then
+			last = now
+			animateBelts(now)
+		end
+	end)
+end
 
 function Treadmill.isRunning(p)
 	return running[p]
@@ -5388,11 +5539,15 @@ function Treadmill.stop(p)
 		return
 	end
 	running[p] = nil
+	heat[p] = nil
 	p:SetAttribute("Running", 0)
+	p:SetAttribute("RunHeat", 0)
+	clearFx(p)
 	freeze(p, false)
 	local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
 	if root then
-		local front = Config.TreadHallCF() * CFrame.new((id - 5.5) * Config.TreadSpacing, 3.5, -9)
+		-- step off onto the aisle in front of the treadmill
+		local front = Config.TreadCF(id) * CFrame.new(0, 2.7, -8.5)
 		root.CFrame = CFrame.lookAt(front.Position, front.Position + front.LookVector * 20)
 	end
 	Stats.send(p, "runStop")
@@ -5403,13 +5558,16 @@ function Treadmill.start(p, id)
 	if not root or p:GetAttribute("Training") or p:GetAttribute("InDuel") then
 		return
 	end
-	local belt = Config.TreadHallCF() * CFrame.new((id - 5.5) * Config.TreadSpacing, 1.6, 2)
+	local belt = Config.TreadCF(id) * CFrame.new(0, 0.8, 0)
 	root.AssemblyLinearVelocity = Vector3.zero
 	-- the runner faces the back wall of the hall
 	root.CFrame = CFrame.lookAt(belt.Position + Vector3.new(0, 3, 0), belt.Position - belt.LookVector * 20 + Vector3.new(0, 3, 0))
 	freeze(p, true)
 	running[p] = id
+	heat[p] = 0
 	p:SetAttribute("Running", id)
+	p:SetAttribute("RunHeat", 0)
+	attachFx(p, Config.Treadmills[id])
 	Stats.send(p, "run", id)
 end
 
@@ -5450,16 +5608,21 @@ function Treadmill.tick(p)
 	local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
 	if not root or not hum or hum.Health <= 0 then
 		running[p] = nil
+		heat[p] = nil
 		p:SetAttribute("Running", 0)
 		return
 	end
 	local def = Config.Treadmills[id]
-	Stats.addAura(p, def.Rate)
+	heat[p] = (heat[p] or 0) + 1
+	p:SetAttribute("RunHeat", heat[p])
+	local gained = Stats.addAura(p, def.Rate * Config.RunHeatMult(heat[p]))
 	Stats.addXP(p, 0.4 + id * 0.25)
+	Stats.send(p, "runTick", gained, heat[p], id)
 end
 
 function Treadmill.release(p)
 	running[p] = nil
+	heat[p] = nil
 end
 
 return Treadmill
@@ -6011,26 +6174,30 @@ end
 local function buildTreadHall(parent)
 	local def = Config.Buildings.treadmills
 	local cf = Config.TreadHallCF()
-	local W, D = 72, 34
-	block(parent, "HallFloor", Vector3.new(W, 0.8, D), cf * CFrame.new(0, 0.4, 0), C3(44, 50, 46), M.Slate)
-	block(parent, "HallAisle", Vector3.new(W - 4, 0.1, 5), cf * CFrame.new(0, 0.85, -10), def.Main, M.SmoothPlastic, { CanCollide = false })
-	block(parent, "HallBackWall", Vector3.new(W, 18, 1), cf * CFrame.new(0, 9.4, D / 2), C3(30, 38, 34), M.Concrete)
+	local W, D = 62, 50
+	local hall = Instance.new("Folder")
+	hall.Name = "TreadHall"
+	hall.Parent = parent
+	block(hall, "HallFloor", Vector3.new(W, 0.8, D), cf * CFrame.new(0, 0.4, 0), C3(44, 50, 46), M.Slate)
+	block(hall, "HallAisle", Vector3.new(W - 4, 0.1, 6), cf * CFrame.new(0, 0.85, 3), def.Main, M.SmoothPlastic, { CanCollide = false })
+	block(hall, "HallEntry", Vector3.new(10, 0.1, 14), cf * CFrame.new(0, 0.85, -18), def.Glow, M.SmoothPlastic, { CanCollide = false })
+	block(hall, "HallBackWall", Vector3.new(W, 20, 1), cf * CFrame.new(0, 10.4, D / 2), C3(30, 38, 34), M.Concrete)
 	for side = -1, 1, 2 do
-		block(parent, "HallSideWall", Vector3.new(1, 18, D), cf * CFrame.new(side * W / 2, 9.4, 0), C3(36, 46, 40), M.Concrete)
-		for i = 1, 4 do
-			block(parent, "HallWindow", Vector3.new(0.4, 6, 5), cf * CFrame.new(side * (W / 2 - 0.2), 10, -12 + i * 6), C3(140, 255, 160), M.Glass, { Transparency = 0.5, CanCollide = false })
+		block(hall, "HallSideWall", Vector3.new(1, 20, D), cf * CFrame.new(side * W / 2, 10.4, 0), C3(36, 46, 40), M.Concrete)
+		for i = 1, 6 do
+			block(hall, "HallWindow", Vector3.new(0.4, 7, 5), cf * CFrame.new(side * (W / 2 - 0.2), 11, -20 + i * 6.5), C3(140, 255, 160), M.Glass, { Transparency = 0.5, CanCollide = false })
 		end
 	end
-	block(parent, "HallRoof", Vector3.new(W + 2, 1.4, D + 2), cf * CFrame.new(0, 19, 0), C3(24, 30, 28), M.Metal)
-	block(parent, "HallRoofTrim", Vector3.new(W + 3, 0.7, D + 3), cf * CFrame.new(0, 18, 0), def.Main, M.SmoothPlastic)
+	block(hall, "HallRoof", Vector3.new(W + 2, 1.4, D + 2), cf * CFrame.new(0, 21, 0), C3(24, 30, 28), M.Metal)
+	block(hall, "HallRoofTrim", Vector3.new(W + 3, 0.7, D + 3), cf * CFrame.new(0, 20, 0), def.Main, M.SmoothPlastic)
 	for _, x in { -W / 2, W / 2 } do
 		for _, z in { -D / 2, D / 2 } do
-			block(parent, "HallPillar", Vector3.new(2.2, 18, 2.2), cf * CFrame.new(x, 9.4, z), WHITE, M.Concrete)
+			block(hall, "HallPillar", Vector3.new(2.2, 20, 2.2), cf * CFrame.new(x, 10.4, z), WHITE, M.Concrete)
 		end
 	end
-	sign(parent, (cf * CFrame.new(0, 24, -D / 2 - 1)).Position, cf.LookVector, Vector3.new(34, 6, 0.6), "🏃  TREADMILL HALL", C3(30, 110, 40), C3(210, 255, 190))
-	for _, z in { -8, 4, 12 } do
-		local strip = block(parent, "HallLightStrip", Vector3.new(W - 6, 0.5, 0.6), cf * CFrame.new(0, 17.4, z), def.Glow, M.SmoothPlastic, { CanCollide = false })
+	sign(hall, (cf * CFrame.new(0, 26, -D / 2 - 1)).Position, cf.LookVector, Vector3.new(34, 6, 0.6), "🏃  TREADMILL HALL", C3(30, 110, 40), C3(210, 255, 190))
+	for _, z in { -14, -2, 8, 18 } do
+		local strip = block(hall, "HallLightStrip", Vector3.new(W - 6, 0.5, 0.6), cf * CFrame.new(0, 19.4, z), def.Glow, M.SmoothPlastic, { CanCollide = false })
 		local l = Instance.new("PointLight")
 		l.Color = def.Glow
 		l.Range = 40
@@ -6038,32 +6205,45 @@ local function buildTreadHall(parent)
 		l.Parent = strip
 	end
 	for _, x in { -W / 3, 0, W / 3 } do
-		Decor.smoke(parent, (cf * CFrame.new(x, 21, 6)).Position, def.Glow, 1.1)
+		Decor.smoke(hall, (cf * CFrame.new(x, 23, 8)).Position, def.Glow, 1.2)
 	end
-	Decor.groundAura(parent, cf.Position, 48, def.Glow)
+	Decor.groundAura(hall, cf.Position, 56, def.Glow)
 
 	for _, t in Config.Treadmills do
-		local at = cf * CFrame.new((t.Id - 5.5) * Config.TreadSpacing, 0.8, 2)
-		block(parent, "TreadBase", Vector3.new(4.8, 0.9, 11.4), at * CFrame.new(0, 0.45, 0), C3(30, 32, 40), M.Metal)
-		local belt = block(parent, "TreadBelt", Vector3.new(3.8, 0.3, 10.4), at * CFrame.new(0, 1.05, 0), C3(24, 24, 28), M.Rubber)
+		local at = Config.TreadCF(t.Id)
+		local color = t.Color
+		local model = Instance.new("Model")
+		model.Name = "Tread_" .. t.Id
+		model.Parent = hall
+		block(model, "TreadBase", Vector3.new(4.8, 0.9, 11.4), at * CFrame.new(0, 0.45, 0), C3(30, 32, 40), M.Metal)
+		local belt = block(model, "TreadBelt", Vector3.new(3.8, 0.3, 10.4), at * CFrame.new(0, 1.05, 0), C3(24, 24, 28), M.Rubber)
 		belt:SetAttribute("TreadId", t.Id)
+		-- stripes that slide along the belt while someone is running (see Treadmill.luau)
 		for i = 1, 7 do
-			block(parent, "BeltStripe", Vector3.new(3.8, 0.06, 0.45), at * CFrame.new(0, 1.22, -4.6 + (i - 1) * 1.55), t.Color, M.SmoothPlastic, { CanCollide = false })
+			local z0 = -4.6 + (i - 1) * 1.55
+			local stripe = block(model, "BeltStripe", Vector3.new(3.8, 0.06, 0.45), at * CFrame.new(0, 1.22, z0), color, M.SmoothPlastic, { CanCollide = false })
+			stripe:SetAttribute("Z0", z0)
 		end
 		for side = -1, 1, 2 do
-			block(parent, "TreadRail", Vector3.new(0.5, 0.7, 10.6), at * CFrame.new(side * 2.2, 1.2, 0), t.Color, M.SmoothPlastic)
-			block(parent, "TreadHandle", Vector3.new(0.4, 0.4, 5), at * CFrame.new(side * 2.2, 4.2, 4.2), t.Color, M.Metal)
-			block(parent, "TreadHandlePost", Vector3.new(0.4, 3, 0.4), at * CFrame.new(side * 2.2, 2.7, 6.4), t.Color, M.Metal)
+			block(model, "TreadRail", Vector3.new(0.5, 0.7, 10.6), at * CFrame.new(side * 2.2, 1.2, 0), color, M.SmoothPlastic)
+			block(model, "TreadHandle", Vector3.new(0.4, 0.4, 5), at * CFrame.new(side * 2.2, 4.2, 4.2), color, M.Metal)
+			block(model, "TreadHandlePost", Vector3.new(0.4, 3, 0.4), at * CFrame.new(side * 2.2, 2.7, 6.4), color, M.Metal)
+			if t.Id > 3 then
+				Decor.smoke(model, (at * CFrame.new(side * 2.2, 1.8, -4)).Position, t.Rainbow and "rainbow" or color, 0.25)
+			end
 		end
-		block(parent, "ConsolePost", Vector3.new(0.7, 6, 0.7), at * CFrame.new(0, 3.9, 6.6), C3(40, 42, 52), M.Metal)
-		sign(parent, (at * CFrame.new(0, 7.4, 6.6)).Position, cf.LookVector, Vector3.new(4.6, 2.4, 0.4), string.format("%s\n+%s/s", (t.Name:gsub(" Treadmill", "")), Util.fmt(t.Rate)), C3(18, 20, 28), t.Color)
-		local top = part(parent, { Name = "ConsoleGem", Shape = Enum.PartType.Ball, Size = Vector3.one * 1.1, CFrame = at * CFrame.new(0, 9.2, 6.6), Color = t.Color, Transparency = 0.1, CanCollide = false })
+		block(model, "ConsolePost", Vector3.new(0.7, 6, 0.7), at * CFrame.new(0, 3.9, 6.6), C3(40, 42, 52), M.Metal)
+		sign(model, (at * CFrame.new(0, 7.4, 6.6)).Position, cf.LookVector, Vector3.new(4.6, 2.4, 0.4), string.format("%s\n+%s/s", (t.Name:gsub(" Treadmill", "")), Util.fmt(t.Rate)), C3(18, 20, 28), color)
+		local top = part(model, { Name = "ConsoleGem", Shape = Enum.PartType.Ball, Size = Vector3.one * 1.1, CFrame = at * CFrame.new(0, 9.2, 6.6), Color = color, Transparency = 0.1, CanCollide = false })
 		local light = Instance.new("PointLight")
-		light.Color = t.Color
+		light.Color = color
 		light.Range = 22
 		light.Brightness = 1.1
 		light.Parent = top
-		Decor.smoke(parent, (at * CFrame.new(0, 9.8, 6.6)).Position, t.Color, 0.45 + t.Id * 0.05)
+		Decor.smoke(model, (at * CFrame.new(0, 9.8, 6.6)).Position, t.Rainbow and "rainbow" or color, 0.45 + t.Id * 0.03)
+		-- a thin beam of light above each treadmill; taller for better ones
+		local height = 14 + t.Id * 1.6
+		part(model, { Name = "LightBeam", Size = Vector3.new(0.7, height, 0.7), CFrame = at * CFrame.new(0, 10 + height / 2, 6.6), Color = color, Transparency = 0.82, CanCollide = false, CanQuery = false })
 	end
 end
 
@@ -6401,7 +6581,7 @@ local function buildTown(parent)
 		local a = rng:NextNumber() * math.pi * 2
 		local r = 205 + rng:NextNumber() * 100
 		local x, z = math.cos(a) * r, math.sin(a) * r
-		if math.abs(x) > 24 and math.abs(z) > 24 then
+		if math.abs(x) > 24 and math.abs(z) > 24 and (Vector3.new(x, 0, z) - Config.TreadHallPos()).Magnitude > 95 then
 			count += 1
 			building(parent, Vector3.new(x, 0, z), 24 + rng:NextNumber() * 14, 30 + rng:NextNumber() * 40, 22 + rng:NextNumber() * 10, colors[rng:NextInteger(1, #colors)])
 		end
@@ -6414,7 +6594,7 @@ local function buildTown(parent)
 		local a = rng:NextNumber() * math.pi * 2
 		local r = PLAZA + 14 + rng:NextNumber() * 190
 		local x, z = math.cos(a) * r, math.sin(a) * r
-		if math.abs(x) > 18 and math.abs(z) > 18 then
+		if math.abs(x) > 18 and math.abs(z) > 18 and (Vector3.new(x, 0, z) - Config.TreadHallPos()).Magnitude > 60 then
 			trees += 1
 			tree(parent, Vector3.new(x, 0, z))
 		end
@@ -6498,7 +6678,7 @@ function World.build()
 	buildTreadHall(world)
 	local battle = buildBattle(world)
 
-	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 124), r = 56 }, { pos = Config.BattlePos(), r = 40 }, { pos = Config.TreadHallPos(), r = 62 } }
+	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 124), r = 56 }, { pos = Config.BattlePos(), r = 40 }, { pos = Config.TreadHallPos(), r = 75 } }
 	for name in Config.Stations do
 		table.insert(avoid, { pos = (stationAt(name)), r = 28 })
 	end
@@ -6624,6 +6804,7 @@ HammerRow.init()
 Swing.init(gui, Action, Menu)
 Tutorial.init(gui, Action)
 WorldTags.init()
+Runner.init(gui)
 
 TabSettings.apply()
 Audio.startMusic()
@@ -6850,6 +7031,10 @@ end
 function handlers.run(id)
 	Runner.start(id)
 	Toasts.push("Running! Aura every second. Press the red button to stop.", "info")
+end
+
+function handlers.runTick(gained, heat, id)
+	Runner.tick(gained, heat, id)
 end
 
 function handlers.runStop()
@@ -7811,7 +7996,7 @@ return HammerRow
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the always-on screen.
 --   Top centre: hint banner, then Aura / Rebirths / multiplier pills, then small status chips.
 --   Left edge: big icon buttons (Shop, Rebirth with %, Rewards, PVP, MOG).
---   Right edge: smaller buttons (Hammers, Pets, Wardrobe, Crates, Battle, Settings).
+--   Right edge: smaller buttons (Hammers, Pets, Wardrobe, Crates, Battle, Treadmills).
 --   Bottom centre: the big Aura counter and the wide LEVEL bar. Bottom left: the current quest.
 -- Every button is a normal on-screen button, so it works the same from any camera angle.
 local Players = game:GetService("Players")
@@ -7869,6 +8054,10 @@ local TELEPORTS = {
 		local ring = Config.StationPos("Ring")
 		local front = Config.StationFront("Ring")
 		teleport(ring + front * 32 + Vector3.new(0, 4, 0), ring)
+	end,
+	Treadmills = function()
+		local cf = Config.TreadHallCF() * CFrame.new(0, 4, -34)
+		teleport(cf.Position, Config.TreadHallPos())
 	end,
 	Battle = function()
 		local pos, front = Config.BattlePos(), Config.BattleFront()
@@ -7948,6 +8137,18 @@ local function buildTop(gui, Menu)
 		Audio.click()
 		Menu.toggle("Store")
 	end)
+	local gear = UI.button(row, {
+		LayoutOrder = 4,
+		Size = UDim2.fromOffset(34, 30),
+		BackgroundColor3 = C.Disabled,
+		Text = "⚙️",
+		TextSize = 15,
+		Radius = 10,
+	}, "card")
+	gear.Activated:Connect(function()
+		Audio.click()
+		Menu.toggle("Settings")
+	end)
 
 	-- Chips (chain, event, competition), only visible while relevant
 	local chips = UI.new("Frame", { Name = "Chips", Size = UDim2.fromOffset(440, 70), BackgroundTransparency = 1, LayoutOrder = 3 }, stack)
@@ -7979,6 +8180,8 @@ local function buildTop(gui, Menu)
 	refs.gift, refs.giftText = chip(4, C.Mint, 200)
 	refs.comp, refs.compText = chip(2, C.Orange, 300)
 	refs.event, refs.eventText = chip(3, C.Pink, 300)
+	refs.run, refs.runText = chip(0, C.Mint, 220)
+	refs.runBar = UI.bar(refs.run, { Position = UDim2.new(0, 10, 1, -5), Size = UDim2.new(1, -20, 0, 2) }, C.Mint)
 end
 
 --------------------------------------------------------------------------------
@@ -8080,9 +8283,7 @@ local function buildSides(gui, Menu)
 	end)
 	refs.badges.Crates = crateBadge
 	sideButton(right, 5, 52, C.Accent, "⚔️", "Battle", TELEPORTS.Battle)
-	sideButton(right, 6, 52, C.Disabled, "⚙️", "Settings", function()
-		Menu.toggle("Settings")
-	end)
+	sideButton(right, 6, 52, C.Good, "🏃", "Treadmills", TELEPORTS.Treadmills)
 end
 
 --------------------------------------------------------------------------------
@@ -8343,6 +8544,15 @@ function Hud.init(gui, Menu, Action)
 			refs.streakBar.fill.BackgroundColor3 = C.Orange
 		else
 			refs.streak.Visible = false
+		end
+		-- Treadmill heat
+		local heat = player:GetAttribute("RunHeat") or 0
+		if (player:GetAttribute("Running") or 0) > 0 then
+			refs.run.Visible = true
+			refs.runText.Text = string.format("🏃 HEAT x%.2f  ·  %ds", Config.RunHeatMult(heat), heat)
+			refs.runBar.set(heat / Config.RunHeatMax)
+		else
+			refs.run.Visible = false
 		end
 		-- Next play-time gift
 		local giftIn = (player:GetAttribute("GiftAt") or 0) - now
@@ -8994,17 +9204,72 @@ return Orbs
           <Item class="ModuleScript" referent="50">
             <Properties>
               <string name="Name">Runner</string>
-              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: plays the running animation while you are on a treadmill (the server does the freezing and the
--- Aura). Uses Roblox's own default run animations, so nothing has to be uploaded.
+              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: everything you see and feel while running on a treadmill: the run animation, a wider field of
+-- view, speed lines rushing past, and (from init.client) a shockwave and number every second. The server does the
+-- freezing, the Aura and the flames around you.
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(Shared:WaitForChild("UI"))
+local Util = require(Shared:WaitForChild("Util"))
+local Fx = require(script.Parent.Fx)
 
 local Runner = {}
 
 local player = Players.LocalPlayer
 local RUN_R15, RUN_R6 = "rbxassetid://913376220", "rbxassetid://180426354"
 local track
+local lines -- container for the speed lines
+local activeId = 0
+local acc = 0
+
+function Runner.init(gui)
+	lines = UI.new("Frame", {
+		Name = "SpeedLines",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		ZIndex = 0,
+		Visible = false,
+	}, gui)
+	RunService.RenderStepped:Connect(function(dt)
+		if activeId == 0 then
+			return
+		end
+		acc += dt
+		local interval = math.max(0.02, 0.07 - activeId * 0.002)
+		while acc >= interval do
+			acc -= interval
+			local def = Config.Treadmills[activeId]
+			local angle = math.random() * math.pi * 2
+			local line = UI.new("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Size = UDim2.fromOffset(3, 40 + math.random() * 70),
+				Position = UDim2.fromScale(0.5 + math.cos(angle) * 0.18, 0.5 + math.sin(angle) * 0.18),
+				Rotation = math.deg(angle) + 90,
+				BackgroundColor3 = def.Rainbow and Color3.fromHSV(math.random(), 0.7, 1) or def.Color:Lerp(Color3.new(1, 1, 1), 0.4),
+				BackgroundTransparency = 0.35,
+				BorderSizePixel = 0,
+			}, lines)
+			UI.tween(line, 0.45, {
+				Position = UDim2.fromScale(0.5 + math.cos(angle) * 0.75, 0.5 + math.sin(angle) * 0.75),
+				BackgroundTransparency = 1,
+			}, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			task.delay(0.5, function()
+				line:Destroy()
+			end)
+		end
+	end)
+end
 
 function Runner.stop()
+	activeId = 0
+	if lines then
+		lines.Visible = false
+	end
+	Fx.setBaseFov(70)
 	if track then
 		pcall(function()
 			track:Stop(0.2)
@@ -9016,6 +9281,11 @@ end
 
 function Runner.start(treadmillId)
 	Runner.stop()
+	activeId = treadmillId
+	if lines then
+		lines.Visible = true
+	end
+	Fx.setBaseFov(78 + math.min(treadmillId, 20) * 0.8)
 	local char = player.Character
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	local animator = hum and hum:FindFirstChildOfClass("Animator")
@@ -9029,8 +9299,28 @@ function Runner.start(treadmillId)
 		track.Looped = true
 		track.Priority = Enum.AnimationPriority.Action
 		track:Play(0.2)
-		track:AdjustSpeed(1 + treadmillId * 0.12)
+		track:AdjustSpeed(1 + treadmillId * 0.08)
 	end)
+end
+
+-- Once a second: a shockwave under your feet, a number over your head, and a punch of camera.
+function Runner.tick(gained, heat, id)
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	local head = char and char:FindFirstChild("Head")
+	if not root or not head then
+		return
+	end
+	local def = Config.Treadmills[id]
+	local color = def.Rainbow and Color3.fromHSV((os.clock() * 0.6) % 1, 0.7, 1) or def.Color
+	Fx.ring(root.Position, color, 10 + id * 1.2)
+	Fx.floatText(head.Position + Vector3.new(0, 2.5, 0), "+" .. Util.fmt(gained), color, 20 + math.min(id, 12))
+	Fx.punch(0.8 + id * 0.1)
+	if heat % 5 == 0 then
+		Fx.pillar(root.Position, color, 40 + id * 3)
+		Fx.burst(root.Position, color, 20 + id * 2)
+		Fx.shake(0.15 + id * 0.01, 0.25)
+	end
 end
 
 return Runner

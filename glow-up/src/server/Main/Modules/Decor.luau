@@ -34,14 +34,27 @@ local function block(parent, name, size, cf, color, material, extra)
 	return part(parent, props)
 end
 
+local function rainbow()
+	local keys = {}
+	for i = 0, 6 do
+		table.insert(keys, ColorSequenceKeypoint.new(i / 6, Color3.fromHSV(i / 6, 0.75, 1)))
+	end
+	return ColorSequence.new(keys)
+end
+
 -- Coloured smoke (and a few sparks) rising from a point. scale 1 = a chimney, 0.4 = a small vent.
+-- Pass the string "rainbow" as the colour for a smoke that cycles through every hue.
 function Decor.smoke(parent, position, color, scale)
 	scale = scale or 1
+	local isRainbow = color == "rainbow"
+	if isRainbow then
+		color = Color3.fromRGB(255, 255, 255)
+	end
 	local anchor = part(parent, { Name = "SmokeSource", Size = Vector3.one * 0.5, Position = position, Transparency = 1, CanCollide = false, CanQuery = false, CanTouch = false })
 	local e = Instance.new("ParticleEmitter")
 	e.Name = "Smoke"
 	e.Texture = SMOKE
-	e.Color = ColorSequence.new(color:Lerp(Color3.new(1, 1, 1), 0.25), color)
+	e.Color = isRainbow and rainbow() or ColorSequence.new(color:Lerp(Color3.new(1, 1, 1), 0.25), color)
 	e.LightEmission = 0.35
 	e.Rate = 7 + 6 * scale
 	e.Lifetime = NumberRange.new(3, 5)
@@ -56,7 +69,7 @@ function Decor.smoke(parent, position, color, scale)
 	local sparks = Instance.new("ParticleEmitter")
 	sparks.Name = "Sparks"
 	sparks.Texture = SPARKS
-	sparks.Color = ColorSequence.new(Color3.new(1, 1, 1), color)
+	sparks.Color = isRainbow and rainbow() or ColorSequence.new(Color3.new(1, 1, 1), color)
 	sparks.LightEmission = 0.7
 	sparks.Rate = 3 + 3 * scale
 	sparks.Lifetime = NumberRange.new(1.5, 2.5)

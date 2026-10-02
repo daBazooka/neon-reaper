@@ -81,7 +81,7 @@ send("swing", 14, "crit", false); send("swing", 999, "jackpot", true); send("swi
 send("swing", 14); send("swing", 14); send("swing", 14); send("swing", 14)
 send("hatch", "gold", "dragon", 1); send("hatch", "basic", "cat", 3); send("hatch", "mog", "angel", 1)
 a.Stage = 3; a.Own = "gym,battle"; a.Treads = "1,2"; a.Running = 0
-send("building", "studio"); send("treadBought", 3); send("run", 2); a.Running = 2; advance(0.3); fireAll("Heartbeat", 0.1); send("runStop"); a.Running = 0
+send("building", "studio"); send("treadBought", 3); send("run", 2); send("runTick", 1234, 5, 2); send("runTick", 99999, 10, 19); a.RunHeat = 7; a.Running = 2; advance(0.3); fireAll("Heartbeat", 0.1); send("runStop"); a.Running = 0
 send("stageResult", 4, true, true, 4); send("stageResult", 4, false, false, 3); send("stageResult", 15, true, true, 15)
 send("hammer", 3, "bought"); send("hammer", 1, "equipped")
 local Config = require(RS.children.Shared.children.Config)

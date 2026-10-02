@@ -433,26 +433,30 @@ end
 local function buildTreadHall(parent)
 	local def = Config.Buildings.treadmills
 	local cf = Config.TreadHallCF()
-	local W, D = 72, 34
-	block(parent, "HallFloor", Vector3.new(W, 0.8, D), cf * CFrame.new(0, 0.4, 0), C3(44, 50, 46), M.Slate)
-	block(parent, "HallAisle", Vector3.new(W - 4, 0.1, 5), cf * CFrame.new(0, 0.85, -10), def.Main, M.SmoothPlastic, { CanCollide = false })
-	block(parent, "HallBackWall", Vector3.new(W, 18, 1), cf * CFrame.new(0, 9.4, D / 2), C3(30, 38, 34), M.Concrete)
+	local W, D = 62, 50
+	local hall = Instance.new("Folder")
+	hall.Name = "TreadHall"
+	hall.Parent = parent
+	block(hall, "HallFloor", Vector3.new(W, 0.8, D), cf * CFrame.new(0, 0.4, 0), C3(44, 50, 46), M.Slate)
+	block(hall, "HallAisle", Vector3.new(W - 4, 0.1, 6), cf * CFrame.new(0, 0.85, 3), def.Main, M.SmoothPlastic, { CanCollide = false })
+	block(hall, "HallEntry", Vector3.new(10, 0.1, 14), cf * CFrame.new(0, 0.85, -18), def.Glow, M.SmoothPlastic, { CanCollide = false })
+	block(hall, "HallBackWall", Vector3.new(W, 20, 1), cf * CFrame.new(0, 10.4, D / 2), C3(30, 38, 34), M.Concrete)
 	for side = -1, 1, 2 do
-		block(parent, "HallSideWall", Vector3.new(1, 18, D), cf * CFrame.new(side * W / 2, 9.4, 0), C3(36, 46, 40), M.Concrete)
-		for i = 1, 4 do
-			block(parent, "HallWindow", Vector3.new(0.4, 6, 5), cf * CFrame.new(side * (W / 2 - 0.2), 10, -12 + i * 6), C3(140, 255, 160), M.Glass, { Transparency = 0.5, CanCollide = false })
+		block(hall, "HallSideWall", Vector3.new(1, 20, D), cf * CFrame.new(side * W / 2, 10.4, 0), C3(36, 46, 40), M.Concrete)
+		for i = 1, 6 do
+			block(hall, "HallWindow", Vector3.new(0.4, 7, 5), cf * CFrame.new(side * (W / 2 - 0.2), 11, -20 + i * 6.5), C3(140, 255, 160), M.Glass, { Transparency = 0.5, CanCollide = false })
 		end
 	end
-	block(parent, "HallRoof", Vector3.new(W + 2, 1.4, D + 2), cf * CFrame.new(0, 19, 0), C3(24, 30, 28), M.Metal)
-	block(parent, "HallRoofTrim", Vector3.new(W + 3, 0.7, D + 3), cf * CFrame.new(0, 18, 0), def.Main, M.SmoothPlastic)
+	block(hall, "HallRoof", Vector3.new(W + 2, 1.4, D + 2), cf * CFrame.new(0, 21, 0), C3(24, 30, 28), M.Metal)
+	block(hall, "HallRoofTrim", Vector3.new(W + 3, 0.7, D + 3), cf * CFrame.new(0, 20, 0), def.Main, M.SmoothPlastic)
 	for _, x in { -W / 2, W / 2 } do
 		for _, z in { -D / 2, D / 2 } do
-			block(parent, "HallPillar", Vector3.new(2.2, 18, 2.2), cf * CFrame.new(x, 9.4, z), WHITE, M.Concrete)
+			block(hall, "HallPillar", Vector3.new(2.2, 20, 2.2), cf * CFrame.new(x, 10.4, z), WHITE, M.Concrete)
 		end
 	end
-	sign(parent, (cf * CFrame.new(0, 24, -D / 2 - 1)).Position, cf.LookVector, Vector3.new(34, 6, 0.6), "🏃  TREADMILL HALL", C3(30, 110, 40), C3(210, 255, 190))
-	for _, z in { -8, 4, 12 } do
-		local strip = block(parent, "HallLightStrip", Vector3.new(W - 6, 0.5, 0.6), cf * CFrame.new(0, 17.4, z), def.Glow, M.SmoothPlastic, { CanCollide = false })
+	sign(hall, (cf * CFrame.new(0, 26, -D / 2 - 1)).Position, cf.LookVector, Vector3.new(34, 6, 0.6), "🏃  TREADMILL HALL", C3(30, 110, 40), C3(210, 255, 190))
+	for _, z in { -14, -2, 8, 18 } do
+		local strip = block(hall, "HallLightStrip", Vector3.new(W - 6, 0.5, 0.6), cf * CFrame.new(0, 19.4, z), def.Glow, M.SmoothPlastic, { CanCollide = false })
 		local l = Instance.new("PointLight")
 		l.Color = def.Glow
 		l.Range = 40
@@ -460,32 +464,45 @@ local function buildTreadHall(parent)
 		l.Parent = strip
 	end
 	for _, x in { -W / 3, 0, W / 3 } do
-		Decor.smoke(parent, (cf * CFrame.new(x, 21, 6)).Position, def.Glow, 1.1)
+		Decor.smoke(hall, (cf * CFrame.new(x, 23, 8)).Position, def.Glow, 1.2)
 	end
-	Decor.groundAura(parent, cf.Position, 48, def.Glow)
+	Decor.groundAura(hall, cf.Position, 56, def.Glow)
 
 	for _, t in Config.Treadmills do
-		local at = cf * CFrame.new((t.Id - 5.5) * Config.TreadSpacing, 0.8, 2)
-		block(parent, "TreadBase", Vector3.new(4.8, 0.9, 11.4), at * CFrame.new(0, 0.45, 0), C3(30, 32, 40), M.Metal)
-		local belt = block(parent, "TreadBelt", Vector3.new(3.8, 0.3, 10.4), at * CFrame.new(0, 1.05, 0), C3(24, 24, 28), M.Rubber)
+		local at = Config.TreadCF(t.Id)
+		local color = t.Color
+		local model = Instance.new("Model")
+		model.Name = "Tread_" .. t.Id
+		model.Parent = hall
+		block(model, "TreadBase", Vector3.new(4.8, 0.9, 11.4), at * CFrame.new(0, 0.45, 0), C3(30, 32, 40), M.Metal)
+		local belt = block(model, "TreadBelt", Vector3.new(3.8, 0.3, 10.4), at * CFrame.new(0, 1.05, 0), C3(24, 24, 28), M.Rubber)
 		belt:SetAttribute("TreadId", t.Id)
+		-- stripes that slide along the belt while someone is running (see Treadmill.luau)
 		for i = 1, 7 do
-			block(parent, "BeltStripe", Vector3.new(3.8, 0.06, 0.45), at * CFrame.new(0, 1.22, -4.6 + (i - 1) * 1.55), t.Color, M.SmoothPlastic, { CanCollide = false })
+			local z0 = -4.6 + (i - 1) * 1.55
+			local stripe = block(model, "BeltStripe", Vector3.new(3.8, 0.06, 0.45), at * CFrame.new(0, 1.22, z0), color, M.SmoothPlastic, { CanCollide = false })
+			stripe:SetAttribute("Z0", z0)
 		end
 		for side = -1, 1, 2 do
-			block(parent, "TreadRail", Vector3.new(0.5, 0.7, 10.6), at * CFrame.new(side * 2.2, 1.2, 0), t.Color, M.SmoothPlastic)
-			block(parent, "TreadHandle", Vector3.new(0.4, 0.4, 5), at * CFrame.new(side * 2.2, 4.2, 4.2), t.Color, M.Metal)
-			block(parent, "TreadHandlePost", Vector3.new(0.4, 3, 0.4), at * CFrame.new(side * 2.2, 2.7, 6.4), t.Color, M.Metal)
+			block(model, "TreadRail", Vector3.new(0.5, 0.7, 10.6), at * CFrame.new(side * 2.2, 1.2, 0), color, M.SmoothPlastic)
+			block(model, "TreadHandle", Vector3.new(0.4, 0.4, 5), at * CFrame.new(side * 2.2, 4.2, 4.2), color, M.Metal)
+			block(model, "TreadHandlePost", Vector3.new(0.4, 3, 0.4), at * CFrame.new(side * 2.2, 2.7, 6.4), color, M.Metal)
+			if t.Id > 3 then
+				Decor.smoke(model, (at * CFrame.new(side * 2.2, 1.8, -4)).Position, t.Rainbow and "rainbow" or color, 0.25)
+			end
 		end
-		block(parent, "ConsolePost", Vector3.new(0.7, 6, 0.7), at * CFrame.new(0, 3.9, 6.6), C3(40, 42, 52), M.Metal)
-		sign(parent, (at * CFrame.new(0, 7.4, 6.6)).Position, cf.LookVector, Vector3.new(4.6, 2.4, 0.4), string.format("%s\n+%s/s", (t.Name:gsub(" Treadmill", "")), Util.fmt(t.Rate)), C3(18, 20, 28), t.Color)
-		local top = part(parent, { Name = "ConsoleGem", Shape = Enum.PartType.Ball, Size = Vector3.one * 1.1, CFrame = at * CFrame.new(0, 9.2, 6.6), Color = t.Color, Transparency = 0.1, CanCollide = false })
+		block(model, "ConsolePost", Vector3.new(0.7, 6, 0.7), at * CFrame.new(0, 3.9, 6.6), C3(40, 42, 52), M.Metal)
+		sign(model, (at * CFrame.new(0, 7.4, 6.6)).Position, cf.LookVector, Vector3.new(4.6, 2.4, 0.4), string.format("%s\n+%s/s", (t.Name:gsub(" Treadmill", "")), Util.fmt(t.Rate)), C3(18, 20, 28), color)
+		local top = part(model, { Name = "ConsoleGem", Shape = Enum.PartType.Ball, Size = Vector3.one * 1.1, CFrame = at * CFrame.new(0, 9.2, 6.6), Color = color, Transparency = 0.1, CanCollide = false })
 		local light = Instance.new("PointLight")
-		light.Color = t.Color
+		light.Color = color
 		light.Range = 22
 		light.Brightness = 1.1
 		light.Parent = top
-		Decor.smoke(parent, (at * CFrame.new(0, 9.8, 6.6)).Position, t.Color, 0.45 + t.Id * 0.05)
+		Decor.smoke(model, (at * CFrame.new(0, 9.8, 6.6)).Position, t.Rainbow and "rainbow" or color, 0.45 + t.Id * 0.03)
+		-- a thin beam of light above each treadmill; taller for better ones
+		local height = 14 + t.Id * 1.6
+		part(model, { Name = "LightBeam", Size = Vector3.new(0.7, height, 0.7), CFrame = at * CFrame.new(0, 10 + height / 2, 6.6), Color = color, Transparency = 0.82, CanCollide = false, CanQuery = false })
 	end
 end
 
@@ -823,7 +840,7 @@ local function buildTown(parent)
 		local a = rng:NextNumber() * math.pi * 2
 		local r = 205 + rng:NextNumber() * 100
 		local x, z = math.cos(a) * r, math.sin(a) * r
-		if math.abs(x) > 24 and math.abs(z) > 24 then
+		if math.abs(x) > 24 and math.abs(z) > 24 and (Vector3.new(x, 0, z) - Config.TreadHallPos()).Magnitude > 95 then
 			count += 1
 			building(parent, Vector3.new(x, 0, z), 24 + rng:NextNumber() * 14, 30 + rng:NextNumber() * 40, 22 + rng:NextNumber() * 10, colors[rng:NextInteger(1, #colors)])
 		end
@@ -836,7 +853,7 @@ local function buildTown(parent)
 		local a = rng:NextNumber() * math.pi * 2
 		local r = PLAZA + 14 + rng:NextNumber() * 190
 		local x, z = math.cos(a) * r, math.sin(a) * r
-		if math.abs(x) > 18 and math.abs(z) > 18 then
+		if math.abs(x) > 18 and math.abs(z) > 18 and (Vector3.new(x, 0, z) - Config.TreadHallPos()).Magnitude > 60 then
 			trees += 1
 			tree(parent, Vector3.new(x, 0, z))
 		end
@@ -920,7 +937,7 @@ function World.build()
 	buildTreadHall(world)
 	local battle = buildBattle(world)
 
-	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 124), r = 56 }, { pos = Config.BattlePos(), r = 40 }, { pos = Config.TreadHallPos(), r = 62 } }
+	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 124), r = 56 }, { pos = Config.BattlePos(), r = 40 }, { pos = Config.TreadHallPos(), r = 75 } }
 	for name in Config.Stations do
 		table.insert(avoid, { pos = (stationAt(name)), r = 28 })
 	end
