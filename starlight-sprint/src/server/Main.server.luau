@@ -69,6 +69,8 @@ local function sparkles(parent, color, rate, size, speed)
 	return e
 end
 
+local tintEffect
+
 local function setupLighting()
 	Lighting.ClockTime = 0
 	Lighting.Brightness = 1.5
@@ -93,6 +95,7 @@ local function setupLighting()
 	cc.Saturation = 0.25
 	cc.Contrast = 0.1
 	cc.Parent = Lighting
+	tintEffect = cc
 end
 
 local islandTops = {} -- Vector3 of each island's top centre
@@ -231,29 +234,44 @@ local function pickOrbType(luck)
 	return Config.OrbTypes[1]
 end
 
+local currentEvent -- active Config.Events entry, or nil
+
+local function rollMutation()
+	local boost = currentEvent and currentEvent.MutBoost or 1
+	for _, m in Config.Mutations do
+		if rng:NextNumber() < m.Chance * boost then
+			return m
+		end
+	end
+	return nil
+end
+
 local function spawnOrb(slot)
 	local t = pickOrbType(slot.luck)
+	local mut = rollMutation()
+	local color = mut and mut.Color or t.Color
 	local orb = Instance.new("Part")
 	orb.Name = "Orb"
 	orb.Shape = Enum.PartType.Ball
-	orb.Size = Vector3.one * (1.4 + t.Scale)
+	orb.Size = Vector3.one * (1.4 + t.Scale + (mut and 0.5 or 0))
 	orb.Material = Enum.Material.Neon
-	orb.Color = t.Color
+	orb.Color = color
 	orb.Anchored = true
 	orb.CanCollide = false
 	orb.CanTouch = false
 	orb.CanQuery = false
 	orb.CastShadow = false
 	orb.Position = slot.pos
-	orb:SetAttribute("Value", t.Value)
+	orb:SetAttribute("Value", t.Value * (mut and mut.Mult or 1))
 	orb:SetAttribute("Tier", t.Name)
+	orb:SetAttribute("Mut", mut and mut.Name or nil)
 
 	local light = Instance.new("PointLight")
-	light.Color = t.Color
+	light.Color = color
 	light.Range = 8 + t.Scale * 6
 	light.Brightness = 1.5
 	light.Parent = orb
-	sparkles(orb, t.Color, 4 + t.Value ^ 0.5, 0.35, 2)
+	sparkles(orb, color, 4 + t.Value ^ 0.5 + (mut and 20 or 0), 0.35, 2)
 
 	CollectionService:AddTag(orb, "Orb")
 	orb.Parent = orbFolder
@@ -297,6 +315,36 @@ local function setDust(p, v)
 	if ls then
 		ls.Stardust.Value = v
 	end
+end
+
+local function today()
+	return os.time() // 86400
+end
+
+local function getWisps(p)
+	local ids = {}
+	for id in string.gmatch(p:GetAttribute("Wisps") or "", "[^,]+") do
+		table.insert(ids, id)
+	end
+	return ids
+end
+
+local function setWisps(p, ids)
+	p:SetAttribute("Wisps", table.concat(ids, ","))
+	p:SetAttribute("WispRate", Config.WispRate(ids, p:GetAttribute("Ascensions") or 0))
+end
+
+local function dailyDay(p)
+	local last = p:GetAttribute("LastClaim") or 0
+	if last >= today() - 1 then
+		return (p:GetAttribute("DailyStreak") or 0) % #Config.Daily + 1
+	end
+	return 1
+end
+
+local function refreshDaily(p)
+	p:SetAttribute("DailyReady", (p:GetAttribute("LastClaim") or 0) < today())
+	p:SetAttribute("DailyDay", dailyDay(p))
 end
 
 local function applyAura(p)
@@ -372,9 +420,30 @@ local function loadPlayer(p)
 	end
 	p:SetAttribute("Combo", 0)
 	p:SetAttribute("ComboExpire", 0)
+	p:SetAttribute("LastClaim", data.LastClaim or 0)
+	p:SetAttribute("DailyStreak", data.DailyStreak or 0)
+	p:SetAttribute("FreeEggs", data.FreeEggs or 0)
+	local ids = {}
+	for _, id in data.Wisps or {} do
+		if Config.WispById(id) then
+			table.insert(ids, id)
+		end
+	end
+	setWisps(p, ids)
 	setDust(p, data.Dust or 0)
 	ascVal.Value = p:GetAttribute("Ascensions")
+	refreshDaily(p)
 	applyStats(p)
+
+	-- Wisps keep earning while you're away.
+	if data.LastSeen then
+		local away = math.clamp(os.time() - data.LastSeen, 0, Config.OfflineCapSeconds)
+		local gain = math.floor((p:GetAttribute("WispRate") or 0) * away * Config.OfflineEfficiency)
+		if gain > 0 then
+			setDust(p, getDust(p) + gain)
+			p:SetAttribute("OfflineGain", gain)
+		end
+	end
 end
 
 local function savePlayer(p)
@@ -385,7 +454,16 @@ local function savePlayer(p)
 	for _, def in Config.Upgrades do
 		levels[def.Id] = p:GetAttribute("Lv_" .. def.Id) or 0
 	end
-	local payload = { Dust = getDust(p), Ascensions = p:GetAttribute("Ascensions") or 0, Levels = levels }
+	local payload = {
+		Dust = getDust(p),
+		Ascensions = p:GetAttribute("Ascensions") or 0,
+		Levels = levels,
+		Wisps = getWisps(p),
+		LastClaim = p:GetAttribute("LastClaim") or 0,
+		DailyStreak = p:GetAttribute("DailyStreak") or 0,
+		FreeEggs = p:GetAttribute("FreeEggs") or 0,
+		LastSeen = os.time(),
+	}
 	local ok, err = pcall(function()
 		store:SetAsync("u" .. p.UserId, payload)
 	end)
@@ -453,10 +531,11 @@ local function collect(p, orb, root)
 	p:SetAttribute("ComboExpire", now + Config.ComboWindow)
 
 	local mult = Config.Multiplier(p:GetAttribute("Lv_Value") or 0, p:GetAttribute("Ascensions") or 0, combo)
+	mult *= currentEvent and currentEvent.Mult or 1
 	local gained = math.max(1, math.floor(orb:GetAttribute("Value") * mult))
 	setDust(p, getDust(p) + gained)
 
-	Popup:FireClient(p, "orb", orb.Position, gained, combo, orb:GetAttribute("Tier"), orb.Color)
+	Popup:FireClient(p, "orb", orb.Position, gained, combo, orb:GetAttribute("Tier"), orb.Color, orb:GetAttribute("Mut"))
 
 	-- Fly into the player, then vanish.
 	local tween = TweenService:Create(orb, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -466,9 +545,11 @@ local function collect(p, orb, root)
 	tween:Play()
 	Debris:AddItem(orb, 0.25)
 
-	task.delay(Config.RespawnTime, function()
-		spawnOrb(slot)
-	end)
+	if not slot.temp then
+		task.delay(Config.RespawnTime, function()
+			spawnOrb(slot)
+		end)
+	end
 end
 
 local accumulator = 0
@@ -515,6 +596,69 @@ Action.OnServerEvent:Connect(function(p, action, id)
 		setDust(p, getDust(p) - cost)
 		p:SetAttribute("Lv_" .. id, level + 1)
 		applyStats(p)
+	elseif action == "Hatch" then
+		local asc = p:GetAttribute("Ascensions") or 0
+		local free = p:GetAttribute("FreeEggs") or 0
+		local cost = Config.EggCost(asc)
+		if free > 0 then
+			p:SetAttribute("FreeEggs", free - 1)
+		elseif getDust(p) >= cost then
+			setDust(p, getDust(p) - cost)
+		else
+			return
+		end
+
+		local total = 0
+		for _, w in Config.Wisps do
+			total += w.Weight
+		end
+		local roll = rng:NextNumber() * total
+		local pick = Config.Wisps[1]
+		for _, w in Config.Wisps do
+			roll -= w.Weight
+			if roll <= 0 then
+				pick = w
+				break
+			end
+		end
+
+		local ids = getWisps(p)
+		local status = "new"
+		if #ids < Config.MaxWisps then
+			table.insert(ids, pick.Id)
+		else
+			local worst, worstRate = 1, math.huge
+			for i, id in ids do
+				local r = Config.WispById(id).Rate
+				if r < worstRate then
+					worst, worstRate = i, r
+				end
+			end
+			if pick.Rate > worstRate then
+				ids[worst] = pick.Id
+				status = "replaced"
+			else
+				status = "refund"
+				setDust(p, getDust(p) + math.floor(cost * 0.5))
+			end
+		end
+		setWisps(p, ids)
+		Popup:FireClient(p, "hatch", pick.Id, status)
+	elseif action == "Claim" then
+		if (p:GetAttribute("LastClaim") or 0) >= today() then
+			return
+		end
+		local day = dailyDay(p)
+		local last = p:GetAttribute("LastClaim") or 0
+		local streak = last == today() - 1 and (p:GetAttribute("DailyStreak") or 0) + 1 or 1
+		local reward = Config.Daily[day]
+		local dust = reward.Dust * (1 + (p:GetAttribute("Ascensions") or 0))
+		setDust(p, getDust(p) + dust)
+		p:SetAttribute("FreeEggs", (p:GetAttribute("FreeEggs") or 0) + (reward.Eggs or 0))
+		p:SetAttribute("DailyStreak", streak)
+		p:SetAttribute("LastClaim", today())
+		refreshDaily(p)
+		Popup:FireClient(p, "daily", day, dust, reward.Eggs or 0)
 	elseif action == "Ascend" then
 		local asc = p:GetAttribute("Ascensions") or 0
 		if getDust(p) < Config.AscendCost(asc) then
@@ -526,6 +670,7 @@ Action.OnServerEvent:Connect(function(p, action, id)
 		end
 		p:SetAttribute("Ascensions", asc + 1)
 		p.leaderstats.Ascensions.Value = asc + 1
+		setWisps(p, getWisps(p))
 		applyStats(p)
 		applyAura(p)
 
@@ -536,6 +681,74 @@ Action.OnServerEvent:Connect(function(p, action, id)
 			Debris:AddItem(burst, 4)
 		end
 		Popup:FireClient(p, "ascend", asc + 1)
+	end
+end)
+
+--------------------------------------------------------------------------------
+-- Wisp income + daily refresh
+--------------------------------------------------------------------------------
+local fractions = {}
+task.spawn(function()
+	while true do
+		task.wait(1)
+		for _, p in Players:GetPlayers() do
+			local acc = (fractions[p] or 0) + (p:GetAttribute("WispRate") or 0)
+			local whole = math.floor(acc)
+			fractions[p] = acc - whole
+			if whole > 0 then
+				setDust(p, getDust(p) + whole)
+			end
+			if p:GetAttribute("DailyReady") ~= nil then
+				refreshDaily(p)
+			end
+		end
+	end
+end)
+Players.PlayerRemoving:Connect(function(p)
+	fractions[p] = nil
+end)
+
+--------------------------------------------------------------------------------
+-- Cosmic events
+--------------------------------------------------------------------------------
+local function startEvent(ev)
+	currentEvent = ev
+	workspace:SetAttribute("Event", ev.Id)
+	workspace:SetAttribute("EventEnd", workspace:GetServerTimeNow() + ev.Duration)
+	if tintEffect then
+		TweenService:Create(tintEffect, TweenInfo.new(2), { TintColor = ev.Tint }):Play()
+	end
+	if ev.Id == "Starfall" then
+		for _ = 1, 50 do
+			local a = rng:NextNumber() * math.pi * 2
+			local r = math.sqrt(rng:NextNumber()) * (HUB_RADIUS - 8)
+			spawnOrb({ pos = Vector3.new(math.cos(a) * r, 3.2, math.sin(a) * r), luck = 5, temp = true })
+		end
+	end
+end
+
+local function endEvent()
+	currentEvent = nil
+	workspace:SetAttribute("Event", "")
+	if tintEffect then
+		TweenService:Create(tintEffect, TweenInfo.new(2), { TintColor = Color3.new(1, 1, 1) }):Play()
+	end
+	for orb, slot in liveOrbs do
+		if slot.temp then
+			liveOrbs[orb] = nil
+			orb:Destroy()
+		end
+	end
+end
+
+task.spawn(function()
+	task.wait(45)
+	while true do
+		local ev = Config.Events[rng:NextInteger(1, #Config.Events)]
+		startEvent(ev)
+		task.wait(ev.Duration)
+		endEvent()
+		task.wait(rng:NextInteger(Config.EventGap[1], Config.EventGap[2]))
 	end
 end)
 

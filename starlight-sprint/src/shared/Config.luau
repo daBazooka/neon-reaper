@@ -31,6 +31,68 @@ Config.Auras = {
 	Color3.fromRGB(235, 235, 255),
 }
 
+-- Wisps: pets that orbit you and earn Stardust per second, even while you're offline.
+Config.MaxWisps = 8
+Config.OfflineCapSeconds = 2 * 3600
+Config.OfflineEfficiency = 0.5
+Config.Wisps = {
+	{ Id = "Pip", Name = "Pip", Rarity = "Common", Weight = 60, Rate = 1, Color = Color3.fromRGB(130, 220, 255) },
+	{ Id = "Lumi", Name = "Lumi", Rarity = "Uncommon", Weight = 25, Rate = 4, Color = Color3.fromRGB(120, 255, 170) },
+	{ Id = "Aurora", Name = "Aurora", Rarity = "Rare", Weight = 10, Rate = 15, Color = Color3.fromRGB(190, 120, 255) },
+	{ Id = "Nebula", Name = "Nebula", Rarity = "Epic", Weight = 4, Rate = 60, Color = Color3.fromRGB(255, 110, 200) },
+	{ Id = "Cosmo", Name = "Cosmo", Rarity = "Legendary", Weight = 0.9, Rate = 300, Color = Color3.fromRGB(255, 205, 70) },
+	{ Id = "Genesis", Name = "Genesis", Rarity = "MYTHIC", Weight = 0.1, Rate = 2000, Color = Color3.fromRGB(255, 255, 255) },
+}
+
+-- Orb mutations (checked in order, first hit wins).
+Config.Mutations = {
+	{ Name = "Prismatic", Chance = 0.005, Mult = 10, Color = Color3.fromRGB(255, 255, 255) },
+	{ Name = "Golden", Chance = 0.04, Mult = 3, Color = Color3.fromRGB(255, 205, 60) },
+}
+
+-- Server-wide cosmic events.
+Config.EventGap = { 150, 300 } -- seconds between events (random)
+Config.Events = {
+	{ Id = "Golden", Name = "🌟 GOLDEN HOUR", Desc = "All dust x2!", Duration = 90, Mult = 2, Tint = Color3.fromRGB(255, 232, 170) },
+	{ Id = "Starfall", Name = "☄️ STARFALL", Desc = "A shower of rich orbs lands across the hub!", Duration = 60, Tint = Color3.fromRGB(190, 215, 255) },
+	{ Id = "Aurora", Name = "🌌 AURORA", Desc = "Golden & Prismatic orbs are 8x likelier!", Duration = 90, MutBoost = 8, Tint = Color3.fromRGB(180, 255, 215) },
+}
+
+-- Daily login streak (7-day cycle). Dust is multiplied by (1 + ascensions).
+Config.Daily = {
+	{ Dust = 100 },
+	{ Dust = 200 },
+	{ Dust = 300, Eggs = 1 },
+	{ Dust = 500 },
+	{ Dust = 800 },
+	{ Dust = 1200 },
+	{ Dust = 2000, Eggs = 2 },
+}
+
+function Config.EggCost(ascensions)
+	return math.floor(250 * 1.5 ^ ascensions)
+end
+
+function Config.WispById(id)
+	for _, w in Config.Wisps do
+		if w.Id == id then
+			return w
+		end
+	end
+	return nil
+end
+
+function Config.WispRate(ids, ascensions)
+	local sum = 0
+	for _, id in ids do
+		local w = Config.WispById(id)
+		if w then
+			sum += w.Rate
+		end
+	end
+	return sum * (1 + 0.5 * ascensions)
+end
+
 function Config.UpgradeCost(def, level)
 	return math.floor(def.Base * def.Growth ^ level)
 end

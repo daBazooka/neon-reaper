@@ -275,11 +275,12 @@ if Config.PickupSoundId ~= "" then
 	chime = make("Sound", { SoundId = Config.PickupSoundId, Volume = 0.6 }, gui)
 end
 
-Popup.OnClientEvent:Connect(function(kind, a, b, c, d, e)
+Popup.OnClientEvent:Connect(function(kind, a, b, c, d, e, f)
 	if kind == "orb" then
 		local pos, gained, combo, tier, color = a, b, c, d, e
-		local big = tier ~= "Spark"
-		floatText(pos, "+" .. fmt(gained), color, big and 34 or 24)
+		local big = tier ~= "Spark" or f ~= nil
+		local text = (f and (f:upper() .. "! ") or "") .. "+" .. fmt(gained)
+		floatText(pos, text, color, f and 40 or (big and 34 or 24))
 		pop(comboScale, 1.15)
 		if chime then
 			chime.PlaybackSpeed = 1 + math.min(combo, 24) * 0.04

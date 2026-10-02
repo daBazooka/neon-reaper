@@ -9,6 +9,14 @@ A tiny, magical, one-more-orb Roblox game. Everything (world, lighting, orbs, UI
 4. Step on glowing **launch pads** that fling you along a spiral of six sky islands; the higher you go, the richer the orbs.
 5. **Ascend**: reset for a permanent +50% dust and a new aura/trail color. Then do it all faster.
 
+## What's trending, and what we borrowed
+Researched what's currently topping Roblox (Grow a Garden, Steal a Brainrot, Adopt Me, Blox Fruits): passive income collectibles, random egg/seed rewards with rare jackpots, timed server events, and "come back" rewards. We folded each into the orb loop:
+- 🥚 **Wisps** - hatch eggs for pets that orbit you (visible to everyone) and earn Stardust per second. Six rarities up to a 2000/s MYTHIC. 8 slots; a better hatch replaces your weakest.
+- 💤 **Offline earnings** - wisps keep working while you're away (50%, up to 2 hours); a toast welcomes you back.
+- 🎁 **Daily rewards** - 7-day streak, free eggs on days 3 and 7, scaled by Ascensions. Pulses gold when ready.
+- 🌌 **Cosmic events** every few minutes: Golden Hour (x2 dust), Starfall (50 rich orbs land), Aurora (mutations 8x likelier) with a screen tint and countdown banner.
+- ✨ **Mutations** - any orb can roll Golden (x3) or Prismatic (x10).
+
 Progress saves with DataStores (leaderstats show Stardust and Ascensions).
 
 ## Run it
@@ -20,6 +28,7 @@ Progress saves with DataStores (leaderstats show Stardust and Ascensions).
 - `ReplicatedStorage > Shared` (Folder) containing a **ModuleScript** named `Config` ← `src/shared/Config.luau`
 - `ServerScriptService` **Script** `Main` ← `src/server/Main.server.luau`
 - `StarterPlayer > StarterPlayerScripts` **LocalScript** `Hud` ← `src/client/Hud.client.luau`
+- a second **LocalScript** `Extras` ← `src/client/Extras.client.luau`
 
 For saving in Studio, enable *Game Settings → Security → Enable Studio Access to API Services* (publish the place first).
 
