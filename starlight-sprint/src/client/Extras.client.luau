@@ -35,6 +35,17 @@ local function fmt(n)
 	return tostring(math.floor(n))
 end
 
+
+-- Shrinks a panel on short windows so it never runs off-screen.
+local camera = workspace:WaitForChild("Camera")
+local function fitScale(scaleObj)
+	local function update()
+		scaleObj.Scale = math.clamp(camera.ViewportSize.Y / 720, 0.55, 1)
+	end
+	update()
+	camera:GetPropertyChangedSignal("ViewportSize"):Connect(update)
+end
+
 local PANEL_BG = Color3.fromRGB(22, 16, 48)
 local GREEN, GREY, GOLD = Color3.fromRGB(70, 200, 120), Color3.fromRGB(80, 75, 110), Color3.fromRGB(255, 190, 60)
 
@@ -54,7 +65,7 @@ local function sideButton(text, row)
 end
 
 local function sidePanel(width, height)
-	return styled(make("Frame", {
+	local frame = styled(make("Frame", {
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 16, 1, -150),
 		Size = UDim2.fromOffset(width, height),
@@ -62,6 +73,8 @@ local function sidePanel(width, height)
 		BackgroundTransparency = 0.05,
 		Visible = false,
 	}, gui), 16)
+	fitScale(make("UIScale", {}, frame))
+	return frame
 end
 
 local function label(parent, props)

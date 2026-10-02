@@ -37,13 +37,24 @@ local function fmt(n)
 	return tostring(n)
 end
 
+
+-- Shrinks a panel on short windows so it never runs off-screen.
+local camera = workspace:WaitForChild("Camera")
+local function fitScale(scaleObj)
+	local function update()
+		scaleObj.Scale = math.clamp(camera.ViewportSize.Y / 720, 0.55, 1)
+	end
+	update()
+	camera:GetPropertyChangedSignal("ViewportSize"):Connect(update)
+end
+
 --------------------------------------------------------------------------------
 -- HUD
 --------------------------------------------------------------------------------
 local gui = make("ScreenGui", { Name = "StarlightHud", ResetOnSpawn = false, IgnoreGuiInset = false }, player:WaitForChild("PlayerGui"))
 
 local dustFrame = styled(make("Frame", {
-	Position = UDim2.new(0, 16, 0, 16),
+	Position = UDim2.new(0, 220, 0, 12),
 	Size = UDim2.fromOffset(230, 58),
 	BackgroundColor3 = Color3.fromRGB(22, 16, 48),
 	BackgroundTransparency = 0.1,
@@ -60,7 +71,7 @@ local dustLabel = make("TextLabel", {
 make("UIPadding", { PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8) }, dustFrame)
 
 local ascLabel = make("TextLabel", {
-	Position = UDim2.new(0, 16, 0, 78),
+	Position = UDim2.new(0, 220, 0, 74),
 	Size = UDim2.fromOffset(230, 22),
 	BackgroundTransparency = 1,
 	Font = Enum.Font.GothamBold,
@@ -131,6 +142,7 @@ local panel = styled(make("Frame", {
 	BackgroundTransparency = 0.05,
 	Visible = false,
 }, gui), 16)
+fitScale(make("UIScale", {}, panel))
 make("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, panel)
 make("UIPadding", {
 	PaddingTop = UDim.new(0, 10),
