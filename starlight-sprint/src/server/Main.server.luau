@@ -753,5 +753,16 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------------------------
-buildWorld()
-buildOrbs()
+print("[Starlight] server script started")
+local okWorld, errWorld = pcall(buildWorld)
+if okWorld then
+	print("[Starlight] world built")
+else
+	warn("[Starlight] buildWorld FAILED:", errWorld)
+end
+local okOrbs, errOrbs = pcall(buildOrbs)
+if okOrbs then
+	print("[Starlight] orbs spawned:", #orbSlots)
+else
+	warn("[Starlight] buildOrbs FAILED:", errOrbs)
+end
