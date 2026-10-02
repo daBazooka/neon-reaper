@@ -35,6 +35,7 @@ local function defaults()
 		BestStreak = 0,
 		Reps = 0,
 		Swings = 0,
+		GuideSeen = false, -- the welcome guide has been shown
 		Buildings = {}, -- building id -> true once unlocked
 		Treads = { ["1"] = true }, -- treadmills unlocked
 		Passes = {}, -- game pass id -> true

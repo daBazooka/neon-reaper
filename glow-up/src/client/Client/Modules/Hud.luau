@@ -54,26 +54,33 @@ local function teleport(position, lookAt)
 	end
 end
 
-local TELEPORTS = {
-	PVP = function()
-		local ring = Config.StationPos("Ring")
-		local front = Config.StationFront("Ring")
-		teleport(ring + front * 32 + Vector3.new(0, 4, 0), ring)
-	end,
-	Treadmills = function()
+-- Places you can jump to from the 📍 button. `building` says which unlock it needs (nil = open to everyone).
+local function atStation(name)
+	return function()
+		local pos, front = Config.StationPos(name), Config.StationFront(name)
+		teleport(pos + front * 30 + Vector3.new(0, 4, 0), pos)
+	end
+end
+local PLACES = {
+	{ name = "Hammer Shop", icon = "🔨", go = function()
+		teleport(Vector3.new(0, 4, Config.HammerRowZ + 10), Vector3.new(0, 4, Config.HammerRowZ - 30))
+	end },
+	{ name = "Treadmills", icon = "🏃", building = "treadmills", go = function()
 		local cf = Config.TreadHallCF() * CFrame.new(0, 4, -34)
 		teleport(cf.Position, Config.TreadHallPos())
-	end,
-	Battle = function()
+	end },
+	{ name = "Gym", icon = "💪", building = "gym", go = atStation("Gym") },
+	{ name = "Stage Battle", icon = "⚔️", building = "battle", go = function()
 		local pos, front = Config.BattlePos(), Config.BattleFront()
 		teleport(pos + front * 40 + Vector3.new(0, 4, 0), pos)
-	end,
-	MOG = function()
+	end },
+	{ name = "Style Studio", icon = "💈", building = "studio", go = atStation("Studio") },
+	{ name = "Mog Stage", icon = "🏆", building = "stage", go = function()
 		teleport(Vector3.new(0, 5, 12), Vector3.new(0, 5, -20))
-	end,
-	Hammers = function()
-		teleport(Vector3.new(0, 4, Config.HammerRowZ + 10), Vector3.new(0, 4, Config.HammerRowZ - 30))
-	end,
+	end },
+	{ name = "Charm Lounge", icon = "🛋️", building = "lounge", go = atStation("Lounge") },
+	{ name = "Duel Ring", icon = "🥊", building = "ring", go = atStation("Ring") },
+	{ name = "Crate Shop", icon = "📦", building = "crates", go = atStation("Crates") },
 }
 
 --------------------------------------------------------------------------------
@@ -153,6 +160,20 @@ local function buildTop(gui, Menu)
 	gear.Activated:Connect(function()
 		Audio.click()
 		Menu.toggle("Settings")
+	end)
+	local help = UI.button(row, {
+		LayoutOrder = 5,
+		Size = UDim2.fromOffset(34, 30),
+		BackgroundColor3 = C.Mint,
+		Text = "?",
+		TextSize = 16,
+		Radius = 10,
+	}, "card")
+	help.Activated:Connect(function()
+		Audio.click()
+		if Hud.onHelp then
+			Hud.onHelp()
+		end
 	end)
 
 	-- Chips (chain, event, competition), only visible while relevant
@@ -240,6 +261,7 @@ end
 
 local function buildSides(gui, Menu)
 	refs.badges = {}
+	-- Left: the things you do most
 	local left = UI.new("Frame", {
 		Name = "LeftButtons",
 		AnchorPoint = Vector2.new(0, 0.5),
@@ -249,7 +271,6 @@ local function buildSides(gui, Menu)
 	}, gui)
 	addFit(left)
 	UI.new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, left)
-
 	local _, _, shopBadge = sideButton(left, 1, 66, C.Yellow, "🛒", "Shop", function()
 		Menu.toggle("Upgrades")
 	end)
@@ -263,32 +284,96 @@ local function buildSides(gui, Menu)
 		Menu.toggle("Rewards")
 	end)
 	refs.badges.Rewards = rewardsBadge
-	sideButton(left, 4, 66, C.Danger, "🥊", "PVP", TELEPORTS.PVP)
-	sideButton(left, 5, 66, C.Orange, "🏆", "MOG", TELEPORTS.MOG)
+	sideButton(left, 4, 66, C.Purple, "🐾", "Pets", function()
+		Menu.toggle("Pets")
+	end)
+	local _, _, wardrobeBadge = sideButton(left, 5, 66, C.Orange, "👗", "Outfit", function()
+		Menu.toggle("Wardrobe")
+	end)
+	refs.badges.Wardrobe = wardrobeBadge
 
+	-- Right: getting around
 	local right = UI.new("Frame", {
 		Name = "RightButtons",
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -8, 0.5, -10),
-		Size = UDim2.fromOffset(52, 6 * 52 + 5 * 6),
+		Size = UDim2.fromOffset(66, 2 * 66 + 8),
 		BackgroundTransparency = 1,
 	}, gui)
 	addFit(right)
-	UI.new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, right)
-	sideButton(right, 1, 52, C.Mint, "🔨", "Hammers", TELEPORTS.Hammers)
-	sideButton(right, 2, 52, C.Pink, "🐾", "Pets", function()
-		Menu.toggle("Pets")
+	UI.new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, right)
+	sideButton(right, 1, 66, C.Sky, "📍", "Places", function()
+		Hud.togglePlaces()
 	end)
-	local _, _, wardrobeBadge = sideButton(right, 3, 52, C.Purple, "👗", "Wardrobe", function()
-		Menu.toggle("Wardrobe")
-	end)
-	refs.badges.Wardrobe = wardrobeBadge
-	local _, _, crateBadge = sideButton(right, 4, 52, C.Sky, "📦", "Crates", function()
+	local _, _, crateBadge = sideButton(right, 2, 66, C.Accent, "📦", "Crates", function()
 		Menu.toggle("Crates")
 	end)
 	refs.badges.Crates = crateBadge
-	sideButton(right, 5, 52, C.Accent, "⚔️", "Battle", TELEPORTS.Battle)
-	sideButton(right, 6, 52, C.Good, "🏃", "Treadmills", TELEPORTS.Treadmills)
+end
+
+-- A small window with a button for every place; pressing one jumps you there.
+local function buildPlaces(gui)
+	local win = UI.panel(gui, {
+		Name = "PlacesWindow",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(420, 300),
+		Visible = false,
+		ZIndex = 20,
+	})
+	addFit(win)
+	tint(win, C.Sky)
+	refs.placesWin = win
+	UI.label(win, {
+		Position = UDim2.fromOffset(16, 10),
+		Size = UDim2.new(1, -60, 0, 26),
+		Font = UI.Fonts.Title,
+		TextSize = 20,
+		TextColor3 = C.Sky,
+		TextWrapped = false,
+		Text = "📍 GO TO",
+		ZIndex = 21,
+	})
+	local close = UI.button(win, {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 8),
+		Size = UDim2.fromOffset(30, 30),
+		BackgroundColor3 = C.Danger,
+		Text = "X",
+		TextSize = 16,
+		ZIndex = 22,
+		Radius = 8,
+	}, "card")
+	close.Activated:Connect(function()
+		Audio.click()
+		Hud.togglePlaces(false)
+	end)
+	local grid = UI.new("Frame", { Position = UDim2.fromOffset(14, 46), Size = UDim2.new(1, -28, 1, -58), BackgroundTransparency = 1, ZIndex = 21 }, win)
+	UI.new("UIGridLayout", { CellSize = UDim2.new(1 / 3, -8, 0, 74), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder }, grid)
+	refs.placeStatus = {}
+	for i, place in PLACES do
+		local button = UI.button(grid, { LayoutOrder = i, BackgroundColor3 = C.Card, Text = "", ZIndex = 22, Radius = 10 }, "card")
+		UI.label(button, { Position = UDim2.fromOffset(0, 4), Size = UDim2.new(1, 0, 0, 30), Font = UI.Fonts.Bold, TextSize = 24, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 1, ZIndex = 23, Text = place.icon })
+		UI.label(button, { Position = UDim2.fromOffset(4, 34), Size = UDim2.new(1, -8, 0, 16), Font = UI.Fonts.Title, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, ZIndex = 23, Text = place.name:upper() })
+		refs.placeStatus[i] = UI.label(button, { Position = UDim2.fromOffset(4, 51), Size = UDim2.new(1, -8, 0, 16), Font = UI.Fonts.Bold, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, ZIndex = 23, Text = "" })
+		button.Activated:Connect(function()
+			Audio.click()
+			Hud.togglePlaces(false)
+			place.go()
+		end)
+	end
+end
+
+function Hud.togglePlaces(force)
+	local win = refs.placesWin
+	local show = force
+	if show == nil then
+		show = not win.Visible
+	end
+	win.Visible = show
+	if show then
+		Hud.refresh()
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -469,6 +554,7 @@ function Hud.init(gui, Menu, Action)
 	buildSides(gui, Menu)
 	buildBottom(gui)
 	buildRebirth(gui, Action)
+	buildPlaces(gui)
 
 	-- Shrink the whole HUD on small screens (phones) so nothing crowds the view.
 	local function fit()
@@ -636,6 +722,23 @@ function Hud.refresh()
 		refs.rebirthProg.set(pct)
 		refs.rebirthGo.Text = ready and "REBIRTH NOW" or string.format("LEVEL %d / %d", level, need)
 		refs.rebirthGo.BackgroundColor3 = ready and C.Good or C.Disabled
+	end
+
+	if refs.placesWin.Visible then
+		local own = {}
+		for b in string.gmatch(player:GetAttribute("Own") or "gym", "%w+") do
+			own[b] = true
+		end
+		for i, place in PLACES do
+			local label = refs.placeStatus[i]
+			if not place.building or own[place.building] then
+				label.Text, label.TextColor3 = "OPEN", C.Good
+			else
+				local cost = Config.Buildings[place.building].Cost
+				label.Text = "🔒 " .. Util.fmt(cost)
+				label.TextColor3 = (player:GetAttribute("Aura") or 0) >= cost and C.Yellow or C.Danger
+			end
+		end
 	end
 
 	-- Quest

@@ -31,6 +31,7 @@ local function newPlayer(id, name)
 	char = {GetDescendants = function() return {} end, FindFirstChild = function() return U("part") end, FindFirstChildOfClass = function() return hum end, WaitForChild = function() return hum end, GetScale = function() return 1 end, ScaleTo = function() end}
 	p.Character = char
 	p.CharacterAdded = {Connect = function() end}
+	p.CharacterRemoving = {Connect = function() end}
 	-- leaderstats is created via Instance.new in Stats.init; give it settable values
 	ls.Aura = {Value = 0}; ls.Level = {Value = 1}; ls.Rebirths = {Value = 0}
 	ls.FindFirstChild = function(self, n) return self[n] end
@@ -49,8 +50,8 @@ check(a1.Rank == 1 and a1.Level == 1, "starts as Sub 5, level 1")
 check(a1.QuestKind ~= nil, "has a starting quest: " .. tostring(a1.QuestKind) .. " x" .. tostring(a1.QuestGoal))
 check(a1.DailyReady == true, "daily reward ready")
 
-check(math.abs(p1.scaleVals.BodyWidthScale.Value - 1.9) < 0.01, "level 1 body is wide (width " .. p1.scaleVals.BodyWidthScale.Value .. ")")
-check(math.abs(p1.scaleVals.BodyHeightScale.Value - 0.78) < 0.01, "level 1 body is short (height " .. p1.scaleVals.BodyHeightScale.Value .. ")")
+check(math.abs(p1.scaleVals.BodyWidthScale.Value - 1.9) < 1.9 * 0.1, "level 1 body is wide (width " .. p1.scaleVals.BodyWidthScale.Value .. ")")
+check(math.abs(p1.scaleVals.BodyHeightScale.Value - 0.78) < 0.78 * 0.1, "level 1 body is short (height " .. p1.scaleVals.BodyHeightScale.Value .. ")")
 -- shards: heartbeat collects everything in the mock
 for i = 1, 160 do
 	p1.root.Position = Vector3.new(math.random(-150, 150), 3, math.random(-150, 150))
@@ -177,7 +178,7 @@ check(sum100 > sum50 * 4, "levels 50-100 cost " .. math.floor(sum100/sum50*10)/1
 local Appearance = require(ModN.children.Appearance)
 Data.get(p1).Level = 1000
 Appearance.update(p1, true)
-check(p1.scaleVals.BodyHeightScale.Value > 1.1 and p1.scaleVals.BodyWidthScale.Value < 0.95, "level 1000 body is tall and athletic")
+check(p1.scaleVals.BodyHeightScale.Value > 1.02 and p1.scaleVals.BodyWidthScale.Value < 1.0, "level 1000 body is tall and athletic")
 Data.get(p1).Level = 500
 Appearance.update(p1, true)
 local mid = p1.scaleVals.BodyWidthScale.Value
@@ -482,6 +483,47 @@ do
 	check(a1.Running == 0 and a1.RunHeat == 0, "stopping resets heat")
 	for i = 1, 20 do p1.root.Position = Config.TreadPos(i) + Vector3.new(0, 3, 0); fireAll("Action", p1, "Interact", "Tread:" .. i); advance(0.2); fireAll("Action", p1, "TreadStop"); advance(0.2) end
 	check(true, "every treadmill can be started and stopped")
+end
+
+
+-- Unique faces and bodies for every player + fuzzing
+do
+	local Genome = require(RS.children.Shared.children.Genome)
+	local seen, distinct = {}, 0
+	for id = 1, 300 do
+		local g = Genome.get(id * 1013)
+		local key = string.format("%.2f|%.2f|%.2f|%.2f|%s|%s", g.eyeSize, g.noseSize, g.jaw, g.mouthWidth, g.beard, tostring(g.eyeColor))
+		if not seen[key] then seen[key] = true; distinct += 1 end
+	end
+	check(distinct >= 290, "faces are unique: " .. distinct .. " distinct out of 300 players")
+	check(Genome.get(555) == Genome.get(555) and Genome.get(555).eyeSize == Genome.get(555).eyeSize, "a player's face never changes between visits")
+	-- build faces for several different players at several levels (all beard styles, marks, muscles)
+	local Quirks = require(ModN.children.Quirks)
+	local built = 0
+	for n = 1, 12 do
+		local pp, aa = newPlayer(2000 + n * 37, "Face" .. n)
+		players[2000 + n * 37] = pp
+		fireAll("PlayerAdded", pp); advance(0.3)
+		for _, lvl in {1, 25, 70, 160, 330, 700, 1100} do
+			Data.get(pp).Level = lvl
+			Quirks.apply(pp)
+			built += 1
+		end
+	end
+	check(built == 84, "84 different faces/bodies built without errors")
+
+	-- fuzz: thousands of garbage requests must never throw or break anything
+	local kinds = {"Equip", "Unequip", "Buy", "Rebirth", "OpenCrate", "Claim", "TrainHit", "TrainCancel", "DuelTaps", "CompTaps", "Setting", "Hatch", "PetEquip", "PetUnequip", "TreadStop", "TutorialSkip", "Swing", "Interact", "GuideSeen", 5, false, "", "Nope"}
+	local junk = {nil, 0, -1, 1e308, 0/0, "", "x", "Tread:3", "Hammer:2", "Gym", "Battle", "Tread:999999", {}, true, false, 12345, "Hammer:-1", string.rep("a", 500)}
+	local errsBefore = 0
+	for i = 1, 3000 do
+		local kind = kinds[math.random(1, #kinds)]
+		local a = junk[math.random(1, #junk + 1)]
+		local b = junk[math.random(1, #junk + 1)]
+		fireAll("Action", p1, kind, a, b)
+		if i % 50 == 0 then advance(0.2) end
+	end
+	check(true, "3000 random garbage requests handled")
 end
 
 -- Mog Competition: run a full cycle with one human

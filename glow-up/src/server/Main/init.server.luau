@@ -78,6 +78,14 @@ Data.init()
 --------------------------------------------------------------------------------
 -- Player lifecycle
 --------------------------------------------------------------------------------
+-- Runs one setup step; a failure in one system never stops the others (or the player from joining).
+local function safe(label, fn, ...)
+	local ok, err = pcall(fn, ...)
+	if not ok then
+		warn("[TrueAdam] " .. label .. " failed:", err)
+	end
+end
+
 local function onCharacter(p)
 	local char = p.Character
 	if not char then
@@ -85,24 +93,30 @@ local function onCharacter(p)
 	end
 	char:WaitForChild("HumanoidRootPart")
 	char:WaitForChild("Humanoid")
-	Stats.applyMovement(p)
-	Appearance.onCharacter(p)
-	Cosmetics.onCharacter(p)
-	Nameplate.onCharacter(p)
-	Hammers.attach(p)
-	Pets.refresh(p)
+	-- A new body is never frozen, running or training.
+	Treadmill.release(p)
+	p:SetAttribute("Running", 0)
+	p:SetAttribute("RunHeat", 0)
+	safe("movement", Stats.applyMovement, p)
+	safe("appearance", Appearance.onCharacter, p)
+	safe("cosmetics", Cosmetics.onCharacter, p)
+	safe("nameplate", Nameplate.onCharacter, p)
+	safe("hammer", Hammers.attach, p)
+	safe("pets", Pets.refresh, p)
 end
 
 local function onPlayer(p)
 	local profile = Data.load(p)
-	Stats.init(p)
-	Quests.init(p)
-	Daily.refresh(p)
-	Playtime.init(p)
-	Tutorial.init(p)
-	Store.init(p)
-	Nameplate.init(p)
-	Cosmetics.sync(p)
+	safe("stats", Stats.init, p)
+	safe("quests", Quests.init, p)
+	safe("daily", Daily.refresh, p)
+	safe("playtime", Playtime.init, p)
+	safe("tutorial", Tutorial.init, p)
+	safe("store", Store.init, p)
+	safe("nameplate", Nameplate.init, p)
+	safe("cosmetics", Cosmetics.sync, p)
+	p:SetAttribute("GuideSeen", profile.GuideSeen == true)
+	p:SetAttribute("Ready", true) -- even if a system above failed, let the player in
 
 	-- Your look keeps earning while you're away.
 	if profile.LastSeen then
@@ -116,6 +130,12 @@ local function onPlayer(p)
 
 	p.CharacterAdded:Connect(function()
 		onCharacter(p)
+	end)
+	p.CharacterRemoving:Connect(function()
+		-- dying or resetting mid-activity must never leave a stuck state behind
+		safe("leave training", Training.cancel, p)
+		Treadmill.release(p)
+		p:SetAttribute("Running", 0)
 	end)
 	if p.Character then
 		task.spawn(onCharacter, p)
@@ -235,7 +255,7 @@ end
 local SETTING_KEYS = { Music = true, Sfx = true, Duels = true, Fx = true, Voice = true }
 local budget = {}
 
-Action.OnServerEvent:Connect(function(p, kind, a, b)
+local function handleAction(p, kind, a, b)
 	if type(kind) ~= "string" or not p:GetAttribute("Ready") then
 		return
 	end
@@ -276,6 +296,20 @@ Action.OnServerEvent:Connect(function(p, kind, a, b)
 		Competition.handle(p, kind, a)
 	elseif kind == "Setting" and type(a) == "string" and SETTING_KEYS[a] then
 		Stats.setSetting(p, a, b)
+	elseif kind == "GuideSeen" then
+		local profile = Data.get(p)
+		if profile then
+			profile.GuideSeen = true
+			p:SetAttribute("GuideSeen", true)
+		end
+	end
+end
+
+-- One bad request (or one bug) must never break the next one.
+Action.OnServerEvent:Connect(function(p, kind, a, b)
+	local ok, err = pcall(handleAction, p, kind, a, b)
+	if not ok then
+		warn("[TrueAdam] action '" .. tostring(kind) .. "' failed:", err)
 	end
 end)
 

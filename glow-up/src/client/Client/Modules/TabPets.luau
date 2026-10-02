@@ -8,6 +8,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local UI = require(Shared:WaitForChild("UI"))
 local Util = require(Shared:WaitForChild("Util"))
 local Audio = require(Shared:WaitForChild("Audio"))
+local Animals = require(Shared:WaitForChild("Animals"))
 
 local player = Players.LocalPlayer
 local C = UI.Colors
@@ -125,21 +126,30 @@ function TabPets.build(parent, Action)
 			Text = "",
 			Radius = 10,
 		}, "card")
+		-- a little 3D preview of the animal
+		local view = UI.new("ViewportFrame", {
+			Position = UDim2.fromOffset(4, 2),
+			Size = UDim2.new(1, -8, 0, 44),
+			BackgroundTransparency = 1,
+			Ambient = Color3.fromRGB(190, 190, 200),
+			LightColor = Color3.fromRGB(255, 250, 240),
+		}, card)
+		pcall(function()
+			local rig = Animals.build(pet.Species)
+			rig.root.CFrame = CFrame.new(0, 0, 0)
+			rig.model.Parent = view
+			local extent = math.max(rig.def.len or rig.def.h or 2, rig.def.h or 2) * rig.scale
+			local cam = Instance.new("Camera")
+			cam.CFrame = CFrame.lookAt(Vector3.new(extent * 0.9, extent * 0.35, -extent * 1.5), Vector3.new(0, 0, 0))
+			cam.FieldOfView = 40
+			cam.Parent = view
+			view.CurrentCamera = cam
+		end)
 		UI.label(card, {
-			Position = UDim2.fromOffset(4, 4),
-			Size = UDim2.new(1, -8, 0, 28),
-			Font = UI.Fonts.Title,
-			TextSize = 22,
-			TextColor3 = pet.Color,
-			TextXAlignment = Enum.TextXAlignment.Center,
-			TextWrapped = false,
-			Text = "🐾",
-		})
-		UI.label(card, {
-			Position = UDim2.fromOffset(4, 32),
-			Size = UDim2.new(1, -8, 0, 28),
+			Position = UDim2.fromOffset(4, 46),
+			Size = UDim2.new(1, -8, 0, 14),
 			Font = UI.Fonts.Bold,
-			TextSize = 11,
+			TextSize = 10,
 			TextColor3 = color,
 			TextXAlignment = Enum.TextXAlignment.Center,
 			Text = pet.Name,

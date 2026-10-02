@@ -200,19 +200,19 @@ end
 --------------------------------------------------------------------------------
 Config.PetSlots = 3
 Config.Pets = {
-	{ Id = "cat", Name = "Chubby Cat", Rarity = "Common", Mult = 0.2, Aps = 1, Color = C(240, 190, 120), Style = "ears" },
-	{ Id = "pup", Name = "Pudgy Pup", Rarity = "Common", Mult = 0.25, Aps = 1, Color = C(200, 160, 110), Style = "floppy" },
-	{ Id = "mouse", Name = "Mirror Mouse", Rarity = "Common", Mult = 0.3, Aps = 2, Color = C(200, 205, 215), Style = "ears" },
-	{ Id = "gorilla", Name = "Gym Gorilla", Rarity = "Rare", Mult = 0.6, Aps = 5, Color = C(80, 80, 95), Style = "ears" },
-	{ Id = "owl", Name = "Mewing Owl", Rarity = "Rare", Mult = 0.7, Aps = 6, Color = C(150, 110, 80), Style = "horns" },
-	{ Id = "shark", Name = "Jaw Shark", Rarity = "Rare", Mult = 0.8, Aps = 8, Color = C(90, 150, 220), Style = "fin" },
-	{ Id = "wolf", Name = "Sigma Wolf", Rarity = "Epic", Mult = 1.5, Aps = 20, Color = C(120, 130, 160), Style = "ears" },
-	{ Id = "fox", Name = "Rizz Fox", Rarity = "Epic", Mult = 1.8, Aps = 25, Color = C(255, 140, 60), Style = "ears" },
-	{ Id = "bull", Name = "Chad Bull", Rarity = "Epic", Mult = 2.0, Aps = 30, Color = C(170, 60, 60), Style = "horns" },
-	{ Id = "lion", Name = "Alpha Lion", Rarity = "Legendary", Mult = 4, Aps = 80, Color = C(255, 190, 60), Style = "mane" },
-	{ Id = "dragon", Name = "Aura Dragon", Rarity = "Legendary", Mult = 5, Aps = 100, Color = C(120, 220, 140), Style = "horns" },
-	{ Id = "angel", Name = "True Adam Angel", Rarity = "Mythic", Mult = 10, Aps = 300, Color = C(255, 244, 200), Style = "halo" },
-	{ Id = "phoenix", Name = "Void Phoenix", Rarity = "Mythic", Mult = 12, Aps = 400, Color = C(255, 90, 170), Style = "halo" },
+	{ Id = "cat", Name = "Tabby Cat", Species = "cat", Icon = "🐱", Rarity = "Common", Mult = 0.2, Aps = 1, Color = C(240, 190, 120) },
+	{ Id = "pup", Name = "Golden Retriever", Species = "pup", Icon = "🐶", Rarity = "Common", Mult = 0.25, Aps = 1, Color = C(200, 160, 110) },
+	{ Id = "mouse", Name = "Field Mouse", Species = "mouse", Icon = "🐭", Rarity = "Common", Mult = 0.3, Aps = 2, Color = C(200, 205, 215) },
+	{ Id = "gorilla", Name = "Silverback Gorilla", Species = "gorilla", Icon = "🦍", Rarity = "Rare", Mult = 0.6, Aps = 5, Color = C(80, 80, 95) },
+	{ Id = "owl", Name = "Horned Owl", Species = "owl", Icon = "🦉", Rarity = "Rare", Mult = 0.7, Aps = 6, Color = C(150, 110, 80) },
+	{ Id = "shark", Name = "Great White Shark", Species = "shark", Icon = "🦈", Rarity = "Rare", Mult = 0.8, Aps = 8, Color = C(90, 150, 220) },
+	{ Id = "wolf", Name = "Timber Wolf", Species = "wolf", Icon = "🐺", Rarity = "Epic", Mult = 1.5, Aps = 20, Color = C(120, 130, 160) },
+	{ Id = "fox", Name = "Red Fox", Species = "fox", Icon = "🦊", Rarity = "Epic", Mult = 1.8, Aps = 25, Color = C(255, 140, 60) },
+	{ Id = "bull", Name = "Raging Bull", Species = "bull", Icon = "🐂", Rarity = "Epic", Mult = 2.0, Aps = 30, Color = C(170, 60, 60) },
+	{ Id = "lion", Name = "African Lion", Species = "lion", Icon = "🦁", Rarity = "Legendary", Mult = 4, Aps = 80, Color = C(255, 190, 60) },
+	{ Id = "dragon", Name = "Emerald Dragon", Species = "dragon", Icon = "🐉", Rarity = "Legendary", Mult = 5, Aps = 100, Color = C(120, 220, 140) },
+	{ Id = "angel", Name = "True Adam Pegasus", Species = "pegasus", Icon = "🦄", Rarity = "Mythic", Mult = 10, Aps = 300, Color = C(255, 244, 200) },
+	{ Id = "phoenix", Name = "Fire Phoenix", Species = "phoenix", Icon = "🔥", Rarity = "Mythic", Mult = 12, Aps = 400, Color = C(255, 90, 170) },
 }
 Config.PetById = {}
 for _, pet in Config.Pets do

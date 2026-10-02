@@ -14,6 +14,622 @@
       </Properties>
       <Item class="ModuleScript" referent="3">
         <Properties>
+          <string name="Name">Animals</string>
+          <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: realistic animals built from parts. Each animal is a small skeleton of joints (neck, tail
+-- chain, legs, wings...) with real proportions, fur patterns, eyes, ears and whiskers, and it animates: legs walk
+-- in diagonal pairs, tails sway, wings flap, chests breathe. Build one with Animals.build(speciesId), then call
+-- Animals.animate(rig, dt, speed) every frame (speed in studs/second).
+local Animals = {}
+
+local SP = Enum.Material.SmoothPlastic
+local BALL, BLOCK, CYL = Enum.PartType.Ball, Enum.PartType.Block, Enum.PartType.Cylinder
+local V3, C3, CF = Vector3.new, Color3.fromRGB, CFrame.new
+local ANG = CFrame.Angles
+local WHITE, BLACK = C3(255, 255, 255), C3(18, 16, 18)
+
+--------------------------------------------------------------------------------
+-- Species definitions
+--------------------------------------------------------------------------------
+-- kind: quad (cats, dogs, horses...), bird, fish, ape.  Lengths are in studs at scale 1.
+Animals.Species = {
+	cat = { kind = "quad", scale = 1.25, len = 1.9, h = 0.78, w = 0.62, legH = 0.85, legT = 0.2, neck = 0.25, head = V3(0.74, 0.66, 0.68), snout = V3(0.24, 0.2, 0.2), ears = "point", earSize = 0.36, tail = "long", tailLen = 1.9, main = C3(222, 128, 48), belly = C3(250, 232, 205), accent = C3(246, 214, 176), dark = C3(120, 56, 20), eye = C3(120, 190, 70), nose = C3(236, 150, 150), pattern = "tabby", whiskers = true, slit = true },
+	pup = { kind = "quad", scale = 1.2, len = 2.3, h = 0.98, w = 0.78, legH = 1.1, legT = 0.28, neck = 0.3, head = V3(0.82, 0.76, 0.8), snout = V3(0.44, 0.34, 0.5), ears = "floppy", earSize = 0.5, tail = "feather", tailLen = 1.5, main = C3(224, 168, 82), belly = C3(242, 206, 140), accent = C3(240, 196, 120), dark = C3(160, 100, 40), eye = C3(80, 48, 24), nose = BLACK, pattern = "none", tongue = true },
+	mouse = { kind = "quad", scale = 1, len = 1.15, h = 0.5, w = 0.42, legH = 0.34, legT = 0.1, neck = 0.1, head = V3(0.42, 0.38, 0.5), snout = V3(0.18, 0.16, 0.3), ears = "round", earSize = 0.34, tail = "thin", tailLen = 1.4, main = C3(168, 168, 178), belly = C3(236, 220, 220), accent = C3(240, 160, 170), dark = C3(120, 120, 130), eye = BLACK, nose = C3(240, 140, 150), pattern = "none", whiskers = true, buckTeeth = true },
+	wolf = { kind = "quad", scale = 1.3, len = 2.7, h = 1.1, w = 0.8, legH = 1.5, legT = 0.28, neck = 0.4, head = V3(0.8, 0.72, 0.78), snout = V3(0.42, 0.3, 0.62), ears = "point", earSize = 0.4, tail = "bushy", tailLen = 1.7, main = C3(128, 130, 138), belly = C3(206, 206, 212), accent = C3(70, 72, 80), dark = C3(54, 56, 62), eye = C3(220, 170, 40), nose = BLACK, pattern = "saddle", fluff = true },
+	fox = { kind = "quad", scale = 1.2, len = 2.1, h = 0.82, w = 0.62, legH = 1.05, legT = 0.2, neck = 0.3, head = V3(0.66, 0.6, 0.7), snout = V3(0.3, 0.22, 0.54), ears = "tall", earSize = 0.55, tail = "bushy", tailLen = 1.9, main = C3(226, 108, 34), belly = C3(250, 244, 236), accent = C3(30, 26, 26), dark = C3(30, 26, 26), eye = C3(150, 96, 30), nose = BLACK, pattern = "socks", tailTip = C3(252, 250, 246), fluff = true },
+	lion = { kind = "quad", scale = 1.3, len = 3.0, h = 1.3, w = 1.0, legH = 1.55, legT = 0.38, neck = 0.3, head = V3(0.95, 0.85, 0.9), snout = V3(0.5, 0.36, 0.5), ears = "round", earSize = 0.38, tail = "tuft", tailLen = 2.3, main = C3(212, 164, 98), belly = C3(236, 208, 160), accent = C3(190, 140, 78), dark = C3(110, 62, 28), eye = C3(150, 100, 30), nose = C3(90, 50, 50), pattern = "none", mane = C3(118, 64, 26) },
+	bull = { kind = "quad", scale = 1.2, len = 3.1, h = 1.7, w = 1.25, legH = 1.4, legT = 0.4, neck = 0.55, head = V3(0.9, 0.95, 1.1), snout = V3(0.62, 0.5, 0.5), ears = "side", earSize = 0.5, tail = "tuft", tailLen = 1.8, main = C3(104, 52, 38), belly = C3(150, 96, 72), accent = C3(60, 36, 30), dark = C3(40, 26, 22), eye = BLACK, nose = C3(224, 170, 170), pattern = "none", horns = C3(244, 232, 204), hump = true, nosePatch = C3(244, 240, 232) },
+	dragon = { kind = "quad", scale = 1.25, len = 3.2, h = 1.3, w = 1.0, legH = 1.2, legT = 0.38, neck = 0.8, head = V3(0.85, 0.7, 1.0), snout = V3(0.5, 0.34, 0.6), ears = "none", earSize = 0, tail = "spiked", tailLen = 3.2, main = C3(76, 168, 92), belly = C3(240, 218, 130), accent = C3(40, 100, 56), dark = C3(32, 84, 48), eye = C3(255, 190, 40), nose = C3(40, 90, 50), pattern = "scales", horns = C3(246, 230, 190), wings = C3(150, 70, 150), spikes = C3(240, 220, 160), slit = true },
+	pegasus = { kind = "quad", scale = 1.25, len = 3.2, h = 1.35, w = 0.9, legH = 2.2, legT = 0.3, neck = 1.0, head = V3(0.72, 0.8, 1.15), snout = V3(0.4, 0.4, 0.66), ears = "tall", earSize = 0.36, tail = "flow", tailLen = 2.6, main = C3(246, 246, 250), belly = C3(250, 250, 255), accent = C3(220, 224, 236), dark = C3(160, 190, 236), eye = C3(60, 90, 160), nose = C3(236, 190, 196), pattern = "none", wings = C3(252, 252, 255), mane = C3(150, 196, 255), hooves = C3(214, 214, 226) },
+	owl = { kind = "bird", scale = 1.3, h = 1.5, w = 1.2, main = C3(138, 100, 70), belly = C3(228, 206, 170), accent = C3(96, 66, 44), dark = C3(70, 48, 32), face = C3(236, 214, 182), eye = C3(250, 190, 30), beak = C3(230, 150, 50), tufts = true, float = 0.2 },
+	phoenix = { kind = "bird", scale = 1.5, h = 1.5, w = 1.0, main = C3(236, 70, 40), belly = C3(255, 170, 50), accent = C3(255, 220, 90), dark = C3(170, 30, 30), face = C3(255, 200, 80), eye = C3(255, 250, 200), beak = C3(255, 200, 60), crest = true, fireTail = true, float = 3.2 },
+	shark = { kind = "fish", scale = 1.15, len = 3.6, h = 1.0, main = C3(104, 122, 146), belly = C3(240, 244, 248), accent = C3(80, 96, 120), dark = C3(50, 62, 80), eye = BLACK, float = 3.0 },
+	gorilla = { kind = "ape", scale = 1.2, h = 1.6, w = 1.5, main = C3(52, 54, 60), belly = C3(40, 40, 46), accent = C3(122, 124, 132), dark = C3(26, 26, 30), face = C3(36, 34, 36), eye = C3(90, 50, 30) },
+}
+
+--------------------------------------------------------------------------------
+-- Rig helpers
+--------------------------------------------------------------------------------
+local function scaledCF(cf, s)
+	return CF(cf.Position * s) * (cf - cf.Position)
+end
+
+local function newRig(def)
+	local model = Instance.new("Model")
+	model.Name = "Pet"
+	local root = Instance.new("Part")
+	root.Name = "Root"
+	root.Size = V3(0.4, 0.4, 0.4)
+	root.Transparency = 1
+	root.Anchored = true
+	root.CanCollide, root.CanQuery, root.CanTouch = false, false, false
+	root.Parent = model
+	model.PrimaryPart = root
+	return { model = model, root = root, def = def, scale = def.scale, joints = {}, phase = 0, t = math.random() * 10, blink = 0 }
+end
+
+-- Adds a part welded to `parent` at offset `cf` (in the parent's space, before scaling).
+local function add(rig, parent, name, shape, size, color, cf, extra)
+	local class = (extra and extra.class) or "Part"
+	local p = Instance.new(class)
+	p.Name = name
+	if class == "Part" then
+		p.Shape = shape or BLOCK
+	end
+	p.Size = size * rig.scale
+	p.Color = color
+	p.Material = (extra and extra.material) or SP
+	p.Anchored = false
+	p.CanCollide, p.CanQuery, p.CanTouch, p.Massless, p.CastShadow = false, false, false, true, false
+	p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+	if extra and extra.transparency then
+		p.Transparency = extra.transparency
+	end
+	local weld = Instance.new("Weld")
+	weld.Part0 = parent
+	weld.Part1 = p
+	weld.C0 = scaledCF(cf, rig.scale)
+	weld.Parent = p
+	p.Parent = rig.model
+	return p
+end
+
+local function joint(rig, name, parent, cf)
+	local p = add(rig, parent, name, BLOCK, V3(0.05, 0.05, 0.05), WHITE, cf, { transparency = 1 })
+	rig.joints[name] = { weld = p:FindFirstChildOfClass("Weld"), base = p:FindFirstChildOfClass("Weld").C0, part = p }
+	return p
+end
+
+local function pose(rig, name, delta)
+	local j = rig.joints[name]
+	if j then
+		j.weld.C0 = j.base * delta
+	end
+end
+
+local function eye(rig, parent, x, y, z, size, color, slit)
+	-- eyeball, coloured iris, pupil and a highlight
+	add(rig, parent, "Eye", BALL, V3(size, size * 0.9, size * 0.6), C3(236, 232, 226), CF(x, y, z))
+	add(rig, parent, "Iris", BALL, V3(size * 0.78, size * 0.78, size * 0.4), color, CF(x, y, z - size * 0.18))
+	if slit then
+		add(rig, parent, "Pupil", BLOCK, V3(size * 0.16, size * 0.7, size * 0.1), BLACK, CF(x, y, z - size * 0.34))
+	else
+		add(rig, parent, "Pupil", BALL, V3(size * 0.4, size * 0.4, size * 0.2), BLACK, CF(x, y, z - size * 0.34))
+	end
+	add(rig, parent, "Glint", BALL, V3(size * 0.14, size * 0.14, size * 0.08), WHITE, CF(x + size * 0.14, y + size * 0.16, z - size * 0.4))
+end
+
+--------------------------------------------------------------------------------
+-- Quadruped (cat, dog, wolf, fox, lion, bull, mouse, dragon, pegasus)
+--------------------------------------------------------------------------------
+local function tailChain(rig, def, parent, base)
+	local kind = def.tail
+	local segs = (kind == "thin" and 6) or (kind == "long" and 5) or (kind == "spiked" and 6) or (kind == "flow" and 5) or 4
+	local len = def.tailLen
+	local prev = parent
+	local x, y, z = base.X, base.Y, base.Z
+	for i = 1, segs do
+		local t = (i - 1) / (segs - 1)
+		local segLen = len / segs
+		local j = joint(rig, "Tail" .. i, prev, i == 1 and CF(x, y, z) * ANG(math.rad(kind == "feather" and -25 or (kind == "long" and -35 or (kind == "bushy" and 15 or 10))), 0, 0) or CF(0, 0, segLen))
+		local thick
+		if kind == "thin" then
+			thick = 0.07 * (1.2 - t * 0.5)
+		elseif kind == "bushy" then
+			thick = def.w * (0.28 + 0.38 * math.sin(t * math.pi * 0.85 + 0.2))
+		elseif kind == "feather" or kind == "flow" then
+			thick = def.w * (0.22 + 0.2 * math.sin(t * math.pi))
+		elseif kind == "spiked" then
+			thick = def.w * (0.34 - 0.26 * t)
+		else
+			thick = def.w * (kind == "tuft" and 0.14 or 0.2) * (1 - t * 0.35)
+		end
+		local color = def.main
+		if i == segs and def.tailTip then
+			color = def.tailTip
+		elseif kind == "tuft" and i == segs then
+			color = def.mane or def.dark
+		elseif kind == "flow" then
+			color = def.mane
+		elseif def.pattern == "tabby" and i % 2 == 0 then
+			color = def.dark
+		elseif kind == "spiked" then
+			color = i % 2 == 0 and def.accent or def.main
+		end
+		add(rig, j, "TailSeg", BALL, V3(thick, thick, segLen * 1.45 + (kind == "tuft" and i == segs and 0.2 or 0)), color, CF(0, 0, segLen * 0.5))
+		if kind == "spiked" and i < segs then
+			add(rig, j, "TailSpike", BLOCK, V3(0.08, thick * 1.2, 0.14), def.spikes, CF(0, thick * 0.55, segLen * 0.5), { class = "WedgePart" })
+		end
+		prev = j
+	end
+	if kind == "spiked" then
+		add(rig, prev, "TailBlade", BLOCK, V3(0.1, 0.9, 0.7), def.spikes, CF(0, 0, 0.6) * ANG(0, 0, 0), { class = "WedgePart" })
+	end
+end
+
+local function leg(rig, def, parent, name, x, y, z, front)
+	local legH, t = def.legH, def.legT
+	local hip = joint(rig, name, parent, CF(x, y, z))
+	local uLen, lLen, pLen = legH * 0.5, legH * 0.42, legH * 0.1
+	-- hind legs bend like a real animal's: thigh forward, hock back. Front legs are straighter.
+	local a1 = front and 0.05 or 0.5
+	local a2 = front and -0.05 or -0.9
+	local thigh = joint(rig, name .. "Th", hip, CF(0, 0, 0) * ANG(a1, 0, 0))
+	local tw = t * (front and 1.25 or 1.7)
+	add(rig, thigh, "Thigh", BALL, V3(tw, uLen * 1.25, tw * 1.05), def.main, CF(0, -uLen * 0.46, 0))
+	local shin = joint(rig, name .. "Sh", thigh, CF(0, -uLen * 0.9, 0) * ANG(a2, 0, 0))
+	local shinColor = def.pattern == "socks" and def.accent or def.main
+	add(rig, shin, "Shin", CYL, V3(lLen * 1.05, t * 0.8, t * 0.8), shinColor, CF(0, -lLen * 0.5, 0) * ANG(0, 0, math.pi / 2))
+	add(rig, shin, "Knee", BALL, V3(t * 0.95, t * 0.95, t * 0.95), shinColor, CF(0, 0, 0))
+	local foot = joint(rig, name .. "Pw", shin, CF(0, -lLen * 0.95, 0) * ANG(-(a1 + a2), 0, 0))
+	if def.hooves then
+		add(rig, foot, "Hoof", BLOCK, V3(t * 0.95, pLen * 1.4, t * 1.05), def.hooves, CF(0, -pLen * 0.6, -t * 0.05))
+	else
+		local pawColor = (def.pattern == "socks") and def.accent or def.belly
+		add(rig, foot, "Paw", BALL, V3(t * 1.15, pLen * 1.3 + t * 0.3, t * 1.75), pawColor, CF(0, -pLen * 0.35, -t * 0.35))
+		for i = -1, 1 do
+			add(rig, foot, "Claw", BLOCK, V3(0.028, 0.028, 0.07), def.slit and def.horns or C3(232, 228, 216), CF(i * t * 0.3, -pLen * 0.5, -t * 1.2))
+		end
+	end
+end
+
+local function earShape(rig, def, headPart, side, hw, hh, hl)
+	local s = def.earSize
+	local kind = def.ears
+	local name = side < 0 and "EarL" or "EarR"
+	if kind == "point" or kind == "tall" then
+		local h = s * (kind == "tall" and 1.15 or 1)
+		local j = joint(rig, name, headPart, CF(side * hw * 0.3, hh * 0.38, hl * 0.06) * ANG(0, 0, side * -0.18))
+		-- a wedge turned so its triangle faces forward; the tall edge is on the inner side
+		add(rig, j, "Ear", BLOCK, V3(s * 0.2, h, s * 0.9), def.pattern == "socks" and def.accent or def.main, CF(0, h * 0.5, 0) * ANG(0, -side * math.pi / 2, 0), { class = "WedgePart" })
+		add(rig, j, "EarIn", BLOCK, V3(s * 0.08, h * 0.72, s * 0.55), def.nose == BLACK and def.belly or def.nose, CF(0, h * 0.4, -s * 0.1) * ANG(0, -side * math.pi / 2, 0), { class = "WedgePart" })
+	elseif kind == "floppy" then
+		local j = joint(rig, name, headPart, CF(side * hw * 0.42, hh * 0.28, hl * 0.04))
+		add(rig, j, "Ear", BALL, V3(s * 0.22, s * 1.25, s * 0.8), def.dark, CF(side * s * 0.14, -s * 0.5, 0) * ANG(0, 0, side * 0.25))
+	elseif kind == "round" then
+		local j = joint(rig, name, headPart, CF(side * hw * 0.34, hh * 0.42, hl * 0.05))
+		add(rig, j, "Ear", CYL, V3(s * 0.12, s, s), def.main, CF(side * s * 0.2, s * 0.35, 0) * ANG(0, 0, 0))
+		add(rig, j, "EarIn", CYL, V3(s * 0.08, s * 0.72, s * 0.72), def.accent, CF(side * s * 0.2, s * 0.35, -s * 0.07) * ANG(0, 0, 0))
+	elseif kind == "side" then
+		local j = joint(rig, name, headPart, CF(side * hw * 0.5, hh * 0.18, hl * 0.12))
+		add(rig, j, "Ear", BALL, V3(s * 0.9, s * 0.26, s * 0.5), def.main, CF(side * s * 0.4, 0, 0) * ANG(0, 0, side * -0.25))
+	end
+end
+
+local function quadruped(rig, def)
+	local len, h, w = def.len, def.h, def.w
+	local root = rig.root
+	local legH = def.legH
+	rig.ground = legH * 1.02 + h * 0.26 -- distance from the root down to the floor
+	-- body: chest, belly, hindquarters (overlapping ellipsoids give a muscular shape)
+	add(rig, root, "Chest", BALL, V3(w * 1.02, h * 1.05, len * 0.52), def.main, CF(0, h * 0.04, -len * 0.2))
+	add(rig, root, "Hips", BALL, V3(w * 0.96, h * 0.98, len * 0.5), def.main, CF(0, 0, len * 0.22))
+	add(rig, root, "Waist", CYL, V3(len * 0.5, h * 0.9, w * 0.88), def.main, CF(0, 0, 0) * ANG(0, math.pi / 2, math.pi / 2))
+	add(rig, root, "Belly", BALL, V3(w * 0.74, h * 0.5, len * 0.78), def.belly, CF(0, -h * 0.3, 0))
+	add(rig, root, "Back", BALL, V3(w * 0.72, h * 0.28, len * 0.7), def.main, CF(0, h * 0.28, 0.05))
+	if def.pattern == "saddle" then
+		add(rig, root, "Saddle", BALL, V3(w * 0.86, h * 0.5, len * 0.62), def.accent, CF(0, h * 0.14, 0.02))
+	end
+	if def.hump then
+		add(rig, root, "Hump", BALL, V3(w * 0.95, h * 0.7, len * 0.3), def.main, CF(0, h * 0.5, -len * 0.26))
+	end
+	if def.mane and def.kind == "quad" and def.ears == "round" and def.tail == "tuft" then
+		add(rig, root, "ChestFluff", BALL, V3(w * 1.12, h * 1.1, len * 0.36), def.mane, CF(0, h * 0.05, -len * 0.34))
+	end
+	-- markings
+	if def.pattern == "tabby" then
+		for i = 1, 6 do
+			add(rig, root, "Stripe", BLOCK, V3(w * 0.86, h * 0.07, len * 0.045), def.dark, CF(0, h * 0.39, -len * 0.34 + i * len * 0.115) * ANG(0, 0, 0))
+			add(rig, root, "FlankStripe", BLOCK, V3(w * 1.02, h * 0.38, len * 0.035), def.dark, CF(0, h * 0.04, -len * 0.3 + i * len * 0.11) * ANG(0, 0, 0), { transparency = 0.25 })
+		end
+	elseif def.pattern == "scales" then
+		for i = 1, 7 do
+			add(rig, root, "BellyPlate", BLOCK, V3(w * 0.5, h * 0.06, len * 0.08), def.belly, CF(0, -h * 0.52, -len * 0.38 + i * len * 0.1))
+			add(rig, root, "ScalePatch", BALL, V3(w * 0.3, h * 0.16, len * 0.1), def.accent, CF((i % 2 == 0 and 1 or -1) * w * 0.32, h * 0.2, -len * 0.36 + i * len * 0.11))
+		end
+	end
+	if def.nosePatch then
+		add(rig, root, "ChestPatch", BALL, V3(w * 0.5, h * 0.4, len * 0.2), def.belly, CF(0, -h * 0.18, -len * 0.4))
+	end
+	if def.spikes then
+		for i = 1, 8 do
+			local sz = 0.34 - math.abs(i - 4) * 0.025
+			add(rig, root, "BackSpike", BLOCK, V3(0.1, sz, 0.2), def.spikes, CF(0, h * 0.42 + sz * 0.3, -len * 0.4 + i * len * 0.1), { class = "WedgePart" })
+		end
+	end
+
+	-- legs: front pair slightly forward, hind pair back (rear legs have big thighs)
+	local fz, bz = -len * 0.3, len * 0.32
+	local lx = w * 0.32
+	local hindDrop = legH * 0.1 -- bent hind legs are shorter, so their hips sit lower
+	leg(rig, def, root, "LegFL", -lx, -h * 0.26, fz, true)
+	leg(rig, def, root, "LegFR", lx, -h * 0.26, fz, true)
+	leg(rig, def, root, "LegBL", -lx, -h * 0.26 - hindDrop, bz, false)
+	leg(rig, def, root, "LegBR", lx, -h * 0.26 - hindDrop, bz, false)
+
+	-- neck and head: the neck leans forward and up, the head is levelled again at its end
+	local neckLen = def.neck
+	local pitch = math.rad(28 + neckLen * 22)
+	local L = h * (0.38 + neckLen * 0.95)
+	local neck = joint(rig, "Neck", root, CF(0, h * 0.3, -len * 0.38) * ANG(pitch, 0, 0))
+	add(rig, neck, "NeckBody", CYL, V3(L * 1.15, w * 0.6, w * 0.6), def.main, CF(0, 0, -L * 0.5) * ANG(0, math.pi / 2, 0))
+	add(rig, neck, "NeckBase", BALL, V3(w * 0.78, w * 0.8, w * 0.8), def.main, CF(0, -0.05, -L * 0.1))
+	if def.mane and def.ears == "round" and def.tail == "tuft" then
+		-- lion's mane: a thick ring of fur around the head and shoulders
+		for i = 1, 12 do
+			local a2 = (i / 12) * math.pi * 2
+			add(rig, neck, "Mane", BALL, V3(0.7, 0.7, 0.7), i % 2 == 0 and def.mane or def.mane:Lerp(BLACK, 0.2), CF(math.cos(a2) * def.head.Y * 0.62, math.sin(a2) * def.head.Y * 0.62, -L - 0.1))
+		end
+		add(rig, neck, "ManeBack", BALL, V3(def.head.Y * 1.45, def.head.Y * 1.45, def.head.Z * 0.7), def.mane, CF(0, 0, -L + 0.1))
+	elseif def.mane then
+		-- flowing mane along the neck (pegasus)
+		for i = 1, 6 do
+			add(rig, neck, "Mane", BALL, V3(0.16, 0.5, 0.32), def.mane, CF(0, w * 0.32, -i * L * 0.15) * ANG(0.3, 0, 0))
+		end
+	end
+	local hd = V3(def.head.X, def.head.Y, def.head.Z)
+	local head = joint(rig, "Head", neck, CF(0, 0, -L) * ANG(-pitch * 0.85, 0, 0))
+	local hw, hh, hl = hd.X, hd.Y, hd.Z
+	add(rig, head, "Skull", BALL, V3(hw, hh, hl), def.main, CF(0, 0, 0))
+	local sn = def.snout
+	-- muzzle: upper snout, lower jaw, nose, mouth line
+	add(rig, head, "Muzzle", BALL, V3(sn.X * 1.6, sn.Y * 1.5, sn.Z * 1.7), def.pattern == "scales" and def.main or def.belly == WHITE and def.main or (def.nosePatch and def.nosePatch) or (def.pattern == "none" and def.main) or def.belly, CF(0, -hh * 0.16, -hl * 0.38 - sn.Z * 0.2))
+	add(rig, head, "Jaw", BALL, V3(sn.X * 1.3, sn.Y * 0.9, sn.Z * 1.5), def.belly, CF(0, -hh * 0.3, -hl * 0.34 - sn.Z * 0.1))
+	local tipZ = -hl * 0.38 - sn.Z * 1.05
+	add(rig, head, "Nose", BALL, V3(sn.X * 0.7, sn.Y * 0.55, sn.Y * 0.5), def.nose, CF(0, -hh * 0.08, tipZ))
+	add(rig, head, "Mouth", BLOCK, V3(sn.X * 1.25, 0.03, sn.Z * 1.1), BLACK, CF(0, -hh * 0.27, tipZ + sn.Z * 0.55))
+	if def.tongue then
+		add(rig, head, "Tongue", BALL, V3(sn.X * 0.6, 0.06, sn.Z * 0.9), C3(240, 110, 130), CF(0, -hh * 0.3, tipZ + sn.Z * 0.45))
+	end
+	if def.buckTeeth then
+		add(rig, head, "Teeth", BLOCK, V3(0.1, 0.12, 0.04), C3(250, 248, 238), CF(0, -hh * 0.32, tipZ + 0.02))
+	end
+	if def.pattern == "tabby" then
+		for i = -1, 1 do
+			add(rig, head, "ForeheadMark", BLOCK, V3(0.04, hh * 0.22, 0.03), def.dark, CF(i * hw * 0.13, hh * 0.3, -hl * 0.4))
+		end
+		for side = -1, 1, 2 do
+			add(rig, head, "CheekStripe", BLOCK, V3(hw * 0.2, 0.035, 0.03), def.dark, CF(side * hw * 0.42, -hh * 0.08, -hl * 0.3) * ANG(0, 0, side * 0.2))
+		end
+	elseif def.pattern == "saddle" or def.pattern == "socks" then
+		add(rig, head, "FaceMask", BALL, V3(hw * 0.7, hh * 0.5, hl * 0.4), def.belly, CF(0, -hh * 0.2, -hl * 0.34))
+	end
+	if def.nosePatch then
+		add(rig, head, "NosePatch", BALL, V3(sn.X * 1.7, sn.Y * 1.5, sn.Z * 0.7), def.nosePatch, CF(0, -hh * 0.1, -hl * 0.38 - sn.Z * 0.6))
+	end
+	-- eyes + brow ridge
+	for side = -1, 1, 2 do
+		local ex = side * hw * 0.3
+		local es = math.max(0.1, hw * 0.26)
+		eye(rig, head, ex, hh * 0.12, -hl * 0.36, es, def.eye, def.slit)
+		add(rig, head, "Brow", BLOCK, V3(es * 1.3, es * 0.22, es * 0.5), def.dark, CF(ex, hh * 0.12 + es * 0.55, -hl * 0.34) * ANG(0, 0, side * -0.25))
+		earShape(rig, def, head, side, hw, hh, hl)
+	end
+	if def.horns then
+		for side = -1, 1, 2 do
+			if def.ears == "side" then
+				-- bull horns: out, then up and forward
+				local h1 = joint(rig, side < 0 and "HornL" or "HornR", head, CF(side * hw * 0.5, hh * 0.32, hl * 0.02))
+				add(rig, h1, "HornBase", CYL, V3(0.5, 0.2, 0.2), def.horns, CF(side * 0.22, 0, 0))
+				add(rig, h1, "HornMid", CYL, V3(0.55, 0.15, 0.15), def.horns, CF(side * 0.58, 0.14, 0) * ANG(0, 0, side * 0.6))
+				add(rig, h1, "HornTip", CYL, V3(0.45, 0.1, 0.1), C3(60, 50, 44), CF(side * 0.8, 0.52, -0.05) * ANG(0, 0, side * 1.2))
+			else
+				-- dragon horns: swept back
+				add(rig, head, "Horn", BLOCK, V3(0.14, 0.14, 0.7), def.horns, CF(side * hw * 0.3, hh * 0.5, hl * 0.2) * ANG(math.rad(-40), 0, 0), { class = "WedgePart" })
+			end
+		end
+	end
+	if def.fluff then
+		for side = -1, 1, 2 do
+			add(rig, head, "CheekFur", BALL, V3(hw * 0.4, hh * 0.5, hl * 0.4), def.belly, CF(side * hw * 0.38, -hh * 0.22, -hl * 0.08))
+		end
+	end
+	if def.whiskers then
+		for side = -1, 1, 2 do
+			for i = -1, 1 do
+				add(rig, head, "Whisker", BLOCK, V3(sn.X * 2.2, 0.012, 0.012), C3(244, 244, 244), CF(side * (sn.X * 1.7), -hh * 0.18 + i * 0.045, tipZ + sn.Z * 0.5) * ANG(0, 0, side * (0.12 - i * 0.09)))
+			end
+		end
+	end
+
+	-- wings (dragon, pegasus)
+	if def.wings then
+		for side = -1, 1, 2 do
+			local name = side < 0 and "WingL" or "WingR"
+			local wj = joint(rig, name, root, CF(side * w * 0.4, h * 0.42, -len * 0.14))
+			local span = len * 0.9
+			if def.pattern == "scales" then
+				-- bat-style: arm bone with fingers and a membrane
+				add(rig, wj, "WingArm", CYL, V3(span * 0.55, 0.14, 0.14), def.main, CF(side * span * 0.28, 0.1, 0))
+				add(rig, wj, "WingMembrane", BLOCK, V3(span * 0.95, 0.04, len * 0.55), def.wings, CF(side * span * 0.5, 0, len * 0.2), { class = "Part", transparency = 0.1 })
+				for i = 1, 3 do
+					add(rig, wj, "WingFinger", BLOCK, V3(span * 0.8, 0.07, 0.07), def.main, CF(side * span * 0.5, 0.03, len * (0.04 + i * 0.12)) * ANG(0, side * -0.25 * i, 0))
+				end
+			else
+				-- feathered wing: a row of long feathers fanning out
+				for i = 1, 7 do
+					local fl = span * (0.55 + 0.07 * (7 - i) * 0.5)
+					add(rig, wj, "Feather", BALL, V3(fl, 0.07, 0.34), def.wings, CF(side * fl * 0.5, 0.02 * i, len * 0.04 * (i - 2)) * ANG(0, side * -0.14 * (i - 3), side * 0.18))
+				end
+				add(rig, wj, "WingBase", BALL, V3(span * 0.4, 0.2, 0.5), def.wings, CF(side * span * 0.16, 0.08, 0))
+			end
+			-- wings rest folded back by default (they open when flapping)
+			rig.joints[name].base = rig.joints[name].weld.C0
+		end
+	end
+
+	-- tail
+	tailChain(rig, def, root, V3(0, h * 0.22, len * 0.47))
+	rig.legs = { FL = "LegFL", FR = "LegFR", BL = "LegBL", BR = "LegBR" }
+	rig.gaitAmp = math.clamp(0.45 + legH * 0.12, 0.5, 0.8)
+end
+
+--------------------------------------------------------------------------------
+-- Birds (owl, phoenix)
+--------------------------------------------------------------------------------
+local function bird(rig, def)
+	local h, w = def.h, def.w
+	local root = rig.root
+	rig.ground = h * 0.8 + def.float
+	add(rig, root, "Body", BALL, V3(w, h, w * 0.85), def.main, CF(0, 0, 0))
+	add(rig, root, "Breast", BALL, V3(w * 0.78, h * 0.8, w * 0.5), def.belly, CF(0, -h * 0.08, -w * 0.28))
+	for i = 1, 7 do
+		-- chest feather scallops
+		add(rig, root, "Scallop", BALL, V3(w * 0.12, h * 0.07, 0.05), def.dark, CF(((i % 3) - 1) * w * 0.16, h * (0.18 - math.floor((i - 1) / 3) * 0.2), -w * 0.5), { transparency = 0.2 })
+	end
+	local head = joint(rig, "Head", root, CF(0, h * 0.5, -w * 0.1))
+	add(rig, head, "Skull", BALL, V3(w * 0.88, w * 0.8, w * 0.8), def.main, CF(0, h * 0.1, 0))
+	add(rig, head, "FaceDisc", BALL, V3(w * 0.78, w * 0.66, w * 0.2), def.face, CF(0, h * 0.1, -w * 0.32))
+	for side = -1, 1, 2 do
+		add(rig, head, "EyeSocket", BALL, V3(w * 0.3, w * 0.3, w * 0.12), def.dark, CF(side * w * 0.2, h * 0.14, -w * 0.4))
+		eye(rig, head, side * w * 0.2, h * 0.14, -w * 0.44, w * 0.26, def.eye, false)
+		if def.tufts then
+			add(rig, head, "Tuft", BLOCK, V3(w * 0.14, w * 0.34, w * 0.14), def.accent, CF(side * w * 0.26, h * 0.1 + w * 0.4, -w * 0.05) * ANG(0, 0, side * -0.3), { class = "WedgePart" })
+		end
+	end
+	add(rig, head, "Beak", BLOCK, V3(w * 0.14, w * 0.2, w * 0.24), def.beak, CF(0, h * 0.05, -w * 0.52) * ANG(math.rad(-10), 0, 0), { class = "WedgePart" })
+	if def.crest then
+		for i = 1, 4 do
+			add(rig, head, "Crest", BLOCK, V3(0.08, w * (0.5 - i * 0.06), 0.16), i % 2 == 0 and def.accent or def.main, CF(0, h * 0.22 + w * 0.3, w * (i * 0.1 - 0.15)) * ANG(math.rad(i * 14), 0, 0), { class = "WedgePart" })
+		end
+	end
+	-- wings: a row of feathers that flap
+	for side = -1, 1, 2 do
+		local name = side < 0 and "WingL" or "WingR"
+		local wj = joint(rig, name, root, CF(side * w * 0.46, h * 0.18, 0))
+		local span = h * 1.5
+		for i = 1, 8 do
+			local fl = span * (0.5 + 0.06 * (8 - i) * 0.5)
+			local color = (def.fireTail and (i % 2 == 0 and def.accent or def.main)) or (i % 2 == 0 and def.accent or def.main)
+			add(rig, wj, "Feather", BALL, V3(fl, 0.06, 0.3), color, CF(side * fl * 0.5, -0.03 * i, 0.12 * (i - 3)) * ANG(0, side * -0.1 * (i - 3), side * 0.1))
+		end
+		add(rig, wj, "WingBase", BALL, V3(span * 0.34, 0.2, 0.5), def.main, CF(side * span * 0.14, 0, 0))
+	end
+	-- legs + talons
+	for side = -1, 1, 2 do
+		local lj = joint(rig, side < 0 and "LegL" or "LegR", root, CF(side * w * 0.2, -h * 0.46, 0))
+		add(rig, lj, "Leg", CYL, V3(h * 0.26, 0.07, 0.07), def.beak, CF(0, -h * 0.12, 0) * ANG(0, 0, math.pi / 2))
+		for i = -1, 1 do
+			add(rig, lj, "Talon", BLOCK, V3(0.04, 0.04, 0.2), def.beak, CF(i * 0.07, -h * 0.26, -0.1) * ANG(0, i * 0.3, 0))
+		end
+	end
+	-- tail feathers
+	local tailSegs = def.fireTail and 7 or 4
+	for i = 1, tailSegs do
+		local len = def.fireTail and (h * (0.9 + i * 0.2)) or h * 0.5
+		local spread = (i - (tailSegs + 1) / 2) * (def.fireTail and 0.14 or 0.2)
+		local j = joint(rig, "Tail" .. i, root, CF(0, -h * 0.28, w * 0.36) * ANG(math.rad(-10), spread, 0))
+		local color = def.fireTail and ({ def.main, def.belly, def.accent })[(i % 3) + 1] or (i % 2 == 0 and def.dark or def.main)
+		add(rig, j, "TailFeather", BALL, V3(0.2, 0.05, len), color, CF(0, 0, len * 0.5))
+		if def.fireTail then
+			add(rig, j, "TailFlame", BLOCK, V3(0.1, 0.05, len * 0.4), def.accent, CF(0, 0, len * 1.02), { class = "WedgePart" })
+		end
+	end
+	rig.isBird = true
+end
+
+--------------------------------------------------------------------------------
+-- Fish (shark)
+--------------------------------------------------------------------------------
+local function fish(rig, def)
+	local len, h = def.len, def.h
+	local root = rig.root
+	rig.ground = def.float + h * 0.6
+	local segs = 6
+	local prev = root
+	local zStep = len / segs
+	for i = 1, segs do
+		local t = (i - 1) / (segs - 1)
+		-- thickest just behind the head, tapering to the tail
+		local thick = h * (0.45 + 0.55 * math.sin(math.min(1, (t + 0.2) / 0.9) * math.pi * 0.8))
+		if i == 1 then
+			thick = h * 0.8
+		end
+		local j = joint(rig, "Body" .. i, prev, CF(0, 0, i == 1 and -len * 0.25 or zStep))
+		add(rig, j, "Segment", BALL, V3(thick * 0.95, thick, zStep * 1.7), def.main, CF(0, 0, 0))
+		add(rig, j, "Underside", BALL, V3(thick * 0.8, thick * 0.5, zStep * 1.5), def.belly, CF(0, -thick * 0.24, 0))
+		prev = j
+	end
+	local head = rig.joints.Body1.part
+	-- snout, eyes, mouth, gills, teeth
+	add(rig, head, "Snout", BALL, V3(h * 0.7, h * 0.55, len * 0.3), def.main, CF(0, -h * 0.02, -len * 0.2))
+	add(rig, head, "Jaw", BALL, V3(h * 0.6, h * 0.25, len * 0.28), def.belly, CF(0, -h * 0.26, -len * 0.14))
+	add(rig, head, "Mouth", BLOCK, V3(h * 0.62, 0.03, len * 0.25), BLACK, CF(0, -h * 0.15, -len * 0.18))
+	for i = -3, 3 do
+		add(rig, head, "Tooth", BLOCK, V3(0.05, 0.1, 0.05), WHITE, CF(i * h * 0.085, -h * 0.17, -len * 0.3) * ANG(math.pi, 0, 0), { class = "WedgePart" })
+	end
+	for side = -1, 1, 2 do
+		add(rig, head, "Eye", BALL, V3(0.18, 0.18, 0.12), BLACK, CF(side * h * 0.34, h * 0.14, -len * 0.18))
+		add(rig, head, "Glint", BALL, V3(0.05, 0.05, 0.05), WHITE, CF(side * h * 0.36, h * 0.18, -len * 0.2))
+		for i = 1, 3 do
+			add(rig, head, "Gill", BLOCK, V3(0.02, h * 0.3, 0.03), def.dark, CF(side * h * 0.37, 0, -len * 0.05 + i * 0.12) * ANG(0, 0, side * 0.1))
+		end
+		local pj = joint(rig, side < 0 and "FinL" or "FinR", head, CF(side * h * 0.4, -h * 0.3, -len * 0.02))
+		add(rig, pj, "PectoralFin", BLOCK, V3(h * 0.75, 0.05, len * 0.22), def.accent, CF(side * h * 0.34, -0.1, 0.1) * ANG(0, side * 0.3, side * -0.35), { class = "WedgePart" })
+	end
+	add(rig, head, "DorsalFin", BLOCK, V3(0.07, h * 0.95, len * 0.24), def.accent, CF(0, h * 0.8, len * 0.05) * ANG(0, math.pi, 0), { class = "WedgePart" })
+	local tail = rig.joints["Body" .. segs].part
+	add(rig, tail, "TailUpper", BLOCK, V3(0.07, h * 1.2, len * 0.2), def.main, CF(0, h * 0.5, zStep * 0.9) * ANG(math.rad(-22), math.pi, 0), { class = "WedgePart" })
+	add(rig, tail, "TailLower", BLOCK, V3(0.07, h * 0.8, len * 0.16), def.main, CF(0, -h * 0.36, zStep * 0.85) * ANG(math.rad(25), 0, 0), { class = "WedgePart" })
+	rig.segs = segs
+end
+
+--------------------------------------------------------------------------------
+-- Ape (gorilla)
+--------------------------------------------------------------------------------
+local function ape(rig, def)
+	local h, w = def.h, def.w
+	local root = rig.root
+	rig.ground = h * 0.95
+	add(rig, root, "Torso", BALL, V3(w, h * 0.9, w * 0.8), def.main, CF(0, 0, 0))
+	add(rig, root, "Back", BALL, V3(w * 0.8, h * 0.3, w * 0.4), def.accent, CF(0, h * 0.3, w * 0.22))
+	add(rig, root, "Belly", BALL, V3(w * 0.7, h * 0.6, w * 0.6), def.belly, CF(0, -h * 0.2, -w * 0.12))
+	add(rig, root, "Chest", BALL, V3(w * 0.5, h * 0.22, w * 0.3), def.face, CF(0, h * 0.12, -w * 0.34))
+	for side = -1, 1, 2 do
+		add(rig, root, "Pec", BALL, V3(w * 0.42, h * 0.3, w * 0.3), def.main, CF(side * w * 0.22, h * 0.26, -w * 0.32))
+	end
+	local head = joint(rig, "Head", root, CF(0, h * 0.44, -w * 0.32))
+	add(rig, head, "Skull", BALL, V3(w * 0.52, w * 0.5, w * 0.55), def.main, CF(0, 0.05, 0))
+	add(rig, head, "Crest", BALL, V3(w * 0.34, w * 0.22, w * 0.5), def.main, CF(0, w * 0.22, w * 0.04))
+	add(rig, head, "Face", BALL, V3(w * 0.4, w * 0.36, w * 0.2), def.face, CF(0, -0.03, -w * 0.22))
+	add(rig, head, "Muzzle", BALL, V3(w * 0.3, w * 0.2, w * 0.2), def.face:Lerp(def.accent, 0.3), CF(0, -w * 0.1, -w * 0.3))
+	add(rig, head, "Brow", BLOCK, V3(w * 0.42, w * 0.08, w * 0.12), def.dark, CF(0, w * 0.1, -w * 0.28))
+	add(rig, head, "Nostrils", BLOCK, V3(w * 0.1, 0.03, 0.03), BLACK, CF(0, -w * 0.08, -w * 0.4))
+	add(rig, head, "Mouth", BLOCK, V3(w * 0.26, 0.03, 0.03), BLACK, CF(0, -w * 0.17, -w * 0.38))
+	for side = -1, 1, 2 do
+		eye(rig, head, side * w * 0.11, w * 0.03, -w * 0.31, w * 0.1, def.eye, false)
+		add(rig, head, "Ear", BALL, V3(0.08, w * 0.14, w * 0.1), def.face, CF(side * w * 0.27, 0, 0))
+	end
+	-- long arms, short legs
+	local fz = -w * 0.05
+	for side = -1, 1, 2 do
+		local name = side < 0 and "ArmL" or "ArmR"
+		local aj = joint(rig, name, root, CF(side * w * 0.5, h * 0.3, fz))
+		add(rig, aj, "Shoulder", BALL, V3(w * 0.4, w * 0.4, w * 0.4), def.main, CF(0, 0, 0))
+		add(rig, aj, "UpperArm", CYL, V3(h * 0.5, w * 0.3, w * 0.3), def.main, CF(side * 0.04, -h * 0.28, 0) * ANG(0, 0, math.pi / 2))
+		add(rig, aj, "ForeArm", CYL, V3(h * 0.5, w * 0.26, w * 0.26), def.main, CF(side * 0.04, -h * 0.72, -0.04) * ANG(0, 0, math.pi / 2))
+		add(rig, aj, "Hand", BALL, V3(w * 0.3, w * 0.22, w * 0.36), def.face, CF(side * 0.04, -h * 1.0, -w * 0.08))
+		local lj = joint(rig, side < 0 and "LegL" or "LegR", root, CF(side * w * 0.26, -h * 0.4, w * 0.12))
+		add(rig, lj, "Thigh", BALL, V3(w * 0.34, h * 0.4, w * 0.36), def.main, CF(0, -h * 0.1, 0))
+		add(rig, lj, "Shin", CYL, V3(h * 0.3, w * 0.22, w * 0.22), def.main, CF(0, -h * 0.34, 0) * ANG(0, 0, math.pi / 2))
+		add(rig, lj, "Foot", BALL, V3(w * 0.3, w * 0.16, w * 0.4), def.face, CF(0, -h * 0.5, -w * 0.08))
+	end
+	rig.isApe = true
+end
+
+--------------------------------------------------------------------------------
+-- Public API
+--------------------------------------------------------------------------------
+function Animals.build(speciesId)
+	local def = Animals.Species[speciesId]
+	if not def then
+		return nil
+	end
+	local rig = newRig(def)
+	rig.species = speciesId
+	if def.kind == "quad" then
+		quadruped(rig, def)
+	elseif def.kind == "bird" then
+		bird(rig, def)
+	elseif def.kind == "fish" then
+		fish(rig, def)
+	else
+		ape(rig, def)
+	end
+	rig.groundDrop = (rig.ground or 1) * rig.scale
+	return rig
+end
+
+-- Poses the animal for this frame. speed = how fast it is moving (studs per second).
+function Animals.animate(rig, dt, speed)
+	local def = rig.def
+	rig.t += dt
+	local t = rig.t
+	local moving = math.clamp(speed / 6, 0, 1)
+	rig.phase += dt * (3 + speed * 1.3)
+	local ph = rig.phase
+	if def.kind == "quad" then
+		local amp = rig.gaitAmp * moving
+		pose(rig, "LegFL", ANG(math.sin(ph) * amp, 0, 0))
+		pose(rig, "LegBR", ANG(math.sin(ph) * amp, 0, 0))
+		pose(rig, "LegFR", ANG(math.sin(ph + math.pi) * amp, 0, 0))
+		pose(rig, "LegBL", ANG(math.sin(ph + math.pi) * amp, 0, 0))
+		-- head: look around when idle, bob when running
+		pose(rig, "Neck", ANG(math.sin(ph * 2) * 0.04 * moving, math.sin(t * 0.7) * 0.18 * (1 - moving), 0))
+		pose(rig, "Head", ANG(math.sin(t * 1.3) * 0.05, 0, 0))
+		-- tails sway; faster and higher when moving
+		local n = 0
+		while rig.joints["Tail" .. (n + 1)] do
+			n += 1
+		end
+		for i = 1, n do
+			local sway = math.sin(t * (2 + moving * 3) - i * 0.7) * (0.12 + i * 0.05)
+			pose(rig, "Tail" .. i, ANG(-0.05 * moving, sway, 0))
+		end
+		-- ears twitch now and then
+		local twitch = math.max(0, math.sin(t * 1.9)) ^ 12 * 0.35
+		pose(rig, "EarL", ANG(0, 0, twitch))
+		pose(rig, "EarR", ANG(0, 0, -twitch))
+		-- wings: folded at rest, flapping when moving
+		-- (a left wing dips with a positive roll, a right wing with a negative one)
+		local fold = (1 - moving) * (0.95 + math.sin(t * 1.4) * 0.05) + moving * (math.sin(t * 7) * 0.7 - 0.2)
+		pose(rig, "WingL", ANG(0, 0, fold))
+		pose(rig, "WingR", ANG(0, 0, -fold))
+	elseif def.kind == "bird" then
+		local fold = (1 - moving) * (1.2 + math.sin(t * 2.5) * 0.04) + moving * (math.sin(t * 9) * 0.7 - 0.2)
+		pose(rig, "WingL", ANG(0, 0, fold))
+		pose(rig, "WingR", ANG(0, 0, -fold))
+		pose(rig, "Head", ANG(0, math.sin(t * 0.5) * 0.9 * (def.tufts and 1 or 0.3), 0))
+		local i = 1
+		while rig.joints["Tail" .. i] do
+			pose(rig, "Tail" .. i, ANG(math.sin(t * 3 - i * 0.4) * 0.1, math.sin(t * 2 + i) * 0.1, 0))
+			i += 1
+		end
+	elseif def.kind == "fish" then
+		for i = 1, rig.segs do
+			pose(rig, "Body" .. i, ANG(0, math.sin(t * (3 + moving * 3) - i * 0.8) * (0.05 + i * 0.03), 0))
+		end
+		pose(rig, "FinL", ANG(0, 0, math.sin(t * 2) * 0.15))
+		pose(rig, "FinR", ANG(0, 0, -math.sin(t * 2) * 0.15))
+	else
+		-- ape: knuckle-walk, arms and legs in opposite pairs
+		local amp = 0.55 * moving
+		pose(rig, "ArmL", ANG(math.sin(ph) * amp, 0, 0))
+		pose(rig, "ArmR", ANG(math.sin(ph + math.pi) * amp, 0, 0))
+		pose(rig, "LegL", ANG(math.sin(ph + math.pi) * amp, 0, 0))
+		pose(rig, "LegR", ANG(math.sin(ph) * amp, 0, 0))
+		pose(rig, "Head", ANG(math.sin(t * 1.1) * 0.06, math.sin(t * 0.6) * 0.2 * (1 - moving), 0))
+	end
+	-- breathing: the whole body rises and falls a little (the caller adds this to the root height)
+	return math.sin(t * 2.2) * 0.03 * rig.scale + math.abs(math.sin(ph)) * 0.06 * moving * rig.scale
+end
+
+return Animals
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="4">
+        <Properties>
           <string name="Name">Audio</string>
           <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: client audio. Pitched pickup notes, fanfares and generative ambient music.
 -- Everything is built from a few short sounds, so it works without uploading anything.
@@ -393,7 +1009,7 @@ return Audio
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="4">
+      <Item class="ModuleScript" referent="5">
         <Properties>
           <string name="Name">Config</string>
           <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: every number, name and table the game balances on lives here.
@@ -598,19 +1214,19 @@ end
 --------------------------------------------------------------------------------
 Config.PetSlots = 3
 Config.Pets = {
-	{ Id = "cat", Name = "Chubby Cat", Rarity = "Common", Mult = 0.2, Aps = 1, Color = C(240, 190, 120), Style = "ears" },
-	{ Id = "pup", Name = "Pudgy Pup", Rarity = "Common", Mult = 0.25, Aps = 1, Color = C(200, 160, 110), Style = "floppy" },
-	{ Id = "mouse", Name = "Mirror Mouse", Rarity = "Common", Mult = 0.3, Aps = 2, Color = C(200, 205, 215), Style = "ears" },
-	{ Id = "gorilla", Name = "Gym Gorilla", Rarity = "Rare", Mult = 0.6, Aps = 5, Color = C(80, 80, 95), Style = "ears" },
-	{ Id = "owl", Name = "Mewing Owl", Rarity = "Rare", Mult = 0.7, Aps = 6, Color = C(150, 110, 80), Style = "horns" },
-	{ Id = "shark", Name = "Jaw Shark", Rarity = "Rare", Mult = 0.8, Aps = 8, Color = C(90, 150, 220), Style = "fin" },
-	{ Id = "wolf", Name = "Sigma Wolf", Rarity = "Epic", Mult = 1.5, Aps = 20, Color = C(120, 130, 160), Style = "ears" },
-	{ Id = "fox", Name = "Rizz Fox", Rarity = "Epic", Mult = 1.8, Aps = 25, Color = C(255, 140, 60), Style = "ears" },
-	{ Id = "bull", Name = "Chad Bull", Rarity = "Epic", Mult = 2.0, Aps = 30, Color = C(170, 60, 60), Style = "horns" },
-	{ Id = "lion", Name = "Alpha Lion", Rarity = "Legendary", Mult = 4, Aps = 80, Color = C(255, 190, 60), Style = "mane" },
-	{ Id = "dragon", Name = "Aura Dragon", Rarity = "Legendary", Mult = 5, Aps = 100, Color = C(120, 220, 140), Style = "horns" },
-	{ Id = "angel", Name = "True Adam Angel", Rarity = "Mythic", Mult = 10, Aps = 300, Color = C(255, 244, 200), Style = "halo" },
-	{ Id = "phoenix", Name = "Void Phoenix", Rarity = "Mythic", Mult = 12, Aps = 400, Color = C(255, 90, 170), Style = "halo" },
+	{ Id = "cat", Name = "Tabby Cat", Species = "cat", Icon = "🐱", Rarity = "Common", Mult = 0.2, Aps = 1, Color = C(240, 190, 120) },
+	{ Id = "pup", Name = "Golden Retriever", Species = "pup", Icon = "🐶", Rarity = "Common", Mult = 0.25, Aps = 1, Color = C(200, 160, 110) },
+	{ Id = "mouse", Name = "Field Mouse", Species = "mouse", Icon = "🐭", Rarity = "Common", Mult = 0.3, Aps = 2, Color = C(200, 205, 215) },
+	{ Id = "gorilla", Name = "Silverback Gorilla", Species = "gorilla", Icon = "🦍", Rarity = "Rare", Mult = 0.6, Aps = 5, Color = C(80, 80, 95) },
+	{ Id = "owl", Name = "Horned Owl", Species = "owl", Icon = "🦉", Rarity = "Rare", Mult = 0.7, Aps = 6, Color = C(150, 110, 80) },
+	{ Id = "shark", Name = "Great White Shark", Species = "shark", Icon = "🦈", Rarity = "Rare", Mult = 0.8, Aps = 8, Color = C(90, 150, 220) },
+	{ Id = "wolf", Name = "Timber Wolf", Species = "wolf", Icon = "🐺", Rarity = "Epic", Mult = 1.5, Aps = 20, Color = C(120, 130, 160) },
+	{ Id = "fox", Name = "Red Fox", Species = "fox", Icon = "🦊", Rarity = "Epic", Mult = 1.8, Aps = 25, Color = C(255, 140, 60) },
+	{ Id = "bull", Name = "Raging Bull", Species = "bull", Icon = "🐂", Rarity = "Epic", Mult = 2.0, Aps = 30, Color = C(170, 60, 60) },
+	{ Id = "lion", Name = "African Lion", Species = "lion", Icon = "🦁", Rarity = "Legendary", Mult = 4, Aps = 80, Color = C(255, 190, 60) },
+	{ Id = "dragon", Name = "Emerald Dragon", Species = "dragon", Icon = "🐉", Rarity = "Legendary", Mult = 5, Aps = 100, Color = C(120, 220, 140) },
+	{ Id = "angel", Name = "True Adam Pegasus", Species = "pegasus", Icon = "🦄", Rarity = "Mythic", Mult = 10, Aps = 300, Color = C(255, 244, 200) },
+	{ Id = "phoenix", Name = "Fire Phoenix", Species = "phoenix", Icon = "🔥", Rarity = "Mythic", Mult = 12, Aps = 400, Color = C(255, 90, 170) },
 }
 Config.PetById = {}
 for _, pet in Config.Pets do
@@ -1097,7 +1713,258 @@ return Config
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="5">
+      <Item class="ModuleScript" referent="6">
+        <Properties>
+          <string name="Name">Face</string>
+          <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: builds a player's custom face (eyes, brows, nose, mouth, jaw, ears, marks, facial hair) on a
+-- head part from their Genome. `w` is how goofy it still is (1 = full gag, 0 = chiselled). Used by Quirks.
+local Face = {}
+
+local function bit(props)
+	local part = Instance.new("Part")
+	part.Anchored = false
+	part.CanCollide = false
+	part.CanTouch = false
+	part.CanQuery = false
+	part.Massless = true
+	part.CastShadow = false
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.Material = Enum.Material.SmoothPlastic
+	for k, v in props do
+		part[k] = v
+	end
+	return part
+end
+
+local function stick(part, base, offset, folder)
+	part.CFrame = base.CFrame * offset
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = base
+	weld.Part1 = part
+	weld.Parent = part
+	part.Parent = folder
+	return part
+end
+
+local function ball(size, color)
+	local s = type(size) == "number" and Vector3.one * size or size
+	return bit({ Shape = Enum.PartType.Ball, Size = s, Color = color })
+end
+
+local function wedge(size, color)
+	local part = Instance.new("WedgePart")
+	part.Anchored = false
+	part.CanCollide, part.CanTouch, part.CanQuery, part.Massless, part.CastShadow = false, false, false, true, false
+	part.Material = Enum.Material.SmoothPlastic
+	part.Size = size
+	part.Color = color
+	return part
+end
+
+local function mix(a, b, t)
+	return a + (b - a) * t
+end
+
+--------------------------------------------------------------------------------
+-- The face
+--------------------------------------------------------------------------------
+function Face.build(head, folder, dims, g, w, skin)
+	local W, H, D = dims.X, dims.Y, dims.Z
+	local z = -D * 0.5
+	local dark = skin:Lerp(Color3.new(0, 0, 0), 0.45)
+	local brow = g.hairColor:Lerp(Color3.new(0, 0, 0), 0.25)
+	local sharp = 1 - w -- 0 = goofy, 1 = chiselled
+
+	-- Eyes. Goofy: one big, one small, one higher, pupils crossed. Chiselled: matched, hooded, hunter-like.
+	local baseEye = W * 0.24 * g.eyeSize
+	for _, side in { -1, 1 } do
+		local big = side == -1
+		local goofy = mix(1, big and 1.7 or 0.8, w)
+		local eyeW = baseEye * goofy
+		local x = side * W * 0.21 * g.eyeSpacing
+		local y = H * 0.1 + (big and 0 or H * 0.1 * w) + side * g.eyeTilt * H * 0.1 * sharp
+		stick(ball(Vector3.new(eyeW, eyeW * 0.78, eyeW * 0.5), Color3.new(1, 1, 1)), head, CFrame.new(x, y, z), folder)
+		local cross = -side * W * 0.05 * w
+		stick(ball(eyeW * 0.62, g.eyeColor), head, CFrame.new(x + cross, y, z - eyeW * 0.2), folder)
+		stick(ball(eyeW * mix(0.3, 0.2, w), Color3.new(0, 0, 0)), head, CFrame.new(x + cross, y, z - eyeW * 0.3), folder)
+		stick(ball(eyeW * 0.1, Color3.new(1, 1, 1)), head, CFrame.new(x + cross + eyeW * 0.12, y + eyeW * 0.14, z - eyeW * 0.36), folder)
+		-- upper lid: covers more of the eye as the face gets sharper (hooded hunter eyes)
+		stick(bit({ Size = Vector3.new(eyeW * 1.1, eyeW * (0.12 + 0.2 * sharp), eyeW * 0.55), Color = skin }), head, CFrame.new(x, y + eyeW * 0.3, z - eyeW * 0.02) * CFrame.Angles(0, 0, side * g.eyeTilt), folder)
+		-- brow
+		local browAngle = g.browAngle * sharp * side * -1
+		if not (w > 0.6) then
+			stick(bit({ Size = Vector3.new(W * 0.3, H * 0.07 * g.browThick * (1 + 0.7 * w), D * 0.08), Color = brow }), head, CFrame.new(x, y + eyeW * 0.65, z - D * 0.01) * CFrame.Angles(0, 0, browAngle), folder)
+		end
+	end
+	if w > 0.6 then
+		-- one big hairy unibrow
+		stick(bit({ Size = Vector3.new(W * 0.8, H * 0.13 * (0.5 + 0.5 * w), D * 0.12), Color = brow }), head, CFrame.new(0, H * 0.34, z) * CFrame.Angles(0, 0, 0.12), folder)
+	end
+
+	-- Nose: bridge + tip + nostrils. Bigger and rounder when goofy.
+	local noseTip = W * 0.15 * g.noseSize * (1 + 0.9 * w)
+	stick(bit({ Size = Vector3.new(W * 0.09 * g.noseWidth, H * 0.3, D * 0.13), Color = skin }), head, CFrame.new(0, -H * 0.02, z - D * 0.02), folder)
+	stick(ball(Vector3.new(noseTip * g.noseWidth, noseTip, noseTip), skin), head, CFrame.new(0, -H * 0.15, z - D * 0.1), folder)
+	if w > 0.25 then
+		for _, side in { -1, 1 } do
+			stick(ball(W * 0.05, dark), head, CFrame.new(side * noseTip * 0.3, -H * 0.18, z - D * 0.2), folder)
+		end
+	end
+
+	-- Mouth: upper lip, lower lip. Goofy: crooked with buck teeth. Chiselled: a confident, slight smile.
+	local mouthW = W * 0.34 * g.mouthWidth
+	local lipColor = skin:Lerp(Color3.fromRGB(176, 70, 76), 0.3 * g.lip)
+	local crook = 0.16 * w
+	stick(bit({ Size = Vector3.new(mouthW, H * 0.045 * g.lip, D * 0.06), Color = lipColor }), head, CFrame.new(W * 0.03 * w, -H * 0.31, z) * CFrame.Angles(0, 0, crook), folder)
+	stick(bit({ Size = Vector3.new(mouthW * 0.85, H * 0.06 * g.lip, D * 0.06), Color = lipColor }), head, CFrame.new(W * 0.03 * w, -H * 0.36, z) * CFrame.Angles(0, 0, crook), folder)
+	if w <= 0.5 then
+		for _, side in { -1, 1 } do
+			stick(bit({ Size = Vector3.new(W * 0.05, H * 0.04, D * 0.05), Color = lipColor }), head, CFrame.new(side * mouthW * 0.52, -H * 0.29, z) * CFrame.Angles(0, 0, side * 0.5), folder)
+		end
+	end
+	if w > 0.45 then
+		for _, side in { -1, 1 } do
+			stick(bit({ Size = Vector3.new(W * 0.11, H * 0.17, D * 0.06), Color = Color3.fromRGB(250, 248, 235) }), head, CFrame.new(W * 0.04 * w + side * W * 0.065, -H * 0.41, z - D * 0.02), folder)
+		end
+	end
+
+	-- Jaw and chin: the jawline gets more defined with every level.
+	local jaw = g.jaw * sharp
+	if sharp > 0.15 then
+		stick(bit({ Size = Vector3.new(W * (0.34 + 0.24 * jaw), H * 0.16, D * 0.14), Color = skin }), head, CFrame.new(0, -H * 0.46, z + D * 0.02), folder)
+	end
+	-- Cheekbones
+	if w < 0.6 then
+		for _, side in { -1, 1 } do
+			stick(ball(Vector3.new(W * 0.17 * g.cheek, H * 0.1, D * 0.1) * sharp, skin:Lerp(Color3.new(1, 1, 1), 0.08)), head, CFrame.new(side * W * 0.32, -H * 0.08, z + D * 0.04), folder)
+		end
+	end
+	-- Ears
+	for _, side in { -1, 1 } do
+		stick(ball(Vector3.new(D * 0.12, W * 0.2 * g.ear, D * 0.2), skin), head, CFrame.new(side * W * 0.5, -H * 0.02, D * 0.02), folder)
+	end
+
+	-- Marks that make this face theirs
+	if g.mole ~= 0 then
+		stick(ball(W * 0.03, Color3.fromRGB(60, 36, 28)), head, CFrame.new(g.mole * W * 0.2, -H * 0.24, z - D * 0.02), folder)
+	end
+	if g.scar ~= 0 and sharp > 0.3 then
+		stick(bit({ Size = Vector3.new(W * 0.02, H * 0.3, D * 0.03), Color = skin:Lerp(Color3.new(1, 1, 1), 0.3) }), head, CFrame.new(g.scar * W * 0.27, H * 0.08, z - D * 0.01) * CFrame.Angles(0, 0, 0.25 * g.scar), folder)
+	end
+	if g.freckles then
+		local rng = Random.new(13)
+		for _ = 1, 10 do
+			stick(ball(W * 0.016, skin:Lerp(Color3.fromRGB(120, 70, 40), 0.5)), head, CFrame.new((rng:NextNumber() - 0.5) * W * 0.5, -H * (0.02 + rng:NextNumber() * 0.12), z - D * 0.03), folder)
+		end
+	end
+
+	-- Facial hair (only once the face has sharpened; the gag mustache covers the early levels)
+	if w < 0.55 and g.beard ~= "none" then
+		local hair = g.hairColor
+		if g.beard == "stubble" then
+			local rng = Random.new(29)
+			for _ = 1, 26 do
+				local x = (rng:NextNumber() - 0.5) * W * 0.8
+				stick(ball(W * 0.025, hair), head, CFrame.new(x, -H * (0.3 + rng:NextNumber() * 0.2), z - D * 0.01 + (math.abs(x) / W) * D * 0.15), folder)
+			end
+		elseif g.beard == "goatee" then
+			stick(bit({ Size = Vector3.new(W * 0.2, H * 0.2, D * 0.1), Color = hair }), head, CFrame.new(0, -H * 0.47, z - D * 0.02), folder)
+			stick(bit({ Size = Vector3.new(W * 0.34, H * 0.05, D * 0.07), Color = hair }), head, CFrame.new(0, -H * 0.27, z - D * 0.03), folder)
+		else
+			stick(bit({ Size = Vector3.new(W * 0.74, H * 0.3, D * 0.14), Color = hair }), head, CFrame.new(0, -H * 0.42, z + D * 0.04), folder)
+			stick(bit({ Size = Vector3.new(W * 0.36, H * 0.06, D * 0.08), Color = hair }), head, CFrame.new(0, -H * 0.27, z - D * 0.03), folder)
+			for _, side in { -1, 1 } do
+				stick(bit({ Size = Vector3.new(D * 0.1, H * 0.4, D * 0.4), Color = hair }), head, CFrame.new(side * W * 0.46, -H * 0.2, z + D * 0.3), folder)
+			end
+		end
+	end
+
+	-- Goofy mustache
+	if w > 0.3 then
+		for side = -1, 1, 2 do
+			stick(bit({ Size = Vector3.new(W * 0.3, H * 0.12, D * 0.1), Color = brow }), head, CFrame.new(side * W * 0.16, -H * 0.24, z - D * 0.04) * CFrame.Angles(0, 0, -side * 0.18), folder)
+		end
+	end
+end
+
+
+Face.bit, Face.ball, Face.wedge, Face.stick = bit, ball, wedge, stick
+
+return Face
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="7">
+        <Properties>
+          <string name="Name">Genome</string>
+          <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: every player gets their own face and body, decided by their user id (so it is always the same
+-- for the same person, and different from everyone else). Level then decides how goofy or chiselled it looks.
+local Genome = {}
+
+local EYE_COLORS = {
+	Color3.fromRGB(88, 56, 32), Color3.fromRGB(52, 34, 22), Color3.fromRGB(128, 100, 52), Color3.fromRGB(70, 130, 84),
+	Color3.fromRGB(70, 120, 190), Color3.fromRGB(130, 144, 156), Color3.fromRGB(176, 120, 40), Color3.fromRGB(120, 180, 220),
+}
+local HAIR_COLORS = {
+	Color3.fromRGB(24, 20, 18), Color3.fromRGB(48, 32, 22), Color3.fromRGB(88, 58, 34), Color3.fromRGB(150, 110, 60),
+	Color3.fromRGB(200, 160, 80), Color3.fromRGB(150, 60, 34), Color3.fromRGB(110, 110, 112),
+}
+local BEARDS = { "none", "none", "none", "none", "stubble", "stubble", "stubble", "goatee", "goatee", "full", "full" }
+
+local cache = {}
+
+-- Returns the same table for the same user id every time.
+function Genome.get(userId)
+	if cache[userId] then
+		return cache[userId]
+	end
+	local rng = Random.new((userId % 2147483647) * 7919 + 13)
+	local function range(a, b)
+		return a + (b - a) * rng:NextNumber()
+	end
+	local g = {
+		eyeColor = EYE_COLORS[rng:NextInteger(1, #EYE_COLORS)],
+		eyeSize = range(0.85, 1.2),
+		eyeSpacing = range(0.88, 1.18),
+		eyeTilt = range(-0.12, 0.14),
+		browThick = range(0.8, 1.35),
+		browAngle = range(-0.12, 0.28),
+		noseSize = range(0.8, 1.25),
+		noseWidth = range(0.85, 1.25),
+		mouthWidth = range(0.85, 1.2),
+		lip = range(0.6, 1.4),
+		jaw = range(0.8, 1.3),
+		cheek = range(0.8, 1.25),
+		ear = range(0.85, 1.25),
+		hairColor = HAIR_COLORS[rng:NextInteger(1, #HAIR_COLORS)],
+		beard = BEARDS[rng:NextInteger(1, #BEARDS)],
+		mole = rng:NextNumber() < 0.3 and (rng:NextNumber() < 0.5 and -1 or 1) or 0,
+		scar = rng:NextNumber() < 0.12 and (rng:NextNumber() < 0.5 and -1 or 1) or 0,
+		freckles = rng:NextNumber() < 0.25,
+		skinShift = range(-0.3, 0.5), -- negative = lighter, positive = darker
+		height = range(0.95, 1.06),
+		width = range(0.94, 1.07),
+		depth = range(0.95, 1.06),
+		head = range(0.94, 1.07),
+	}
+	cache[userId] = g
+	return g
+end
+
+-- Skin colour for a level, adjusted for this person.
+function Genome.skin(base, g)
+	if g.skinShift >= 0 then
+		return base:Lerp(Color3.fromRGB(86, 56, 38), g.skinShift)
+	end
+	return base:Lerp(Color3.fromRGB(246, 224, 206), -g.skinShift * 0.8)
+end
+
+return Genome
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="8">
         <Properties>
           <string name="Name">HammerModel</string>
           <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: builds the 3D model of a hammer from simple parts (nothing to import).
@@ -1156,7 +2023,7 @@ return HammerModel
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="6">
+      <Item class="ModuleScript" referent="9">
         <Properties>
           <string name="Name">UI</string>
           <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the client design system. One place for colours, fonts and reusable components
@@ -1372,7 +2239,7 @@ return UI
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="7">
+      <Item class="ModuleScript" referent="10">
         <Properties>
           <string name="Name">Util</string>
           <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: small shared helpers.
@@ -1428,11 +2295,11 @@ return Util
       </Item>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="8">
+  <Item class="ServerScriptService" referent="11">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Script" referent="9">
+    <Item class="Script" referent="12">
       <Properties>
         <string name="Name">Main</string>
         <token name="RunContext">0</token>
@@ -1516,6 +2383,14 @@ Data.init()
 --------------------------------------------------------------------------------
 -- Player lifecycle
 --------------------------------------------------------------------------------
+-- Runs one setup step; a failure in one system never stops the others (or the player from joining).
+local function safe(label, fn, ...)
+	local ok, err = pcall(fn, ...)
+	if not ok then
+		warn("[TrueAdam] " .. label .. " failed:", err)
+	end
+end
+
 local function onCharacter(p)
 	local char = p.Character
 	if not char then
@@ -1523,24 +2398,30 @@ local function onCharacter(p)
 	end
 	char:WaitForChild("HumanoidRootPart")
 	char:WaitForChild("Humanoid")
-	Stats.applyMovement(p)
-	Appearance.onCharacter(p)
-	Cosmetics.onCharacter(p)
-	Nameplate.onCharacter(p)
-	Hammers.attach(p)
-	Pets.refresh(p)
+	-- A new body is never frozen, running or training.
+	Treadmill.release(p)
+	p:SetAttribute("Running", 0)
+	p:SetAttribute("RunHeat", 0)
+	safe("movement", Stats.applyMovement, p)
+	safe("appearance", Appearance.onCharacter, p)
+	safe("cosmetics", Cosmetics.onCharacter, p)
+	safe("nameplate", Nameplate.onCharacter, p)
+	safe("hammer", Hammers.attach, p)
+	safe("pets", Pets.refresh, p)
 end
 
 local function onPlayer(p)
 	local profile = Data.load(p)
-	Stats.init(p)
-	Quests.init(p)
-	Daily.refresh(p)
-	Playtime.init(p)
-	Tutorial.init(p)
-	Store.init(p)
-	Nameplate.init(p)
-	Cosmetics.sync(p)
+	safe("stats", Stats.init, p)
+	safe("quests", Quests.init, p)
+	safe("daily", Daily.refresh, p)
+	safe("playtime", Playtime.init, p)
+	safe("tutorial", Tutorial.init, p)
+	safe("store", Store.init, p)
+	safe("nameplate", Nameplate.init, p)
+	safe("cosmetics", Cosmetics.sync, p)
+	p:SetAttribute("GuideSeen", profile.GuideSeen == true)
+	p:SetAttribute("Ready", true) -- even if a system above failed, let the player in
 
 	-- Your look keeps earning while you're away.
 	if profile.LastSeen then
@@ -1554,6 +2435,12 @@ local function onPlayer(p)
 
 	p.CharacterAdded:Connect(function()
 		onCharacter(p)
+	end)
+	p.CharacterRemoving:Connect(function()
+		-- dying or resetting mid-activity must never leave a stuck state behind
+		safe("leave training", Training.cancel, p)
+		Treadmill.release(p)
+		p:SetAttribute("Running", 0)
 	end)
 	if p.Character then
 		task.spawn(onCharacter, p)
@@ -1673,7 +2560,7 @@ end
 local SETTING_KEYS = { Music = true, Sfx = true, Duels = true, Fx = true, Voice = true }
 local budget = {}
 
-Action.OnServerEvent:Connect(function(p, kind, a, b)
+local function handleAction(p, kind, a, b)
 	if type(kind) ~= "string" or not p:GetAttribute("Ready") then
 		return
 	end
@@ -1714,6 +2601,20 @@ Action.OnServerEvent:Connect(function(p, kind, a, b)
 		Competition.handle(p, kind, a)
 	elseif kind == "Setting" and type(a) == "string" and SETTING_KEYS[a] then
 		Stats.setSetting(p, a, b)
+	elseif kind == "GuideSeen" then
+		local profile = Data.get(p)
+		if profile then
+			profile.GuideSeen = true
+			p:SetAttribute("GuideSeen", true)
+		end
+	end
+end
+
+-- One bad request (or one bug) must never break the next one.
+Action.OnServerEvent:Connect(function(p, kind, a, b)
+	local ok, err = pcall(handleAction, p, kind, a, b)
+	if not ok then
+		warn("[TrueAdam] action '" .. tostring(kind) .. "' failed:", err)
 	end
 end)
 
@@ -1724,11 +2625,11 @@ end)
 print("[TrueAdam] ready")
 ]]></string>
       </Properties>
-      <Item class="Folder" referent="10">
+      <Item class="Folder" referent="13">
         <Properties>
           <string name="Name">Modules</string>
         </Properties>
-        <Item class="ModuleScript" referent="11">
+        <Item class="ModuleScript" referent="14">
           <Properties>
             <string name="Name">Appearance</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: your character's body changes as you level. Level 1 is a short, wide,
@@ -1739,10 +2640,27 @@ local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Data = require(script.Parent.Data)
+local Genome = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Genome"))
 
 local Appearance = {}
 
 local onChanged -- set by Main so accessories can be rebuilt at the new size
+
+-- The scale numbers for this player: the level's look, nudged by their personal body genome.
+function Appearance.scalesFor(p)
+	local profile = Data.get(p)
+	local level = profile and profile.Level or 1
+	local s = Config.AppearanceScales(level)
+	local g = Genome.get(p.UserId)
+	return {
+		BodyHeightScale = s.BodyHeightScale * g.height,
+		BodyWidthScale = s.BodyWidthScale * g.width,
+		BodyDepthScale = s.BodyDepthScale * g.depth,
+		HeadScale = s.HeadScale * g.head,
+		BodyTypeScale = s.BodyTypeScale,
+		BodyProportionScale = s.BodyProportionScale,
+	}
+end
 
 function Appearance.setHook(fn)
 	onChanged = fn
@@ -1767,11 +2685,9 @@ end
 
 -- Target head size (after the level's scaling). Used to place face features.
 function Appearance.headDims(p)
-	local profile = Data.get(p)
-	local level = profile and profile.Level or 1
 	local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
 	if hum and hum.RigType == Enum.HumanoidRigType.R15 then
-		return nominalHead(p.Character) * Config.AppearanceScales(level).HeadScale
+		return nominalHead(p.Character) * Appearance.scalesFor(p).HeadScale
 	end
 	local head = p.Character and p.Character:FindFirstChild("Head")
 	return head and head.Size or Vector3.new(2, 1, 1)
@@ -1779,11 +2695,9 @@ end
 
 -- Target torso size (R15 upper torso is about 2 x 1.6 x 1 before scaling).
 function Appearance.torsoDims(p)
-	local profile = Data.get(p)
-	local level = profile and profile.Level or 1
 	local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
 	if hum and hum.RigType == Enum.HumanoidRigType.R15 then
-		local s = Config.AppearanceScales(level)
+		local s = Appearance.scalesFor(p)
 		return Vector3.new(2 * s.BodyWidthScale, 1.6 * s.BodyHeightScale, 1 * s.BodyDepthScale)
 	end
 	local torso = p.Character and p.Character:FindFirstChild("Torso")
@@ -1793,9 +2707,7 @@ end
 -- Scale numbers accessories should use for this player (so hats and wings fit the body).
 -- Accessories are designed for a head about 2 studs wide.
 function Appearance.accessoryScales(p)
-	local profile = Data.get(p)
-	local level = profile and profile.Level or 1
-	local s = Config.AppearanceScales(level)
+	local s = Appearance.scalesFor(p)
 	local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
 	if hum and hum.RigType == Enum.HumanoidRigType.R15 then
 		local nominal = nominalHead(p.Character)
@@ -1812,12 +2724,12 @@ function Appearance.update(p, instant)
 	if not profile or not hum then
 		return
 	end
-	local target = Config.AppearanceScales(profile.Level)
+	local target = Appearance.scalesFor(p)
 
 	-- Skin tone also improves with every level.
 	local colors = char:FindFirstChildOfClass("BodyColors")
 	if colors then
-		local tone = Config.SkinTone(profile.Level)
+		local tone = Genome.skin(Config.SkinTone(profile.Level), Genome.get(p.UserId))
 		colors.HeadColor3 = tone
 		colors.TorsoColor3 = tone
 		colors.LeftArmColor3 = tone
@@ -1863,7 +2775,7 @@ return Appearance
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="12">
+        <Item class="ModuleScript" referent="15">
           <Properties>
             <string name="Name">Aura</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the aura around your character grows with every level. More sparks, then flames, a glowing
@@ -1985,7 +2897,7 @@ return Aura
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="13">
+        <Item class="ModuleScript" referent="16">
           <Properties>
             <string name="Name">Board</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the "Top Moggers" screen: the highest levels on this server.
@@ -2027,7 +2939,7 @@ return Board
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="14">
+        <Item class="ModuleScript" referent="17">
           <Properties>
             <string name="Name">Buildings</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: building unlocks. Every building costs Aura; the price tells you how strong you need to be.
@@ -2065,7 +2977,7 @@ return Buildings
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="15">
+        <Item class="ModuleScript" referent="18">
           <Properties>
             <string name="Name">Competition</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Mog Competition. Every few minutes entries open at the central stage.
@@ -2366,7 +3278,7 @@ return Competition
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="16">
+        <Item class="ModuleScript" referent="19">
           <Properties>
             <string name="Name">Cosmetics</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the wardrobe. Owns the inventory (with star levels) and builds the glowing
@@ -2728,7 +3640,7 @@ return Cosmetics
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="17">
+        <Item class="ModuleScript" referent="20">
           <Properties>
             <string name="Name">Crates</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: crate opening. The server decides every roll; the client only plays the reveal.
@@ -2831,7 +3743,7 @@ return Crates
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="18">
+        <Item class="ModuleScript" referent="21">
           <Properties>
             <string name="Name">Daily</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: 7-day login streak. Missing a day restarts the cycle.
@@ -2887,7 +3799,7 @@ return Daily
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="19">
+        <Item class="ModuleScript" referent="22">
           <Properties>
             <string name="Name">Data</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: player save data. Loads/saves with DataStores when available; the game also runs
@@ -2927,6 +3839,7 @@ local function defaults()
 		BestStreak = 0,
 		Reps = 0,
 		Swings = 0,
+		GuideSeen = false, -- the welcome guide has been shown
 		Buildings = {}, -- building id -> true once unlocked
 		Treads = { ["1"] = true }, -- treadmills unlocked
 		Passes = {}, -- game pass id -> true
@@ -3027,7 +3940,7 @@ return Data
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="20">
+        <Item class="ModuleScript" referent="23">
           <Properties>
             <string name="Name">Decor</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: makes every building feel rich. Each one gets its own colour theme, chimneys that puff coloured
@@ -3039,6 +3952,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Co
 local Decor = {}
 
 local M = Enum.Material
+local C3 = Color3.fromRGB
 local SMOKE = "rbxasset://textures/particles/smoke_main.dds"
 local SPARKS = "rbxasset://textures/particles/sparkles_main.dds"
 local DARK = Color3.fromRGB(46, 48, 58)
@@ -3194,13 +4108,66 @@ function Decor.pavilion(parent, id, cf)
 	-- a welcome carpet leading in
 	block(parent, "Carpet", Vector3.new(6, 0.08, 14), cf * CFrame.new(0, 0.95, -9), main, M.Fabric, { CanCollide = false })
 	block(parent, "CarpetTrim", Vector3.new(6.6, 0.07, 14.6), cf * CFrame.new(0, 0.94, -9), glow, M.Fabric, { CanCollide = false })
+	Decor.exterior(parent, id, cf)
+end
+
+-- Extra exterior detail for the pavilions: roof tiles, gutters, lanterns, flower boxes, a stone path, floor trim.
+function Decor.exterior(parent, id, cf)
+	local def = Config.Buildings[id]
+	local main, glow = def.Main, def.Glow
+	local dark = main:Lerp(Color3.new(0, 0, 0), 0.35)
+	local rng = Random.new(#id * 977)
+	-- roof tiles: rows of alternating shades across the top, with a ridge cap and gutters
+	for i = 1, 6 do
+		block(parent, "RoofTile", Vector3.new(36, 0.3, 5.2), cf * CFrame.new(0, 15.25, -15 + (i - 1) * 6), i % 2 == 0 and main or dark, M.SmoothPlastic)
+	end
+	block(parent, "RoofRidge", Vector3.new(37, 0.8, 1.2), cf * CFrame.new(0, 15.7, 0), glow, M.SmoothPlastic)
+	for _, z in { -16.7, 16.7 } do
+		part(parent, { Name = "Gutter", Shape = Enum.PartType.Cylinder, Size = Vector3.new(36, 0.7, 0.7), CFrame = cf * CFrame.new(0, 14.2, z) * CFrame.Angles(0, 0, 0), Color = DARK, Material = M.Metal, CanCollide = false })
+	end
+	-- floor trim in the building colour
+	block(parent, "TrimFront", Vector3.new(32, 0.12, 0.9), cf * CFrame.new(0, 0.96, -14.4), main, M.SmoothPlastic, { CanCollide = false })
+	block(parent, "TrimBack", Vector3.new(32, 0.12, 0.9), cf * CFrame.new(0, 0.96, 14.0), main, M.SmoothPlastic, { CanCollide = false })
+	for side = -1, 1, 2 do
+		block(parent, "TrimSide", Vector3.new(0.9, 0.12, 29), cf * CFrame.new(side * 15.4, 0.96, 0), main, M.SmoothPlastic, { CanCollide = false })
+	end
+	-- lanterns hanging from the front pillars
+	for side = -1, 1, 2 do
+		block(parent, "LanternChain", Vector3.new(0.12, 1.4, 0.12), cf * CFrame.new(side * 14.5, 12.4, -14.9), DARK, M.Metal, { CanCollide = false })
+		local lantern = block(parent, "Lantern", Vector3.new(1.1, 1.6, 1.1), cf * CFrame.new(side * 14.5, 10.9, -14.9), glow, M.Glass, { Transparency = 0.25, CanCollide = false })
+		glowLight(lantern, glow, 22, 1)
+		block(parent, "LanternCap", Vector3.new(1.4, 0.3, 1.4), cf * CFrame.new(side * 14.5, 11.9, -14.9), DARK, M.Metal, { CanCollide = false })
+	end
+	-- flower boxes beside the entrance
+	for side = -1, 1, 2 do
+		local box = cf * CFrame.new(side * 9, 0.9, -16.4)
+		block(parent, "FlowerBox", Vector3.new(7, 1.3, 1.8), box * CFrame.new(0, 0.65, 0), C3(120, 82, 56), M.Wood)
+		part(parent, { Name = "Bush", Shape = Enum.PartType.Ball, Size = Vector3.new(6.4, 1.2, 1.5), CFrame = box * CFrame.new(0, 1.5, 0), Color = C3(60, 140, 62), Material = M.Grass, CanCollide = false })
+		for i = 1, 8 do
+			local color = ({ main, glow, Color3.new(1, 1, 1), C3(255, 220, 90) })[rng:NextInteger(1, 4)]
+			part(parent, { Name = "Flower", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.6, CFrame = box * CFrame.new(-3 + (i - 1) * 0.85, 2.1 + rng:NextNumber() * 0.2, (rng:NextNumber() - 0.5) * 0.8), Color = color, CanCollide = false })
+		end
+	end
+	-- a stone path leading out from the entrance
+	for i = 1, 8 do
+		block(parent, "PathStone", Vector3.new(5 + (i % 2), 0.16, 2.8), cf * CFrame.new(((i % 3) - 1) * 0.5, 0.26, -19.5 - i * 3.4), i % 2 == 0 and C3(196, 194, 188) or C3(170, 168, 162), M.Slate, { CanCollide = false })
+	end
+	-- potted plants in the back corners
+	for side = -1, 1, 2 do
+		local pot = cf * CFrame.new(side * 12.6, 0.9, 12)
+		part(parent, { Name = "Pot", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.8, 2.2, 2.2), CFrame = pot * CFrame.new(0, 0.9, 0) * CFrame.Angles(0, 0, math.pi / 2), Color = C3(176, 104, 72), Material = M.Concrete })
+		for i = 1, 5 do
+			local a = (i / 5) * math.pi * 2
+			part(parent, { Name = "Leaf", Shape = Enum.PartType.Ball, Size = Vector3.new(1.4, 2.6, 1.4), CFrame = pot * CFrame.new(math.cos(a) * 0.7, 3, math.sin(a) * 0.7) * CFrame.Angles(math.sin(a) * 0.4, 0, math.cos(a) * 0.4), Color = C3(54, 142 + i * 6, 70), Material = M.Grass, CanCollide = false })
+		end
+	end
 end
 
 return Decor
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="21">
+        <Item class="ModuleScript" referent="24">
           <Properties>
             <string name="Name">Duels</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: "mog" duels. Two players (or a player and a bot) face off in a 7-second tap battle.
@@ -3525,7 +4492,7 @@ return Duels
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="22">
+        <Item class="ModuleScript" referent="25">
           <Properties>
             <string name="Name">Events</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: a server-wide event every few minutes. Clients read the "Event" attributes on workspace.
@@ -3580,7 +4547,7 @@ return Events
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="23">
+        <Item class="ModuleScript" referent="26">
           <Properties>
             <string name="Name">Hammers</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: click / tap to swing a hammer, plus buying and equipping hammers.
@@ -3745,7 +4712,7 @@ return Hammers
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="24">
+        <Item class="ModuleScript" referent="27">
           <Properties>
             <string name="Name">Nameplate</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the tag above every player. It says what they are (their looks tier)
@@ -3833,13 +4800,12 @@ return Nameplate
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="25">
+        <Item class="ModuleScript" referent="28">
           <Properties>
             <string name="Name">Pets</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: pets. Hatch eggs, equip up to 3; they follow you around (everyone sees them),
 -- add to your Aura multiplier and earn Aura per second. The server decides every roll.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Data = require(script.Parent.Data)
@@ -3848,11 +4814,6 @@ local Stats = require(script.Parent.Stats)
 local Pets = {}
 
 local rng = Random.new()
-local followers = {} -- player -> { { model, id } }
-local folder
-
-local SIZE = { Common = 1, Rare = 1.15, Epic = 1.3, Legendary = 1.5, Mythic = 1.75 }
-local OFFSETS = { Vector3.new(-4, -1.4, 4.5), Vector3.new(0, -1.4, 7), Vector3.new(4, -1.4, 4.5) }
 
 --------------------------------------------------------------------------------
 -- Rolling
@@ -3955,140 +4916,17 @@ function Pets.handle(p, kind, id)
 end
 
 --------------------------------------------------------------------------------
--- Followers (simple models made of balls)
+-- Followers are drawn on every player's own screen (see PetsView on the client), so the server has nothing to build.
 --------------------------------------------------------------------------------
-local function ball(model, name, size, color, material)
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Shape = Enum.PartType.Ball
-	part.Size = Vector3.one * size
-	part.Color = color
-	part.Material = material or Enum.Material.SmoothPlastic
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanQuery = false
-	part.CanTouch = false
-	part.Massless = true
-	part.Parent = model
-	return part
-end
-
-local function buildPet(pet)
-	local s = SIZE[pet.Rarity] or 1
-	local model = Instance.new("Model")
-	model.Name = "Pet_" .. pet.Id
-	local body = ball(model, "Body", 2.4 * s, pet.Color)
-	model.PrimaryPart = body
-	local offsets = { [body] = CFrame.new() }
-	local function add(part, cf)
-		offsets[part] = cf
-	end
-	add(ball(model, "Head", 1.9 * s, pet.Color), CFrame.new(0, 1.7 * s, -0.3 * s))
-	for side = -1, 1, 2 do
-		add(ball(model, "Eye", 0.5 * s, Color3.new(1, 1, 1)), CFrame.new(side * 0.45 * s, 1.95 * s, -1.05 * s))
-		add(ball(model, "Pupil", 0.25 * s, Color3.new(0, 0, 0)), CFrame.new(side * 0.45 * s, 1.95 * s, -1.25 * s))
-		if pet.Style == "ears" or pet.Style == "mane" then
-			add(ball(model, "Ear", 0.7 * s, pet.Color), CFrame.new(side * 0.8 * s, 2.7 * s, -0.2 * s))
-		elseif pet.Style == "floppy" then
-			add(ball(model, "Ear", 0.8 * s, pet.Color:Lerp(Color3.new(0, 0, 0), 0.25)), CFrame.new(side * 1.05 * s, 1.9 * s, -0.2 * s))
-		elseif pet.Style == "horns" then
-			add(ball(model, "Horn", 0.55 * s, Color3.fromRGB(250, 240, 220)), CFrame.new(side * 0.7 * s, 2.8 * s, -0.2 * s))
-		elseif pet.Style == "fin" then
-			add(ball(model, "Fin", 0.6 * s, pet.Color:Lerp(Color3.new(1, 1, 1), 0.3)), CFrame.new(side * 1.3 * s, 0.3 * s, 0))
-		end
-	end
-	if pet.Style == "mane" then
-		add(ball(model, "Mane", 2.8 * s, Color3.fromRGB(190, 110, 30)), CFrame.new(0, 1.7 * s, 0.4 * s))
-	elseif pet.Style == "fin" then
-		add(ball(model, "Fin", 0.7 * s, pet.Color:Lerp(Color3.new(1, 1, 1), 0.3)), CFrame.new(0, 3 * s, 0))
-	elseif pet.Style == "halo" then
-		local halo = Instance.new("Part")
-		halo.Name = "Halo"
-		halo.Shape = Enum.PartType.Cylinder
-		halo.Size = Vector3.new(0.2, 1.8 * s, 1.8 * s)
-		halo.Color = Color3.fromRGB(255, 232, 120)
-		halo.Material = Enum.Material.SmoothPlastic
-		halo.Anchored, halo.CanCollide, halo.CanQuery, halo.CanTouch, halo.Massless = true, false, false, false, true
-		halo.Parent = model
-		add(halo, CFrame.new(0, 3.1 * s, -0.3 * s) * CFrame.Angles(0, 0, math.pi / 2))
-		local light = Instance.new("PointLight")
-		light.Color = pet.Color
-		light.Range = 12
-		light.Brightness = 1
-		light.Parent = body
-	end
-	add(ball(model, "Tail", 0.9 * s, pet.Color), CFrame.new(0, 0.2 * s, 1.4 * s))
-	return model, offsets
-end
-
-local function clearFollowers(p)
-	local list = followers[p]
-	if list then
-		for _, f in list do
-			f.model:Destroy()
-		end
-	end
-	followers[p] = nil
-end
-
--- Rebuilds the visible pets so they match the equipped list.
-function Pets.refresh(p)
-	clearFollowers(p)
-	local profile = Data.get(p)
-	local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-	if not profile or not root or not folder then
-		return
-	end
-	local list = {}
-	for i, id in profile.PetsEq do
-		local pet = Config.PetById[id]
-		if pet then
-			local model, offsets = buildPet(pet)
-			model.Parent = folder
-			local cf = root.CFrame * CFrame.new(OFFSETS[i] or OFFSETS[2])
-			table.insert(list, { model = model, offsets = offsets, slot = i, cf = cf })
-		end
-	end
-	followers[p] = list
-end
-
-function Pets.release(p)
-	clearFollowers(p)
-end
-
-function Pets.init()
-	folder = Instance.new("Folder")
-	folder.Name = "GlowPets"
-	folder.Parent = workspace
-	local last = 0
-	RunService.Heartbeat:Connect(function(dt)
-		local now = os.clock()
-		if now - last < 0.05 then
-			return
-		end
-		last = now
-		for p, list in followers do
-			local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-			if root then
-				for _, f in list do
-					local target = root.CFrame * CFrame.new(OFFSETS[f.slot] or OFFSETS[2]) * CFrame.new(0, math.sin(now * 3 + f.slot) * 0.4, 0)
-					f.cf = f.cf:Lerp(target, 0.3)
-					-- face the same way as the owner
-					local flat = CFrame.new(f.cf.Position) * (root.CFrame - root.CFrame.Position)
-					for part, off in f.offsets do
-						part.CFrame = flat * off
-					end
-				end
-			end
-		end
-	end)
-end
+function Pets.refresh() end
+function Pets.release() end
+function Pets.init() end
 
 return Pets
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="26">
+        <Item class="ModuleScript" referent="29">
           <Properties>
             <string name="Name">Playtime</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: play-time gifts. Stay in the server and gifts arrive on their own (Aura + crates),
@@ -4138,7 +4976,7 @@ return Playtime
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="27">
+        <Item class="ModuleScript" referent="30">
           <Properties>
             <string name="Name">Quests</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: an endless chain of small goals. There is always exactly one active quest.
@@ -4204,66 +5042,29 @@ return Quests
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="28">
+        <Item class="ModuleScript" referent="31">
           <Properties>
             <string name="Name">Quirks</string>
-            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the gag that gives the game its name. Everyone starts with a goofy face, a big
--- belly and hair all over their face and body. As you level up it all fades away until you look normal
--- (around level 600) and keep getting more athletic. Everything is built from simple parts.
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: faces, hair and muscles. Every player has their own face (see Genome) that starts goofy
+-- (cross-eyed, buck teeth, unibrow, hair everywhere, big belly) and sharpens with every level: eyes straighten, brows
+-- angle, the jaw and cheekbones appear, hair fades, and muscles grow. Everything is built from simple parts.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Genome = require(ReplicatedStorage.Shared.Genome)
+local Face = require(ReplicatedStorage.Shared.Face)
+local bit, ball, stick = Face.bit, Face.ball, Face.stick
 local Data = require(script.Parent.Data)
 local Appearance = require(script.Parent.Appearance)
 
 local Quirks = {}
 
 local FOLDER = "GlowQuirks"
-local FUR = Color3.fromRGB(46, 32, 22)
 
-local function bit(props)
-	local part = Instance.new("Part")
-	part.Anchored = false
-	part.CanCollide = false
-	part.CanTouch = false
-	part.CanQuery = false
-	part.Massless = true
-	part.CastShadow = false
-	part.TopSurface = Enum.SurfaceType.Smooth
-	part.BottomSurface = Enum.SurfaceType.Smooth
-	part.Material = Enum.Material.SmoothPlastic
-	for k, v in props do
-		part[k] = v
-	end
-	return part
-end
-
-local function stick(part, base, offset, folder)
-	part.CFrame = base.CFrame * offset
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = base
-	weld.Part1 = part
-	weld.Parent = part
-	part.Parent = folder
-	return part
-end
-
-local function ball(size, color)
-	return bit({ Shape = Enum.PartType.Ball, Size = Vector3.one * size, Color = color })
-end
-
-local function restoreFace(head)
+local function setFace(head, visible)
 	for _, child in head:GetChildren() do
 		if child:IsA("Decal") then
-			child.Transparency = 0
-		end
-	end
-end
-
-local function hideFace(head)
-	for _, child in head:GetChildren() do
-		if child:IsA("Decal") then
-			child.Transparency = 1
+			child.Transparency = visible and 0 or 1
 		end
 	end
 end
@@ -4273,6 +5074,48 @@ local function limb(char, r15, r6)
 	return char:FindFirstChild(r15) or char:FindFirstChild(r6)
 end
 
+--------------------------------------------------------------------------------
+-- Muscles: pecs, shoulders, biceps, thighs and abs grow with level
+--------------------------------------------------------------------------------
+local function buildPhysique(char, torso, folder, T, level, w, skin)
+	local m = math.clamp((level - 15) / 500, 0, 1)
+	if m <= 0.02 then
+		return
+	end
+	local line = skin:Lerp(Color3.new(0, 0, 0), 0.18)
+	-- pecs
+	for _, side in { -1, 1 } do
+		stick(ball(Vector3.new(T.X * (0.22 + 0.2 * m), T.Y * (0.14 + 0.12 * m), T.Z * (0.18 + 0.18 * m)), skin), torso, CFrame.new(side * T.X * 0.2, T.Y * 0.22, -T.Z * 0.5), folder)
+	end
+	-- abs (only when the belly is gone)
+	if w < 0.35 and m > 0.12 then
+		for row = 0, 2 do
+			for _, side in { -1, 1 } do
+				stick(bit({ Size = Vector3.new(T.X * 0.17, T.Y * 0.1, T.Z * 0.06), Color = skin:Lerp(Color3.new(1, 1, 1), 0.05) }), torso, CFrame.new(side * T.X * 0.1, T.Y * (0.0 - row * 0.12), -T.Z * 0.5), folder)
+			end
+		end
+		stick(bit({ Size = Vector3.new(T.X * 0.025, T.Y * 0.4, T.Z * 0.03), Color = line }), torso, CFrame.new(0, -T.Y * 0.1, -T.Z * 0.5), folder)
+	end
+	-- shoulders, biceps
+	for _, name in { { "LeftUpperArm", "Left Arm" }, { "RightUpperArm", "Right Arm" } } do
+		local arm = limb(char, name[1], name[2])
+		if arm then
+			stick(ball(arm.Size.X * (1.1 + 0.9 * m), skin), arm, CFrame.new(0, arm.Size.Y * 0.32, 0), folder)
+			stick(ball(Vector3.new(arm.Size.X * (0.9 + 0.7 * m), arm.Size.Y * 0.4, arm.Size.Z * (0.9 + 0.8 * m)), skin), arm, CFrame.new(0, -arm.Size.Y * 0.02, -arm.Size.Z * 0.15), folder)
+		end
+	end
+	-- thighs
+	for _, name in { { "LeftUpperLeg", "Left Leg" }, { "RightUpperLeg", "Right Leg" } } do
+		local leg = limb(char, name[1], name[2])
+		if leg and m > 0.2 then
+			stick(ball(Vector3.new(leg.Size.X * (0.95 + 0.5 * m), leg.Size.Y * 0.5, leg.Size.Z * (0.95 + 0.5 * m)), skin), leg, CFrame.new(0, leg.Size.Y * 0.1, -leg.Size.Z * 0.05), folder)
+		end
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Entry point: rebuilds everything for the player's current level
+--------------------------------------------------------------------------------
 function Quirks.apply(p)
 	local char = p.Character
 	local profile = Data.get(p)
@@ -4289,113 +5132,75 @@ function Quirks.apply(p)
 		old:Destroy()
 	end
 
-	local w = Config.Weirdness(profile.Level)
-	if w <= 0.02 then
-		restoreFace(head)
-		return
-	end
-
 	local folder = Instance.new("Folder")
 	folder.Name = FOLDER
 	folder.Parent = char
 
+	local g = Genome.get(p.UserId)
+	local w = Config.Weirdness(profile.Level)
 	local T = Appearance.torsoDims(p)
 	local dims = Appearance.headDims(p)
 	local W, H, D = dims.X, dims.Y, dims.Z
 	local skin = head.Color
+	local fur = g.hairColor:Lerp(Color3.new(0, 0, 0), 0.35)
 	local rng = Random.new(p.UserId) -- same layout every time, so hair doesn't "jump" between levels
 
-	-- e: how exaggerated the face still is (shrinks a little with every level)
-	local e = 0.45 + 0.55 * w
-	-- ===== The face =====
-	if w > 0.15 then
-		hideFace(head)
-		local faceZ = -D * 0.5
-		-- Mismatched, cross-eyed eyes
-		stick(ball(W * 0.34 * e, Color3.new(1, 1, 1)), head, CFrame.new(-W * 0.22, H * 0.1, faceZ), folder)
-		stick(ball(W * 0.2, Color3.new(1, 1, 1)), head, CFrame.new(W * 0.2, H * 0.2, faceZ), folder)
-		stick(ball(W * 0.13, Color3.new(0, 0, 0)), head, CFrame.new(-W * 0.14, H * 0.08, faceZ - W * 0.15), folder)
-		stick(ball(W * 0.09, Color3.new(0, 0, 0)), head, CFrame.new(W * 0.15, H * 0.18, faceZ - W * 0.08), folder)
-		-- One big hairy unibrow
-		stick(bit({ Size = Vector3.new(W * 0.8, H * 0.13 * e, D * 0.12), Color = FUR }), head, CFrame.new(0, H * 0.34, faceZ) * CFrame.Angles(0, 0, 0.12), folder)
-		-- Giant nose with nostrils
-		stick(ball(W * 0.3 * e, skin), head, CFrame.new(0, -H * 0.1, faceZ - W * 0.08), folder)
-		stick(ball(W * 0.07, Color3.fromRGB(40, 20, 20)), head, CFrame.new(-W * 0.07, -H * 0.16, faceZ - W * 0.28), folder)
-		stick(ball(W * 0.07, Color3.fromRGB(40, 20, 20)), head, CFrame.new(W * 0.07, -H * 0.16, faceZ - W * 0.28), folder)
-		-- Crooked mouth with buck teeth
-		stick(bit({ Size = Vector3.new(W * 0.5, H * 0.1, D * 0.06), Color = Color3.fromRGB(70, 20, 30) }), head, CFrame.new(W * 0.04, -H * 0.34, faceZ) * CFrame.Angles(0, 0, 0.14), folder)
-		for side = -1, 1, 2 do
-			if w > 0.45 then
-			stick(bit({ Size = Vector3.new(W * 0.11, H * 0.17, D * 0.06), Color = Color3.fromRGB(250, 248, 235) }), head, CFrame.new(W * 0.04 + side * W * 0.065, -H * 0.4, faceZ - D * 0.02), folder)
-			end
+	-- Every player gets their own custom face (the default sticker face is hidden).
+	setFace(head, false)
+	Face.build(head, folder, dims, g, w, skin)
+
+	if w > 0.02 then
+		-- Hair all over the face
+		for _ = 1, math.ceil(34 * w) do
+			local x = (rng:NextNumber() - 0.5) * W * 0.95
+			local y = -H * (0.12 + rng:NextNumber() * 0.4)
+			local zFront = rng:NextNumber() < 0.7
+			local z = zFront and (-D * 0.5) or (-D * 0.3 + rng:NextNumber() * D * 0.4)
+			local xSide = zFront and x or ((rng:NextNumber() < 0.5 and -1 or 1) * W * 0.5)
+			stick(ball(W * (0.1 + rng:NextNumber() * 0.12), fur), head, CFrame.new(xSide, y, z), folder)
 		end
-		-- Bushy mustache
-		for side = -1, 1, 2 do
-			if w > 0.3 then
-			stick(bit({ Size = Vector3.new(W * 0.3, H * 0.12, D * 0.1), Color = FUR }), head, CFrame.new(side * W * 0.16, -H * 0.24, faceZ - D * 0.04) * CFrame.Angles(0, 0, -side * 0.18), folder)
-			end
+		-- Messy hair on top
+		for _ = 1, math.ceil(16 * w) do
+			local x = (rng:NextNumber() - 0.5) * W * 0.8
+			local z = (rng:NextNumber() - 0.5) * D * 0.8
+			local tuft = bit({ Size = Vector3.new(W * 0.08, H * (0.25 + rng:NextNumber() * 0.25), W * 0.08), Color = fur })
+			stick(tuft, head, CFrame.new(x, H * 0.55, z) * CFrame.Angles((rng:NextNumber() - 0.5) * 0.9, 0, (rng:NextNumber() - 0.5) * 0.9), folder)
 		end
-	else
-		restoreFace(head)
+		-- Belly
+		local bellySize = math.max(T.X, 2) * 0.85 * (0.3 + 0.7 * w)
+		stick(ball(bellySize, skin), torso, CFrame.new(0, -T.Y * 0.35, -T.Z * 0.5 - bellySize * 0.05), folder)
+		stick(ball(bellySize * 0.1, Color3.fromRGB(80, 50, 40)), torso, CFrame.new(0, -T.Y * 0.3, -T.Z * 0.5 - bellySize * 0.5), folder)
+		-- Hair on the body
+		local arms = { limb(char, "LeftUpperArm", "Left Arm"), limb(char, "RightUpperArm", "Right Arm") }
+		for i = 1, math.ceil(60 * w) do
+			local base, offset
+			if i % 3 == 0 and arms[1] then
+				base = arms[(i % 2) + 1] or arms[1]
+				offset = CFrame.new((rng:NextNumber() < 0.5 and -1 or 1) * 0.55, (rng:NextNumber() - 0.5) * 0.9, (rng:NextNumber() - 0.5) * 0.5)
+			else
+				base = torso
+				local face = rng:NextInteger(1, 3)
+				if face == 1 then
+					offset = CFrame.new((rng:NextNumber() - 0.5) * T.X * 0.8, T.Y * (0.05 + rng:NextNumber() * 0.4), -T.Z * 0.5)
+				elseif face == 2 then
+					offset = CFrame.new((rng:NextNumber() - 0.5) * T.X * 0.8, (rng:NextNumber() - 0.5) * T.Y * 0.8, T.Z * 0.5)
+				else
+					offset = CFrame.new((rng:NextNumber() < 0.5 and -1 or 1) * T.X * 0.5, (rng:NextNumber() - 0.5) * T.Y * 0.8, (rng:NextNumber() - 0.5) * T.Z * 0.7)
+				end
+			end
+			local tuft = bit({ Size = Vector3.new(0.14, 0.5 + rng:NextNumber() * 0.4, 0.14), Color = fur })
+			stick(tuft, base, offset * CFrame.Angles((rng:NextNumber() - 0.5) * 1.2, 0, (rng:NextNumber() - 0.5) * 1.2), folder)
+		end
 	end
 
-	-- ===== Hair all over the face =====
-	local faceHair = math.ceil(34 * w)
-	for _ = 1, faceHair do
-		local x = (rng:NextNumber() - 0.5) * W * 0.95
-		local y = -H * (0.12 + rng:NextNumber() * 0.4)
-		local zFront = rng:NextNumber() < 0.7
-		local z = zFront and (-D * 0.5) or (-D * 0.3 + rng:NextNumber() * D * 0.4)
-		local xSide = zFront and x or ((rng:NextNumber() < 0.5 and -1 or 1) * W * 0.5)
-		stick(ball(W * (0.1 + rng:NextNumber() * 0.12), FUR), head, CFrame.new(xSide, y, z), folder)
-	end
-	-- Messy hair on top
-	local topHair = math.ceil(16 * w)
-	for _ = 1, topHair do
-		local x = (rng:NextNumber() - 0.5) * W * 0.8
-		local z = (rng:NextNumber() - 0.5) * D * 0.8
-		local tuft = bit({ Size = Vector3.new(W * 0.08, H * (0.25 + rng:NextNumber() * 0.25), W * 0.08), Color = FUR })
-		stick(tuft, head, CFrame.new(x, H * 0.55, z) * CFrame.Angles((rng:NextNumber() - 0.5) * 0.9, 0, (rng:NextNumber() - 0.5) * 0.9), folder)
-	end
-
-	-- ===== Belly =====
-	local bellySize = math.max(T.X, 2) * 0.85 * (0.3 + 0.7 * w)
-	local belly = ball(bellySize, skin)
-	stick(belly, torso, CFrame.new(0, -T.Y * 0.35, -T.Z * 0.5 - bellySize * 0.05), folder)
-	stick(ball(bellySize * 0.1, Color3.fromRGB(80, 50, 40)), torso, CFrame.new(0, -T.Y * 0.3, -T.Z * 0.5 - bellySize * 0.5), folder)
-
-	-- ===== Hair on the body =====
-	local arms = {
-		limb(char, "LeftUpperArm", "Left Arm"),
-		limb(char, "RightUpperArm", "Right Arm"),
-	}
-	local bodyHair = math.ceil(60 * w)
-	for i = 1, bodyHair do
-		local base, offset
-		if i % 3 == 0 and arms[1] then
-			base = arms[(i % 2) + 1] or arms[1]
-			offset = CFrame.new((rng:NextNumber() < 0.5 and -1 or 1) * 0.55, (rng:NextNumber() - 0.5) * 0.9, (rng:NextNumber() - 0.5) * 0.5)
-		else
-			base = torso
-			local face = rng:NextInteger(1, 3)
-			if face == 1 then -- front (chest)
-				offset = CFrame.new((rng:NextNumber() - 0.5) * T.X * 0.8, T.Y * (0.05 + rng:NextNumber() * 0.4), -T.Z * 0.5)
-			elseif face == 2 then -- back
-				offset = CFrame.new((rng:NextNumber() - 0.5) * T.X * 0.8, (rng:NextNumber() - 0.5) * T.Y * 0.8, T.Z * 0.5)
-			else -- sides
-				offset = CFrame.new((rng:NextNumber() < 0.5 and -1 or 1) * T.X * 0.5, (rng:NextNumber() - 0.5) * T.Y * 0.8, (rng:NextNumber() - 0.5) * T.Z * 0.7)
-			end
-		end
-		local tuft = bit({ Size = Vector3.new(0.14, 0.5 + rng:NextNumber() * 0.4, 0.14), Color = FUR })
-		stick(tuft, base, offset * CFrame.Angles((rng:NextNumber() - 0.5) * 1.2, 0, (rng:NextNumber() - 0.5) * 1.2), folder)
-	end
+	buildPhysique(char, torso, folder, T, profile.Level, w, skin)
 end
 
 return Quirks
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="29">
+        <Item class="ModuleScript" referent="32">
           <Properties>
             <string name="Name">Runway</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the runway in the middle of the district. Walk it for a steady Aura trickle that
@@ -4436,7 +5241,7 @@ return Runway
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="30">
+        <Item class="ModuleScript" referent="33">
           <Properties>
             <string name="Name">Shards</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the gym-and-health pickups scattered around the plaza: apples, protein shakes,
@@ -4682,7 +5487,7 @@ return Shards
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="31">
+        <Item class="ModuleScript" referent="34">
           <Properties>
             <string name="Name">Shop</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades and rebirth.
@@ -4754,7 +5559,7 @@ return Shop
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="32">
+        <Item class="ModuleScript" referent="35">
           <Properties>
             <string name="Name">Stats</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the heart of progression. Owns Aura, stats, Glow Score, rank and the
@@ -5142,7 +5947,7 @@ return Stats
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="33">
+        <Item class="ModuleScript" referent="36">
           <Properties>
             <string name="Name">Store</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: real-money store (game passes + Aura packs). Nothing is charged until you paste real ids into
@@ -5219,7 +6024,7 @@ return Store
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="34">
+        <Item class="ModuleScript" referent="37">
           <Properties>
             <string name="Name">Training</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame. A marker sweeps a bar; hit the zone for stat gains.
@@ -5397,7 +6202,7 @@ return Training
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="35">
+        <Item class="ModuleScript" referent="38">
           <Properties>
             <string name="Name">Treadmill</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: treadmills. Buy one with Aura, press the use button to hop on and run. You earn Aura (and a little
@@ -5629,7 +6434,7 @@ return Treadmill
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="36">
+        <Item class="ModuleScript" referent="39">
           <Properties>
             <string name="Name">Tutorial</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the first-time tutorial. Five short steps that teach the core loop (swing, hammer, train, pet,
@@ -5736,7 +6541,7 @@ return Tutorial
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="37">
+        <Item class="ModuleScript" referent="40">
           <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: builds the whole town from code (nothing to import).
@@ -6700,15 +7505,15 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="38">
+  <Item class="StarterPlayer" referent="41">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="39">
+    <Item class="StarterPlayerScripts" referent="42">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="40">
+      <Item class="LocalScript" referent="43">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: client entry point. Builds the interface, wires the menu tabs, and routes everything
@@ -6747,6 +7552,8 @@ local Interact = require(Modules.Interact)
 local HammerRow = require(Modules.HammerRow)
 local Swing = require(Modules.Swing)
 local Tutorial = require(Modules.Tutorial)
+local PetsView = require(Modules.PetsView)
+local Guide = require(Modules.Guide)
 local WorldTags = require(Modules.WorldTags)
 local Runner = require(Modules.Runner)
 local TabStore = require(Modules.TabStore)
@@ -6803,7 +7610,10 @@ Interact.init(gui, Action, Menu)
 HammerRow.init()
 Swing.init(gui, Action, Menu)
 Tutorial.init(gui, Action)
+Guide.init(gui, Action)
+Hud.onHelp = Guide.open
 WorldTags.init()
+PetsView.init()
 Runner.init(gui)
 
 TabSettings.apply()
@@ -7099,11 +7909,11 @@ task.spawn(function()
 end)
 ]]></string>
         </Properties>
-        <Item class="Folder" referent="41">
+        <Item class="Folder" referent="44">
           <Properties>
             <string name="Name">Modules</string>
           </Properties>
-          <Item class="ModuleScript" referent="42">
+          <Item class="ModuleScript" referent="45">
             <Properties>
               <string name="Name">CompetitionUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: Mog Competition overlay. Everyone on stage flexes (taps) for 8 seconds; a live
@@ -7387,7 +8197,7 @@ return CompetitionUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="43">
+          <Item class="ModuleScript" referent="46">
             <Properties>
               <string name="Name">DuelUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: duel overlay. Both sides tap as fast as they can for 7 seconds; Mog Power gives an
@@ -7627,7 +8437,7 @@ return DuelUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="44">
+          <Item class="ModuleScript" referent="47">
             <Properties>
               <string name="Name">Fx</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
@@ -7865,7 +8675,215 @@ return Fx
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="45">
+          <Item class="ModuleScript" referent="48">
+            <Properties>
+              <string name="Name">Guide</string>
+              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the welcome guide. Shown once on a player's very first visit (and again from the ? button):
+-- four short pages that explain the goal, how to earn Aura, how to spend it, and what every button is for.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local UI = require(Shared:WaitForChild("UI"))
+local Audio = require(Shared:WaitForChild("Audio"))
+
+local Guide = {}
+
+local player = Players.LocalPlayer
+local C = UI.Colors
+
+local PAGES = {
+	{
+		icon = "👑",
+		title = "WELCOME!",
+		color = C.Yellow,
+		lines = {
+			"You start as a SUB 5: short, round and a bit weird.",
+			"Level up to become TRUE ADAM.",
+			"Your face, body and aura change with every level. Everyone gets their own face!",
+		},
+	},
+	{
+		icon = "🏆",
+		title = "EARN AURA",
+		color = C.Gold,
+		lines = {
+			"🔨 Click or tap anywhere to swing your hammer. Hold to keep swinging.",
+			"🏃 Run on treadmills to earn Aura every second.",
+			"🐾 Pets earn Aura for you and make every swing stronger.",
+		},
+	},
+	{
+		icon = "🛒",
+		title = "SPEND AURA",
+		color = C.Mint,
+		lines = {
+			"Buy bigger hammers at the Hammer Shop (the glowing pedestals).",
+			"Hatch pets, unlock treadmills and open new buildings.",
+			"Walk up to anything and press the big button at the bottom (or E).",
+		},
+	},
+	{
+		icon = "🎮",
+		title = "THE BUTTONS",
+		color = C.Sky,
+		lines = {
+			"LEFT: 🛒 Shop · 🔄 Rebirth · 🎁 Rewards · 🐾 Pets · 👗 Outfit",
+			"RIGHT: 📍 Places (jump anywhere) · 📦 Crates",
+			"TOP: 💎 Store · ⚙️ Settings · ❓ this guide",
+			"Follow the yellow tutorial card and the arrow to get started!",
+		},
+	},
+}
+
+local window, iconLabel, titleLabel, bodyLabel, dots, backButton, nextButton
+local page = 1
+local Action
+
+local function render()
+	local p = PAGES[page]
+	iconLabel.Text = p.icon
+	titleLabel.Text = p.title
+	titleLabel.TextColor3 = p.color
+	window:FindFirstChildOfClass("UIStroke").Color = p.color
+	bodyLabel.Text = table.concat(p.lines, "\n\n")
+	backButton.Visible = page > 1
+	nextButton.Text = page < #PAGES and "NEXT ▶" or "LET'S GO!"
+	nextButton.BackgroundColor3 = page < #PAGES and C.Accent or C.Good
+	for i, dot in dots do
+		dot.BackgroundColor3 = i == page and p.color or C.Disabled
+	end
+end
+
+function Guide.close()
+	window.Visible = false
+	if player:GetAttribute("GuideSeen") ~= true then
+		Action:FireServer("GuideSeen")
+	end
+end
+
+function Guide.open()
+	page = 1
+	render()
+	window.Visible = true
+	Audio.quest()
+end
+
+function Guide.init(gui, action)
+	Action = action
+	window = UI.panel(gui, {
+		Name = "Guide",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(460, 330),
+		Visible = false,
+		ZIndex = 40,
+		Radius = 16,
+	})
+	UI.new("UIScale", {}, window)
+	local function fit()
+		local v = workspace:WaitForChild("Camera").ViewportSize
+		window:FindFirstChildOfClass("UIScale").Scale = math.clamp(math.min(v.X / 520, v.Y / 380), 0.6, 1)
+	end
+	fit()
+	iconLabel = UI.label(window, {
+		Position = UDim2.fromOffset(18, 14),
+		Size = UDim2.fromOffset(60, 60),
+		Font = UI.Fonts.Bold,
+		TextSize = 44,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextWrapped = false,
+		TextStrokeTransparency = 1,
+		ZIndex = 41,
+		Text = "",
+	})
+	titleLabel = UI.label(window, {
+		Position = UDim2.fromOffset(86, 22),
+		Size = UDim2.new(1, -110, 0, 44),
+		Font = UI.Fonts.Title,
+		TextSize = 30,
+		TextWrapped = false,
+		ZIndex = 41,
+		Text = "",
+	})
+	bodyLabel = UI.label(window, {
+		Position = UDim2.fromOffset(24, 84),
+		Size = UDim2.new(1, -48, 0, 170),
+		Font = UI.Fonts.Bold,
+		TextSize = 16,
+		TextColor3 = Color3.new(1, 1, 1),
+		TextYAlignment = Enum.TextYAlignment.Top,
+		ZIndex = 41,
+		Text = "",
+	})
+	dots = {}
+	local dotRow = UI.new("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -62), Size = UDim2.fromOffset(#PAGES * 18, 10), BackgroundTransparency = 1, ZIndex = 41 }, window)
+	UI.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, dotRow)
+	for i = 1, #PAGES do
+		local dot = UI.new("Frame", { LayoutOrder = i, Size = UDim2.fromOffset(10, 10), BackgroundColor3 = C.Disabled, BorderSizePixel = 0, ZIndex = 42 }, dotRow)
+		UI.corner(dot, 5)
+		dots[i] = dot
+	end
+	backButton = UI.button(window, {
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 18, 1, -14),
+		Size = UDim2.fromOffset(110, 42),
+		BackgroundColor3 = C.Disabled,
+		Text = "◀ BACK",
+		TextSize = 15,
+		ZIndex = 42,
+	}, "card")
+	nextButton = UI.button(window, {
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -18, 1, -14),
+		Size = UDim2.fromOffset(150, 42),
+		Text = "NEXT ▶",
+		TextSize = 16,
+		ZIndex = 42,
+	})
+	local skip = UI.button(window, {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0, 10),
+		Size = UDim2.fromOffset(56, 22),
+		BackgroundColor3 = C.Disabled,
+		Text = "SKIP",
+		TextSize = 11,
+		ZIndex = 42,
+		Radius = 7,
+	}, "card")
+	backButton.Activated:Connect(function()
+		Audio.click()
+		page = math.max(1, page - 1)
+		render()
+	end)
+	nextButton.Activated:Connect(function()
+		Audio.click()
+		if page < #PAGES then
+			page += 1
+			render()
+		else
+			Guide.close()
+		end
+	end)
+	skip.Activated:Connect(function()
+		Audio.click()
+		Guide.close()
+	end)
+
+	-- First visit: show it once everything has loaded.
+	task.spawn(function()
+		task.wait(1.2)
+		if player:GetAttribute("GuideSeen") ~= true then
+			Guide.open()
+		end
+	end)
+end
+
+return Guide
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="49">
             <Properties>
               <string name="Name">HammerRow</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: floating OWNED / EQUIPPED / price labels over every hammer pedestal.
@@ -7990,7 +9008,7 @@ return HammerRow
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="46">
+          <Item class="ModuleScript" referent="50">
             <Properties>
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the always-on screen.
@@ -8049,26 +9067,33 @@ local function teleport(position, lookAt)
 	end
 end
 
-local TELEPORTS = {
-	PVP = function()
-		local ring = Config.StationPos("Ring")
-		local front = Config.StationFront("Ring")
-		teleport(ring + front * 32 + Vector3.new(0, 4, 0), ring)
-	end,
-	Treadmills = function()
+-- Places you can jump to from the 📍 button. `building` says which unlock it needs (nil = open to everyone).
+local function atStation(name)
+	return function()
+		local pos, front = Config.StationPos(name), Config.StationFront(name)
+		teleport(pos + front * 30 + Vector3.new(0, 4, 0), pos)
+	end
+end
+local PLACES = {
+	{ name = "Hammer Shop", icon = "🔨", go = function()
+		teleport(Vector3.new(0, 4, Config.HammerRowZ + 10), Vector3.new(0, 4, Config.HammerRowZ - 30))
+	end },
+	{ name = "Treadmills", icon = "🏃", building = "treadmills", go = function()
 		local cf = Config.TreadHallCF() * CFrame.new(0, 4, -34)
 		teleport(cf.Position, Config.TreadHallPos())
-	end,
-	Battle = function()
+	end },
+	{ name = "Gym", icon = "💪", building = "gym", go = atStation("Gym") },
+	{ name = "Stage Battle", icon = "⚔️", building = "battle", go = function()
 		local pos, front = Config.BattlePos(), Config.BattleFront()
 		teleport(pos + front * 40 + Vector3.new(0, 4, 0), pos)
-	end,
-	MOG = function()
+	end },
+	{ name = "Style Studio", icon = "💈", building = "studio", go = atStation("Studio") },
+	{ name = "Mog Stage", icon = "🏆", building = "stage", go = function()
 		teleport(Vector3.new(0, 5, 12), Vector3.new(0, 5, -20))
-	end,
-	Hammers = function()
-		teleport(Vector3.new(0, 4, Config.HammerRowZ + 10), Vector3.new(0, 4, Config.HammerRowZ - 30))
-	end,
+	end },
+	{ name = "Charm Lounge", icon = "🛋️", building = "lounge", go = atStation("Lounge") },
+	{ name = "Duel Ring", icon = "🥊", building = "ring", go = atStation("Ring") },
+	{ name = "Crate Shop", icon = "📦", building = "crates", go = atStation("Crates") },
 }
 
 --------------------------------------------------------------------------------
@@ -8148,6 +9173,20 @@ local function buildTop(gui, Menu)
 	gear.Activated:Connect(function()
 		Audio.click()
 		Menu.toggle("Settings")
+	end)
+	local help = UI.button(row, {
+		LayoutOrder = 5,
+		Size = UDim2.fromOffset(34, 30),
+		BackgroundColor3 = C.Mint,
+		Text = "?",
+		TextSize = 16,
+		Radius = 10,
+	}, "card")
+	help.Activated:Connect(function()
+		Audio.click()
+		if Hud.onHelp then
+			Hud.onHelp()
+		end
 	end)
 
 	-- Chips (chain, event, competition), only visible while relevant
@@ -8235,6 +9274,7 @@ end
 
 local function buildSides(gui, Menu)
 	refs.badges = {}
+	-- Left: the things you do most
 	local left = UI.new("Frame", {
 		Name = "LeftButtons",
 		AnchorPoint = Vector2.new(0, 0.5),
@@ -8244,7 +9284,6 @@ local function buildSides(gui, Menu)
 	}, gui)
 	addFit(left)
 	UI.new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, left)
-
 	local _, _, shopBadge = sideButton(left, 1, 66, C.Yellow, "🛒", "Shop", function()
 		Menu.toggle("Upgrades")
 	end)
@@ -8258,32 +9297,96 @@ local function buildSides(gui, Menu)
 		Menu.toggle("Rewards")
 	end)
 	refs.badges.Rewards = rewardsBadge
-	sideButton(left, 4, 66, C.Danger, "🥊", "PVP", TELEPORTS.PVP)
-	sideButton(left, 5, 66, C.Orange, "🏆", "MOG", TELEPORTS.MOG)
+	sideButton(left, 4, 66, C.Purple, "🐾", "Pets", function()
+		Menu.toggle("Pets")
+	end)
+	local _, _, wardrobeBadge = sideButton(left, 5, 66, C.Orange, "👗", "Outfit", function()
+		Menu.toggle("Wardrobe")
+	end)
+	refs.badges.Wardrobe = wardrobeBadge
 
+	-- Right: getting around
 	local right = UI.new("Frame", {
 		Name = "RightButtons",
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -8, 0.5, -10),
-		Size = UDim2.fromOffset(52, 6 * 52 + 5 * 6),
+		Size = UDim2.fromOffset(66, 2 * 66 + 8),
 		BackgroundTransparency = 1,
 	}, gui)
 	addFit(right)
-	UI.new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, right)
-	sideButton(right, 1, 52, C.Mint, "🔨", "Hammers", TELEPORTS.Hammers)
-	sideButton(right, 2, 52, C.Pink, "🐾", "Pets", function()
-		Menu.toggle("Pets")
+	UI.new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, right)
+	sideButton(right, 1, 66, C.Sky, "📍", "Places", function()
+		Hud.togglePlaces()
 	end)
-	local _, _, wardrobeBadge = sideButton(right, 3, 52, C.Purple, "👗", "Wardrobe", function()
-		Menu.toggle("Wardrobe")
-	end)
-	refs.badges.Wardrobe = wardrobeBadge
-	local _, _, crateBadge = sideButton(right, 4, 52, C.Sky, "📦", "Crates", function()
+	local _, _, crateBadge = sideButton(right, 2, 66, C.Accent, "📦", "Crates", function()
 		Menu.toggle("Crates")
 	end)
 	refs.badges.Crates = crateBadge
-	sideButton(right, 5, 52, C.Accent, "⚔️", "Battle", TELEPORTS.Battle)
-	sideButton(right, 6, 52, C.Good, "🏃", "Treadmills", TELEPORTS.Treadmills)
+end
+
+-- A small window with a button for every place; pressing one jumps you there.
+local function buildPlaces(gui)
+	local win = UI.panel(gui, {
+		Name = "PlacesWindow",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(420, 300),
+		Visible = false,
+		ZIndex = 20,
+	})
+	addFit(win)
+	tint(win, C.Sky)
+	refs.placesWin = win
+	UI.label(win, {
+		Position = UDim2.fromOffset(16, 10),
+		Size = UDim2.new(1, -60, 0, 26),
+		Font = UI.Fonts.Title,
+		TextSize = 20,
+		TextColor3 = C.Sky,
+		TextWrapped = false,
+		Text = "📍 GO TO",
+		ZIndex = 21,
+	})
+	local close = UI.button(win, {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 8),
+		Size = UDim2.fromOffset(30, 30),
+		BackgroundColor3 = C.Danger,
+		Text = "X",
+		TextSize = 16,
+		ZIndex = 22,
+		Radius = 8,
+	}, "card")
+	close.Activated:Connect(function()
+		Audio.click()
+		Hud.togglePlaces(false)
+	end)
+	local grid = UI.new("Frame", { Position = UDim2.fromOffset(14, 46), Size = UDim2.new(1, -28, 1, -58), BackgroundTransparency = 1, ZIndex = 21 }, win)
+	UI.new("UIGridLayout", { CellSize = UDim2.new(1 / 3, -8, 0, 74), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder }, grid)
+	refs.placeStatus = {}
+	for i, place in PLACES do
+		local button = UI.button(grid, { LayoutOrder = i, BackgroundColor3 = C.Card, Text = "", ZIndex = 22, Radius = 10 }, "card")
+		UI.label(button, { Position = UDim2.fromOffset(0, 4), Size = UDim2.new(1, 0, 0, 30), Font = UI.Fonts.Bold, TextSize = 24, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 1, ZIndex = 23, Text = place.icon })
+		UI.label(button, { Position = UDim2.fromOffset(4, 34), Size = UDim2.new(1, -8, 0, 16), Font = UI.Fonts.Title, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, ZIndex = 23, Text = place.name:upper() })
+		refs.placeStatus[i] = UI.label(button, { Position = UDim2.fromOffset(4, 51), Size = UDim2.new(1, -8, 0, 16), Font = UI.Fonts.Bold, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, ZIndex = 23, Text = "" })
+		button.Activated:Connect(function()
+			Audio.click()
+			Hud.togglePlaces(false)
+			place.go()
+		end)
+	end
+end
+
+function Hud.togglePlaces(force)
+	local win = refs.placesWin
+	local show = force
+	if show == nil then
+		show = not win.Visible
+	end
+	win.Visible = show
+	if show then
+		Hud.refresh()
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -8464,6 +9567,7 @@ function Hud.init(gui, Menu, Action)
 	buildSides(gui, Menu)
 	buildBottom(gui)
 	buildRebirth(gui, Action)
+	buildPlaces(gui)
 
 	-- Shrink the whole HUD on small screens (phones) so nothing crowds the view.
 	local function fit()
@@ -8633,6 +9737,23 @@ function Hud.refresh()
 		refs.rebirthGo.BackgroundColor3 = ready and C.Good or C.Disabled
 	end
 
+	if refs.placesWin.Visible then
+		local own = {}
+		for b in string.gmatch(player:GetAttribute("Own") or "gym", "%w+") do
+			own[b] = true
+		end
+		for i, place in PLACES do
+			local label = refs.placeStatus[i]
+			if not place.building or own[place.building] then
+				label.Text, label.TextColor3 = "OPEN", C.Good
+			else
+				local cost = Config.Buildings[place.building].Cost
+				label.Text = "🔒 " .. Util.fmt(cost)
+				label.TextColor3 = (player:GetAttribute("Aura") or 0) >= cost and C.Yellow or C.Danger
+			end
+		end
+	end
+
 	-- Quest
 	local kind = player:GetAttribute("QuestKind")
 	refs.quest.Visible = kind ~= nil and (player:GetAttribute("TutStep") or 99) > #Config.Tutorial
@@ -8694,7 +9815,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="47">
+          <Item class="ModuleScript" referent="51">
             <Properties>
               <string name="Name">Interact</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: "use" button for every place and hammer. Stand near something and a big button
@@ -8899,7 +10020,7 @@ return Interact
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="48">
+          <Item class="ModuleScript" referent="52">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the one main menu. A single window with a tab list so the screen never fills up with
@@ -9144,7 +10265,7 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="49">
+          <Item class="ModuleScript" referent="53">
             <Properties>
               <string name="Name">Orbs</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: pickups bob and spin locally so the server never has to animate them, and
@@ -9201,7 +10322,153 @@ return Orbs
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="50">
+          <Item class="ModuleScript" referent="54">
+            <Properties>
+              <string name="Name">PetsView</string>
+              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: draws every player's equipped pets on your own screen. They trot after their owner with real
+-- animal animation (walk cycle, tail sway, wing flaps...), turn to face where they are going, and hover or swim for
+-- the flying ones. Doing this on each client keeps it smooth and costs the server nothing.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Animals = require(Shared:WaitForChild("Animals"))
+
+local PetsView = {}
+
+local camera = workspace:WaitForChild("Camera")
+local folder
+local views = {} -- Player -> { eq = string, pets = { { rig, pos, yaw } } }
+
+-- Where each pet walks, relative to its owner (x = right, z = behind).
+local SLOTS = { Vector3.new(-4.2, 0, 5), Vector3.new(0, 0, 8.2), Vector3.new(4.2, 0, 5) }
+local NEAR = 120 -- animate pets closer than this to the camera
+
+local function destroyView(view)
+	for _, pet in view.pets do
+		pet.rig.model:Destroy()
+	end
+	view.pets = {}
+end
+
+local function rebuild(view, eq)
+	destroyView(view)
+	view.eq = eq
+	for id in string.gmatch(eq, "%w+") do
+		local def = Config.PetById[id]
+		local rig = def and Animals.build(def.Species)
+		if rig then
+			rig.model.Parent = folder
+			table.insert(view.pets, { rig = rig, pos = nil, yaw = 0, groundY = nil, lastRay = 0 })
+		end
+	end
+end
+
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function groundAt(x, y, z, fallback)
+	local hit = workspace:Raycast(Vector3.new(x, y + 6, z), Vector3.new(0, -40, 0), rayParams)
+	return hit and hit.Position.Y or fallback
+end
+
+local function step(player, view, dt, now)
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if not root or not hum then
+		return
+	end
+	local eq = player:GetAttribute("PetsEq") or ""
+	if eq ~= view.eq then
+		rebuild(view, eq)
+	end
+	local cf = root.CFrame
+	local fallbackGround = root.Position.Y - (hum.HipHeight + root.Size.Y / 2) - (hum.RigType == Enum.HumanoidRigType.R6 and 2 or 0)
+	local scaleUp = math.clamp(root.Size.Y / 2, 0.8, 1.6)
+	for i, pet in view.pets do
+		local rig = pet.rig
+		local slot = SLOTS[i] or SLOTS[2]
+		local want = cf:PointToWorldSpace(Vector3.new(slot.X * scaleUp, 0, slot.Z * scaleUp))
+		if not pet.pos then
+			pet.pos = Vector3.new(want.X, fallbackGround, want.Z)
+			pet.groundY = fallbackGround
+		end
+		-- ground height (a ray a few times a second, not every frame)
+		if now - pet.lastRay > 0.25 then
+			pet.lastRay = now
+			pet.groundY = groundAt(pet.pos.X, root.Position.Y, pet.pos.Z, fallbackGround)
+		end
+		local old = pet.pos
+		local flat = Vector3.new(want.X - old.X, 0, want.Z - old.Z)
+		local dist = flat.Magnitude
+		-- follow: speed grows with the gap so pets keep up with a sprinting owner
+		local move = flat * math.min(1, dt * (2 + dist * 0.6))
+		local nx, nz = old.X + move.X, old.Z + move.Z
+		if dist > 40 then
+			nx, nz = want.X, want.Z -- fell far behind (teleport): snap
+		end
+		pet.pos = Vector3.new(nx, pet.groundY, nz)
+		local speed = dt > 0 and math.sqrt((nx - old.X) ^ 2 + (nz - old.Z) ^ 2) / dt or 0
+		-- face the way we are walking, or the way the owner faces when standing still
+		local targetYaw
+		if speed > 1 then
+			targetYaw = math.atan2(-(nx - old.X), -(nz - old.Z))
+		else
+			local look = cf.LookVector
+			targetYaw = math.atan2(-look.X, -look.Z)
+		end
+		local diff = (targetYaw - pet.yaw + math.pi) % (math.pi * 2) - math.pi
+		pet.yaw += diff * math.min(1, dt * 8)
+		local near = (camera.CFrame.Position - pet.pos).Magnitude < NEAR
+		local breath = near and Animals.animate(rig, dt, speed) or 0
+		local bob = 0
+		if rig.def.float and rig.def.float > 0 then
+			bob = math.sin(now * 2 + i) * 0.35
+		end
+		rig.root.CFrame = CFrame.new(pet.pos.X, pet.pos.Y + rig.groundDrop + breath + bob, pet.pos.Z) * CFrame.Angles(0, pet.yaw, 0)
+	end
+end
+
+function PetsView.init()
+	folder = Instance.new("Folder")
+	folder.Name = "GlowPetsLocal"
+	folder.Parent = workspace
+	rayParams.FilterDescendantsInstances = { folder }
+	Players.PlayerRemoving:Connect(function(player)
+		local view = views[player]
+		if view then
+			destroyView(view)
+			views[player] = nil
+		end
+	end)
+	RunService.RenderStepped:Connect(function(dt)
+		local now = os.clock()
+		dt = math.min(dt, 0.1)
+		for _, player in Players:GetPlayers() do
+			local view = views[player]
+			if not view then
+				view = { eq = "", pets = {} }
+				views[player] = view
+			end
+			local ok, err = pcall(step, player, view, dt, now)
+			if not ok then
+				warn("[TrueAdam] pet update failed:", err)
+				destroyView(view)
+				view.eq = ""
+				task.wait(1)
+			end
+		end
+	end)
+end
+
+return PetsView
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="55">
             <Properties>
               <string name="Name">Runner</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: everything you see and feel while running on a treadmill: the run animation, a wider field of
@@ -9327,7 +10594,7 @@ return Runner
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="51">
+          <Item class="ModuleScript" referent="56">
             <Properties>
               <string name="Name">Swing</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: click / tap anywhere (or hold) to swing your hammer at your own face.
@@ -9472,7 +10739,7 @@ return Swing
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="52">
+          <Item class="ModuleScript" referent="57">
             <Properties>
               <string name="Name">TabCrates</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: crates tab. The server rolls; this plays the reveal (a spinning reel that slows
@@ -9771,7 +11038,7 @@ return TabCrates
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="53">
+          <Item class="ModuleScript" referent="58">
             <Properties>
               <string name="Name">TabPets</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Pets tab. Hatch eggs at the top, manage your pets below.
@@ -9784,6 +11051,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local UI = require(Shared:WaitForChild("UI"))
 local Util = require(Shared:WaitForChild("Util"))
 local Audio = require(Shared:WaitForChild("Audio"))
+local Animals = require(Shared:WaitForChild("Animals"))
 
 local player = Players.LocalPlayer
 local C = UI.Colors
@@ -9901,21 +11169,30 @@ function TabPets.build(parent, Action)
 			Text = "",
 			Radius = 10,
 		}, "card")
+		-- a little 3D preview of the animal
+		local view = UI.new("ViewportFrame", {
+			Position = UDim2.fromOffset(4, 2),
+			Size = UDim2.new(1, -8, 0, 44),
+			BackgroundTransparency = 1,
+			Ambient = Color3.fromRGB(190, 190, 200),
+			LightColor = Color3.fromRGB(255, 250, 240),
+		}, card)
+		pcall(function()
+			local rig = Animals.build(pet.Species)
+			rig.root.CFrame = CFrame.new(0, 0, 0)
+			rig.model.Parent = view
+			local extent = math.max(rig.def.len or rig.def.h or 2, rig.def.h or 2) * rig.scale
+			local cam = Instance.new("Camera")
+			cam.CFrame = CFrame.lookAt(Vector3.new(extent * 0.9, extent * 0.35, -extent * 1.5), Vector3.new(0, 0, 0))
+			cam.FieldOfView = 40
+			cam.Parent = view
+			view.CurrentCamera = cam
+		end)
 		UI.label(card, {
-			Position = UDim2.fromOffset(4, 4),
-			Size = UDim2.new(1, -8, 0, 28),
-			Font = UI.Fonts.Title,
-			TextSize = 22,
-			TextColor3 = pet.Color,
-			TextXAlignment = Enum.TextXAlignment.Center,
-			TextWrapped = false,
-			Text = "🐾",
-		})
-		UI.label(card, {
-			Position = UDim2.fromOffset(4, 32),
-			Size = UDim2.new(1, -8, 0, 28),
+			Position = UDim2.fromOffset(4, 46),
+			Size = UDim2.new(1, -8, 0, 14),
 			Font = UI.Fonts.Bold,
-			TextSize = 11,
+			TextSize = 10,
 			TextColor3 = color,
 			TextXAlignment = Enum.TextXAlignment.Center,
 			Text = pet.Name,
@@ -9971,7 +11248,7 @@ return TabPets
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="54">
+          <Item class="ModuleScript" referent="59">
             <Properties>
               <string name="Name">TabProfile</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: your character sheet: rank, stats, duel record and the current quest.
@@ -10150,7 +11427,7 @@ return TabProfile
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="55">
+          <Item class="ModuleScript" referent="60">
             <Properties>
               <string name="Name">TabRewards</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: daily streak rewards and the current server event.
@@ -10276,7 +11553,7 @@ return TabRewards
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="56">
+          <Item class="ModuleScript" referent="61">
             <Properties>
               <string name="Name">TabSettings</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: simple toggles. Settings are saved on the server so they follow the player.
@@ -10381,7 +11658,7 @@ return TabSettings
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="57">
+          <Item class="ModuleScript" referent="62">
             <Properties>
               <string name="Name">TabStore</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Store tab (real Robux). Offers without a real id yet show "COMING SOON".
@@ -10502,7 +11779,7 @@ return TabStore
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="58">
+          <Item class="ModuleScript" referent="63">
             <Properties>
               <string name="Name">TabUpgrades</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades (bought with Aura) and the rebirth button.
@@ -10662,7 +11939,7 @@ return TabUpgrades
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="59">
+          <Item class="ModuleScript" referent="64">
             <Properties>
               <string name="Name">TabWardrobe</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the wardrobe. A collection grid: owned items can be worn, unowned ones show as locked
@@ -10889,7 +12166,7 @@ return TabWardrobe
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="60">
+          <Item class="ModuleScript" referent="65">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -10999,7 +12276,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="61">
+          <Item class="ModuleScript" referent="66">
             <Properties>
               <string name="Name">TrainingUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame overlay. A marker sweeps a bar; press Space (or tap) while it
@@ -11264,7 +12541,7 @@ return TrainingUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="62">
+          <Item class="ModuleScript" referent="67">
             <Properties>
               <string name="Name">Tutorial</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the first-time tutorial card and the bouncing arrow that points at where to go.
@@ -11464,7 +12741,7 @@ return Tutorial
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="63">
+          <Item class="ModuleScript" referent="68">
             <Properties>
               <string name="Name">WorldTags</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: floating signs over every building and treadmill that show what it costs, what it gives and
@@ -11614,7 +12891,7 @@ return WorldTags
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="64">
+  <Item class="Workspace" referent="69">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>
