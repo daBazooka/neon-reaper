@@ -15,6 +15,7 @@ local OPTIONS = {
 	{ key = "Music", name = "Music", desc = "Ambient background music" },
 	{ key = "Sfx", name = "Sound effects", desc = "Pickups, crates and fanfares" },
 	{ key = "Fx", name = "Screen effects", desc = "Camera punch, shake, flashes and floating numbers" },
+	{ key = "Cam", name = "Zone cameras", desc = "Each place has its own cinematic camera angle" },
 	{ key = "Duels", name = "Duels", desc = "Allow duel matchmaking (turn off to stay out of fights)" },
 }
 
@@ -41,7 +42,7 @@ function TabSettings.build(parent, Action)
 
 	local toggles = {}
 	for i, opt in OPTIONS do
-		local row = UI.panel(list, { LayoutOrder = i, Size = UDim2.new(1, 0, 0, 62), BackgroundColor3 = C.Card, Radius = 14 })
+		local row = UI.panel(list, { LayoutOrder = i, Size = UDim2.new(1, 0, 0, 56), BackgroundColor3 = C.Card, Radius = 12 })
 		UI.label(row, {
 			Position = UDim2.fromOffset(16, 8),
 			Size = UDim2.new(1, -130, 0, 22),

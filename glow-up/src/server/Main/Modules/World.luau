@@ -10,7 +10,6 @@ local World = {}
 
 local rng = Random.new(77)
 local PLAZA = Config.PlazaRadius
-local STATION_RADIUS = 95
 local C3 = Color3.fromRGB
 local M = Enum.Material
 
@@ -237,9 +236,9 @@ end
 --------------------------------------------------------------------------------
 -- Pavilions (training stations)
 --------------------------------------------------------------------------------
-local function pavilion(parent, pos, inward, roofColor, signText, signColor)
+local function pavilion(parent, pos, inward, roofColor, signText, signColor, floorColor, floorMaterial, wallColor)
 	local cf = CFrame.lookAt(pos, pos + inward)
-	block(parent, "Floor", Vector3.new(32, 0.8, 30), cf * CFrame.new(0, 0.5, 0), C3(160, 160, 166), M.Concrete)
+	block(parent, "Floor", Vector3.new(32, 0.8, 30), cf * CFrame.new(0, 0.5, 0), floorColor or C3(160, 160, 166), floorMaterial or M.Concrete)
 	for sx = -1, 1, 2 do
 		for sz = -1, 1, 2 do
 			block(parent, "Pillar", Vector3.new(1.8, 13, 1.8), cf * CFrame.new(sx * 14.5, 7.3, sz * 13.5), WHITE, M.Concrete)
@@ -247,21 +246,20 @@ local function pavilion(parent, pos, inward, roofColor, signText, signColor)
 	end
 	block(parent, "Roof", Vector3.new(35, 1.4, 33), cf * CFrame.new(0, 14.4, 0), roofColor)
 	block(parent, "RoofTrim", Vector3.new(36, 0.6, 34), cf * CFrame.new(0, 13.5, 0), WHITE)
-	block(parent, "BackWall", Vector3.new(32, 12, 1), cf * CFrame.new(0, 7, 14.6), C3(214, 208, 196), M.Concrete)
+	block(parent, "BackWall", Vector3.new(32, 12, 1), cf * CFrame.new(0, 7, 14.6), wallColor or C3(214, 208, 196), M.Concrete)
 	sign(parent, (cf * CFrame.new(0, 18.6, -16)).Position, inward, Vector3.new(26, 5, 0.6), signText, signColor)
 	return cf
 end
 
-local function stationAt(angle)
-	local a = math.rad(angle)
-	local pos = Vector3.new(math.cos(a) * STATION_RADIUS, 0, math.sin(a) * STATION_RADIUS)
-	local inward = Vector3.new(-math.cos(a), 0, -math.sin(a))
-	return pos, inward, Vector3.new(-math.sin(a), 0, math.cos(a))
+local function stationAt(name)
+	local pos = Config.StationPos(name)
+	local inward = Config.StationFront(name)
+	return pos, inward, Vector3.new(-inward.Z, 0, inward.X)
 end
 
 local function buildGym(parent, cb)
-	local pos, inward = stationAt(40)
-	local cf = pavilion(parent, pos, inward, RED, "💪  GYM", C3(150, 30, 20))
+	local pos, inward = stationAt("Gym")
+	local cf = pavilion(parent, pos, inward, RED, "💪  GYM", C3(150, 30, 20), C3(48, 50, 56), M.Slate, C3(150, 60, 55))
 	-- Bench press
 	block(parent, "Bench", Vector3.new(2.4, 1.2, 6.5), cf * CFrame.new(0, 1.9, 2), C3(40, 40, 46), M.SmoothPlastic)
 	for side = -1, 1, 2 do
@@ -289,8 +287,8 @@ local function buildGym(parent, cb)
 end
 
 local function buildStudio(parent, cb)
-	local pos, inward = stationAt(112)
-	local cf = pavilion(parent, pos, inward, C3(190, 70, 140), "💈  STYLE STUDIO", C3(130, 40, 100))
+	local pos, inward = stationAt("Studio")
+	local cf = pavilion(parent, pos, inward, C3(190, 70, 140), "💈  STYLE STUDIO", C3(130, 40, 100), C3(242, 190, 214), M.Marble, C3(236, 170, 200))
 	for i, x in { -7, 7 } do
 		local c = cf * CFrame.new(x, 0, 2)
 		post(parent, "ChairBase", (c * CFrame.new(0, 1, 0)).Position, 1.3, 0.6, DARK, M.Metal)
@@ -317,8 +315,8 @@ local function buildStudio(parent, cb)
 end
 
 local function buildLounge(parent, cb)
-	local pos, inward = stationAt(184)
-	local cf = pavilion(parent, pos, inward, C3(60, 140, 190), "🛋️  CHARM LOUNGE", C3(30, 90, 140))
+	local pos, inward = stationAt("Lounge")
+	local cf = pavilion(parent, pos, inward, C3(60, 140, 190), "🛋️  CHARM LOUNGE", C3(30, 90, 140), C3(170, 122, 84), M.WoodPlanks, C3(96, 170, 190))
 	disk(parent, "Rug", (cf * CFrame.new(0, 0.9, 1)).Position, 9, 0.1, C3(190, 70, 90), M.Fabric)
 	block(parent, "SofaSeat", Vector3.new(11, 1.6, 4), cf * CFrame.new(0, 2, 11), C3(120, 80, 150), M.Fabric)
 	block(parent, "SofaBack", Vector3.new(11, 3.6, 1), cf * CFrame.new(0, 4, 12.6), C3(100, 64, 130), M.Fabric)
@@ -341,7 +339,7 @@ local function buildLounge(parent, cb)
 end
 
 local function buildCrateShop(parent, cb)
-	local pos, inward = stationAt(256)
+	local pos, inward = stationAt("Crates")
 	local cf = CFrame.lookAt(pos, pos + inward)
 	block(parent, "Base", Vector3.new(26, 0.8, 20), cf * CFrame.new(0, 0.5, 0), C3(150, 120, 90), M.Wood)
 	block(parent, "BackWall", Vector3.new(24, 11, 1), cf * CFrame.new(0, 6.3, 9), C3(214, 190, 150), M.Wood)
@@ -402,7 +400,7 @@ local function buildDummy(parent, at, facing, cb)
 end
 
 local function buildRing(parent, cb)
-	local pos, inward, tangent = stationAt(328)
+	local pos, inward, tangent = stationAt("Ring")
 	local cf = CFrame.lookAt(pos, pos + inward)
 	-- Platform with steps toward the plaza
 	block(parent, "RingStepLow", Vector3.new(14, 0.9, 5), cf * CFrame.new(0, 0.45, -26.5), C3(150, 150, 156), M.Concrete)
@@ -680,9 +678,8 @@ function World.build(cb)
 	local arena = buildRing(world, cb)
 
 	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 118), r = 8 } }
-	for _, angle in { 40, 112, 184, 256, 328 } do
-		local pos = stationAt(angle)
-		table.insert(avoid, { pos = pos, r = 28 })
+	for name in Config.Stations do
+		table.insert(avoid, { pos = (stationAt(name)), r = 28 })
 	end
 
 	return {

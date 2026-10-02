@@ -17,14 +17,56 @@ end
 
 local SCALE_VALUES = { "BodyHeightScale", "BodyWidthScale", "BodyDepthScale", "HeadScale", "BodyTypeScale", "BodyProportionScale" }
 
+-- The head's unscaled ("nominal") size, so accessories fit no matter how big the head currently is.
+local function nominalHead(char)
+	local head = char and char:FindFirstChild("Head")
+	if not head then
+		return Vector3.new(2, 1, 1)
+	end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	local scaleValue = hum and hum:FindFirstChild("HeadScale")
+	local current = (scaleValue and scaleValue:IsA("NumberValue") and scaleValue.Value) or 1
+	if current <= 0 then
+		current = 1
+	end
+	return head.Size / current
+end
+
+-- Target head size (after the level's scaling). Used to place face features.
+function Appearance.headDims(p)
+	local profile = Data.get(p)
+	local level = profile and profile.Level or 1
+	local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+	if hum and hum.RigType == Enum.HumanoidRigType.R15 then
+		return nominalHead(p.Character) * Config.AppearanceScales(level).HeadScale
+	end
+	local head = p.Character and p.Character:FindFirstChild("Head")
+	return head and head.Size or Vector3.new(2, 1, 1)
+end
+
+-- Target torso size (R15 upper torso is about 2 x 1.6 x 1 before scaling).
+function Appearance.torsoDims(p)
+	local profile = Data.get(p)
+	local level = profile and profile.Level or 1
+	local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+	if hum and hum.RigType == Enum.HumanoidRigType.R15 then
+		local s = Config.AppearanceScales(level)
+		return Vector3.new(2 * s.BodyWidthScale, 1.6 * s.BodyHeightScale, 1 * s.BodyDepthScale)
+	end
+	local torso = p.Character and p.Character:FindFirstChild("Torso")
+	return torso and torso.Size or Vector3.new(2, 2, 1)
+end
+
 -- Scale numbers accessories should use for this player (so hats and wings fit the body).
+-- Accessories are designed for a head about 2 studs wide.
 function Appearance.accessoryScales(p)
 	local profile = Data.get(p)
 	local level = profile and profile.Level or 1
 	local s = Config.AppearanceScales(level)
 	local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
 	if hum and hum.RigType == Enum.HumanoidRigType.R15 then
-		return s.HeadScale, (s.BodyHeightScale + s.BodyWidthScale) / 2
+		local nominal = nominalHead(p.Character)
+		return s.HeadScale * nominal.X / 2, (s.BodyHeightScale + s.BodyWidthScale) / 2
 	end
 	local scale = p.Character and p.Character:GetScale() or 1
 	return scale, scale

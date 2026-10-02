@@ -25,25 +25,25 @@ local lastSend = 0
 local function card(parent, anchorX, color)
 	local c = UI.panel(parent, {
 		AnchorPoint = Vector2.new(anchorX, 0),
-		Position = UDim2.new(anchorX, anchorX == 0 and 20 or -20, 0, 10),
-		Size = UDim2.fromOffset(250, 76),
+		Position = UDim2.new(anchorX, anchorX == 0 and 12 or -12, 0, 8),
+		Size = UDim2.fromOffset(190, 52),
 		ZIndex = 31,
 	})
 	c:FindFirstChildOfClass("UIStroke").Color = color
 	local name = UI.label(c, {
-		Position = UDim2.fromOffset(16, 8),
-		Size = UDim2.new(1, -32, 0, 28),
+		Position = UDim2.fromOffset(12, 5),
+		Size = UDim2.new(1, -24, 0, 20),
 		Font = UI.Fonts.Title,
-		TextSize = 20,
+		TextSize = 14,
 		TextXAlignment = anchorX == 0 and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right,
 		TextWrapped = false,
 		ZIndex = 32,
 	})
 	local info = UI.label(c, {
-		Position = UDim2.fromOffset(16, 40),
-		Size = UDim2.new(1, -32, 0, 22),
+		Position = UDim2.fromOffset(12, 28),
+		Size = UDim2.new(1, -24, 0, 18),
 		Font = UI.Fonts.Bold,
-		TextSize = 13,
+		TextSize = 10,
 		TextColor3 = C.Muted,
 		TextXAlignment = anchorX == 0 and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right,
 		TextWrapped = false,
@@ -80,20 +80,20 @@ function DuelUI.init(gui, action)
 
 	local bars = UI.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 104),
-		Size = UDim2.fromOffset(520, 60),
+		Position = UDim2.new(0.5, 0, 0, 8),
+		Size = UDim2.fromOffset(280, 36),
 		BackgroundTransparency = 1,
 		ZIndex = 31,
 	}, root)
-	myBar = UI.bar(bars, { Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 16) }, C.Cyan)
-	oppBar = UI.bar(bars, { Position = UDim2.fromOffset(0, 34), Size = UDim2.new(1, 0, 0, 16) }, C.Accent2)
+	myBar = UI.bar(bars, { Position = UDim2.fromOffset(0, 2), Size = UDim2.new(1, 0, 0, 12) }, C.Sky)
+	oppBar = UI.bar(bars, { Position = UDim2.fromOffset(0, 20), Size = UDim2.new(1, 0, 0, 12) }, C.Pink)
 
 	center = UI.label(root, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.4),
-		Size = UDim2.fromOffset(600, 120),
+		Position = UDim2.fromScale(0.5, 0.32),
+		Size = UDim2.fromOffset(400, 70),
 		Font = UI.Fonts.Title,
-		TextSize = 96,
+		TextSize = 56,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
 		TextStrokeTransparency = 0.2,
@@ -103,10 +103,10 @@ function DuelUI.init(gui, action)
 	})
 	resultLabel = UI.label(root, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.56),
-		Size = UDim2.fromOffset(640, 60),
+		Position = UDim2.fromScale(0.5, 0.43),
+		Size = UDim2.fromOffset(520, 40),
 		Font = UI.Fonts.Bold,
-		TextSize = 22,
+		TextSize = 15,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		Text = "",
 		ZIndex = 32,
@@ -114,12 +114,12 @@ function DuelUI.init(gui, action)
 
 	tapButton = UI.button(root, {
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -40),
-		Size = UDim2.fromOffset(260, 96),
+		Position = UDim2.new(0.5, 0, 1, -24),
+		Size = UDim2.fromOffset(180, 64),
 		Text = "TAP!",
-		TextSize = 40,
+		TextSize = 28,
 		ZIndex = 33,
-		Radius = 24,
+		Radius = 16,
 	}, "primary")
 	tapButton.Font = UI.Fonts.Title
 	tapScale = UI.new("UIScale", {}, tapButton)

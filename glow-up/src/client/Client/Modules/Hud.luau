@@ -1,5 +1,7 @@
--- SUB 5 TO TRUE ADAM: the always-on screen. Deliberately minimal: your Aura (with rank progress), one
--- quest, a chain chip and an event banner only when relevant, and a dock that opens the menu.
+-- SUB 5 TO TRUE ADAM: the always-on screen, kept small so it never gets in the way of the action.
+-- Top: Aura and level pills (with a thin XP bar). Under them: tiny chips that only show up when
+-- relevant (chain, competition, event). Left: one small quest. Bottom: a compact colourful dock.
+-- Every kind of information has its own colour so it can be read at a glance.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -17,12 +19,12 @@ local player = Players.LocalPlayer
 local C = UI.Colors
 
 local DOCK = {
-	{ name = "Wardrobe", icon = "👗" },
-	{ name = "Crates", icon = "🎁" },
-	{ name = "Upgrades", icon = "⬆️" },
-	{ name = "Profile", icon = "📈" },
-	{ name = "Rewards", icon = "📅" },
-	{ name = "Settings", icon = "⚙️" },
+	{ name = "Wardrobe", icon = "👗", color = C.Pink },
+	{ name = "Crates", icon = "🎁", color = C.Orange },
+	{ name = "Upgrades", icon = "⬆️", color = C.Mint },
+	{ name = "Profile", icon = "📈", color = C.Sky },
+	{ name = "Rewards", icon = "📅", color = C.Yellow },
+	{ name = "Settings", icon = "⚙️", color = C.Purple },
 }
 
 local refs = {}
@@ -30,65 +32,80 @@ local shownAura = 0
 local pending, lastGain = 0, 0
 local lastAura = 0
 
-local function buildAuraCard(gui)
-	local card = UI.panel(gui, {
-		Name = "AuraCard",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 8),
-		Size = UDim2.fromOffset(360, 94),
-	})
-	refs.cardScale = UI.new("UIScale", {}, card)
+local function tint(panel, color)
+	local stroke = panel:FindFirstChildOfClass("UIStroke")
+	if stroke then
+		stroke.Color = color
+	end
+end
 
-	refs.aura = UI.label(card, {
-		Position = UDim2.fromOffset(18, 6),
-		Size = UDim2.fromOffset(190, 42),
+-- A small rounded pill with a coloured outline.
+local function pill(parent, name, size, color)
+	local frame = UI.panel(parent, { Name = name, Size = size, Radius = 10 })
+	tint(frame, color)
+	return frame
+end
+
+local function buildTop(gui)
+	local row = UI.new("Frame", {
+		Name = "TopRow",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 6),
+		Size = UDim2.fromOffset(380, 34),
+		BackgroundTransparency = 1,
+	}, gui)
+	UI.new("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		Padding = UDim.new(0, 8),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, row)
+
+	-- Aura (gold)
+	local aura = pill(row, "Aura", UDim2.fromOffset(150, 32), C.Gold)
+	aura.LayoutOrder = 1
+	refs.auraScale = UI.new("UIScale", {}, aura)
+	refs.aura = UI.label(aura, {
+		Position = UDim2.fromOffset(10, 0),
+		Size = UDim2.new(1, -20, 1, 0),
 		Font = UI.Fonts.Title,
-		TextSize = 34,
-		TextColor3 = C.Gold,
+		TextSize = 17,
+		TextColor3 = C.Yellow,
 		TextWrapped = false,
 		Text = "✦ 0",
 	})
-	refs.ticker = UI.label(card, {
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -16, 0, 12),
-		Size = UDim2.fromOffset(110, 26),
+	refs.ticker = UI.label(aura, {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -8, 0.5, 0),
+		Size = UDim2.fromOffset(60, 16),
 		Font = UI.Fonts.Title,
-		TextSize = 20,
-		TextColor3 = C.Good,
+		TextSize = 12,
+		TextColor3 = C.Mint,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		TextWrapped = false,
 		TextTransparency = 1,
 		Text = "",
 	})
-	refs.rate = UI.label(card, {
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -16, 0, 38),
-		Size = UDim2.fromOffset(110, 16),
-		Font = UI.Fonts.Bold,
-		TextSize = 12,
-		TextColor3 = C.Muted,
-		TextXAlignment = Enum.TextXAlignment.Right,
-		TextWrapped = false,
-		Text = "",
-	})
-	refs.rank = UI.label(card, {
-		Position = UDim2.fromOffset(18, 48),
-		Size = UDim2.fromOffset(210, 18),
+
+	-- Level + tier (colour follows the tier)
+	local level = pill(row, "Level", UDim2.fromOffset(222, 32), C.Purple)
+	level.LayoutOrder = 2
+	refs.levelFrame = level
+	refs.level = UI.label(level, {
+		Position = UDim2.fromOffset(10, 1),
+		Size = UDim2.new(1, -20, 0, 20),
 		Font = UI.Fonts.Title,
-		TextSize = 14,
+		TextSize = 13,
 		TextWrapped = false,
 		Text = "",
 	})
-	refs.rankBar = UI.bar(card, {
-		Position = UDim2.new(0, 18, 1, -16),
-		Size = UDim2.new(1, -36, 0, 8),
-	}, C.Accent)
-	refs.rankNext = UI.label(card, {
+	refs.xpBar = UI.bar(level, { Position = UDim2.new(0, 10, 1, -9), Size = UDim2.new(1, -20, 0, 5) }, C.Purple)
+	refs.xpText = UI.label(level, {
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -18, 0, 48),
-		Size = UDim2.fromOffset(130, 18),
+		Position = UDim2.new(1, -10, 0, 1),
+		Size = UDim2.fromOffset(90, 20),
 		Font = UI.Fonts.Bold,
-		TextSize = 12,
+		TextSize = 10,
 		TextColor3 = C.Muted,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		TextWrapped = false,
@@ -97,95 +114,62 @@ local function buildAuraCard(gui)
 end
 
 local function buildChips(gui)
-	-- Chain chip
-	refs.chain = UI.panel(gui, {
-		Name = "ChainChip",
+	-- Small status chips under the top row; only visible while relevant.
+	local stack = UI.new("Frame", {
+		Name = "Chips",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 110),
-		Size = UDim2.fromOffset(220, 32),
-		Visible = false,
-		Radius = 16,
-	})
+		Position = UDim2.new(0.5, 0, 0, 44),
+		Size = UDim2.fromOffset(260, 80),
+		BackgroundTransparency = 1,
+	}, gui)
+	UI.new("UIListLayout", {
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		Padding = UDim.new(0, 4),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, stack)
+
+	local function chip(order, color, width)
+		local c = pill(stack, "Chip", UDim2.fromOffset(width, 22), color)
+		c.LayoutOrder = order
+		c.Visible = false
+		local label = UI.label(c, {
+			Size = UDim2.fromScale(1, 1),
+			Font = UI.Fonts.Title,
+			TextSize = 11,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			TextWrapped = false,
+			Text = "",
+		})
+		return c, label
+	end
+
+	refs.chain, refs.chainText = chip(1, C.Sky, 150)
 	refs.chainScale = UI.new("UIScale", {}, refs.chain)
-	refs.chainText = UI.label(refs.chain, {
-		Size = UDim2.new(1, 0, 0, 26),
-		Font = UI.Fonts.Title,
-		TextSize = 15,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		TextWrapped = false,
-		Text = "",
-	})
-	refs.chainBar = UI.bar(refs.chain, { Position = UDim2.new(0, 14, 1, -8), Size = UDim2.new(1, -28, 0, 3) }, C.Cyan)
+	refs.chainBar = UI.bar(refs.chain, { Position = UDim2.new(0, 10, 1, -5), Size = UDim2.new(1, -20, 0, 2) }, C.Sky)
+	refs.comp, refs.compText = chip(2, C.Orange, 260)
+	refs.event, refs.eventText = chip(3, C.Pink, 260)
 
-	-- Event banner
-	refs.event = UI.panel(gui, {
-		Name = "EventBanner",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 188),
-		Size = UDim2.fromOffset(300, 46),
-		Visible = false,
-		Radius = 14,
-	})
-	refs.eventTitle = UI.label(refs.event, {
-		Position = UDim2.fromOffset(14, 4),
-		Size = UDim2.new(1, -28, 0, 22),
-		Font = UI.Fonts.Title,
-		TextSize = 16,
-		TextWrapped = false,
-		Text = "",
-	})
-	refs.eventDesc = UI.label(refs.event, {
-		Position = UDim2.fromOffset(14, 24),
-		Size = UDim2.new(1, -28, 0, 16),
-		Font = UI.Fonts.Body,
-		TextSize = 12,
-		TextColor3 = C.Muted,
-		TextWrapped = false,
-		Text = "",
-	})
-
-	-- Mog Competition chip
-	refs.comp = UI.panel(gui, {
-		Name = "CompChip",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 148),
-		Size = UDim2.fromOffset(300, 34),
-		Visible = false,
-		Radius = 14,
-	})
-	refs.compText = UI.label(refs.comp, {
-		Size = UDim2.fromScale(1, 1),
-		Font = UI.Fonts.Title,
-		TextSize = 14,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		TextWrapped = false,
-		Text = "",
-	})
-
-	-- Quest chip (left edge, below the Roblox chat)
-	refs.quest = UI.panel(gui, {
-		Name = "QuestChip",
-		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 14, 0.5, -40),
-		Size = UDim2.fromOffset(250, 62),
-		Radius = 14,
-	})
+	-- Quest (mint), on the left edge below the Roblox chat
+	refs.quest = pill(gui, "Quest", UDim2.fromOffset(190, 40), C.Mint)
+	refs.quest.AnchorPoint = Vector2.new(0, 0.5)
+	refs.quest.Position = UDim2.new(0, 10, 0.5, -30)
 	refs.questScale = UI.new("UIScale", {}, refs.quest)
 	refs.questText = UI.label(refs.quest, {
-		Position = UDim2.fromOffset(14, 6),
-		Size = UDim2.new(1, -28, 0, 20),
+		Position = UDim2.fromOffset(10, 3),
+		Size = UDim2.new(1, -52, 0, 16),
 		Font = UI.Fonts.Bold,
-		TextSize = 14,
+		TextSize = 11,
 		TextWrapped = false,
 		Text = "",
 	})
-	refs.questBar = UI.bar(refs.quest, { Position = UDim2.new(0, 14, 1, -22), Size = UDim2.new(1, -28, 0, 10) }, C.Good)
+	refs.questBar = UI.bar(refs.quest, { Position = UDim2.new(0, 10, 1, -12), Size = UDim2.new(1, -20, 0, 6) }, C.Mint)
 	refs.questCount = UI.label(refs.quest, {
-		Position = UDim2.fromOffset(14, 24),
-		Size = UDim2.new(1, -28, 0, 12),
-		Font = UI.Fonts.Bold,
-		TextSize = 11,
-		TextColor3 = C.Muted,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 3),
+		Size = UDim2.fromOffset(40, 16),
+		Font = UI.Fonts.Title,
+		TextSize = 10,
+		TextColor3 = C.Mint,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		TextWrapped = false,
 		Text = "",
@@ -193,14 +177,13 @@ local function buildChips(gui)
 end
 
 local function buildDock(gui, Menu)
-	local dock = UI.panel(gui, {
+	local dock = UI.new("Frame", {
 		Name = "Dock",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -14),
-		Size = UDim2.fromOffset(#DOCK * 70 + 14, 76),
-		Radius = 22,
-	})
-	UI.new("UIScale", {}, dock)
+		Position = UDim2.new(0.5, 0, 1, -8),
+		Size = UDim2.fromOffset(#DOCK * 50, 50),
+		BackgroundTransparency = 1,
+	}, gui)
 	UI.new("UIListLayout", {
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = Enum.HorizontalAlignment.Center,
@@ -212,38 +195,41 @@ local function buildDock(gui, Menu)
 	for i, entry in DOCK do
 		local button = UI.button(dock, {
 			LayoutOrder = i,
-			Size = UDim2.fromOffset(64, 62),
+			Size = UDim2.fromOffset(44, 48),
+			BackgroundColor3 = entry.color,
 			Text = "",
+			Radius = 12,
 		}, "card")
 		UI.label(button, {
-			Size = UDim2.new(1, 0, 0, 36),
+			Size = UDim2.new(1, 0, 0, 26),
 			Position = UDim2.fromOffset(0, 4),
 			Font = UI.Fonts.Bold,
-			TextSize = 26,
+			TextSize = 20,
 			TextXAlignment = Enum.TextXAlignment.Center,
 			TextWrapped = false,
+			TextStrokeTransparency = 1,
 			Text = entry.icon,
 		})
 		UI.label(button, {
-			Size = UDim2.new(1, 0, 0, 16),
-			Position = UDim2.new(0, 0, 1, -20),
-			Font = UI.Fonts.Bold,
-			TextSize = 11,
-			TextColor3 = C.Muted,
+			Size = UDim2.new(1, 0, 0, 12),
+			Position = UDim2.new(0, 0, 1, -15),
+			Font = UI.Fonts.Title,
+			TextSize = 8,
 			TextXAlignment = Enum.TextXAlignment.Center,
 			TextWrapped = false,
-			Text = entry.name,
+			TextStrokeTransparency = 0.2,
+			Text = entry.name:upper(),
 		})
 		local badge = UI.new("Frame", {
 			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -4, 0, 4),
-			Size = UDim2.fromOffset(12, 12),
-			BackgroundColor3 = C.Accent2,
+			Position = UDim2.new(1, -1, 0, 1),
+			Size = UDim2.fromOffset(11, 11),
+			BackgroundColor3 = C.Danger,
 			Visible = false,
 			ZIndex = 5,
 		}, button)
 		UI.corner(badge, 6)
-		UI.stroke(badge, Color3.new(1, 1, 1), 1.5, 0.2)
+		UI.stroke(badge, Color3.new(1, 1, 1), 1.5, 0)
 		refs.badges[entry.name] = badge
 		button.Activated:Connect(function()
 			Audio.click()
@@ -253,7 +239,7 @@ local function buildDock(gui, Menu)
 end
 
 function Hud.init(gui, Menu)
-	buildAuraCard(gui)
+	buildTop(gui)
 	buildChips(gui)
 	buildDock(gui, Menu)
 
@@ -268,7 +254,7 @@ function Hud.init(gui, Menu)
 		if now > lastAura then
 			pending += now - lastAura
 			lastGain = os.clock()
-			UI.pop(refs.cardScale, 1.04)
+			UI.pop(refs.auraScale, 1.05)
 		end
 		lastAura = now
 	end)
@@ -304,15 +290,15 @@ function Hud.init(gui, Menu)
 		if chain >= 3 and remaining > 0 then
 			refs.chain.Visible = true
 			refs.chainText.Text = string.format("CHAIN x%d  ·  +%d%%", chain, math.floor((Config.ChainMult(chain) - 1) * 100 + 0.5))
+			refs.chainText.TextColor3 = C.Sky:Lerp(C.Pink, math.clamp(chain / Config.ChainMax, 0, 1))
 			refs.chainBar.set(remaining / Config.ChainWindow)
-			refs.chainText.TextColor3 = C.Cyan:Lerp(C.Accent2, math.clamp(chain / Config.ChainMax, 0, 1))
 		else
 			refs.chain.Visible = false
 		end
 
 		if t - lastSlow > 0.15 then
 			lastSlow = t
-			Hud.refresh(Menu)
+			Hud.refresh()
 		end
 	end)
 end
@@ -326,24 +312,18 @@ function Hud.pulseQuest()
 end
 
 function Hud.refresh()
-	-- Level + XP progress, and which looks tier you are
+	-- Level, tier and XP
 	local level = player:GetAttribute("Level") or 1
 	local rankIndex = player:GetAttribute("Rank") or 1
 	local rank = Config.Ranks[rankIndex]
-	local nextRank = Config.Ranks[rankIndex + 1]
 	local xp = player:GetAttribute("XP") or 0
 	local needed = player:GetAttribute("XPNeeded") or 1
-	refs.rank.Text = string.format("LV %s  ·  %s", Util.fmt(level), rank.Name:upper())
-	refs.rank.TextColor3 = rank.Color
-	refs.rankBar.fill.BackgroundColor3 = rank.Color
-	refs.rankBar.set(xp / needed)
-	if nextRank then
-		refs.rankNext.Text = string.format("%s / %s XP", Util.fmt(xp), Util.fmt(needed))
-	else
-		refs.rankNext.Text = string.format("%s / %s XP", Util.fmt(xp), Util.fmt(needed))
-	end
-	local rate = player:GetAttribute("AuraRate") or 0
-	refs.rate.Text = rate > 0 and ("+" .. Util.fmt(rate) .. " /s") or ""
+	refs.level.Text = string.format("LV %s  ·  %s", Util.fmt(level), rank.Name:upper())
+	refs.level.TextColor3 = rank.Color
+	refs.xpText.Text = string.format("%s/%s", Util.fmt(xp), Util.fmt(needed))
+	refs.xpBar.fill.BackgroundColor3 = rank.Color
+	refs.xpBar.set(xp / needed)
+	tint(refs.levelFrame, rank.Color)
 
 	-- Quest
 	local kind = player:GetAttribute("QuestKind")
@@ -351,31 +331,30 @@ function Hud.refresh()
 	if kind then
 		local goal = player:GetAttribute("QuestGoal") or 1
 		local progress = player:GetAttribute("QuestProgress") or 0
-		refs.questText.Text = "🎯 " .. Config.QuestText(kind, goal)
-		refs.questCount.Text = progress .. " / " .. goal
+		refs.questText.Text = Config.QuestText(kind, goal)
+		refs.questCount.Text = progress .. "/" .. goal
 		refs.questBar.set(progress / goal)
 	end
 
-	-- Event banner
+	-- Event chip
 	local id = workspace:GetAttribute("Event")
 	local ev = id and id ~= "" and Config.EventById[id]
 	local left = (workspace:GetAttribute("EventEnd") or 0) - workspace:GetServerTimeNow()
 	if ev and left > 0 then
 		refs.event.Visible = true
-		refs.eventTitle.Text = string.format("%s %s  ·  %s", ev.Icon, ev.Name, Util.clock(left))
-		refs.eventTitle.TextColor3 = ev.Tint
-		refs.eventDesc.Text = ev.Desc
+		refs.eventText.Text = string.format("%s %s  %s  ·  %s", ev.Icon, ev.Name, Util.clock(left), ev.Desc)
+		refs.eventText.TextColor3 = C.Pink
 	else
 		refs.event.Visible = false
 	end
 
-	-- Mog Competition countdown
+	-- Mog Competition chip
 	local compState = workspace:GetAttribute("CompState")
 	local compLeft = (workspace:GetAttribute("CompEnd") or 0) - workspace:GetServerTimeNow()
 	if compState == "open" and compLeft > 0 then
 		refs.comp.Visible = true
-		refs.compText.Text = string.format("🏆 MOG COMPETITION OPEN  %s  ·  go to the stage!", Util.clock(compLeft))
-		refs.compText.TextColor3 = C.Gold
+		refs.compText.Text = string.format("🏆 MOG COMPETITION OPEN %s  ·  go to the stage", Util.clock(compLeft))
+		refs.compText.TextColor3 = C.Orange
 	elseif compState == "idle" and compLeft > 0 then
 		refs.comp.Visible = true
 		refs.compText.Text = string.format("🏆 Mog Competition in %s", Util.clock(compLeft))

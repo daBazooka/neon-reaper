@@ -4,23 +4,32 @@ A Roblox glow-up game with a classic, bright Roblox look. You start as a **Sub 5
 big-headed gag character) and level up to **True Adam** at level **1000**. Your body shape changes
 as you level, and the tag above your head shows what you are.
 
-## Levels and tiers
-- Levels 1 to 1000. Levels 1 to 50 come quickly; after 50 the XP cost climbs steeply
-  (level 50 needs ~420 XP, level 100 ~3,900, level 500 ~665,000).
-- Tiers (shown above every player): **Sub 5** (1) → **Low-Tier Normie** (10) → **Mid-Tier Normie** (25)
-  → **High-Tier Normie** (50) → **Chadlite** (100) → **Chad** (200) → **Gigachad** (450) → **TRUE ADAM** (1000).
-- Your look (stats + gear) multiplies XP, so a better look levels you faster.
+## The gag
+Everyone starts as a **Sub 5**: short, very wide, with a goofy cross-eyed face, a big belly and hair all
+over their face and body. As you level up the hair and weirdness fade (gone by about level 600) and
+your body becomes tall and athletic. The tag above every head says what you are.
+
+## Levels and tiers (1 to 1250)
+Levels 1 to 50 come quickly; after 50 the XP cost climbs steeply (level 100 ~3,900 XP, level 500 ~665,000).
+Your look (stats + gear) multiplies XP, so a better look levels you faster. The ladder, in order:
+
+`Sub 5` → `Sub 3` → `Sub Human` → `LTN` → `L-LTN` → `M-LTN` → `MTN` → `L-MTN` → `M-MTN` → `H-MTN` →
+`L-HTN` → `M-HTN` → `H-HTN` → `L-Chadlite` → `M-Chadlite` → `H-Chadlite` → `L-Chad` → `M-Chad` → `H-Chad` →
+`Chad` → `L-Adamlite` → `M-Adamlite` → `H-Adamlite` → `L-Adam` → `M-Adam` → `H-Adam` → **`True Adam`**
+(level 1000) → **`True Adam+`** (level 1100+). Start levels are in `Config.Ranks` (`src/shared/Config.luau`).
 
 ## What you do
 | System | What it is |
 |---|---|
-| **Coins** | Walk the plaza to collect coins and diamonds (Aura). Chain pickups for a multiplier. |
+| **Pickups** | Walk the plaza to grab apples, protein shakes, dumbbells and trophies (Aura + XP). Chain pickups for a multiplier. |
 | **Training** | Gym, Style Studio and Charm Lounge: a 5-rep timing minigame that raises Power / Style / Charm. |
 | **Wardrobe + Crates** | 25 cosmetics in 5 rarities; duplicates star up to 5. Crate Shop with pity timers. |
 | **Duel Ring** | A 7-second tap battle vs another player or the Mogger Bot. Losing costs nothing. |
 | **Mog Competition** | Every ~2.5 minutes entries open at the big central stage. Enter, then flex (tap) for 8 seconds against the field (bots fill empty spots). Top 3 get big Aura, XP, and the winner gets a free crate. |
 | **Catwalk** | Walk it for steady Aura and XP. |
 | **Quests, daily rewards, events, rebirth, Top Moggers board** | Endless small goals, 7-day streak, Golden Hour / Shard Storm / Duel Frenzy / Runway Night, rebirth for a permanent bonus. |
+
+Every place has its own look and its own camera angle (gym, studio, lounge, crate shop, duel ring, Mog Stage, catwalk); switch the cinematic cameras off in Settings. The UI is small and colour-coded so it stays out of the way, and the soundtrack is a built-in "mogger theme" loop (set `Config.MusicTrackId` for a real song).
 
 Controls: **E** interact, **Space** hit the training zone / tap in duels and competitions, **M** menu.
 
@@ -35,9 +44,9 @@ It is built with Rojo from `src/`: `rojo build default.project.json -o SubFiveTo
 ```
 ReplicatedStorage.Shared      Config, Util, Audio, UI
 ServerScriptService.Main      Script + Modules (Data, Stats, Appearance, Cosmetics, Shards, Training, Crates,
-                              Duels, Competition, Quests, Daily, Events, Runway, Shop, Nameplate, Board, World)
+                              Duels, Competition, Quests, Daily, Events, Runway, Shop, Nameplate, Board, Quirks, World)
 StarterPlayerScripts.Client   LocalScript + Modules (Fx, Toasts, Menu, Hud, 6 tabs, TrainingUI, DuelUI,
-                              CompetitionUI, Orbs)
+                              CompetitionUI, Orbs, ZoneCamera)
 ```
 All numbers (tiers, XP curve, body scales, costs, odds, rewards) live in `src/shared/Config.luau`.
 

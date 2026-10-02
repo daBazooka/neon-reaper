@@ -33,11 +33,11 @@ function Audio.Init()
 	musicGroup = makeGroup("StarlightMusic", Config.MusicVolume)
 
 	local reverb = Instance.new("ReverbSoundEffect")
-	reverb.DecayTime = 3
+	reverb.DecayTime = 1.4
 	reverb.Density = 1
 	reverb.Diffusion = 1
 	reverb.DryLevel = -4
-	reverb.WetLevel = 0
+	reverb.WetLevel = -8
 	reverb.Parent = musicGroup
 
 	local folder = Instance.new("Folder")
@@ -229,28 +229,47 @@ function Audio.startMusic()
 		return
 	end
 
-	-- Generative ambient: a slow minor progression with a soft bass pulse and random arpeggio notes.
-	local ROOTS = { 0, 5, 3, 7 }
-	local ARP = { 0, 3, 7, 10, 12, 15, 19 }
-	local rng = Random.new()
+	-- "Mogger theme": a dark 130 BPM phonk-style loop (kick, clap, hats, bass line and a lead
+	-- motif) built from the sounds that ship with Roblox. Use Config.MusicTrackId for a real song.
+	local STEP = 60 / 130 / 4 -- one sixteenth note
+	local KICK = { 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0 }
+	local CLAP = { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1 }
+	local BASS_STEPS = { [1] = true, [4] = true, [7] = true, [11] = true, [14] = true }
+	local ROOTS = { 0, 0, -2, -4 } -- one bass root per bar
+	local LEADS = {
+		{ [1] = 12, [4] = 10, [7] = 8, [9] = 7 },
+		{ [1] = 12, [4] = 10, [7] = 8, [9] = 10, [13] = 8, [15] = 7 },
+		{ [1] = 10, [4] = 8, [7] = 7, [9] = 5 },
+		{ [1] = 8, [4] = 7, [7] = 5, [9] = 7, [13] = 10, [15] = 12 },
+	}
 	task.spawn(function()
-		local tick, bar = 0, 0
+		local step, bar = 0, 0
 		while true do
-			task.wait(0.28)
-			if musicEnabled and templates.Tone then
-				local root = ROOTS[bar % #ROOTS + 1]
-				if tick % 8 == 0 then
-					playOn(musicGroup, templates.Bass and "Bass" or "Tone", 2 ^ ((root - 12) / 12), 0.5)
-				end
-				if rng:NextNumber() < 0.65 then
-					local semis = root + ARP[rng:NextInteger(1, #ARP)]
-					playOn(musicGroup, "Tone", 0.5 * 2 ^ (semis / 12), 0.12 + rng:NextNumber() * 0.12)
-				end
-			end
-			tick += 1
-			if tick % 16 == 0 then
+			task.wait(STEP)
+			local s = step % 16 + 1
+			if s == 1 then
 				bar += 1
 			end
+			if musicEnabled and templates.Tone then
+				local pattern = (bar - 1) % 4 + 1
+				if KICK[s] == 1 then
+					playOn(musicGroup, templates.Bass and "Bass" or "Tone", 0.5, 0.9)
+				end
+				if CLAP[s] == 1 and templates.Click then
+					playOn(musicGroup, "Click", 0.9, 0.55)
+				end
+				if templates.Click and s % 2 == 1 then
+					playOn(musicGroup, "Click", 2.2, s % 4 == 1 and 0.22 or 0.12)
+				end
+				if BASS_STEPS[s] then
+					playOn(musicGroup, templates.Bass and "Bass" or "Tone", 0.6 * 2 ^ (ROOTS[pattern] / 12), 0.55)
+				end
+				local lead = LEADS[pattern][s]
+				if lead then
+					playOn(musicGroup, "Tone", 0.5 * 2 ^ (lead / 12), 0.2)
+				end
+			end
+			step += 1
 		end
 	end)
 end

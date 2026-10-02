@@ -1667,7 +1667,7 @@ local workspace = setmetatable({
 
 local players = {}
 local Players = {PlayerAdded = signal("PlayerAdded"), PlayerRemoving = signal("PlayerRemoving"), GetPlayers = function() return players end}
-local RunService = {Heartbeat = signal("Heartbeat"), RenderStepped = signal("RenderStepped"), IsStudio = function() return true end}
+local RunService = {Heartbeat = signal("Heartbeat"), RenderStepped = signal("RenderStepped"), IsStudio = function() return true end, BindToRenderStep = function(_, name, prio, fn) handlers["bound_" .. name] = {fn} end}
 
 -- node tree for require()/WaitForChild
 local nodes = {}
@@ -1746,7 +1746,7 @@ local Enum = setmetatable({}, {__index = function(_, ename)
 	local cache = {}
 	enumCache[ename] = setmetatable({}, {__index = function(_, item)
 		if not set[item] then bad("BADENUMITEM", ename, item) end
-		cache[item] = cache[item] or {EnumType = ename, Name = item}
+		cache[item] = cache[item] or {EnumType = ename, Name = item, Value = 1}
 		return cache[item]
 	end})
 	return enumCache[ename]

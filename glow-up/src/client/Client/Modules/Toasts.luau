@@ -20,8 +20,8 @@ function Toasts.init(gui)
 	holder = UI.new("Frame", {
 		Name = "Toasts",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -104),
-		Size = UDim2.fromOffset(420, 160),
+		Position = UDim2.new(0.5, 0, 1, -70),
+		Size = UDim2.fromOffset(420, 110),
 		BackgroundTransparency = 1,
 	}, gui)
 	UI.new("UIListLayout", {
@@ -67,27 +67,27 @@ function Toasts.push(text, kind)
 		end
 	end
 
-	if #active >= 3 then
+	if #active >= 2 then
 		remove(active[1])
 	end
 
 	order += 1
 	local frame = UI.new("Frame", {
 		LayoutOrder = order,
-		Size = UDim2.fromOffset(10, 34),
+		Size = UDim2.fromOffset(10, 26),
 		AutomaticSize = Enum.AutomaticSize.X,
 		BackgroundColor3 = UI.Colors.Panel,
-		BackgroundTransparency = 0.12,
+		BackgroundTransparency = 0.05,
 		BorderSizePixel = 0,
 	}, holder)
-	UI.corner(frame, 17)
-	UI.stroke(frame, color, 1.5, 0.35)
-	UI.new("UIPadding", { PaddingLeft = UDim.new(0, 16), PaddingRight = UDim.new(0, 16) }, frame)
+	UI.corner(frame, 13)
+	UI.stroke(frame, color, 2, 0)
+	UI.new("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12) }, frame)
 	local label = UI.label(frame, {
-		Size = UDim2.fromOffset(10, 34),
+		Size = UDim2.fromOffset(10, 26),
 		AutomaticSize = Enum.AutomaticSize.X,
 		Font = UI.Fonts.Bold,
-		TextSize = 15,
+		TextSize = 12,
 		TextWrapped = false,
 		TextColor3 = UI.Colors.Text,
 		Text = text,

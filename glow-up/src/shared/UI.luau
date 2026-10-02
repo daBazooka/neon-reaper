@@ -22,6 +22,13 @@ UI.Colors = {
 	Cyan = Color3.fromRGB(90, 200, 255),
 	Danger = Color3.fromRGB(232, 72, 72),
 	Disabled = Color3.fromRGB(96, 104, 134),
+	-- Aesthetic accents, one per kind of information so each part of the screen is recognisable
+	Pink = Color3.fromRGB(255, 112, 176),
+	Orange = Color3.fromRGB(255, 150, 60),
+	Mint = Color3.fromRGB(84, 224, 176),
+	Purple = Color3.fromRGB(162, 112, 255),
+	Sky = Color3.fromRGB(88, 186, 255),
+	Yellow = Color3.fromRGB(255, 218, 70),
 }
 
 UI.Fonts = {

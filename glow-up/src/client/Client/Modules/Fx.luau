@@ -13,7 +13,7 @@ local Fx = {}
 local player = Players.LocalPlayer
 local camera = workspace:WaitForChild("Camera")
 local gui
-local BASE_FOV = 70
+local baseFov, targetFov = 70, 70
 local fovKick = 0
 local shakeMag, shakeTime = 0, 0
 local flashFrame
@@ -36,7 +36,8 @@ function Fx.init(screenGui)
 
 	RunService.RenderStepped:Connect(function(dt)
 		fovKick = fovKick * (1 - math.min(1, dt * 12))
-		camera.FieldOfView = BASE_FOV + fovKick
+		baseFov += (targetFov - baseFov) * math.min(1, dt * 4)
+		camera.FieldOfView = baseFov + fovKick
 		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 		if hum then
 			if shakeTime > 0 and effectsOn() then
@@ -50,6 +51,11 @@ function Fx.init(screenGui)
 			end
 		end
 	end)
+end
+
+-- The zone cameras change the resting field of view through this.
+function Fx.setBaseFov(fov)
+	targetFov = fov or 70
 end
 
 function Fx.punch(amount)
@@ -97,7 +103,7 @@ function Fx.floatText(pos, text, color, size)
 	local bb = UI.new("BillboardGui", {
 		Adornee = anchor,
 		AlwaysOnTop = true,
-		Size = UDim2.fromOffset(300, size + 12),
+		Size = UDim2.fromOffset(240, size + 10),
 	}, anchor)
 	local label = UI.label(bb, {
 		Size = UDim2.fromScale(1, 1),
@@ -141,16 +147,16 @@ function Fx.announce(title, sub, color, y)
 	end
 	local holder = UI.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, y or 0.28, 0),
-		Size = UDim2.fromOffset(700, 120),
+		Position = UDim2.new(0.5, 0, y or 0.2, 0),
+		Size = UDim2.fromOffset(520, 80),
 		BackgroundTransparency = 1,
 		ZIndex = 60,
 	}, gui)
 	local scale = UI.new("UIScale", { Scale = 0.3 }, holder)
 	local t = UI.label(holder, {
-		Size = UDim2.new(1, 0, 0, 66),
+		Size = UDim2.new(1, 0, 0, 44),
 		Font = UI.Fonts.Title,
-		TextSize = 56,
+		TextSize = 38,
 		TextColor3 = color,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextStrokeTransparency = 0.1,
@@ -159,10 +165,10 @@ function Fx.announce(title, sub, color, y)
 		ZIndex = 60,
 	})
 	local s = UI.label(holder, {
-		Position = UDim2.fromOffset(0, 68),
-		Size = UDim2.new(1, 0, 0, 36),
+		Position = UDim2.fromOffset(0, 46),
+		Size = UDim2.new(1, 0, 0, 26),
 		Font = UI.Fonts.Bold,
-		TextSize = 24,
+		TextSize = 17,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextStrokeTransparency = 0.3,
 		TextStrokeColor3 = Color3.fromRGB(18, 10, 44),

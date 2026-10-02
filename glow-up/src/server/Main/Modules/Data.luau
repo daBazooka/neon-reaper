@@ -40,7 +40,7 @@ local function defaults()
 		QuestsDone = 0,
 		Quest = nil,
 		Daily = { Last = 0, Streak = 0 },
-		Settings = { Music = true, Sfx = true, Duels = true, Fx = true },
+		Settings = { Music = true, Sfx = true, Duels = true, Fx = true, Cam = true },
 		LastSeen = nil,
 	}
 end

@@ -73,6 +73,16 @@ send("duelStart", "Rival", 4, 900, 130, clock + 3, 7)
 advance(1)
 send("duelEnd", false, 40, 20, 50, 40, 70, 0)
 advance(5)
+-- zone cameras: stand in every place and let the bound camera step run
+local zoneFns = handlers["bound_GlowZoneCamera"]
+check(zoneFns ~= nil, "zone camera bound")
+local places = {
+	Gym = Vector3.new(72.8, 3, 61), Stage = Vector3.new(0, 3, 0), Catwalk = Vector3.new(0, 3, 60), Nowhere = Vector3.new(0, 3, 140),
+}
+for name, pos in places do
+	localPlayer.Character.FindFirstChild = function() return {Position = pos, CFrame = {LookVector = Vector3.new(0, 0, -1)}} end
+	for i = 1, 12 do advance(0.05); if zoneFns then pcall(zoneFns[1], 0.05) end end
+end
 -- Mog Competition flow
 send("compStart", clock + 3, 8, {{n = "Me", s = 120, m = true}, {n = "Mogger Mike", s = 100, m = false}, {n = "Sigma Sam", s = 90, m = false}})
 for i = 1, 60 do advance(0.1); fireAll("RenderStepped", 0.016) end

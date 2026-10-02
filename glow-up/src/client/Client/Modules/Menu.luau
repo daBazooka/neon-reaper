@@ -16,7 +16,7 @@ local current
 local open = false
 local onChanged = {}
 
-local WINDOW_W, WINDOW_H = 820, 500
+local WINDOW_W, WINDOW_H = 760, 460
 
 function Menu.isOpen()
 	return open

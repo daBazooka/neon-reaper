@@ -14,7 +14,7 @@ local function build(p, head)
 	end
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "GlowPlate"
-	gui.Size = UDim2.fromOffset(260, 66)
+	gui.Size = UDim2.fromOffset(320, 66)
 	gui.StudsOffset = Vector3.new(0, 3.4, 0)
 	gui.AlwaysOnTop = false
 	gui.MaxDistance = 110
@@ -23,18 +23,18 @@ local function build(p, head)
 
 	local tier = Instance.new("TextLabel")
 	tier.Name = "Rank"
-	tier.Size = UDim2.new(1, 0, 0, 34)
+	tier.Size = UDim2.new(1, 0, 0, 36)
 	tier.BackgroundTransparency = 1
 	tier.Font = Enum.Font.GothamBlack
-	tier.TextSize = 26
+	tier.TextScaled = true
 	tier.TextStrokeTransparency = 0
 	tier.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 	tier.Parent = gui
 
 	local name = Instance.new("TextLabel")
 	name.Name = "Name"
-	name.Position = UDim2.fromOffset(0, 34)
-	name.Size = UDim2.new(1, 0, 0, 24)
+	name.Position = UDim2.fromOffset(0, 36)
+	name.Size = UDim2.new(1, 0, 0, 22)
 	name.BackgroundTransparency = 1
 	name.Font = Enum.Font.GothamBold
 	name.TextSize = 17

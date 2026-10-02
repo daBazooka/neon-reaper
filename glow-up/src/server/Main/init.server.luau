@@ -20,6 +20,7 @@ local Modules = script:WaitForChild("Modules")
 local Data = require(Modules.Data)
 local Stats = require(Modules.Stats)
 local Appearance = require(Modules.Appearance)
+local Quirks = require(Modules.Quirks)
 local Cosmetics = require(Modules.Cosmetics)
 local Nameplate = require(Modules.Nameplate)
 local Quests = require(Modules.Quests)
@@ -57,7 +58,11 @@ if okWorld then
 else
 	warn("[TrueAdam] World.build FAILED:", info)
 end
-Appearance.setHook(Cosmetics.apply) -- rebuild accessories whenever the body size changes
+-- Rebuild the face/hair/belly and any worn items whenever the body changes.
+Appearance.setHook(function(p)
+	Quirks.apply(p)
+	Cosmetics.apply(p)
+end)
 Shards.init()
 Competition.init()
 Training.init()
@@ -144,7 +149,7 @@ end)
 --------------------------------------------------------------------------------
 -- Client requests (rate limited)
 --------------------------------------------------------------------------------
-local SETTING_KEYS = { Music = true, Sfx = true, Duels = true, Fx = true }
+local SETTING_KEYS = { Music = true, Sfx = true, Duels = true, Fx = true, Cam = true }
 local budget = {}
 
 Action.OnServerEvent:Connect(function(p, kind, a, b)

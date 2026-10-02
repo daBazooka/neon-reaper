@@ -46,10 +46,10 @@ function CompetitionUI.init(gui, action)
 
 	title = UI.label(root, {
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 14),
-		Size = UDim2.fromOffset(600, 40),
+		Position = UDim2.new(0.5, 0, 0, 8),
+		Size = UDim2.fromOffset(420, 26),
 		Font = UI.Fonts.Title,
-		TextSize = 30,
+		TextSize = 18,
 		TextColor3 = C.Gold,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
@@ -58,10 +58,10 @@ function CompetitionUI.init(gui, action)
 	})
 	center = UI.label(root, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.36),
-		Size = UDim2.fromOffset(600, 120),
+		Position = UDim2.fromScale(0.5, 0.3),
+		Size = UDim2.fromOffset(400, 70),
 		Font = UI.Fonts.Title,
-		TextSize = 96,
+		TextSize = 56,
 		TextStrokeTransparency = 0,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
@@ -72,15 +72,15 @@ function CompetitionUI.init(gui, action)
 	-- Live leaderboard (right side)
 	listFrame = UI.panel(root, {
 		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -16, 0.5, -20),
-		Size = UDim2.fromOffset(300, 300),
+		Position = UDim2.new(1, -8, 0.5, -20),
+		Size = UDim2.fromOffset(190, 190),
 		ZIndex = 31,
 	})
 	UI.label(listFrame, {
-		Position = UDim2.fromOffset(14, 8),
-		Size = UDim2.new(1, -28, 0, 22),
+		Position = UDim2.fromOffset(10, 5),
+		Size = UDim2.new(1, -20, 0, 16),
 		Font = UI.Fonts.Title,
-		TextSize = 16,
+		TextSize = 11,
 		TextWrapped = false,
 		Text = "LIVE RANKING",
 		ZIndex = 32,
@@ -88,8 +88,8 @@ function CompetitionUI.init(gui, action)
 	rows = {}
 	for i = 1, 6 do
 		local row = UI.new("Frame", {
-			Position = UDim2.fromOffset(12, 38 + (i - 1) * 42),
-			Size = UDim2.new(1, -24, 0, 36),
+			Position = UDim2.fromOffset(8, 26 + (i - 1) * 26),
+			Size = UDim2.new(1, -16, 0, 22),
 			BackgroundColor3 = C.Card,
 			ZIndex = 32,
 		}, listFrame)
@@ -103,10 +103,10 @@ function CompetitionUI.init(gui, action)
 		}, row)
 		UI.corner(fill, 8)
 		local label = UI.label(row, {
-			Position = UDim2.fromOffset(10, 0),
-			Size = UDim2.new(1, -20, 1, 0),
+			Position = UDim2.fromOffset(8, 0),
+			Size = UDim2.new(1, -16, 1, 0),
 			Font = UI.Fonts.Bold,
-			TextSize = 14,
+			TextSize = 10,
 			TextWrapped = false,
 			Text = "",
 			ZIndex = 34,
@@ -116,12 +116,12 @@ function CompetitionUI.init(gui, action)
 
 	tapButton = UI.button(root, {
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -40),
-		Size = UDim2.fromOffset(280, 100),
+		Position = UDim2.new(0.5, 0, 1, -24),
+		Size = UDim2.fromOffset(180, 64),
 		Text = "FLEX!",
-		TextSize = 42,
+		TextSize = 28,
 		ZIndex = 33,
-		Radius = 24,
+		Radius = 16,
 	}, "primary")
 	tapScale = UI.new("UIScale", {}, tapButton)
 	tapButton.Activated:Connect(tap)
@@ -130,33 +130,33 @@ function CompetitionUI.init(gui, action)
 	resultPanel = UI.panel(root, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.45),
-		Size = UDim2.fromOffset(460, 360),
+		Size = UDim2.fromOffset(340, 270),
 		Visible = false,
 		ZIndex = 40,
 	})
 	resultTitle = UI.label(resultPanel, {
-		Position = UDim2.fromOffset(20, 16),
-		Size = UDim2.new(1, -40, 0, 48),
+		Position = UDim2.fromOffset(14, 10),
+		Size = UDim2.new(1, -28, 0, 34),
 		Font = UI.Fonts.Title,
-		TextSize = 32,
+		TextSize = 22,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
 		Text = "",
 		ZIndex = 41,
 	})
 	resultBody = UI.label(resultPanel, {
-		Position = UDim2.fromOffset(24, 72),
-		Size = UDim2.new(1, -48, 1, -140),
+		Position = UDim2.fromOffset(18, 52),
+		Size = UDim2.new(1, -36, 1, -100),
 		Font = UI.Fonts.Bold,
-		TextSize = 18,
+		TextSize = 13,
 		TextYAlignment = Enum.TextYAlignment.Top,
 		Text = "",
 		ZIndex = 41,
 	})
 	local close = UI.button(resultPanel, {
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -16),
-		Size = UDim2.fromOffset(180, 44),
+		Position = UDim2.new(0.5, 0, 1, -12),
+		Size = UDim2.fromOffset(140, 34),
 		Text = "CONTINUE",
 		ZIndex = 42,
 	}, "primary")

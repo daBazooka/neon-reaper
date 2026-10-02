@@ -59,17 +59,17 @@ function TrainingUI.init(gui, action)
 	panel = UI.panel(gui, {
 		Name = "Training",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -112),
-		Size = UDim2.fromOffset(470, 170),
+		Position = UDim2.new(0.5, 0, 1, -66),
+		Size = UDim2.fromOffset(340, 104),
 		Visible = false,
 		ZIndex = 10,
 	})
 	scale = UI.new("UIScale", {}, panel)
 	title = UI.label(panel, {
-		Position = UDim2.fromOffset(20, 12),
-		Size = UDim2.fromOffset(280, 26),
+		Position = UDim2.fromOffset(14, 8),
+		Size = UDim2.fromOffset(220, 18),
 		Font = UI.Fonts.Title,
-		TextSize = 18,
+		TextSize = 12,
 		TextWrapped = false,
 		Text = "TRAINING",
 		ZIndex = 11,
@@ -78,8 +78,8 @@ function TrainingUI.init(gui, action)
 	for i = 1, Config.TrainReps do
 		local dot = UI.new("Frame", {
 			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -20 - (Config.TrainReps - i) * 20, 0, 18),
-			Size = UDim2.fromOffset(14, 14),
+			Position = UDim2.new(1, -14 - (Config.TrainReps - i) * 16, 0, 11),
+			Size = UDim2.fromOffset(11, 11),
 			BackgroundColor3 = C.Disabled,
 			ZIndex = 11,
 		}, panel)
@@ -88,8 +88,8 @@ function TrainingUI.init(gui, action)
 	end
 
 	local barButton = UI.new("TextButton", {
-		Position = UDim2.fromOffset(20, 48),
-		Size = UDim2.new(1, -40, 0, 40),
+		Position = UDim2.fromOffset(14, 32),
+		Size = UDim2.new(1, -28, 0, 26),
 		BackgroundColor3 = Color3.fromRGB(14, 11, 32),
 		AutoButtonColor = false,
 		Text = "",
@@ -112,10 +112,10 @@ function TrainingUI.init(gui, action)
 	barButton.Activated:Connect(press)
 
 	message = UI.label(panel, {
-		Position = UDim2.fromOffset(20, 96),
-		Size = UDim2.new(1, -40, 0, 36),
+		Position = UDim2.fromOffset(14, 62),
+		Size = UDim2.new(1, -28, 0, 22),
 		Font = UI.Fonts.Title,
-		TextSize = 26,
+		TextSize = 17,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
 		Text = "",
@@ -123,24 +123,24 @@ function TrainingUI.init(gui, action)
 	})
 	msgScale = UI.new("UIScale", {}, message)
 	hint = UI.label(panel, {
-		Position = UDim2.fromOffset(20, 138),
-		Size = UDim2.new(1, -40, 0, 20),
+		Position = UDim2.fromOffset(14, 84),
+		Size = UDim2.new(1, -60, 0, 14),
 		Font = UI.Fonts.Body,
-		TextSize = 13,
+		TextSize = 10,
 		TextColor3 = C.Muted,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
-		Text = "Press SPACE or tap the bar when the marker is in the gold zone",
+		Text = "SPACE / tap when the marker is in the gold zone",
 		ZIndex = 11,
 	})
 	local cancel = UI.button(panel, {
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -12, 1, -10),
-		Size = UDim2.fromOffset(26, 26),
+		Position = UDim2.new(1, -8, 1, -6),
+		Size = UDim2.fromOffset(22, 22),
 		Text = "✕",
-		TextSize = 12,
+		TextSize = 10,
 		ZIndex = 12,
-		Radius = 13,
+		Radius = 11,
 	}, "card")
 	cancel.Activated:Connect(function()
 		Action:FireServer("TrainCancel")

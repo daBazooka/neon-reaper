@@ -1,24 +1,76 @@
 -- SUB 5 TO TRUE ADAM: every number, name and table the game balances on lives here.
 local Config = {}
+local C3 = Color3.fromRGB
 
 Config.GameName = "Sub 5 to True Adam"
 Config.PlazaRadius = 150
 
---------------------------------------------------------------------------------
--- Levels (1 to 1000) and the looks tiers they unlock
---------------------------------------------------------------------------------
-Config.MaxLevel = 1000
+-- Where the buildings stand (angle in degrees around the plaza, at StationRadius from the centre).
+Config.StationRadius = 95
+Config.Stations = { Gym = 40, Studio = 112, Lounge = 184, Crates = 256, Ring = 328 }
+function Config.StationPos(name)
+	local a = math.rad(Config.Stations[name])
+	return Vector3.new(math.cos(a) * Config.StationRadius, 0, math.sin(a) * Config.StationRadius)
+end
+-- Unit vector from the station toward the plaza centre (the open side, where the camera sits).
+function Config.StationFront(name)
+	local a = math.rad(Config.Stations[name])
+	return Vector3.new(-math.cos(a), 0, -math.sin(a))
+end
 
-Config.Ranks = {
-	{ Name = "Sub 5", Full = "Sub 5", Level = 1, Color = Color3.fromRGB(196, 168, 140) },
-	{ Name = "LTN", Full = "Low-Tier Normie", Level = 10, Color = Color3.fromRGB(150, 205, 120) },
-	{ Name = "MTN", Full = "Mid-Tier Normie", Level = 25, Color = Color3.fromRGB(90, 200, 235) },
-	{ Name = "HTN", Full = "High-Tier Normie", Level = 50, Color = Color3.fromRGB(100, 150, 255) },
-	{ Name = "Chadlite", Full = "Chadlite", Level = 100, Color = Color3.fromRGB(190, 125, 255) },
-	{ Name = "Chad", Full = "Chad", Level = 200, Color = Color3.fromRGB(255, 170, 60) },
-	{ Name = "Gigachad", Full = "Gigachad", Level = 450, Color = Color3.fromRGB(255, 110, 70) },
-	{ Name = "True Adam", Full = "TRUE ADAM", Level = 1000, Color = Color3.fromRGB(255, 214, 70) },
+-- Each place has its own camera angle. Dist/Height are in studs, Yaw swings the camera around the
+-- Front direction (degrees), Fov is the field of view, Look raises the look-at point.
+Config.Zones = {
+	{ Id = "Gym", Label = "GYM", Icon = "💪", Kind = "station", Station = "Gym", Radius = 21, Cam = { Dist = 22, Height = 7, Yaw = -38, Fov = 58, Look = 3 } },
+	{ Id = "Studio", Label = "STYLE STUDIO", Icon = "💈", Kind = "station", Station = "Studio", Radius = 21, Cam = { Dist = 19, Height = 5, Yaw = 42, Fov = 54, Look = 3.5 } },
+	{ Id = "Lounge", Label = "CHARM LOUNGE", Icon = "🛋️", Kind = "station", Station = "Lounge", Radius = 21, Cam = { Dist = 20, Height = 6, Yaw = 55, Fov = 58, Look = 2.5 } },
+	{ Id = "Crates", Label = "CRATE SHOP", Icon = "🎁", Kind = "station", Station = "Crates", Radius = 19, Cam = { Dist = 17, Height = 4, Yaw = 0, Fov = 50, Look = 3 } },
+	{ Id = "Ring", Label = "DUEL RING", Icon = "🥊", Kind = "station", Station = "Ring", Radius = 30, Cam = { Dist = 38, Height = 22, Yaw = 28, Fov = 66, Look = 2 } },
+	{ Id = "Stage", Label = "MOG STAGE", Icon = "🏆", Kind = "circle", Center = Vector3.new(0, 0, 0), Front = Vector3.new(0, 0, -1), Radius = 35, Cam = { Dist = 54, Height = 9, Yaw = 0, Fov = 60, Look = 5 } },
+	{ Id = "Catwalk", Label = "CATWALK", Icon = "💃", Kind = "rect", MinX = -9, MaxX = 9, MinZ = 24, MaxZ = 98, Front = Vector3.new(1, 0, 0), Cam = { Dist = 26, Height = 5, Yaw = 0, Fov = 54, Look = 3 } },
 }
+
+--------------------------------------------------------------------------------
+-- Levels (1 to 1250) and the looks tiers they unlock
+--------------------------------------------------------------------------------
+Config.MaxLevel = 1250
+
+-- The looks ladder, in order. Each entry: display name, level it starts at, colour.
+local TIERS = {
+	{ "Sub 5", 1, C3(214, 170, 130) },
+	{ "Sub 3", 5, C3(196, 140, 108) },
+	{ "Sub Human", 10, C3(170, 122, 100) },
+	{ "LTN", 16, C3(132, 196, 110) },
+	{ "L-LTN", 24, C3(118, 204, 120) },
+	{ "M-LTN", 33, C3(104, 212, 134) },
+	{ "MTN", 43, C3(80, 200, 210) },
+	{ "L-MTN", 55, C3(70, 186, 230) },
+	{ "M-MTN", 70, C3(64, 170, 245) },
+	{ "H-MTN", 88, C3(70, 150, 255) },
+	{ "L-HTN", 110, C3(100, 130, 255) },
+	{ "M-HTN", 135, C3(120, 112, 255) },
+	{ "H-HTN", 165, C3(140, 96, 255) },
+	{ "L-Chadlite", 200, C3(170, 100, 255) },
+	{ "M-Chadlite", 240, C3(190, 96, 245) },
+	{ "H-Chadlite", 285, C3(210, 92, 230) },
+	{ "L-Chad", 335, C3(255, 170, 70) },
+	{ "M-Chad", 390, C3(255, 150, 60) },
+	{ "H-Chad", 450, C3(255, 130, 50) },
+	{ "Chad", 520, C3(255, 110, 40) },
+	{ "L-Adamlite", 600, C3(255, 110, 150) },
+	{ "M-Adamlite", 680, C3(255, 90, 140) },
+	{ "H-Adamlite", 760, C3(255, 70, 130) },
+	{ "L-Adam", 830, C3(255, 200, 70) },
+	{ "M-Adam", 890, C3(255, 214, 80) },
+	{ "H-Adam", 945, C3(255, 228, 100) },
+	{ "True Adam", 1000, C3(255, 240, 150) },
+	{ "True Adam+", 1100, C3(190, 250, 255) },
+}
+
+Config.Ranks = {}
+for _, t in TIERS do
+	table.insert(Config.Ranks, { Name = t[1], Full = t[1], Level = t[2], Color = t[3] })
+end
 
 function Config.RankFor(level)
 	local index = 1
@@ -39,17 +91,22 @@ function Config.XPForLevel(level)
 	return math.floor(420 * (level / 50) ^ 3.2)
 end
 
--- Body shape by level. Level 1 is a short, wide, big-headed "Sub 5" gag character; it changes
--- fastest early on and settles into a tall, athletic look at level 1000.
-local APPEARANCE_START = { BodyHeightScale = 0.8, BodyWidthScale = 1.55, BodyDepthScale = 1.45, HeadScale = 1.3, BodyTypeScale = 0, BodyProportionScale = 0 }
+-- Body shape by level. Level 1 is a short, very wide, big-headed gag character; it changes
+-- fastest early on and settles into a tall, athletic look around level 1000.
+local APPEARANCE_START = { BodyHeightScale = 0.78, BodyWidthScale = 1.9, BodyDepthScale = 1.75, HeadScale = 1.35, BodyTypeScale = 0, BodyProportionScale = 0 }
 local APPEARANCE_END = { BodyHeightScale = 1.12, BodyWidthScale = 0.92, BodyDepthScale = 0.95, HeadScale = 0.95, BodyTypeScale = 0.3, BodyProportionScale = 0.3 }
 function Config.AppearanceScales(level)
-	local t = math.clamp((level - 1) / (Config.MaxLevel - 1), 0, 1) ^ 0.55
+	local t = math.clamp((level - 1) / 999, 0, 1) ^ 0.55
 	local out = {}
 	for key, from in APPEARANCE_START do
 		out[key] = from + (APPEARANCE_END[key] - from) * t
 	end
 	return out
+end
+
+-- How "weird" a character is (goofy face, hairy, big belly): 1 at level 1, gone by level ~600.
+function Config.Weirdness(level)
+	return math.clamp(1 - (level - 1) / 600, 0, 1)
 end
 
 --------------------------------------------------------------------------------
@@ -204,10 +261,10 @@ end
 -- Aura shards scattered around the district
 --------------------------------------------------------------------------------
 Config.ShardTypes = {
-	{ Name = "Copper", Value = 2, Weight = 70, Scale = 0, Color = C(205, 127, 70), Shape = "Coin", Material = "Metal" },
-	{ Name = "Silver", Value = 12, Weight = 22, Scale = 0.4, Color = C(205, 212, 225), Shape = "Coin", Material = "Metal" },
-	{ Name = "Gold", Value = 60, Weight = 7, Scale = 0.8, Color = C(255, 202, 50), Shape = "Coin", Material = "Metal" },
-	{ Name = "Diamond", Value = 300, Weight = 1, Scale = 1.1, Color = C(130, 225, 255), Shape = "Gem", Material = "Glass" },
+	{ Name = "Apple", Kind = "apple", Value = 2, Weight = 70, Scale = 0, Color = C(220, 50, 50) },
+	{ Name = "Protein Shake", Kind = "shake", Value = 12, Weight = 22, Scale = 0.2, Color = C(120, 190, 255) },
+	{ Name = "Dumbbell", Kind = "dumbbell", Value = 60, Weight = 7, Scale = 0.4, Color = C(90, 95, 110) },
+	{ Name = "Trophy", Kind = "trophy", Value = 300, Weight = 1, Scale = 0.6, Color = C(255, 205, 60) },
 }
 Config.ShardMutations = {
 	{ Name = "Rainbow", Chance = 0.005, Mult = 10, Color = C(255, 120, 200) },
@@ -283,7 +340,7 @@ function Config.MakeQuest(done, rebirths)
 end
 function Config.QuestText(kind, goal)
 	if kind == "shards" then
-		return string.format("Collect %d Aura shards", goal)
+		return string.format("Collect %d pickups", goal)
 	elseif kind == "train" then
 		return string.format("Land %d training reps", goal)
 	elseif kind == "duel" then
@@ -313,7 +370,7 @@ Config.Daily = {
 Config.EventGap = { 150, 280 }
 Config.Events = {
 	{ Id = "Golden", Name = "GOLDEN HOUR", Icon = "🌟", Desc = "All Aura x2", Duration = 90, AuraMult = 2, Tint = C(255, 240, 200) },
-	{ Id = "Storm", Name = "SHARD STORM", Icon = "☄️", Desc = "Rare shards are raining down", Duration = 60, Tint = C(215, 230, 255) },
+	{ Id = "Storm", Name = "PICKUP STORM", Icon = "☄️", Desc = "Gym goodies are raining down", Duration = 60, Tint = C(215, 230, 255) },
 	{ Id = "Frenzy", Name = "DUEL FRENZY", Icon = "⚔️", Desc = "Duel rewards x3", Duration = 90, DuelMult = 3, Tint = C(255, 215, 220) },
 	{ Id = "Runway", Name = "RUNWAY NIGHT", Icon = "💃", Desc = "Runway Aura x4", Duration = 90, RunwayMult = 4, Tint = C(235, 215, 255) },
 }

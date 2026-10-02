@@ -50,11 +50,11 @@ function Audio.Init()
 	musicGroup = makeGroup("StarlightMusic", Config.MusicVolume)
 
 	local reverb = Instance.new("ReverbSoundEffect")
-	reverb.DecayTime = 3
+	reverb.DecayTime = 1.4
 	reverb.Density = 1
 	reverb.Diffusion = 1
 	reverb.DryLevel = -4
-	reverb.WetLevel = 0
+	reverb.WetLevel = -8
 	reverb.Parent = musicGroup
 
 	local folder = Instance.new("Folder")
@@ -246,28 +246,47 @@ function Audio.startMusic()
 		return
 	end
 
-	-- Generative ambient: a slow minor progression with a soft bass pulse and random arpeggio notes.
-	local ROOTS = { 0, 5, 3, 7 }
-	local ARP = { 0, 3, 7, 10, 12, 15, 19 }
-	local rng = Random.new()
+	-- "Mogger theme": a dark 130 BPM phonk-style loop (kick, clap, hats, bass line and a lead
+	-- motif) built from the sounds that ship with Roblox. Use Config.MusicTrackId for a real song.
+	local STEP = 60 / 130 / 4 -- one sixteenth note
+	local KICK = { 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0 }
+	local CLAP = { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1 }
+	local BASS_STEPS = { [1] = true, [4] = true, [7] = true, [11] = true, [14] = true }
+	local ROOTS = { 0, 0, -2, -4 } -- one bass root per bar
+	local LEADS = {
+		{ [1] = 12, [4] = 10, [7] = 8, [9] = 7 },
+		{ [1] = 12, [4] = 10, [7] = 8, [9] = 10, [13] = 8, [15] = 7 },
+		{ [1] = 10, [4] = 8, [7] = 7, [9] = 5 },
+		{ [1] = 8, [4] = 7, [7] = 5, [9] = 7, [13] = 10, [15] = 12 },
+	}
 	task.spawn(function()
-		local tick, bar = 0, 0
+		local step, bar = 0, 0
 		while true do
-			task.wait(0.28)
-			if musicEnabled and templates.Tone then
-				local root = ROOTS[bar % #ROOTS + 1]
-				if tick % 8 == 0 then
-					playOn(musicGroup, templates.Bass and "Bass" or "Tone", 2 ^ ((root - 12) / 12), 0.5)
-				end
-				if rng:NextNumber() < 0.65 then
-					local semis = root + ARP[rng:NextInteger(1, #ARP)]
-					playOn(musicGroup, "Tone", 0.5 * 2 ^ (semis / 12), 0.12 + rng:NextNumber() * 0.12)
-				end
-			end
-			tick += 1
-			if tick % 16 == 0 then
+			task.wait(STEP)
+			local s = step % 16 + 1
+			if s == 1 then
 				bar += 1
 			end
+			if musicEnabled and templates.Tone then
+				local pattern = (bar - 1) % 4 + 1
+				if KICK[s] == 1 then
+					playOn(musicGroup, templates.Bass and "Bass" or "Tone", 0.5, 0.9)
+				end
+				if CLAP[s] == 1 and templates.Click then
+					playOn(musicGroup, "Click", 0.9, 0.55)
+				end
+				if templates.Click and s % 2 == 1 then
+					playOn(musicGroup, "Click", 2.2, s % 4 == 1 and 0.22 or 0.12)
+				end
+				if BASS_STEPS[s] then
+					playOn(musicGroup, templates.Bass and "Bass" or "Tone", 0.6 * 2 ^ (ROOTS[pattern] / 12), 0.55)
+				end
+				local lead = LEADS[pattern][s]
+				if lead then
+					playOn(musicGroup, "Tone", 0.5 * 2 ^ (lead / 12), 0.2)
+				end
+			end
+			step += 1
 		end
 	end)
 end
@@ -281,25 +300,77 @@ return Audio
           <string name="Name">Config</string>
           <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: every number, name and table the game balances on lives here.
 local Config = {}
+local C3 = Color3.fromRGB
 
 Config.GameName = "Sub 5 to True Adam"
 Config.PlazaRadius = 150
 
---------------------------------------------------------------------------------
--- Levels (1 to 1000) and the looks tiers they unlock
---------------------------------------------------------------------------------
-Config.MaxLevel = 1000
+-- Where the buildings stand (angle in degrees around the plaza, at StationRadius from the centre).
+Config.StationRadius = 95
+Config.Stations = { Gym = 40, Studio = 112, Lounge = 184, Crates = 256, Ring = 328 }
+function Config.StationPos(name)
+	local a = math.rad(Config.Stations[name])
+	return Vector3.new(math.cos(a) * Config.StationRadius, 0, math.sin(a) * Config.StationRadius)
+end
+-- Unit vector from the station toward the plaza centre (the open side, where the camera sits).
+function Config.StationFront(name)
+	local a = math.rad(Config.Stations[name])
+	return Vector3.new(-math.cos(a), 0, -math.sin(a))
+end
 
-Config.Ranks = {
-	{ Name = "Sub 5", Full = "Sub 5", Level = 1, Color = Color3.fromRGB(196, 168, 140) },
-	{ Name = "LTN", Full = "Low-Tier Normie", Level = 10, Color = Color3.fromRGB(150, 205, 120) },
-	{ Name = "MTN", Full = "Mid-Tier Normie", Level = 25, Color = Color3.fromRGB(90, 200, 235) },
-	{ Name = "HTN", Full = "High-Tier Normie", Level = 50, Color = Color3.fromRGB(100, 150, 255) },
-	{ Name = "Chadlite", Full = "Chadlite", Level = 100, Color = Color3.fromRGB(190, 125, 255) },
-	{ Name = "Chad", Full = "Chad", Level = 200, Color = Color3.fromRGB(255, 170, 60) },
-	{ Name = "Gigachad", Full = "Gigachad", Level = 450, Color = Color3.fromRGB(255, 110, 70) },
-	{ Name = "True Adam", Full = "TRUE ADAM", Level = 1000, Color = Color3.fromRGB(255, 214, 70) },
+-- Each place has its own camera angle. Dist/Height are in studs, Yaw swings the camera around the
+-- Front direction (degrees), Fov is the field of view, Look raises the look-at point.
+Config.Zones = {
+	{ Id = "Gym", Label = "GYM", Icon = "💪", Kind = "station", Station = "Gym", Radius = 21, Cam = { Dist = 22, Height = 7, Yaw = -38, Fov = 58, Look = 3 } },
+	{ Id = "Studio", Label = "STYLE STUDIO", Icon = "💈", Kind = "station", Station = "Studio", Radius = 21, Cam = { Dist = 19, Height = 5, Yaw = 42, Fov = 54, Look = 3.5 } },
+	{ Id = "Lounge", Label = "CHARM LOUNGE", Icon = "🛋️", Kind = "station", Station = "Lounge", Radius = 21, Cam = { Dist = 20, Height = 6, Yaw = 55, Fov = 58, Look = 2.5 } },
+	{ Id = "Crates", Label = "CRATE SHOP", Icon = "🎁", Kind = "station", Station = "Crates", Radius = 19, Cam = { Dist = 17, Height = 4, Yaw = 0, Fov = 50, Look = 3 } },
+	{ Id = "Ring", Label = "DUEL RING", Icon = "🥊", Kind = "station", Station = "Ring", Radius = 30, Cam = { Dist = 38, Height = 22, Yaw = 28, Fov = 66, Look = 2 } },
+	{ Id = "Stage", Label = "MOG STAGE", Icon = "🏆", Kind = "circle", Center = Vector3.new(0, 0, 0), Front = Vector3.new(0, 0, -1), Radius = 35, Cam = { Dist = 54, Height = 9, Yaw = 0, Fov = 60, Look = 5 } },
+	{ Id = "Catwalk", Label = "CATWALK", Icon = "💃", Kind = "rect", MinX = -9, MaxX = 9, MinZ = 24, MaxZ = 98, Front = Vector3.new(1, 0, 0), Cam = { Dist = 26, Height = 5, Yaw = 0, Fov = 54, Look = 3 } },
 }
+
+--------------------------------------------------------------------------------
+-- Levels (1 to 1250) and the looks tiers they unlock
+--------------------------------------------------------------------------------
+Config.MaxLevel = 1250
+
+-- The looks ladder, in order. Each entry: display name, level it starts at, colour.
+local TIERS = {
+	{ "Sub 5", 1, C3(214, 170, 130) },
+	{ "Sub 3", 5, C3(196, 140, 108) },
+	{ "Sub Human", 10, C3(170, 122, 100) },
+	{ "LTN", 16, C3(132, 196, 110) },
+	{ "L-LTN", 24, C3(118, 204, 120) },
+	{ "M-LTN", 33, C3(104, 212, 134) },
+	{ "MTN", 43, C3(80, 200, 210) },
+	{ "L-MTN", 55, C3(70, 186, 230) },
+	{ "M-MTN", 70, C3(64, 170, 245) },
+	{ "H-MTN", 88, C3(70, 150, 255) },
+	{ "L-HTN", 110, C3(100, 130, 255) },
+	{ "M-HTN", 135, C3(120, 112, 255) },
+	{ "H-HTN", 165, C3(140, 96, 255) },
+	{ "L-Chadlite", 200, C3(170, 100, 255) },
+	{ "M-Chadlite", 240, C3(190, 96, 245) },
+	{ "H-Chadlite", 285, C3(210, 92, 230) },
+	{ "L-Chad", 335, C3(255, 170, 70) },
+	{ "M-Chad", 390, C3(255, 150, 60) },
+	{ "H-Chad", 450, C3(255, 130, 50) },
+	{ "Chad", 520, C3(255, 110, 40) },
+	{ "L-Adamlite", 600, C3(255, 110, 150) },
+	{ "M-Adamlite", 680, C3(255, 90, 140) },
+	{ "H-Adamlite", 760, C3(255, 70, 130) },
+	{ "L-Adam", 830, C3(255, 200, 70) },
+	{ "M-Adam", 890, C3(255, 214, 80) },
+	{ "H-Adam", 945, C3(255, 228, 100) },
+	{ "True Adam", 1000, C3(255, 240, 150) },
+	{ "True Adam+", 1100, C3(190, 250, 255) },
+}
+
+Config.Ranks = {}
+for _, t in TIERS do
+	table.insert(Config.Ranks, { Name = t[1], Full = t[1], Level = t[2], Color = t[3] })
+end
 
 function Config.RankFor(level)
 	local index = 1
@@ -320,17 +391,22 @@ function Config.XPForLevel(level)
 	return math.floor(420 * (level / 50) ^ 3.2)
 end
 
--- Body shape by level. Level 1 is a short, wide, big-headed "Sub 5" gag character; it changes
--- fastest early on and settles into a tall, athletic look at level 1000.
-local APPEARANCE_START = { BodyHeightScale = 0.8, BodyWidthScale = 1.55, BodyDepthScale = 1.45, HeadScale = 1.3, BodyTypeScale = 0, BodyProportionScale = 0 }
+-- Body shape by level. Level 1 is a short, very wide, big-headed gag character; it changes
+-- fastest early on and settles into a tall, athletic look around level 1000.
+local APPEARANCE_START = { BodyHeightScale = 0.78, BodyWidthScale = 1.9, BodyDepthScale = 1.75, HeadScale = 1.35, BodyTypeScale = 0, BodyProportionScale = 0 }
 local APPEARANCE_END = { BodyHeightScale = 1.12, BodyWidthScale = 0.92, BodyDepthScale = 0.95, HeadScale = 0.95, BodyTypeScale = 0.3, BodyProportionScale = 0.3 }
 function Config.AppearanceScales(level)
-	local t = math.clamp((level - 1) / (Config.MaxLevel - 1), 0, 1) ^ 0.55
+	local t = math.clamp((level - 1) / 999, 0, 1) ^ 0.55
 	local out = {}
 	for key, from in APPEARANCE_START do
 		out[key] = from + (APPEARANCE_END[key] - from) * t
 	end
 	return out
+end
+
+-- How "weird" a character is (goofy face, hairy, big belly): 1 at level 1, gone by level ~600.
+function Config.Weirdness(level)
+	return math.clamp(1 - (level - 1) / 600, 0, 1)
 end
 
 --------------------------------------------------------------------------------
@@ -485,10 +561,10 @@ end
 -- Aura shards scattered around the district
 --------------------------------------------------------------------------------
 Config.ShardTypes = {
-	{ Name = "Copper", Value = 2, Weight = 70, Scale = 0, Color = C(205, 127, 70), Shape = "Coin", Material = "Metal" },
-	{ Name = "Silver", Value = 12, Weight = 22, Scale = 0.4, Color = C(205, 212, 225), Shape = "Coin", Material = "Metal" },
-	{ Name = "Gold", Value = 60, Weight = 7, Scale = 0.8, Color = C(255, 202, 50), Shape = "Coin", Material = "Metal" },
-	{ Name = "Diamond", Value = 300, Weight = 1, Scale = 1.1, Color = C(130, 225, 255), Shape = "Gem", Material = "Glass" },
+	{ Name = "Apple", Kind = "apple", Value = 2, Weight = 70, Scale = 0, Color = C(220, 50, 50) },
+	{ Name = "Protein Shake", Kind = "shake", Value = 12, Weight = 22, Scale = 0.2, Color = C(120, 190, 255) },
+	{ Name = "Dumbbell", Kind = "dumbbell", Value = 60, Weight = 7, Scale = 0.4, Color = C(90, 95, 110) },
+	{ Name = "Trophy", Kind = "trophy", Value = 300, Weight = 1, Scale = 0.6, Color = C(255, 205, 60) },
 }
 Config.ShardMutations = {
 	{ Name = "Rainbow", Chance = 0.005, Mult = 10, Color = C(255, 120, 200) },
@@ -564,7 +640,7 @@ function Config.MakeQuest(done, rebirths)
 end
 function Config.QuestText(kind, goal)
 	if kind == "shards" then
-		return string.format("Collect %d Aura shards", goal)
+		return string.format("Collect %d pickups", goal)
 	elseif kind == "train" then
 		return string.format("Land %d training reps", goal)
 	elseif kind == "duel" then
@@ -594,7 +670,7 @@ Config.Daily = {
 Config.EventGap = { 150, 280 }
 Config.Events = {
 	{ Id = "Golden", Name = "GOLDEN HOUR", Icon = "🌟", Desc = "All Aura x2", Duration = 90, AuraMult = 2, Tint = C(255, 240, 200) },
-	{ Id = "Storm", Name = "SHARD STORM", Icon = "☄️", Desc = "Rare shards are raining down", Duration = 60, Tint = C(215, 230, 255) },
+	{ Id = "Storm", Name = "PICKUP STORM", Icon = "☄️", Desc = "Gym goodies are raining down", Duration = 60, Tint = C(215, 230, 255) },
 	{ Id = "Frenzy", Name = "DUEL FRENZY", Icon = "⚔️", Desc = "Duel rewards x3", Duration = 90, DuelMult = 3, Tint = C(255, 215, 220) },
 	{ Id = "Runway", Name = "RUNWAY NIGHT", Icon = "💃", Desc = "Runway Aura x4", Duration = 90, RunwayMult = 4, Tint = C(235, 215, 255) },
 }
@@ -647,6 +723,13 @@ UI.Colors = {
 	Cyan = Color3.fromRGB(90, 200, 255),
 	Danger = Color3.fromRGB(232, 72, 72),
 	Disabled = Color3.fromRGB(96, 104, 134),
+	-- Aesthetic accents, one per kind of information so each part of the screen is recognisable
+	Pink = Color3.fromRGB(255, 112, 176),
+	Orange = Color3.fromRGB(255, 150, 60),
+	Mint = Color3.fromRGB(84, 224, 176),
+	Purple = Color3.fromRGB(162, 112, 255),
+	Sky = Color3.fromRGB(88, 186, 255),
+	Yellow = Color3.fromRGB(255, 218, 70),
 }
 
 UI.Fonts = {
@@ -915,6 +998,7 @@ local Modules = script:WaitForChild("Modules")
 local Data = require(Modules.Data)
 local Stats = require(Modules.Stats)
 local Appearance = require(Modules.Appearance)
+local Quirks = require(Modules.Quirks)
 local Cosmetics = require(Modules.Cosmetics)
 local Nameplate = require(Modules.Nameplate)
 local Quests = require(Modules.Quests)
@@ -952,7 +1036,11 @@ if okWorld then
 else
 	warn("[TrueAdam] World.build FAILED:", info)
 end
-Appearance.setHook(Cosmetics.apply) -- rebuild accessories whenever the body size changes
+-- Rebuild the face/hair/belly and any worn items whenever the body changes.
+Appearance.setHook(function(p)
+	Quirks.apply(p)
+	Cosmetics.apply(p)
+end)
 Shards.init()
 Competition.init()
 Training.init()
@@ -1039,7 +1127,7 @@ end)
 --------------------------------------------------------------------------------
 -- Client requests (rate limited)
 --------------------------------------------------------------------------------
-local SETTING_KEYS = { Music = true, Sfx = true, Duels = true, Fx = true }
+local SETTING_KEYS = { Music = true, Sfx = true, Duels = true, Fx = true, Cam = true }
 local budget = {}
 
 Action.OnServerEvent:Connect(function(p, kind, a, b)
@@ -1109,14 +1197,56 @@ end
 
 local SCALE_VALUES = { "BodyHeightScale", "BodyWidthScale", "BodyDepthScale", "HeadScale", "BodyTypeScale", "BodyProportionScale" }
 
+-- The head's unscaled ("nominal") size, so accessories fit no matter how big the head currently is.
+local function nominalHead(char)
+	local head = char and char:FindFirstChild("Head")
+	if not head then
+		return Vector3.new(2, 1, 1)
+	end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	local scaleValue = hum and hum:FindFirstChild("HeadScale")
+	local current = (scaleValue and scaleValue:IsA("NumberValue") and scaleValue.Value) or 1
+	if current <= 0 then
+		current = 1
+	end
+	return head.Size / current
+end
+
+-- Target head size (after the level's scaling). Used to place face features.
+function Appearance.headDims(p)
+	local profile = Data.get(p)
+	local level = profile and profile.Level or 1
+	local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+	if hum and hum.RigType == Enum.HumanoidRigType.R15 then
+		return nominalHead(p.Character) * Config.AppearanceScales(level).HeadScale
+	end
+	local head = p.Character and p.Character:FindFirstChild("Head")
+	return head and head.Size or Vector3.new(2, 1, 1)
+end
+
+-- Target torso size (R15 upper torso is about 2 x 1.6 x 1 before scaling).
+function Appearance.torsoDims(p)
+	local profile = Data.get(p)
+	local level = profile and profile.Level or 1
+	local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+	if hum and hum.RigType == Enum.HumanoidRigType.R15 then
+		local s = Config.AppearanceScales(level)
+		return Vector3.new(2 * s.BodyWidthScale, 1.6 * s.BodyHeightScale, 1 * s.BodyDepthScale)
+	end
+	local torso = p.Character and p.Character:FindFirstChild("Torso")
+	return torso and torso.Size or Vector3.new(2, 2, 1)
+end
+
 -- Scale numbers accessories should use for this player (so hats and wings fit the body).
+-- Accessories are designed for a head about 2 studs wide.
 function Appearance.accessoryScales(p)
 	local profile = Data.get(p)
 	local level = profile and profile.Level or 1
 	local s = Config.AppearanceScales(level)
 	local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
 	if hum and hum.RigType == Enum.HumanoidRigType.R15 then
-		return s.HeadScale, (s.BodyHeightScale + s.BodyWidthScale) / 2
+		local nominal = nominalHead(p.Character)
+		return s.HeadScale * nominal.X / 2, (s.BodyHeightScale + s.BodyWidthScale) / 2
 	end
 	local scale = p.Character and p.Character:GetScale() or 1
 	return scale, scale
@@ -2076,7 +2206,7 @@ local function defaults()
 		QuestsDone = 0,
 		Quest = nil,
 		Daily = { Last = 0, Streak = 0 },
-		Settings = { Music = true, Sfx = true, Duels = true, Fx = true },
+		Settings = { Music = true, Sfx = true, Duels = true, Fx = true, Cam = true },
 		LastSeen = nil,
 	}
 end
@@ -2516,7 +2646,7 @@ local function build(p, head)
 	end
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "GlowPlate"
-	gui.Size = UDim2.fromOffset(260, 66)
+	gui.Size = UDim2.fromOffset(320, 66)
 	gui.StudsOffset = Vector3.new(0, 3.4, 0)
 	gui.AlwaysOnTop = false
 	gui.MaxDistance = 110
@@ -2525,18 +2655,18 @@ local function build(p, head)
 
 	local tier = Instance.new("TextLabel")
 	tier.Name = "Rank"
-	tier.Size = UDim2.new(1, 0, 0, 34)
+	tier.Size = UDim2.new(1, 0, 0, 36)
 	tier.BackgroundTransparency = 1
 	tier.Font = Enum.Font.GothamBlack
-	tier.TextSize = 26
+	tier.TextScaled = true
 	tier.TextStrokeTransparency = 0
 	tier.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 	tier.Parent = gui
 
 	local name = Instance.new("TextLabel")
 	name.Name = "Name"
-	name.Position = UDim2.fromOffset(0, 34)
-	name.Size = UDim2.new(1, 0, 0, 24)
+	name.Position = UDim2.fromOffset(0, 36)
+	name.Size = UDim2.new(1, 0, 0, 22)
 	name.BackgroundTransparency = 1
 	name.Font = Enum.Font.GothamBold
 	name.TextSize = 17
@@ -2653,6 +2783,191 @@ return Quests
         </Item>
         <Item class="ModuleScript" referent="21">
           <Properties>
+            <string name="Name">Quirks</string>
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the gag that gives the game its name. Everyone starts with a goofy face, a big
+-- belly and hair all over their face and body. As you level up it all fades away until you look normal
+-- (around level 600) and keep getting more athletic. Everything is built from simple parts.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Data = require(script.Parent.Data)
+local Appearance = require(script.Parent.Appearance)
+
+local Quirks = {}
+
+local FOLDER = "GlowQuirks"
+local FUR = Color3.fromRGB(46, 32, 22)
+
+local function bit(props)
+	local part = Instance.new("Part")
+	part.Anchored = false
+	part.CanCollide = false
+	part.CanTouch = false
+	part.CanQuery = false
+	part.Massless = true
+	part.CastShadow = false
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.Material = Enum.Material.SmoothPlastic
+	for k, v in props do
+		part[k] = v
+	end
+	return part
+end
+
+local function stick(part, base, offset, folder)
+	part.CFrame = base.CFrame * offset
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = base
+	weld.Part1 = part
+	weld.Parent = part
+	part.Parent = folder
+	return part
+end
+
+local function ball(size, color)
+	return bit({ Shape = Enum.PartType.Ball, Size = Vector3.one * size, Color = color })
+end
+
+local function restoreFace(head)
+	for _, child in head:GetChildren() do
+		if child:IsA("Decal") then
+			child.Transparency = 0
+		end
+	end
+end
+
+local function hideFace(head)
+	for _, child in head:GetChildren() do
+		if child:IsA("Decal") then
+			child.Transparency = 1
+		end
+	end
+end
+
+-- Finds a body part by its R15 or R6 name.
+local function limb(char, r15, r6)
+	return char:FindFirstChild(r15) or char:FindFirstChild(r6)
+end
+
+function Quirks.apply(p)
+	local char = p.Character
+	local profile = Data.get(p)
+	if not char or not profile then
+		return
+	end
+	local head = char:FindFirstChild("Head")
+	local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+	if not head or not torso then
+		return
+	end
+	local old = char:FindFirstChild(FOLDER)
+	if old then
+		old:Destroy()
+	end
+
+	local w = Config.Weirdness(profile.Level)
+	if w <= 0.02 then
+		restoreFace(head)
+		return
+	end
+
+	local folder = Instance.new("Folder")
+	folder.Name = FOLDER
+	folder.Parent = char
+
+	local T = Appearance.torsoDims(p)
+	local dims = Appearance.headDims(p)
+	local W, H, D = dims.X, dims.Y, dims.Z
+	local skin = head.Color
+	local rng = Random.new(p.UserId) -- same layout every time, so hair doesn't "jump" between levels
+
+	-- ===== The face =====
+	if w > 0.15 then
+		hideFace(head)
+		local faceZ = -D * 0.5
+		-- Mismatched, cross-eyed eyes
+		stick(ball(W * 0.34, Color3.new(1, 1, 1)), head, CFrame.new(-W * 0.22, H * 0.1, faceZ), folder)
+		stick(ball(W * 0.2, Color3.new(1, 1, 1)), head, CFrame.new(W * 0.2, H * 0.2, faceZ), folder)
+		stick(ball(W * 0.13, Color3.new(0, 0, 0)), head, CFrame.new(-W * 0.14, H * 0.08, faceZ - W * 0.15), folder)
+		stick(ball(W * 0.09, Color3.new(0, 0, 0)), head, CFrame.new(W * 0.15, H * 0.18, faceZ - W * 0.08), folder)
+		-- One big hairy unibrow
+		stick(bit({ Size = Vector3.new(W * 0.8, H * 0.13, D * 0.12), Color = FUR }), head, CFrame.new(0, H * 0.34, faceZ) * CFrame.Angles(0, 0, 0.12), folder)
+		-- Giant nose with nostrils
+		stick(ball(W * 0.3, skin), head, CFrame.new(0, -H * 0.1, faceZ - W * 0.08), folder)
+		stick(ball(W * 0.07, Color3.fromRGB(40, 20, 20)), head, CFrame.new(-W * 0.07, -H * 0.16, faceZ - W * 0.28), folder)
+		stick(ball(W * 0.07, Color3.fromRGB(40, 20, 20)), head, CFrame.new(W * 0.07, -H * 0.16, faceZ - W * 0.28), folder)
+		-- Crooked mouth with buck teeth
+		stick(bit({ Size = Vector3.new(W * 0.5, H * 0.1, D * 0.06), Color = Color3.fromRGB(70, 20, 30) }), head, CFrame.new(W * 0.04, -H * 0.34, faceZ) * CFrame.Angles(0, 0, 0.14), folder)
+		for side = -1, 1, 2 do
+			stick(bit({ Size = Vector3.new(W * 0.11, H * 0.17, D * 0.06), Color = Color3.fromRGB(250, 248, 235) }), head, CFrame.new(W * 0.04 + side * W * 0.065, -H * 0.4, faceZ - D * 0.02), folder)
+		end
+		-- Bushy mustache
+		for side = -1, 1, 2 do
+			stick(bit({ Size = Vector3.new(W * 0.3, H * 0.12, D * 0.1), Color = FUR }), head, CFrame.new(side * W * 0.16, -H * 0.24, faceZ - D * 0.04) * CFrame.Angles(0, 0, -side * 0.18), folder)
+		end
+	else
+		restoreFace(head)
+	end
+
+	-- ===== Hair all over the face =====
+	local faceHair = math.ceil(18 * w)
+	for _ = 1, faceHair do
+		local x = (rng:NextNumber() - 0.5) * W * 0.95
+		local y = -H * (0.12 + rng:NextNumber() * 0.4)
+		local zFront = rng:NextNumber() < 0.7
+		local z = zFront and (-D * 0.5) or (-D * 0.3 + rng:NextNumber() * D * 0.4)
+		local xSide = zFront and x or ((rng:NextNumber() < 0.5 and -1 or 1) * W * 0.5)
+		stick(ball(W * (0.1 + rng:NextNumber() * 0.12), FUR), head, CFrame.new(xSide, y, z), folder)
+	end
+	-- Messy hair on top
+	local topHair = math.ceil(9 * w)
+	for _ = 1, topHair do
+		local x = (rng:NextNumber() - 0.5) * W * 0.8
+		local z = (rng:NextNumber() - 0.5) * D * 0.8
+		local tuft = bit({ Size = Vector3.new(W * 0.08, H * (0.25 + rng:NextNumber() * 0.25), W * 0.08), Color = FUR })
+		stick(tuft, head, CFrame.new(x, H * 0.55, z) * CFrame.Angles((rng:NextNumber() - 0.5) * 0.9, 0, (rng:NextNumber() - 0.5) * 0.9), folder)
+	end
+
+	-- ===== Belly =====
+	local bellySize = math.max(T.X, 2) * 0.85 * (0.3 + 0.7 * w)
+	local belly = ball(bellySize, skin)
+	stick(belly, torso, CFrame.new(0, -T.Y * 0.35, -T.Z * 0.5 - bellySize * 0.05), folder)
+	stick(ball(bellySize * 0.1, Color3.fromRGB(80, 50, 40)), torso, CFrame.new(0, -T.Y * 0.3, -T.Z * 0.5 - bellySize * 0.5), folder)
+
+	-- ===== Hair on the body =====
+	local arms = {
+		limb(char, "LeftUpperArm", "Left Arm"),
+		limb(char, "RightUpperArm", "Right Arm"),
+	}
+	local bodyHair = math.ceil(30 * w)
+	for i = 1, bodyHair do
+		local base, offset
+		if i % 3 == 0 and arms[1] then
+			base = arms[(i % 2) + 1] or arms[1]
+			offset = CFrame.new((rng:NextNumber() < 0.5 and -1 or 1) * 0.55, (rng:NextNumber() - 0.5) * 0.9, (rng:NextNumber() - 0.5) * 0.5)
+		else
+			base = torso
+			local face = rng:NextInteger(1, 3)
+			if face == 1 then -- front (chest)
+				offset = CFrame.new((rng:NextNumber() - 0.5) * T.X * 0.8, T.Y * (0.05 + rng:NextNumber() * 0.4), -T.Z * 0.5)
+			elseif face == 2 then -- back
+				offset = CFrame.new((rng:NextNumber() - 0.5) * T.X * 0.8, (rng:NextNumber() - 0.5) * T.Y * 0.8, T.Z * 0.5)
+			else -- sides
+				offset = CFrame.new((rng:NextNumber() < 0.5 and -1 or 1) * T.X * 0.5, (rng:NextNumber() - 0.5) * T.Y * 0.8, (rng:NextNumber() - 0.5) * T.Z * 0.7)
+			end
+		end
+		local tuft = bit({ Size = Vector3.new(0.14, 0.5 + rng:NextNumber() * 0.4, 0.14), Color = FUR })
+		stick(tuft, base, offset * CFrame.Angles((rng:NextNumber() - 0.5) * 1.2, 0, (rng:NextNumber() - 0.5) * 1.2), folder)
+	end
+end
+
+return Quirks
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="22">
+          <Properties>
             <string name="Name">Runway</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the runway in the middle of the district. Walk it for a steady Aura trickle that
 -- scales with your Glow Score, so a great look pays you just for strutting.
@@ -2692,15 +3007,14 @@ return Runway
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="22">
+        <Item class="ModuleScript" referent="23">
           <Properties>
             <string name="Name">Shards</string>
-            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Aura shards floating around the district. Walk near one to collect it.
--- Chaining pickups quickly builds a multiplier.
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the gym-and-health pickups scattered around the plaza: apples, protein shakes,
+-- dumbbells and trophies. Walk near one to grab it. Chaining pickups quickly builds a multiplier.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 local CollectionService = game:GetService("CollectionService")
 
@@ -2712,7 +3026,7 @@ local Shards = {}
 
 local rng = Random.new()
 local folder
-local live = {} -- shard Part -> slot
+local live = {} -- item Model -> slot
 local slots = {}
 
 local function pickType(luck)
@@ -2741,55 +3055,116 @@ local function rollMutation()
 	return nil
 end
 
+--------------------------------------------------------------------------------
+-- Item models (simple parts, so they read as real objects)
+--------------------------------------------------------------------------------
+local UP = CFrame.Angles(0, 0, math.pi / 2) -- turns a (sideways) cylinder upright
+
+local function piece(model, props)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanTouch = false
+	p.CanQuery = false
+	p.CastShadow = false
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Material = Enum.Material.SmoothPlastic
+	for k, v in props do
+		p[k] = v
+	end
+	p.Parent = model
+	return p
+end
+
+local function ballPiece(model, size, cf, color)
+	return piece(model, { Shape = Enum.PartType.Ball, Size = Vector3.one * size, CFrame = cf, Color = color })
+end
+
+local function cyl(model, length, diameter, cf, color, material)
+	return piece(model, {
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(length, diameter, diameter),
+		CFrame = cf,
+		Color = color,
+		Material = material or Enum.Material.SmoothPlastic,
+	})
+end
+
+local builders = {}
+
+function builders.apple(model, cf, s, color)
+	local body = ballPiece(model, 2.2 * s, cf, color)
+	piece(model, { Size = Vector3.new(0.16, 0.6, 0.16) * s, CFrame = cf * CFrame.new(0, 1.15 * s, 0), Color = Color3.fromRGB(100, 70, 40) })
+	piece(model, { Size = Vector3.new(0.8, 0.12, 0.45) * s, CFrame = cf * CFrame.new(0.4 * s, 1.3 * s, 0) * CFrame.Angles(0, 0, 0.4), Color = Color3.fromRGB(70, 180, 70) })
+	return body
+end
+
+function builders.shake(model, cf, s, color)
+	local body = cyl(model, 3 * s, 1.5 * s, cf * UP, color)
+	cyl(model, 1.1 * s, 1.56 * s, cf * UP, Color3.fromRGB(250, 250, 252)) -- label band
+	cyl(model, 0.5 * s, 1.6 * s, cf * CFrame.new(0, 1.75 * s, 0) * UP, Color3.fromRGB(40, 40, 48)) -- lid
+	return body
+end
+
+function builders.dumbbell(model, cf, s, color)
+	local bar = cyl(model, 3.4 * s, 0.5 * s, cf, Color3.fromRGB(200, 205, 215), Enum.Material.Metal)
+	for side = -1, 1, 2 do
+		cyl(model, 0.55 * s, 2.3 * s, cf * CFrame.new(side * 1.25 * s, 0, 0), color, Enum.Material.Metal)
+		cyl(model, 0.45 * s, 1.5 * s, cf * CFrame.new(side * 1.7 * s, 0, 0), Color3.fromRGB(190, 195, 205), Enum.Material.Metal)
+	end
+	return bar
+end
+
+function builders.trophy(model, cf, s, color)
+	local cup = cyl(model, 1.7 * s, 2 * s, cf * CFrame.new(0, 0.5 * s, 0) * UP, color, Enum.Material.Metal)
+	cyl(model, 1.1 * s, 0.4 * s, cf * CFrame.new(0, -0.7 * s, 0) * UP, color, Enum.Material.Metal)
+	piece(model, { Size = Vector3.new(1.8, 0.4, 1.8) * s, CFrame = cf * CFrame.new(0, -1.4 * s, 0), Color = Color3.fromRGB(60, 40, 30), Material = Enum.Material.Wood })
+	for side = -1, 1, 2 do
+		cyl(model, 0.25 * s, 0.9 * s, cf * CFrame.new(side * 1.15 * s, 0.6 * s, 0), color, Enum.Material.Metal)
+	end
+	return cup
+end
+
 local function spawn(slot)
 	local t = pickType(slot.luck)
 	local mut = rollMutation()
-	local color = mut and mut.Color or t.Color
-	local shard = Instance.new("Part")
-	shard.Name = "Shard"
-	local size = 2 + t.Scale + (mut and 0.5 or 0)
-	if t.Shape == "Coin" then
-		shard.Shape = Enum.PartType.Cylinder
-		shard.Size = Vector3.new(0.45, size, size) -- a coin standing on its edge; it spins
-	else
-		shard.Shape = Enum.PartType.Ball
-		shard.Size = Vector3.one * size
-	end
-	shard.Material = Enum.Material[t.Material]
-	shard.Color = color
-	shard.Reflectance = t.Shape == "Gem" and 0.25 or 0.1
-	shard.Anchored = true
-	shard.CanCollide = false
-	shard.CanTouch = false
-	shard.CanQuery = false
-	shard.CastShadow = false
-	shard.Position = slot.pos
-	shard:SetAttribute("Value", t.Value * (mut and mut.Mult or 1))
-	shard:SetAttribute("Tier", t.Name)
-	shard:SetAttribute("Mut", mut and mut.Name or nil)
+	local itemColor = mut and mut.Color or t.Color
 
-	-- Only the valuable ones get a twinkle, so the plaza stays clean.
+	local model = Instance.new("Model")
+	model.Name = "Shard"
+	local scale = 1 + t.Scale * 0.5 + (mut and 0.2 or 0)
+	local primary = builders[t.Kind](model, CFrame.new(slot.pos), scale, t.Color)
+	model.PrimaryPart = primary
+
+	model:SetAttribute("Value", t.Value * (mut and mut.Mult or 1))
+	model:SetAttribute("Tier", t.Name)
+	model:SetAttribute("Mut", mut and mut.Name or nil)
+	model:SetAttribute("ItemColor", itemColor)
+	model:SetAttribute("Pos", slot.pos)
+
+	-- Only valuable or mutated ones twinkle, so the plaza stays clean.
 	if mut or t.Value >= 60 then
 		local e = Instance.new("ParticleEmitter")
-		e.Color = ColorSequence.new(Color3.new(1, 1, 1), color)
-		e.LightEmission = 0.6
+		e.Color = ColorSequence.new(Color3.new(1, 1, 1), itemColor)
+		e.LightEmission = 0.5
 		e.Rate = mut and 14 or 5
 		e.Lifetime = NumberRange.new(0.8, 1.5)
 		e.Speed = NumberRange.new(0.5, 1.5)
 		e.SpreadAngle = Vector2.new(180, 180)
 		e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 0) })
 		e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 1) })
-		e.Parent = shard
+		e.Parent = primary
 	end
 
-	CollectionService:AddTag(shard, "Shard")
-	shard.Parent = folder
-	live[shard] = slot
+	CollectionService:AddTag(model, "Shard")
+	model.Parent = folder
+	live[model] = slot
 end
 
 function Shards.build(slotPositions)
 	folder = Instance.new("Folder")
-	folder.Name = "Shards"
+	folder.Name = "Pickups"
 	folder.Parent = workspace
 	for _, pos in slotPositions do
 		local slot = { pos = pos, luck = 0 }
@@ -2798,13 +3173,13 @@ function Shards.build(slotPositions)
 	end
 end
 
--- A burst of rich temporary shards (Shard Storm event).
+-- A burst of rich temporary pickups (Pickup Storm event).
 function Shards.storm(count)
 	local r = Config.PlazaRadius - 10
 	for _ = 1, count do
 		local a = rng:NextNumber() * math.pi * 2
 		local d = math.sqrt(rng:NextNumber()) * r
-		spawn({ pos = Vector3.new(math.cos(a) * d, 3.2, math.sin(a) * d), luck = 6, temp = true })
+		spawn({ pos = Vector3.new(math.cos(a) * d, 3.4, math.sin(a) * d), luck = 6, temp = true })
 	end
 end
 
@@ -2817,9 +3192,8 @@ function Shards.clearTemp()
 	end
 end
 
-local function collect(p, shard, root)
-	local slot = live[shard]
-	if not slot then
+local function collect(p, shard, slot)
+	if not live[shard] then
 		return
 	end
 	live[shard] = nil
@@ -2835,18 +3209,14 @@ local function collect(p, shard, root)
 	p:SetAttribute("ChainExpire", now + Config.ChainWindow)
 
 	local rank = p:GetAttribute("Rank") or 1
-	local base = shard:GetAttribute("Value") * Config.RankScaling(rank) * Config.ChainMult(chain)
+	local value = shard:GetAttribute("Value")
+	local base = value * Config.RankScaling(rank) * Config.ChainMult(chain)
 	local gained = Stats.addAura(p, base)
-	Stats.addXP(p, shard:GetAttribute("Value"))
-	Stats.send(p, "shard", shard.Position, gained, shard:GetAttribute("Tier"), shard.Color, shard:GetAttribute("Mut"), chain)
+	Stats.addXP(p, value)
+	Stats.send(p, "shard", slot.pos, gained, shard:GetAttribute("Tier"), shard:GetAttribute("ItemColor"), shard:GetAttribute("Mut"), chain)
 	Quests.progress(p, "shards", 1)
 
-	TweenService:Create(shard, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-		Position = root.Position,
-		Size = Vector3.one * 0.2,
-	}):Play()
-	Debris:AddItem(shard, 0.25)
-
+	Debris:AddItem(shard, 0.3) -- the client flies it into the player first
 	if not slot.temp then
 		task.delay(Config.ShardRespawn, function()
 			spawn(slot)
@@ -2869,9 +3239,9 @@ function Shards.init()
 			if root and hum and hum.Health > 0 then
 				local radius = p:GetAttribute("MagnetRadius") or 9
 				local pos = root.Position
-				for shard in live do
-					if (shard.Position - pos).Magnitude <= radius then
-						collect(p, shard, root)
+				for shard, slot in live do
+					if (slot.pos - pos).Magnitude <= radius then
+						collect(p, shard, slot)
 					end
 				end
 			end
@@ -2883,7 +3253,7 @@ return Shards
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="23">
+        <Item class="ModuleScript" referent="24">
           <Properties>
             <string name="Name">Shop</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades and rebirth.
@@ -2955,7 +3325,7 @@ return Shop
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="24">
+        <Item class="ModuleScript" referent="25">
           <Properties>
             <string name="Name">Stats</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the heart of progression. Owns Aura, stats, Glow Score, rank and the
@@ -3274,7 +3644,7 @@ return Stats
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="25">
+        <Item class="ModuleScript" referent="26">
           <Properties>
             <string name="Name">Training</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame. A marker sweeps a bar; hit the zone for stat gains.
@@ -3452,7 +3822,7 @@ return Training
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="26">
+        <Item class="ModuleScript" referent="27">
           <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: builds the whole town from code (nothing to import).
@@ -3467,7 +3837,6 @@ local World = {}
 
 local rng = Random.new(77)
 local PLAZA = Config.PlazaRadius
-local STATION_RADIUS = 95
 local C3 = Color3.fromRGB
 local M = Enum.Material
 
@@ -3694,9 +4063,9 @@ end
 --------------------------------------------------------------------------------
 -- Pavilions (training stations)
 --------------------------------------------------------------------------------
-local function pavilion(parent, pos, inward, roofColor, signText, signColor)
+local function pavilion(parent, pos, inward, roofColor, signText, signColor, floorColor, floorMaterial, wallColor)
 	local cf = CFrame.lookAt(pos, pos + inward)
-	block(parent, "Floor", Vector3.new(32, 0.8, 30), cf * CFrame.new(0, 0.5, 0), C3(160, 160, 166), M.Concrete)
+	block(parent, "Floor", Vector3.new(32, 0.8, 30), cf * CFrame.new(0, 0.5, 0), floorColor or C3(160, 160, 166), floorMaterial or M.Concrete)
 	for sx = -1, 1, 2 do
 		for sz = -1, 1, 2 do
 			block(parent, "Pillar", Vector3.new(1.8, 13, 1.8), cf * CFrame.new(sx * 14.5, 7.3, sz * 13.5), WHITE, M.Concrete)
@@ -3704,21 +4073,20 @@ local function pavilion(parent, pos, inward, roofColor, signText, signColor)
 	end
 	block(parent, "Roof", Vector3.new(35, 1.4, 33), cf * CFrame.new(0, 14.4, 0), roofColor)
 	block(parent, "RoofTrim", Vector3.new(36, 0.6, 34), cf * CFrame.new(0, 13.5, 0), WHITE)
-	block(parent, "BackWall", Vector3.new(32, 12, 1), cf * CFrame.new(0, 7, 14.6), C3(214, 208, 196), M.Concrete)
+	block(parent, "BackWall", Vector3.new(32, 12, 1), cf * CFrame.new(0, 7, 14.6), wallColor or C3(214, 208, 196), M.Concrete)
 	sign(parent, (cf * CFrame.new(0, 18.6, -16)).Position, inward, Vector3.new(26, 5, 0.6), signText, signColor)
 	return cf
 end
 
-local function stationAt(angle)
-	local a = math.rad(angle)
-	local pos = Vector3.new(math.cos(a) * STATION_RADIUS, 0, math.sin(a) * STATION_RADIUS)
-	local inward = Vector3.new(-math.cos(a), 0, -math.sin(a))
-	return pos, inward, Vector3.new(-math.sin(a), 0, math.cos(a))
+local function stationAt(name)
+	local pos = Config.StationPos(name)
+	local inward = Config.StationFront(name)
+	return pos, inward, Vector3.new(-inward.Z, 0, inward.X)
 end
 
 local function buildGym(parent, cb)
-	local pos, inward = stationAt(40)
-	local cf = pavilion(parent, pos, inward, RED, "💪  GYM", C3(150, 30, 20))
+	local pos, inward = stationAt("Gym")
+	local cf = pavilion(parent, pos, inward, RED, "💪  GYM", C3(150, 30, 20), C3(48, 50, 56), M.Slate, C3(150, 60, 55))
 	-- Bench press
 	block(parent, "Bench", Vector3.new(2.4, 1.2, 6.5), cf * CFrame.new(0, 1.9, 2), C3(40, 40, 46), M.SmoothPlastic)
 	for side = -1, 1, 2 do
@@ -3746,8 +4114,8 @@ local function buildGym(parent, cb)
 end
 
 local function buildStudio(parent, cb)
-	local pos, inward = stationAt(112)
-	local cf = pavilion(parent, pos, inward, C3(190, 70, 140), "💈  STYLE STUDIO", C3(130, 40, 100))
+	local pos, inward = stationAt("Studio")
+	local cf = pavilion(parent, pos, inward, C3(190, 70, 140), "💈  STYLE STUDIO", C3(130, 40, 100), C3(242, 190, 214), M.Marble, C3(236, 170, 200))
 	for i, x in { -7, 7 } do
 		local c = cf * CFrame.new(x, 0, 2)
 		post(parent, "ChairBase", (c * CFrame.new(0, 1, 0)).Position, 1.3, 0.6, DARK, M.Metal)
@@ -3774,8 +4142,8 @@ local function buildStudio(parent, cb)
 end
 
 local function buildLounge(parent, cb)
-	local pos, inward = stationAt(184)
-	local cf = pavilion(parent, pos, inward, C3(60, 140, 190), "🛋️  CHARM LOUNGE", C3(30, 90, 140))
+	local pos, inward = stationAt("Lounge")
+	local cf = pavilion(parent, pos, inward, C3(60, 140, 190), "🛋️  CHARM LOUNGE", C3(30, 90, 140), C3(170, 122, 84), M.WoodPlanks, C3(96, 170, 190))
 	disk(parent, "Rug", (cf * CFrame.new(0, 0.9, 1)).Position, 9, 0.1, C3(190, 70, 90), M.Fabric)
 	block(parent, "SofaSeat", Vector3.new(11, 1.6, 4), cf * CFrame.new(0, 2, 11), C3(120, 80, 150), M.Fabric)
 	block(parent, "SofaBack", Vector3.new(11, 3.6, 1), cf * CFrame.new(0, 4, 12.6), C3(100, 64, 130), M.Fabric)
@@ -3798,7 +4166,7 @@ local function buildLounge(parent, cb)
 end
 
 local function buildCrateShop(parent, cb)
-	local pos, inward = stationAt(256)
+	local pos, inward = stationAt("Crates")
 	local cf = CFrame.lookAt(pos, pos + inward)
 	block(parent, "Base", Vector3.new(26, 0.8, 20), cf * CFrame.new(0, 0.5, 0), C3(150, 120, 90), M.Wood)
 	block(parent, "BackWall", Vector3.new(24, 11, 1), cf * CFrame.new(0, 6.3, 9), C3(214, 190, 150), M.Wood)
@@ -3859,7 +4227,7 @@ local function buildDummy(parent, at, facing, cb)
 end
 
 local function buildRing(parent, cb)
-	local pos, inward, tangent = stationAt(328)
+	local pos, inward, tangent = stationAt("Ring")
 	local cf = CFrame.lookAt(pos, pos + inward)
 	-- Platform with steps toward the plaza
 	block(parent, "RingStepLow", Vector3.new(14, 0.9, 5), cf * CFrame.new(0, 0.45, -26.5), C3(150, 150, 156), M.Concrete)
@@ -4137,9 +4505,8 @@ function World.build(cb)
 	local arena = buildRing(world, cb)
 
 	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 118), r = 8 } }
-	for _, angle in { 40, 112, 184, 256, 328 } do
-		local pos = stationAt(angle)
-		table.insert(avoid, { pos = pos, r = 28 })
+	for name in Config.Stations do
+		table.insert(avoid, { pos = (stationAt(name)), r = 28 })
 	end
 
 	return {
@@ -4158,15 +4525,15 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="27">
+  <Item class="StarterPlayer" referent="28">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="28">
+    <Item class="StarterPlayerScripts" referent="29">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="29">
+      <Item class="LocalScript" referent="30">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: client entry point. Builds the interface, wires the menu tabs, and routes everything
@@ -4200,6 +4567,7 @@ local TrainingUI = require(Modules.TrainingUI)
 local DuelUI = require(Modules.DuelUI)
 local CompetitionUI = require(Modules.CompetitionUI)
 local Orbs = require(Modules.Orbs)
+local ZoneCamera = require(Modules.ZoneCamera)
 
 -- Wait for the server to finish setting this player up.
 while not player:GetAttribute("Ready") do
@@ -4219,6 +4587,7 @@ local gui = UI.new("ScreenGui", {
 Audio.Init()
 Fx.init(gui)
 Orbs.init()
+ZoneCamera.init()
 Menu.init(gui)
 Menu.addTab("Wardrobe", "👗", function(page)
 	return TabWardrobe.build(page, Action)
@@ -4250,6 +4619,11 @@ for _, key in { "Music", "Sfx" } do
 	player:GetAttributeChangedSignal("Set_" .. key):Connect(TabSettings.apply)
 end
 
+-- A small label when you walk into a new place (its camera angle changes too).
+ZoneCamera.onEnter(function(zone)
+	Toasts.push(zone.Icon .. " " .. zone.Label, "info")
+end)
+
 Menu.onChanged(function(name)
 	if name == "Wardrobe" then
 		Hud.setNewItem(false)
@@ -4276,7 +4650,7 @@ function handlers.shard(pos, gained, tier, color, mut, chain)
 	-- Only notable pickups get a floating number; the Aura counter covers the rest.
 	if mut or tierIndex >= 3 then
 		local text = (mut and (mut:upper() .. "! ") or "") .. "+" .. Util.fmt(gained)
-		Fx.floatText(pos, text, color, mut and 38 or 30)
+		Fx.floatText(pos, text, color, mut and 26 or 22)
 	end
 	if mut then
 		Fx.shake(0.25, 0.3)
@@ -4301,7 +4675,7 @@ function handlers.rank(rankIndex)
 	Audio.rank()
 	Fx.shake(0.4, 0.5)
 	Fx.flash(rank.Color, 0.35, 0.9)
-	Fx.announce(rank.Full:upper(), "NEW LOOKS TIER!", rank.Color, 0.28)
+	Fx.announce(rank.Full:upper(), "NEW LOOKS TIER!", rank.Color, 0.2)
 end
 
 -- Plain level-ups stay small (a toast); every 10th level gets a proper moment.
@@ -4404,7 +4778,11 @@ end)
 -- Welcome back
 --------------------------------------------------------------------------------
 task.spawn(function()
-	task.wait(2)
+	task.wait(2.5)
+	if (player:GetAttribute("Level") or 1) <= 1 and (player:GetAttribute("XP") or 0) < 5 then
+		Fx.announce("SUB 5", "That's you. Level up to evolve!", Config.Ranks[1].Color, 0.22)
+		task.wait(3)
+	end
 	local gain = player:GetAttribute("OfflineGain")
 	if gain and gain > 0 then
 		Toasts.push("Welcome back! Your look earned ✦" .. Util.fmt(gain) .. " while you were away", "gold")
@@ -4414,11 +4792,11 @@ task.spawn(function()
 end)
 ]]></string>
         </Properties>
-        <Item class="Folder" referent="30">
+        <Item class="Folder" referent="31">
           <Properties>
             <string name="Name">Modules</string>
           </Properties>
-          <Item class="ModuleScript" referent="31">
+          <Item class="ModuleScript" referent="32">
             <Properties>
               <string name="Name">CompetitionUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: Mog Competition overlay. Everyone on stage flexes (taps) for 8 seconds; a live
@@ -4469,10 +4847,10 @@ function CompetitionUI.init(gui, action)
 
 	title = UI.label(root, {
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 14),
-		Size = UDim2.fromOffset(600, 40),
+		Position = UDim2.new(0.5, 0, 0, 8),
+		Size = UDim2.fromOffset(420, 26),
 		Font = UI.Fonts.Title,
-		TextSize = 30,
+		TextSize = 18,
 		TextColor3 = C.Gold,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
@@ -4481,10 +4859,10 @@ function CompetitionUI.init(gui, action)
 	})
 	center = UI.label(root, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.36),
-		Size = UDim2.fromOffset(600, 120),
+		Position = UDim2.fromScale(0.5, 0.3),
+		Size = UDim2.fromOffset(400, 70),
 		Font = UI.Fonts.Title,
-		TextSize = 96,
+		TextSize = 56,
 		TextStrokeTransparency = 0,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
@@ -4495,15 +4873,15 @@ function CompetitionUI.init(gui, action)
 	-- Live leaderboard (right side)
 	listFrame = UI.panel(root, {
 		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -16, 0.5, -20),
-		Size = UDim2.fromOffset(300, 300),
+		Position = UDim2.new(1, -8, 0.5, -20),
+		Size = UDim2.fromOffset(190, 190),
 		ZIndex = 31,
 	})
 	UI.label(listFrame, {
-		Position = UDim2.fromOffset(14, 8),
-		Size = UDim2.new(1, -28, 0, 22),
+		Position = UDim2.fromOffset(10, 5),
+		Size = UDim2.new(1, -20, 0, 16),
 		Font = UI.Fonts.Title,
-		TextSize = 16,
+		TextSize = 11,
 		TextWrapped = false,
 		Text = "LIVE RANKING",
 		ZIndex = 32,
@@ -4511,8 +4889,8 @@ function CompetitionUI.init(gui, action)
 	rows = {}
 	for i = 1, 6 do
 		local row = UI.new("Frame", {
-			Position = UDim2.fromOffset(12, 38 + (i - 1) * 42),
-			Size = UDim2.new(1, -24, 0, 36),
+			Position = UDim2.fromOffset(8, 26 + (i - 1) * 26),
+			Size = UDim2.new(1, -16, 0, 22),
 			BackgroundColor3 = C.Card,
 			ZIndex = 32,
 		}, listFrame)
@@ -4526,10 +4904,10 @@ function CompetitionUI.init(gui, action)
 		}, row)
 		UI.corner(fill, 8)
 		local label = UI.label(row, {
-			Position = UDim2.fromOffset(10, 0),
-			Size = UDim2.new(1, -20, 1, 0),
+			Position = UDim2.fromOffset(8, 0),
+			Size = UDim2.new(1, -16, 1, 0),
 			Font = UI.Fonts.Bold,
-			TextSize = 14,
+			TextSize = 10,
 			TextWrapped = false,
 			Text = "",
 			ZIndex = 34,
@@ -4539,12 +4917,12 @@ function CompetitionUI.init(gui, action)
 
 	tapButton = UI.button(root, {
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -40),
-		Size = UDim2.fromOffset(280, 100),
+		Position = UDim2.new(0.5, 0, 1, -24),
+		Size = UDim2.fromOffset(180, 64),
 		Text = "FLEX!",
-		TextSize = 42,
+		TextSize = 28,
 		ZIndex = 33,
-		Radius = 24,
+		Radius = 16,
 	}, "primary")
 	tapScale = UI.new("UIScale", {}, tapButton)
 	tapButton.Activated:Connect(tap)
@@ -4553,33 +4931,33 @@ function CompetitionUI.init(gui, action)
 	resultPanel = UI.panel(root, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.45),
-		Size = UDim2.fromOffset(460, 360),
+		Size = UDim2.fromOffset(340, 270),
 		Visible = false,
 		ZIndex = 40,
 	})
 	resultTitle = UI.label(resultPanel, {
-		Position = UDim2.fromOffset(20, 16),
-		Size = UDim2.new(1, -40, 0, 48),
+		Position = UDim2.fromOffset(14, 10),
+		Size = UDim2.new(1, -28, 0, 34),
 		Font = UI.Fonts.Title,
-		TextSize = 32,
+		TextSize = 22,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
 		Text = "",
 		ZIndex = 41,
 	})
 	resultBody = UI.label(resultPanel, {
-		Position = UDim2.fromOffset(24, 72),
-		Size = UDim2.new(1, -48, 1, -140),
+		Position = UDim2.fromOffset(18, 52),
+		Size = UDim2.new(1, -36, 1, -100),
 		Font = UI.Fonts.Bold,
-		TextSize = 18,
+		TextSize = 13,
 		TextYAlignment = Enum.TextYAlignment.Top,
 		Text = "",
 		ZIndex = 41,
 	})
 	local close = UI.button(resultPanel, {
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -16),
-		Size = UDim2.fromOffset(180, 44),
+		Position = UDim2.new(0.5, 0, 1, -12),
+		Size = UDim2.fromOffset(140, 34),
 		Text = "CONTINUE",
 		ZIndex = 42,
 	}, "primary")
@@ -4702,7 +5080,7 @@ return CompetitionUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="32">
+          <Item class="ModuleScript" referent="33">
             <Properties>
               <string name="Name">DuelUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: duel overlay. Both sides tap as fast as they can for 7 seconds; Mog Power gives an
@@ -4732,25 +5110,25 @@ local lastSend = 0
 local function card(parent, anchorX, color)
 	local c = UI.panel(parent, {
 		AnchorPoint = Vector2.new(anchorX, 0),
-		Position = UDim2.new(anchorX, anchorX == 0 and 20 or -20, 0, 10),
-		Size = UDim2.fromOffset(250, 76),
+		Position = UDim2.new(anchorX, anchorX == 0 and 12 or -12, 0, 8),
+		Size = UDim2.fromOffset(190, 52),
 		ZIndex = 31,
 	})
 	c:FindFirstChildOfClass("UIStroke").Color = color
 	local name = UI.label(c, {
-		Position = UDim2.fromOffset(16, 8),
-		Size = UDim2.new(1, -32, 0, 28),
+		Position = UDim2.fromOffset(12, 5),
+		Size = UDim2.new(1, -24, 0, 20),
 		Font = UI.Fonts.Title,
-		TextSize = 20,
+		TextSize = 14,
 		TextXAlignment = anchorX == 0 and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right,
 		TextWrapped = false,
 		ZIndex = 32,
 	})
 	local info = UI.label(c, {
-		Position = UDim2.fromOffset(16, 40),
-		Size = UDim2.new(1, -32, 0, 22),
+		Position = UDim2.fromOffset(12, 28),
+		Size = UDim2.new(1, -24, 0, 18),
 		Font = UI.Fonts.Bold,
-		TextSize = 13,
+		TextSize = 10,
 		TextColor3 = C.Muted,
 		TextXAlignment = anchorX == 0 and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right,
 		TextWrapped = false,
@@ -4787,20 +5165,20 @@ function DuelUI.init(gui, action)
 
 	local bars = UI.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 104),
-		Size = UDim2.fromOffset(520, 60),
+		Position = UDim2.new(0.5, 0, 0, 8),
+		Size = UDim2.fromOffset(280, 36),
 		BackgroundTransparency = 1,
 		ZIndex = 31,
 	}, root)
-	myBar = UI.bar(bars, { Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 16) }, C.Cyan)
-	oppBar = UI.bar(bars, { Position = UDim2.fromOffset(0, 34), Size = UDim2.new(1, 0, 0, 16) }, C.Accent2)
+	myBar = UI.bar(bars, { Position = UDim2.fromOffset(0, 2), Size = UDim2.new(1, 0, 0, 12) }, C.Sky)
+	oppBar = UI.bar(bars, { Position = UDim2.fromOffset(0, 20), Size = UDim2.new(1, 0, 0, 12) }, C.Pink)
 
 	center = UI.label(root, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.4),
-		Size = UDim2.fromOffset(600, 120),
+		Position = UDim2.fromScale(0.5, 0.32),
+		Size = UDim2.fromOffset(400, 70),
 		Font = UI.Fonts.Title,
-		TextSize = 96,
+		TextSize = 56,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
 		TextStrokeTransparency = 0.2,
@@ -4810,10 +5188,10 @@ function DuelUI.init(gui, action)
 	})
 	resultLabel = UI.label(root, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.56),
-		Size = UDim2.fromOffset(640, 60),
+		Position = UDim2.fromScale(0.5, 0.43),
+		Size = UDim2.fromOffset(520, 40),
 		Font = UI.Fonts.Bold,
-		TextSize = 22,
+		TextSize = 15,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		Text = "",
 		ZIndex = 32,
@@ -4821,12 +5199,12 @@ function DuelUI.init(gui, action)
 
 	tapButton = UI.button(root, {
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -40),
-		Size = UDim2.fromOffset(260, 96),
+		Position = UDim2.new(0.5, 0, 1, -24),
+		Size = UDim2.fromOffset(180, 64),
 		Text = "TAP!",
-		TextSize = 40,
+		TextSize = 28,
 		ZIndex = 33,
-		Radius = 24,
+		Radius = 16,
 	}, "primary")
 	tapButton.Font = UI.Fonts.Title
 	tapScale = UI.new("UIScale", {}, tapButton)
@@ -4942,7 +5320,7 @@ return DuelUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="33">
+          <Item class="ModuleScript" referent="34">
             <Properties>
               <string name="Name">Fx</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
@@ -4960,7 +5338,7 @@ local Fx = {}
 local player = Players.LocalPlayer
 local camera = workspace:WaitForChild("Camera")
 local gui
-local BASE_FOV = 70
+local baseFov, targetFov = 70, 70
 local fovKick = 0
 local shakeMag, shakeTime = 0, 0
 local flashFrame
@@ -4983,7 +5361,8 @@ function Fx.init(screenGui)
 
 	RunService.RenderStepped:Connect(function(dt)
 		fovKick = fovKick * (1 - math.min(1, dt * 12))
-		camera.FieldOfView = BASE_FOV + fovKick
+		baseFov += (targetFov - baseFov) * math.min(1, dt * 4)
+		camera.FieldOfView = baseFov + fovKick
 		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 		if hum then
 			if shakeTime > 0 and effectsOn() then
@@ -4997,6 +5376,11 @@ function Fx.init(screenGui)
 			end
 		end
 	end)
+end
+
+-- The zone cameras change the resting field of view through this.
+function Fx.setBaseFov(fov)
+	targetFov = fov or 70
 end
 
 function Fx.punch(amount)
@@ -5044,7 +5428,7 @@ function Fx.floatText(pos, text, color, size)
 	local bb = UI.new("BillboardGui", {
 		Adornee = anchor,
 		AlwaysOnTop = true,
-		Size = UDim2.fromOffset(300, size + 12),
+		Size = UDim2.fromOffset(240, size + 10),
 	}, anchor)
 	local label = UI.label(bb, {
 		Size = UDim2.fromScale(1, 1),
@@ -5088,16 +5472,16 @@ function Fx.announce(title, sub, color, y)
 	end
 	local holder = UI.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, y or 0.28, 0),
-		Size = UDim2.fromOffset(700, 120),
+		Position = UDim2.new(0.5, 0, y or 0.2, 0),
+		Size = UDim2.fromOffset(520, 80),
 		BackgroundTransparency = 1,
 		ZIndex = 60,
 	}, gui)
 	local scale = UI.new("UIScale", { Scale = 0.3 }, holder)
 	local t = UI.label(holder, {
-		Size = UDim2.new(1, 0, 0, 66),
+		Size = UDim2.new(1, 0, 0, 44),
 		Font = UI.Fonts.Title,
-		TextSize = 56,
+		TextSize = 38,
 		TextColor3 = color,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextStrokeTransparency = 0.1,
@@ -5106,10 +5490,10 @@ function Fx.announce(title, sub, color, y)
 		ZIndex = 60,
 	})
 	local s = UI.label(holder, {
-		Position = UDim2.fromOffset(0, 68),
-		Size = UDim2.new(1, 0, 0, 36),
+		Position = UDim2.fromOffset(0, 46),
+		Size = UDim2.new(1, 0, 0, 26),
 		Font = UI.Fonts.Bold,
-		TextSize = 24,
+		TextSize = 17,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextStrokeTransparency = 0.3,
 		TextStrokeColor3 = Color3.fromRGB(18, 10, 44),
@@ -5129,11 +5513,13 @@ return Fx
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="34">
+          <Item class="ModuleScript" referent="35">
             <Properties>
               <string name="Name">Hud</string>
-              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the always-on screen. Deliberately minimal: your Aura (with rank progress), one
--- quest, a chain chip and an event banner only when relevant, and a dock that opens the menu.
+              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the always-on screen, kept small so it never gets in the way of the action.
+-- Top: Aura and level pills (with a thin XP bar). Under them: tiny chips that only show up when
+-- relevant (chain, competition, event). Left: one small quest. Bottom: a compact colourful dock.
+-- Every kind of information has its own colour so it can be read at a glance.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -5151,12 +5537,12 @@ local player = Players.LocalPlayer
 local C = UI.Colors
 
 local DOCK = {
-	{ name = "Wardrobe", icon = "👗" },
-	{ name = "Crates", icon = "🎁" },
-	{ name = "Upgrades", icon = "⬆️" },
-	{ name = "Profile", icon = "📈" },
-	{ name = "Rewards", icon = "📅" },
-	{ name = "Settings", icon = "⚙️" },
+	{ name = "Wardrobe", icon = "👗", color = C.Pink },
+	{ name = "Crates", icon = "🎁", color = C.Orange },
+	{ name = "Upgrades", icon = "⬆️", color = C.Mint },
+	{ name = "Profile", icon = "📈", color = C.Sky },
+	{ name = "Rewards", icon = "📅", color = C.Yellow },
+	{ name = "Settings", icon = "⚙️", color = C.Purple },
 }
 
 local refs = {}
@@ -5164,65 +5550,80 @@ local shownAura = 0
 local pending, lastGain = 0, 0
 local lastAura = 0
 
-local function buildAuraCard(gui)
-	local card = UI.panel(gui, {
-		Name = "AuraCard",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 8),
-		Size = UDim2.fromOffset(360, 94),
-	})
-	refs.cardScale = UI.new("UIScale", {}, card)
+local function tint(panel, color)
+	local stroke = panel:FindFirstChildOfClass("UIStroke")
+	if stroke then
+		stroke.Color = color
+	end
+end
 
-	refs.aura = UI.label(card, {
-		Position = UDim2.fromOffset(18, 6),
-		Size = UDim2.fromOffset(190, 42),
+-- A small rounded pill with a coloured outline.
+local function pill(parent, name, size, color)
+	local frame = UI.panel(parent, { Name = name, Size = size, Radius = 10 })
+	tint(frame, color)
+	return frame
+end
+
+local function buildTop(gui)
+	local row = UI.new("Frame", {
+		Name = "TopRow",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 6),
+		Size = UDim2.fromOffset(380, 34),
+		BackgroundTransparency = 1,
+	}, gui)
+	UI.new("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		Padding = UDim.new(0, 8),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, row)
+
+	-- Aura (gold)
+	local aura = pill(row, "Aura", UDim2.fromOffset(150, 32), C.Gold)
+	aura.LayoutOrder = 1
+	refs.auraScale = UI.new("UIScale", {}, aura)
+	refs.aura = UI.label(aura, {
+		Position = UDim2.fromOffset(10, 0),
+		Size = UDim2.new(1, -20, 1, 0),
 		Font = UI.Fonts.Title,
-		TextSize = 34,
-		TextColor3 = C.Gold,
+		TextSize = 17,
+		TextColor3 = C.Yellow,
 		TextWrapped = false,
 		Text = "✦ 0",
 	})
-	refs.ticker = UI.label(card, {
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -16, 0, 12),
-		Size = UDim2.fromOffset(110, 26),
+	refs.ticker = UI.label(aura, {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -8, 0.5, 0),
+		Size = UDim2.fromOffset(60, 16),
 		Font = UI.Fonts.Title,
-		TextSize = 20,
-		TextColor3 = C.Good,
+		TextSize = 12,
+		TextColor3 = C.Mint,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		TextWrapped = false,
 		TextTransparency = 1,
 		Text = "",
 	})
-	refs.rate = UI.label(card, {
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -16, 0, 38),
-		Size = UDim2.fromOffset(110, 16),
-		Font = UI.Fonts.Bold,
-		TextSize = 12,
-		TextColor3 = C.Muted,
-		TextXAlignment = Enum.TextXAlignment.Right,
-		TextWrapped = false,
-		Text = "",
-	})
-	refs.rank = UI.label(card, {
-		Position = UDim2.fromOffset(18, 48),
-		Size = UDim2.fromOffset(210, 18),
+
+	-- Level + tier (colour follows the tier)
+	local level = pill(row, "Level", UDim2.fromOffset(222, 32), C.Purple)
+	level.LayoutOrder = 2
+	refs.levelFrame = level
+	refs.level = UI.label(level, {
+		Position = UDim2.fromOffset(10, 1),
+		Size = UDim2.new(1, -20, 0, 20),
 		Font = UI.Fonts.Title,
-		TextSize = 14,
+		TextSize = 13,
 		TextWrapped = false,
 		Text = "",
 	})
-	refs.rankBar = UI.bar(card, {
-		Position = UDim2.new(0, 18, 1, -16),
-		Size = UDim2.new(1, -36, 0, 8),
-	}, C.Accent)
-	refs.rankNext = UI.label(card, {
+	refs.xpBar = UI.bar(level, { Position = UDim2.new(0, 10, 1, -9), Size = UDim2.new(1, -20, 0, 5) }, C.Purple)
+	refs.xpText = UI.label(level, {
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -18, 0, 48),
-		Size = UDim2.fromOffset(130, 18),
+		Position = UDim2.new(1, -10, 0, 1),
+		Size = UDim2.fromOffset(90, 20),
 		Font = UI.Fonts.Bold,
-		TextSize = 12,
+		TextSize = 10,
 		TextColor3 = C.Muted,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		TextWrapped = false,
@@ -5231,95 +5632,62 @@ local function buildAuraCard(gui)
 end
 
 local function buildChips(gui)
-	-- Chain chip
-	refs.chain = UI.panel(gui, {
-		Name = "ChainChip",
+	-- Small status chips under the top row; only visible while relevant.
+	local stack = UI.new("Frame", {
+		Name = "Chips",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 110),
-		Size = UDim2.fromOffset(220, 32),
-		Visible = false,
-		Radius = 16,
-	})
+		Position = UDim2.new(0.5, 0, 0, 44),
+		Size = UDim2.fromOffset(260, 80),
+		BackgroundTransparency = 1,
+	}, gui)
+	UI.new("UIListLayout", {
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		Padding = UDim.new(0, 4),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, stack)
+
+	local function chip(order, color, width)
+		local c = pill(stack, "Chip", UDim2.fromOffset(width, 22), color)
+		c.LayoutOrder = order
+		c.Visible = false
+		local label = UI.label(c, {
+			Size = UDim2.fromScale(1, 1),
+			Font = UI.Fonts.Title,
+			TextSize = 11,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			TextWrapped = false,
+			Text = "",
+		})
+		return c, label
+	end
+
+	refs.chain, refs.chainText = chip(1, C.Sky, 150)
 	refs.chainScale = UI.new("UIScale", {}, refs.chain)
-	refs.chainText = UI.label(refs.chain, {
-		Size = UDim2.new(1, 0, 0, 26),
-		Font = UI.Fonts.Title,
-		TextSize = 15,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		TextWrapped = false,
-		Text = "",
-	})
-	refs.chainBar = UI.bar(refs.chain, { Position = UDim2.new(0, 14, 1, -8), Size = UDim2.new(1, -28, 0, 3) }, C.Cyan)
+	refs.chainBar = UI.bar(refs.chain, { Position = UDim2.new(0, 10, 1, -5), Size = UDim2.new(1, -20, 0, 2) }, C.Sky)
+	refs.comp, refs.compText = chip(2, C.Orange, 260)
+	refs.event, refs.eventText = chip(3, C.Pink, 260)
 
-	-- Event banner
-	refs.event = UI.panel(gui, {
-		Name = "EventBanner",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 188),
-		Size = UDim2.fromOffset(300, 46),
-		Visible = false,
-		Radius = 14,
-	})
-	refs.eventTitle = UI.label(refs.event, {
-		Position = UDim2.fromOffset(14, 4),
-		Size = UDim2.new(1, -28, 0, 22),
-		Font = UI.Fonts.Title,
-		TextSize = 16,
-		TextWrapped = false,
-		Text = "",
-	})
-	refs.eventDesc = UI.label(refs.event, {
-		Position = UDim2.fromOffset(14, 24),
-		Size = UDim2.new(1, -28, 0, 16),
-		Font = UI.Fonts.Body,
-		TextSize = 12,
-		TextColor3 = C.Muted,
-		TextWrapped = false,
-		Text = "",
-	})
-
-	-- Mog Competition chip
-	refs.comp = UI.panel(gui, {
-		Name = "CompChip",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 148),
-		Size = UDim2.fromOffset(300, 34),
-		Visible = false,
-		Radius = 14,
-	})
-	refs.compText = UI.label(refs.comp, {
-		Size = UDim2.fromScale(1, 1),
-		Font = UI.Fonts.Title,
-		TextSize = 14,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		TextWrapped = false,
-		Text = "",
-	})
-
-	-- Quest chip (left edge, below the Roblox chat)
-	refs.quest = UI.panel(gui, {
-		Name = "QuestChip",
-		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 14, 0.5, -40),
-		Size = UDim2.fromOffset(250, 62),
-		Radius = 14,
-	})
+	-- Quest (mint), on the left edge below the Roblox chat
+	refs.quest = pill(gui, "Quest", UDim2.fromOffset(190, 40), C.Mint)
+	refs.quest.AnchorPoint = Vector2.new(0, 0.5)
+	refs.quest.Position = UDim2.new(0, 10, 0.5, -30)
 	refs.questScale = UI.new("UIScale", {}, refs.quest)
 	refs.questText = UI.label(refs.quest, {
-		Position = UDim2.fromOffset(14, 6),
-		Size = UDim2.new(1, -28, 0, 20),
+		Position = UDim2.fromOffset(10, 3),
+		Size = UDim2.new(1, -52, 0, 16),
 		Font = UI.Fonts.Bold,
-		TextSize = 14,
+		TextSize = 11,
 		TextWrapped = false,
 		Text = "",
 	})
-	refs.questBar = UI.bar(refs.quest, { Position = UDim2.new(0, 14, 1, -22), Size = UDim2.new(1, -28, 0, 10) }, C.Good)
+	refs.questBar = UI.bar(refs.quest, { Position = UDim2.new(0, 10, 1, -12), Size = UDim2.new(1, -20, 0, 6) }, C.Mint)
 	refs.questCount = UI.label(refs.quest, {
-		Position = UDim2.fromOffset(14, 24),
-		Size = UDim2.new(1, -28, 0, 12),
-		Font = UI.Fonts.Bold,
-		TextSize = 11,
-		TextColor3 = C.Muted,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 3),
+		Size = UDim2.fromOffset(40, 16),
+		Font = UI.Fonts.Title,
+		TextSize = 10,
+		TextColor3 = C.Mint,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		TextWrapped = false,
 		Text = "",
@@ -5327,14 +5695,13 @@ local function buildChips(gui)
 end
 
 local function buildDock(gui, Menu)
-	local dock = UI.panel(gui, {
+	local dock = UI.new("Frame", {
 		Name = "Dock",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -14),
-		Size = UDim2.fromOffset(#DOCK * 70 + 14, 76),
-		Radius = 22,
-	})
-	UI.new("UIScale", {}, dock)
+		Position = UDim2.new(0.5, 0, 1, -8),
+		Size = UDim2.fromOffset(#DOCK * 50, 50),
+		BackgroundTransparency = 1,
+	}, gui)
 	UI.new("UIListLayout", {
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = Enum.HorizontalAlignment.Center,
@@ -5346,38 +5713,41 @@ local function buildDock(gui, Menu)
 	for i, entry in DOCK do
 		local button = UI.button(dock, {
 			LayoutOrder = i,
-			Size = UDim2.fromOffset(64, 62),
+			Size = UDim2.fromOffset(44, 48),
+			BackgroundColor3 = entry.color,
 			Text = "",
+			Radius = 12,
 		}, "card")
 		UI.label(button, {
-			Size = UDim2.new(1, 0, 0, 36),
+			Size = UDim2.new(1, 0, 0, 26),
 			Position = UDim2.fromOffset(0, 4),
 			Font = UI.Fonts.Bold,
-			TextSize = 26,
+			TextSize = 20,
 			TextXAlignment = Enum.TextXAlignment.Center,
 			TextWrapped = false,
+			TextStrokeTransparency = 1,
 			Text = entry.icon,
 		})
 		UI.label(button, {
-			Size = UDim2.new(1, 0, 0, 16),
-			Position = UDim2.new(0, 0, 1, -20),
-			Font = UI.Fonts.Bold,
-			TextSize = 11,
-			TextColor3 = C.Muted,
+			Size = UDim2.new(1, 0, 0, 12),
+			Position = UDim2.new(0, 0, 1, -15),
+			Font = UI.Fonts.Title,
+			TextSize = 8,
 			TextXAlignment = Enum.TextXAlignment.Center,
 			TextWrapped = false,
-			Text = entry.name,
+			TextStrokeTransparency = 0.2,
+			Text = entry.name:upper(),
 		})
 		local badge = UI.new("Frame", {
 			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -4, 0, 4),
-			Size = UDim2.fromOffset(12, 12),
-			BackgroundColor3 = C.Accent2,
+			Position = UDim2.new(1, -1, 0, 1),
+			Size = UDim2.fromOffset(11, 11),
+			BackgroundColor3 = C.Danger,
 			Visible = false,
 			ZIndex = 5,
 		}, button)
 		UI.corner(badge, 6)
-		UI.stroke(badge, Color3.new(1, 1, 1), 1.5, 0.2)
+		UI.stroke(badge, Color3.new(1, 1, 1), 1.5, 0)
 		refs.badges[entry.name] = badge
 		button.Activated:Connect(function()
 			Audio.click()
@@ -5387,7 +5757,7 @@ local function buildDock(gui, Menu)
 end
 
 function Hud.init(gui, Menu)
-	buildAuraCard(gui)
+	buildTop(gui)
 	buildChips(gui)
 	buildDock(gui, Menu)
 
@@ -5402,7 +5772,7 @@ function Hud.init(gui, Menu)
 		if now > lastAura then
 			pending += now - lastAura
 			lastGain = os.clock()
-			UI.pop(refs.cardScale, 1.04)
+			UI.pop(refs.auraScale, 1.05)
 		end
 		lastAura = now
 	end)
@@ -5438,15 +5808,15 @@ function Hud.init(gui, Menu)
 		if chain >= 3 and remaining > 0 then
 			refs.chain.Visible = true
 			refs.chainText.Text = string.format("CHAIN x%d  ·  +%d%%", chain, math.floor((Config.ChainMult(chain) - 1) * 100 + 0.5))
+			refs.chainText.TextColor3 = C.Sky:Lerp(C.Pink, math.clamp(chain / Config.ChainMax, 0, 1))
 			refs.chainBar.set(remaining / Config.ChainWindow)
-			refs.chainText.TextColor3 = C.Cyan:Lerp(C.Accent2, math.clamp(chain / Config.ChainMax, 0, 1))
 		else
 			refs.chain.Visible = false
 		end
 
 		if t - lastSlow > 0.15 then
 			lastSlow = t
-			Hud.refresh(Menu)
+			Hud.refresh()
 		end
 	end)
 end
@@ -5460,24 +5830,18 @@ function Hud.pulseQuest()
 end
 
 function Hud.refresh()
-	-- Level + XP progress, and which looks tier you are
+	-- Level, tier and XP
 	local level = player:GetAttribute("Level") or 1
 	local rankIndex = player:GetAttribute("Rank") or 1
 	local rank = Config.Ranks[rankIndex]
-	local nextRank = Config.Ranks[rankIndex + 1]
 	local xp = player:GetAttribute("XP") or 0
 	local needed = player:GetAttribute("XPNeeded") or 1
-	refs.rank.Text = string.format("LV %s  ·  %s", Util.fmt(level), rank.Name:upper())
-	refs.rank.TextColor3 = rank.Color
-	refs.rankBar.fill.BackgroundColor3 = rank.Color
-	refs.rankBar.set(xp / needed)
-	if nextRank then
-		refs.rankNext.Text = string.format("%s / %s XP", Util.fmt(xp), Util.fmt(needed))
-	else
-		refs.rankNext.Text = string.format("%s / %s XP", Util.fmt(xp), Util.fmt(needed))
-	end
-	local rate = player:GetAttribute("AuraRate") or 0
-	refs.rate.Text = rate > 0 and ("+" .. Util.fmt(rate) .. " /s") or ""
+	refs.level.Text = string.format("LV %s  ·  %s", Util.fmt(level), rank.Name:upper())
+	refs.level.TextColor3 = rank.Color
+	refs.xpText.Text = string.format("%s/%s", Util.fmt(xp), Util.fmt(needed))
+	refs.xpBar.fill.BackgroundColor3 = rank.Color
+	refs.xpBar.set(xp / needed)
+	tint(refs.levelFrame, rank.Color)
 
 	-- Quest
 	local kind = player:GetAttribute("QuestKind")
@@ -5485,31 +5849,30 @@ function Hud.refresh()
 	if kind then
 		local goal = player:GetAttribute("QuestGoal") or 1
 		local progress = player:GetAttribute("QuestProgress") or 0
-		refs.questText.Text = "🎯 " .. Config.QuestText(kind, goal)
-		refs.questCount.Text = progress .. " / " .. goal
+		refs.questText.Text = Config.QuestText(kind, goal)
+		refs.questCount.Text = progress .. "/" .. goal
 		refs.questBar.set(progress / goal)
 	end
 
-	-- Event banner
+	-- Event chip
 	local id = workspace:GetAttribute("Event")
 	local ev = id and id ~= "" and Config.EventById[id]
 	local left = (workspace:GetAttribute("EventEnd") or 0) - workspace:GetServerTimeNow()
 	if ev and left > 0 then
 		refs.event.Visible = true
-		refs.eventTitle.Text = string.format("%s %s  ·  %s", ev.Icon, ev.Name, Util.clock(left))
-		refs.eventTitle.TextColor3 = ev.Tint
-		refs.eventDesc.Text = ev.Desc
+		refs.eventText.Text = string.format("%s %s  %s  ·  %s", ev.Icon, ev.Name, Util.clock(left), ev.Desc)
+		refs.eventText.TextColor3 = C.Pink
 	else
 		refs.event.Visible = false
 	end
 
-	-- Mog Competition countdown
+	-- Mog Competition chip
 	local compState = workspace:GetAttribute("CompState")
 	local compLeft = (workspace:GetAttribute("CompEnd") or 0) - workspace:GetServerTimeNow()
 	if compState == "open" and compLeft > 0 then
 		refs.comp.Visible = true
-		refs.compText.Text = string.format("🏆 MOG COMPETITION OPEN  %s  ·  go to the stage!", Util.clock(compLeft))
-		refs.compText.TextColor3 = C.Gold
+		refs.compText.Text = string.format("🏆 MOG COMPETITION OPEN %s  ·  go to the stage", Util.clock(compLeft))
+		refs.compText.TextColor3 = C.Orange
 	elseif compState == "idle" and compLeft > 0 then
 		refs.comp.Visible = true
 		refs.compText.Text = string.format("🏆 Mog Competition in %s", Util.clock(compLeft))
@@ -5541,7 +5904,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="35">
+          <Item class="ModuleScript" referent="36">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the one main menu. A single window with a tab list so the screen never fills up with
@@ -5562,7 +5925,7 @@ local current
 local open = false
 local onChanged = {}
 
-local WINDOW_W, WINDOW_H = 820, 500
+local WINDOW_W, WINDOW_H = 760, 460
 
 function Menu.isOpen()
 	return open
@@ -5786,36 +6149,54 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="36">
+          <Item class="ModuleScript" referent="37">
             <Properties>
               <string name="Name">Orbs</string>
-              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: shards bob and spin locally so the server never has to animate them.
+              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: pickups bob and spin locally so the server never has to animate them, and
+-- when one is grabbed it flies into the player before it disappears.
+local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 
 local Orbs = {}
 
-local tracked = {}
+local player = Players.LocalPlayer
+local tracked = {} -- model -> { base = Vector3, takenAt = number? , from = Vector3? }
 
-local function track(shard)
-	if shard:IsA("BasePart") then
-		tracked[shard] = shard.Position
+local function track(model)
+	if model:IsA("Model") then
+		tracked[model] = { base = model:GetAttribute("Pos") or model:GetPivot().Position }
 	end
 end
 
 function Orbs.init()
 	CollectionService:GetInstanceAddedSignal("Shard"):Connect(track)
-	CollectionService:GetInstanceRemovedSignal("Shard"):Connect(function(shard)
-		tracked[shard] = nil
+	CollectionService:GetInstanceRemovedSignal("Shard"):Connect(function(model)
+		tracked[model] = nil
 	end)
-	for _, shard in CollectionService:GetTagged("Shard") do
-		track(shard)
+	for _, model in CollectionService:GetTagged("Shard") do
+		track(model)
 	end
+
 	RunService.RenderStepped:Connect(function()
 		local t = os.clock()
-		for shard, base in tracked do
-			if shard.Parent and not shard:GetAttribute("Taken") then
-				shard.CFrame = CFrame.new(base + Vector3.new(0, math.sin(t * 2 + base.X * 0.3) * 0.6, 0)) * CFrame.Angles(0, t, 0)
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		local here = root and root.Position
+		for model, state in tracked do
+			if model.Parent then
+				local base = state.base
+				if here and (base - here).Magnitude < 110 then
+					if model:GetAttribute("Taken") then
+						-- Fly into the player
+						state.takenAt = state.takenAt or t
+						local alpha = math.clamp((t - state.takenAt) / 0.2, 0, 1)
+						local pos = base:Lerp(here + Vector3.new(0, 1.5, 0), alpha)
+						model:PivotTo(CFrame.new(pos) * CFrame.Angles(0, t * 8, 0))
+					else
+						local bob = math.sin(t * 2 + base.X * 0.3) * 0.6
+						model:PivotTo(CFrame.new(base + Vector3.new(0, bob, 0)) * CFrame.Angles(0, t + base.Z * 0.1, 0))
+					end
+				end
 			end
 		end
 	end)
@@ -5825,7 +6206,7 @@ return Orbs
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="37">
+          <Item class="ModuleScript" referent="38">
             <Properties>
               <string name="Name">TabCrates</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: crates tab. The server rolls; this plays the reveal (a spinning reel that slows
@@ -6124,7 +6505,7 @@ return TabCrates
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="38">
+          <Item class="ModuleScript" referent="39">
             <Properties>
               <string name="Name">TabProfile</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: your character sheet: rank, stats, duel record and the current quest.
@@ -6303,7 +6684,7 @@ return TabProfile
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="39">
+          <Item class="ModuleScript" referent="40">
             <Properties>
               <string name="Name">TabRewards</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: daily streak rewards and the current server event.
@@ -6429,7 +6810,7 @@ return TabRewards
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="40">
+          <Item class="ModuleScript" referent="41">
             <Properties>
               <string name="Name">TabSettings</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: simple toggles. Settings are saved on the server so they follow the player.
@@ -6449,6 +6830,7 @@ local OPTIONS = {
 	{ key = "Music", name = "Music", desc = "Ambient background music" },
 	{ key = "Sfx", name = "Sound effects", desc = "Pickups, crates and fanfares" },
 	{ key = "Fx", name = "Screen effects", desc = "Camera punch, shake, flashes and floating numbers" },
+	{ key = "Cam", name = "Zone cameras", desc = "Each place has its own cinematic camera angle" },
 	{ key = "Duels", name = "Duels", desc = "Allow duel matchmaking (turn off to stay out of fights)" },
 }
 
@@ -6475,7 +6857,7 @@ function TabSettings.build(parent, Action)
 
 	local toggles = {}
 	for i, opt in OPTIONS do
-		local row = UI.panel(list, { LayoutOrder = i, Size = UDim2.new(1, 0, 0, 62), BackgroundColor3 = C.Card, Radius = 14 })
+		local row = UI.panel(list, { LayoutOrder = i, Size = UDim2.new(1, 0, 0, 56), BackgroundColor3 = C.Card, Radius = 12 })
 		UI.label(row, {
 			Position = UDim2.fromOffset(16, 8),
 			Size = UDim2.new(1, -130, 0, 22),
@@ -6532,7 +6914,7 @@ return TabSettings
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="41">
+          <Item class="ModuleScript" referent="42">
             <Properties>
               <string name="Name">TabUpgrades</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades (bought with Aura) and the rebirth button.
@@ -6692,7 +7074,7 @@ return TabUpgrades
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="42">
+          <Item class="ModuleScript" referent="43">
             <Properties>
               <string name="Name">TabWardrobe</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the wardrobe. A collection grid: owned items can be worn, unowned ones show as locked
@@ -6919,7 +7301,7 @@ return TabWardrobe
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="43">
+          <Item class="ModuleScript" referent="44">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -6944,8 +7326,8 @@ function Toasts.init(gui)
 	holder = UI.new("Frame", {
 		Name = "Toasts",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -104),
-		Size = UDim2.fromOffset(420, 160),
+		Position = UDim2.new(0.5, 0, 1, -70),
+		Size = UDim2.fromOffset(420, 110),
 		BackgroundTransparency = 1,
 	}, gui)
 	UI.new("UIListLayout", {
@@ -6991,27 +7373,27 @@ function Toasts.push(text, kind)
 		end
 	end
 
-	if #active >= 3 then
+	if #active >= 2 then
 		remove(active[1])
 	end
 
 	order += 1
 	local frame = UI.new("Frame", {
 		LayoutOrder = order,
-		Size = UDim2.fromOffset(10, 34),
+		Size = UDim2.fromOffset(10, 26),
 		AutomaticSize = Enum.AutomaticSize.X,
 		BackgroundColor3 = UI.Colors.Panel,
-		BackgroundTransparency = 0.12,
+		BackgroundTransparency = 0.05,
 		BorderSizePixel = 0,
 	}, holder)
-	UI.corner(frame, 17)
-	UI.stroke(frame, color, 1.5, 0.35)
-	UI.new("UIPadding", { PaddingLeft = UDim.new(0, 16), PaddingRight = UDim.new(0, 16) }, frame)
+	UI.corner(frame, 13)
+	UI.stroke(frame, color, 2, 0)
+	UI.new("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12) }, frame)
 	local label = UI.label(frame, {
-		Size = UDim2.fromOffset(10, 34),
+		Size = UDim2.fromOffset(10, 26),
 		AutomaticSize = Enum.AutomaticSize.X,
 		Font = UI.Fonts.Bold,
-		TextSize = 15,
+		TextSize = 12,
 		TextWrapped = false,
 		TextColor3 = UI.Colors.Text,
 		Text = text,
@@ -7029,7 +7411,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="44">
+          <Item class="ModuleScript" referent="45">
             <Properties>
               <string name="Name">TrainingUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame overlay. A marker sweeps a bar; press Space (or tap) while it
@@ -7093,17 +7475,17 @@ function TrainingUI.init(gui, action)
 	panel = UI.panel(gui, {
 		Name = "Training",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -112),
-		Size = UDim2.fromOffset(470, 170),
+		Position = UDim2.new(0.5, 0, 1, -66),
+		Size = UDim2.fromOffset(340, 104),
 		Visible = false,
 		ZIndex = 10,
 	})
 	scale = UI.new("UIScale", {}, panel)
 	title = UI.label(panel, {
-		Position = UDim2.fromOffset(20, 12),
-		Size = UDim2.fromOffset(280, 26),
+		Position = UDim2.fromOffset(14, 8),
+		Size = UDim2.fromOffset(220, 18),
 		Font = UI.Fonts.Title,
-		TextSize = 18,
+		TextSize = 12,
 		TextWrapped = false,
 		Text = "TRAINING",
 		ZIndex = 11,
@@ -7112,8 +7494,8 @@ function TrainingUI.init(gui, action)
 	for i = 1, Config.TrainReps do
 		local dot = UI.new("Frame", {
 			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -20 - (Config.TrainReps - i) * 20, 0, 18),
-			Size = UDim2.fromOffset(14, 14),
+			Position = UDim2.new(1, -14 - (Config.TrainReps - i) * 16, 0, 11),
+			Size = UDim2.fromOffset(11, 11),
 			BackgroundColor3 = C.Disabled,
 			ZIndex = 11,
 		}, panel)
@@ -7122,8 +7504,8 @@ function TrainingUI.init(gui, action)
 	end
 
 	local barButton = UI.new("TextButton", {
-		Position = UDim2.fromOffset(20, 48),
-		Size = UDim2.new(1, -40, 0, 40),
+		Position = UDim2.fromOffset(14, 32),
+		Size = UDim2.new(1, -28, 0, 26),
 		BackgroundColor3 = Color3.fromRGB(14, 11, 32),
 		AutoButtonColor = false,
 		Text = "",
@@ -7146,10 +7528,10 @@ function TrainingUI.init(gui, action)
 	barButton.Activated:Connect(press)
 
 	message = UI.label(panel, {
-		Position = UDim2.fromOffset(20, 96),
-		Size = UDim2.new(1, -40, 0, 36),
+		Position = UDim2.fromOffset(14, 62),
+		Size = UDim2.new(1, -28, 0, 22),
 		Font = UI.Fonts.Title,
-		TextSize = 26,
+		TextSize = 17,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
 		Text = "",
@@ -7157,24 +7539,24 @@ function TrainingUI.init(gui, action)
 	})
 	msgScale = UI.new("UIScale", {}, message)
 	hint = UI.label(panel, {
-		Position = UDim2.fromOffset(20, 138),
-		Size = UDim2.new(1, -40, 0, 20),
+		Position = UDim2.fromOffset(14, 84),
+		Size = UDim2.new(1, -60, 0, 14),
 		Font = UI.Fonts.Body,
-		TextSize = 13,
+		TextSize = 10,
 		TextColor3 = C.Muted,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
-		Text = "Press SPACE or tap the bar when the marker is in the gold zone",
+		Text = "SPACE / tap when the marker is in the gold zone",
 		ZIndex = 11,
 	})
 	local cancel = UI.button(panel, {
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -12, 1, -10),
-		Size = UDim2.fromOffset(26, 26),
+		Position = UDim2.new(1, -8, 1, -6),
+		Size = UDim2.fromOffset(22, 22),
 		Text = "✕",
-		TextSize = 12,
+		TextSize = 10,
 		ZIndex = 12,
-		Radius = 13,
+		Radius = 11,
 	}, "card")
 	cancel.Activated:Connect(function()
 		Action:FireServer("TrainCancel")
@@ -7294,11 +7676,117 @@ return TrainingUI
 ]]></string>
             </Properties>
           </Item>
+          <Item class="ModuleScript" referent="46">
+            <Properties>
+              <string name="Name">ZoneCamera</string>
+              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: every place has its own camera angle. Walk into the gym, the studio, the lounge,
+-- the crate shop, the duel ring, the Mog Stage or the catwalk and the camera glides to that place's
+-- cinematic view; walk out and it eases back to the normal follow camera. Can be switched off in Settings.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Fx = require(script.Parent.Fx)
+
+local ZoneCamera = {}
+
+local player = Players.LocalPlayer
+local camera = workspace:WaitForChild("Camera")
+
+local current -- the zone the player is in
+local ownsCamera = false -- true while we have the camera set to Scriptable
+local releaseTime = 0
+local onEnter
+
+function ZoneCamera.onEnter(fn)
+	onEnter = fn
+end
+
+local function frontOf(zone)
+	return zone.Front or Config.StationFront(zone.Station)
+end
+
+-- Is the point inside this zone? `pad` makes the exit slightly bigger than the entrance so the
+-- camera doesn't flicker when you stand on the edge.
+local function contains(zone, pos, pad)
+	if zone.Kind == "station" then
+		local c = Config.StationPos(zone.Station)
+		return (Vector3.new(pos.X, 0, pos.Z) - c).Magnitude < zone.Radius + pad
+	elseif zone.Kind == "circle" then
+		return (Vector3.new(pos.X, 0, pos.Z) - zone.Center).Magnitude < zone.Radius + pad
+	end
+	return pos.X > zone.MinX - pad and pos.X < zone.MaxX + pad and pos.Z > zone.MinZ - pad and pos.Z < zone.MaxZ + pad
+end
+
+local function findZone(pos)
+	if current and contains(current, pos, 4) then
+		return current
+	end
+	for _, zone in Config.Zones do
+		if contains(zone, pos, 0) then
+			return zone
+		end
+	end
+	return nil
+end
+
+local function zoneCFrame(zone, rootPos)
+	local cam = zone.Cam
+	local dir = CFrame.Angles(0, math.rad(cam.Yaw), 0):VectorToWorldSpace(frontOf(zone))
+	local target = rootPos + Vector3.new(0, cam.Look, 0)
+	local position = target + dir * cam.Dist + Vector3.new(0, cam.Height, 0)
+	return CFrame.lookAt(position, target)
+end
+
+function ZoneCamera.init()
+	RunService:BindToRenderStep("GlowZoneCamera", Enum.RenderPriority.Camera.Value + 1, function(dt)
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		local enabled = player:GetAttribute("Set_Cam") ~= false
+		local zone = (enabled and root) and findZone(root.Position) or nil
+
+		if zone ~= current then
+			current = zone
+			Fx.setBaseFov(zone and zone.Cam.Fov or 70)
+			if zone and onEnter then
+				onEnter(zone)
+			end
+		end
+
+		local alpha = 1 - math.exp(-dt * 3.2)
+		if current and root then
+			if not ownsCamera then
+				ownsCamera = true
+				camera.CameraType = Enum.CameraType.Scriptable
+			end
+			releaseTime = 0
+			camera.CFrame = camera.CFrame:Lerp(zoneCFrame(current, root.Position), alpha)
+		elseif ownsCamera then
+			-- Ease back to a follow position behind the character, then hand control back.
+			if root then
+				local back = CFrame.lookAt(root.Position - root.CFrame.LookVector * 12 + Vector3.new(0, 6, 0), root.Position + Vector3.new(0, 2, 0))
+				camera.CFrame = camera.CFrame:Lerp(back, alpha * 1.5)
+			end
+			releaseTime += dt
+			if releaseTime > 0.7 or not root then
+				ownsCamera = false
+				camera.CameraType = Enum.CameraType.Custom
+			end
+		end
+	end)
+end
+
+return ZoneCamera
+]]></string>
+            </Properties>
+          </Item>
         </Item>
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="45">
+  <Item class="Workspace" referent="47">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

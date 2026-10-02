@@ -49,8 +49,8 @@ check(a1.Rank == 1 and a1.Level == 1, "starts as Sub 5, level 1")
 check(a1.QuestKind ~= nil, "has a starting quest: " .. tostring(a1.QuestKind) .. " x" .. tostring(a1.QuestGoal))
 check(a1.DailyReady == true, "daily reward ready")
 
-check(math.abs(p1.scaleVals.BodyWidthScale.Value - 1.55) < 0.01, "level 1 body is wide (width " .. p1.scaleVals.BodyWidthScale.Value .. ")")
-check(math.abs(p1.scaleVals.BodyHeightScale.Value - 0.8) < 0.01, "level 1 body is short (height " .. p1.scaleVals.BodyHeightScale.Value .. ")")
+check(math.abs(p1.scaleVals.BodyWidthScale.Value - 1.9) < 0.01, "level 1 body is wide (width " .. p1.scaleVals.BodyWidthScale.Value .. ")")
+check(math.abs(p1.scaleVals.BodyHeightScale.Value - 0.78) < 0.01, "level 1 body is short (height " .. p1.scaleVals.BodyHeightScale.Value .. ")")
 -- shards: heartbeat collects everything in the mock
 for i = 1, 160 do
 	p1.root.Position = Vector3.new(math.random(-150, 150), 3, math.random(-150, 150))
@@ -181,6 +181,19 @@ Data.get(p1).Level = 500
 Appearance.update(p1, true)
 local mid = p1.scaleVals.BodyWidthScale.Value
 check(mid > 0.92 and mid < 1.55, "level 500 is in between (width " .. mid .. ")")
+check(#Config2.Ranks == 28, "28 looks tiers: " .. #Config2.Ranks)
+local ordered = true
+for i = 2, #Config2.Ranks do if Config2.Ranks[i].Level <= Config2.Ranks[i-1].Level then ordered = false end end
+check(ordered, "tier levels strictly increase")
+check(Config2.Ranks[1].Name == "Sub 5" and Config2.Ranks[2].Name == "Sub 3" and Config2.Ranks[3].Name == "Sub Human" and Config2.Ranks[27].Name == "True Adam" and Config2.Ranks[28].Name == "True Adam+", "ladder starts Sub 5 > Sub 3 > Sub Human ... ends True Adam > True Adam+")
+local names = {}
+for _, r in Config2.Ranks do table.insert(names, r.Name) end
+print("ladder:", table.concat(names, " > "))
+-- weirdness fades with level
+check(Config2.Weirdness(1) == 1 and Config2.Weirdness(300) < 0.6 and Config2.Weirdness(700) == 0, "weirdness fades: " .. Config2.Weirdness(1) .. " / " .. math.floor(Config2.Weirdness(300)*100)/100 .. " / " .. Config2.Weirdness(700))
+local Quirks = require(ModN.children.Quirks)
+for _, lvl in {1, 50, 300, 700} do Data.get(p1).Level = lvl; Quirks.apply(p1) end
+check(true, "quirks build at levels 1/50/300/700 without errors")
 print("tiers:", Config2.Ranks[Config2.RankFor(1)].Name, Config2.Ranks[Config2.RankFor(30)].Name, Config2.Ranks[Config2.RankFor(120)].Name, Config2.Ranks[Config2.RankFor(1000)].Full)
 
 -- Mog Competition: run a full cycle with one human

@@ -29,6 +29,7 @@ local TrainingUI = require(Modules.TrainingUI)
 local DuelUI = require(Modules.DuelUI)
 local CompetitionUI = require(Modules.CompetitionUI)
 local Orbs = require(Modules.Orbs)
+local ZoneCamera = require(Modules.ZoneCamera)
 
 -- Wait for the server to finish setting this player up.
 while not player:GetAttribute("Ready") do
@@ -48,6 +49,7 @@ local gui = UI.new("ScreenGui", {
 Audio.Init()
 Fx.init(gui)
 Orbs.init()
+ZoneCamera.init()
 Menu.init(gui)
 Menu.addTab("Wardrobe", "👗", function(page)
 	return TabWardrobe.build(page, Action)
@@ -79,6 +81,11 @@ for _, key in { "Music", "Sfx" } do
 	player:GetAttributeChangedSignal("Set_" .. key):Connect(TabSettings.apply)
 end
 
+-- A small label when you walk into a new place (its camera angle changes too).
+ZoneCamera.onEnter(function(zone)
+	Toasts.push(zone.Icon .. " " .. zone.Label, "info")
+end)
+
 Menu.onChanged(function(name)
 	if name == "Wardrobe" then
 		Hud.setNewItem(false)
@@ -105,7 +112,7 @@ function handlers.shard(pos, gained, tier, color, mut, chain)
 	-- Only notable pickups get a floating number; the Aura counter covers the rest.
 	if mut or tierIndex >= 3 then
 		local text = (mut and (mut:upper() .. "! ") or "") .. "+" .. Util.fmt(gained)
-		Fx.floatText(pos, text, color, mut and 38 or 30)
+		Fx.floatText(pos, text, color, mut and 26 or 22)
 	end
 	if mut then
 		Fx.shake(0.25, 0.3)
@@ -130,7 +137,7 @@ function handlers.rank(rankIndex)
 	Audio.rank()
 	Fx.shake(0.4, 0.5)
 	Fx.flash(rank.Color, 0.35, 0.9)
-	Fx.announce(rank.Full:upper(), "NEW LOOKS TIER!", rank.Color, 0.28)
+	Fx.announce(rank.Full:upper(), "NEW LOOKS TIER!", rank.Color, 0.2)
 end
 
 -- Plain level-ups stay small (a toast); every 10th level gets a proper moment.
@@ -233,7 +240,11 @@ end)
 -- Welcome back
 --------------------------------------------------------------------------------
 task.spawn(function()
-	task.wait(2)
+	task.wait(2.5)
+	if (player:GetAttribute("Level") or 1) <= 1 and (player:GetAttribute("XP") or 0) < 5 then
+		Fx.announce("SUB 5", "That's you. Level up to evolve!", Config.Ranks[1].Color, 0.22)
+		task.wait(3)
+	end
 	local gain = player:GetAttribute("OfflineGain")
 	if gain and gain > 0 then
 		Toasts.push("Welcome back! Your look earned ✦" .. Util.fmt(gain) .. " while you were away", "gold")
