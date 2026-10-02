@@ -148,6 +148,10 @@ local function buildTop(gui)
 	refs.chain, refs.chainText = chip(1, C.Sky, 170)
 	refs.chainScale = UI.new("UIScale", {}, refs.chain)
 	refs.chainBar = UI.bar(refs.chain, { Position = UDim2.new(0, 10, 1, -5), Size = UDim2.new(1, -20, 0, 2) }, C.Sky)
+	refs.streak, refs.streakText = chip(0, C.Orange, 200)
+	refs.streakScale = UI.new("UIScale", {}, refs.streak)
+	refs.streakBar = UI.bar(refs.streak, { Position = UDim2.new(0, 10, 1, -5), Size = UDim2.new(1, -20, 0, 2) }, C.Orange)
+	refs.gift, refs.giftText = chip(4, C.Mint, 200)
 	refs.comp, refs.compText = chip(2, C.Orange, 300)
 	refs.event, refs.eventText = chip(3, C.Pink, 300)
 end
@@ -497,6 +501,35 @@ function Hud.init(gui, Menu, Action)
 			refs.chainBar.set(remaining / Config.ChainWindow)
 		else
 			refs.chain.Visible = false
+		end
+
+		-- Mog Streak / Frenzy chip
+		local now = workspace:GetServerTimeNow()
+		local frenzyLeft = (player:GetAttribute("FrenzyEnd") or 0) - now
+		local combo = player:GetAttribute("SwingCombo") or 0
+		if frenzyLeft > 0 then
+			refs.streak.Visible = true
+			refs.streakText.Text = string.format("🔥 FRENZY x%d  ·  %.1fs", Config.Frenzy.Mult, frenzyLeft)
+			refs.streakText.TextColor3 = C.Yellow
+			refs.streakBar.set(frenzyLeft / Config.Frenzy.Duration)
+			refs.streakBar.fill.BackgroundColor3 = C.Yellow
+		elseif combo >= 5 and (t - lastGain) < 1.2 then
+			refs.streak.Visible = true
+			refs.streakText.Text = string.format("MOG STREAK  %d/%d", combo, Config.Frenzy.Combo)
+			refs.streakText.TextColor3 = C.Orange
+			refs.streakBar.set(combo / Config.Frenzy.Combo)
+			refs.streakBar.fill.BackgroundColor3 = C.Orange
+		else
+			refs.streak.Visible = false
+		end
+		-- Next play-time gift
+		local giftIn = (player:GetAttribute("GiftAt") or 0) - now
+		if (player:GetAttribute("GiftAt") or 0) > 0 and giftIn > 0 then
+			refs.gift.Visible = true
+			refs.giftText.Text = "🎁 Gift in " .. Util.clock(giftIn)
+			refs.giftText.TextColor3 = C.Mint
+		else
+			refs.gift.Visible = false
 		end
 
 		if t - lastSlow > 0.15 then

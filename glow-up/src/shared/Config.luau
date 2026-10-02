@@ -221,6 +221,26 @@ function Config.PetAps(pet, copies)
 end
 
 --------------------------------------------------------------------------------
+-- Retention mechanics: crits, the Mog Streak (frenzy) and play-time gifts
+--------------------------------------------------------------------------------
+Config.Crit = { Chance = 0.07, Mult = 5, JackpotChance = 0.005, JackpotMult = 25 }
+-- Swing again within `Window` seconds to keep the streak alive. Reach `Combo` swings for FRENZY.
+Config.Frenzy = { Combo = 30, Window = 0.7, Duration = 8, Mult = 2 }
+-- Gifts that arrive automatically while you stay in the server (seconds online, size, crates).
+Config.Gifts = {
+	{ Time = 60, Size = 1, Crates = 0 },
+	{ Time = 180, Size = 3, Crates = 0 },
+	{ Time = 300, Size = 6, Crates = 1 },
+	{ Time = 600, Size = 12, Crates = 0 },
+	{ Time = 900, Size = 20, Crates = 1 },
+	{ Time = 1500, Size = 40, Crates = 2 },
+	{ Time = 2400, Size = 80, Crates = 3 },
+}
+function Config.GiftAura(level, size)
+	return math.floor(size * 40 * (1 + level * 0.3))
+end
+
+--------------------------------------------------------------------------------
 -- Things you can interact with (press E, or tap the on-screen button). These work from any camera
 -- angle because they use the character's position, not the camera.
 --------------------------------------------------------------------------------

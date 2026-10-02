@@ -283,6 +283,32 @@ do
 	check(d.Hatched == hatched, "cannot hatch without Aura")
 end
 
+
+-- Retention: crits, frenzy, play-time gifts
+do
+	a1.Training = false; a1.InDuel = false
+	local crits, jackpots = 0, 0
+	local msgs0 = #notifyLog
+	for i = 1, 400 do fireAll("Action", p1, "Swing"); advance(0.15) end
+	for i = msgs0 + 1, #notifyLog do
+		local m = notifyLog[i]
+		if m[1] == "swing" and m[3] == "crit" then crits += 1 end
+		if m[1] == "swing" and m[3] == "jackpot" then jackpots += 1 end
+	end
+	check(crits > 5 and crits < 70, "crits happen at a sane rate: " .. crits .. "/400 (+" .. jackpots .. " jackpots)")
+	local frenzyMsgs = 0
+	for i = msgs0 + 1, #notifyLog do if notifyLog[i][1] == "frenzy" then frenzyMsgs += 1 end end
+	check(frenzyMsgs >= 1, "continuous swinging triggers FRENZY: " .. frenzyMsgs)
+	check(a1.FrenzyEnd ~= nil, "frenzy end time replicated")
+	-- gifts arrive with time
+	local giftMsgs0 = 0
+	for _, m in notifyLog do if m[1] == "gift" then giftMsgs0 += 1 end end
+	advance(Config.Gifts[3].Time + 5)
+	local giftMsgs = 0
+	for _, m in notifyLog do if m[1] == "gift" then giftMsgs += 1 end end
+	check(giftMsgs >= 3 and giftMsgs <= #Config.Gifts, "play-time gifts delivered in order: " .. giftMsgs)
+end
+
 -- Mog Competition: run a full cycle with one human
 Data.get(p1).Level = 20; Stats.recompute(p1)
 local Competition = require(ModN.children.Competition)

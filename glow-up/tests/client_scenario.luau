@@ -76,6 +76,7 @@ advance(5)
 -- hammers + interact button + click to swing
 a.Pets = "cat:2,dragon:1"; a.PetsEq = "cat,dragon"; a.PetMult = 5.3
 a.Hammer = 1; a.HammersOwned = "1,2"; a.Swings = 10; a.RebirthNeed = 35
+send("swing", 14, "crit", false); send("swing", 999, "jackpot", true); send("swing", 14, nil, true); send("frenzy", 8); send("gift", 500, 1, 3, 7); a.FrenzyEnd = clock + 6; a.SwingCombo = 12; a.GiftAt = clock + 40; advance(0.3); fireAll("RenderStepped", 0.016)
 send("swing", 14); send("swing", 14); send("swing", 14); send("swing", 14)
 send("hatch", "gold", "dragon", 1); send("hatch", "basic", "cat", 3); send("hatch", "mog", "angel", 1)
 send("hammer", 3, "bought"); send("hammer", 1, "equipped")

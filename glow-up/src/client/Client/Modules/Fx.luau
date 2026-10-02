@@ -140,6 +140,51 @@ function Fx.burst(pos, color, count)
 	e:Emit(count)
 end
 
+-- Expanding shockwave ring on the ground.
+function Fx.ring(pos, color, radius)
+	if not effectsOn() then
+		return
+	end
+	local part = UI.new("Part", {
+		Name = "FxRing",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.4, 2, 2),
+		CFrame = CFrame.new(pos.X, pos.Y - 2.5, pos.Z) * CFrame.Angles(0, 0, math.pi / 2),
+		Color = color,
+		Material = Enum.Material.SmoothPlastic,
+		Transparency = 0.2,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+	}, workspace)
+	local d = (radius or 24) * 2
+	UI.tween(part, 0.55, { Size = Vector3.new(0.4, d, d), Transparency = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	Debris:AddItem(part, 0.7)
+end
+
+-- A tall beam of light that shoots up and fades (level-ups, big hatches).
+function Fx.pillar(pos, color, height)
+	if not effectsOn() then
+		return
+	end
+	local h = height or 70
+	local part = UI.new("Part", {
+		Name = "FxPillar",
+		Size = Vector3.new(5, h, 5),
+		Position = Vector3.new(pos.X, pos.Y - 2.5 + h / 2, pos.Z),
+		Color = color,
+		Material = Enum.Material.SmoothPlastic,
+		Transparency = 0.45,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+	}, workspace)
+	UI.tween(part, 0.9, { Size = Vector3.new(0.4, h, 0.4), Transparency = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	Debris:AddItem(part, 1)
+end
+
 -- Big centred callout. Reserved for moments that deserve it (rank ups, rebirths, combos).
 function Fx.announce(title, sub, color, y)
 	if not gui then

@@ -37,6 +37,7 @@ local Runway = require(Modules.Runway)
 local Board = require(Modules.Board)
 local Hammers = require(Modules.Hammers)
 local Pets = require(Modules.Pets)
+local Playtime = require(Modules.Playtime)
 local World = require(Modules.World)
 
 --------------------------------------------------------------------------------
@@ -89,6 +90,7 @@ local function onPlayer(p)
 	Stats.init(p)
 	Quests.init(p)
 	Daily.refresh(p)
+	Playtime.init(p)
 	Nameplate.init(p)
 	Cosmetics.sync(p)
 
@@ -119,6 +121,7 @@ Players.PlayerRemoving:Connect(function(p)
 	Training.release(p)
 	Hammers.release(p)
 	Pets.release(p)
+	Playtime.release(p)
 	Duels.release(p)
 	Competition.release(p)
 	Stats.forget(p)
@@ -138,6 +141,7 @@ task.spawn(function()
 				if rate > 0 then
 					Stats.addAuraFractional(p, rate * Stats.eventMult("AuraMult"), { raw = true })
 				end
+				Playtime.tick(p)
 				if tick % 30 == 0 then
 					Daily.refresh(p)
 				end

@@ -141,11 +141,23 @@ function handlers.rank(rankIndex)
 	Fx.shake(0.4, 0.5)
 	Fx.flash(rank.Color, 0.35, 0.9)
 	Fx.announce(rank.Full:upper(), "NEW LOOKS TIER!", rank.Color, 0.2)
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		Fx.ring(root.Position, rank.Color, 50)
+		Fx.pillar(root.Position, rank.Color, 110)
+		Fx.burst(root.Position, rank.Color, 60)
+	end
 end
 
 -- Plain level-ups stay small (a toast); every 10th level gets a proper moment.
 function handlers.level(level, aura, crates)
 	Audio.quest()
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		Fx.ring(root.Position, UI.Colors.Gold, level % 10 == 0 and 40 or 18)
+		Fx.pillar(root.Position, UI.Colors.Gold, level % 10 == 0 and 90 or 40)
+		Fx.burst(root.Position, UI.Colors.Gold, level % 10 == 0 and 50 or 16)
+	end
 	if level % 10 == 0 then
 		Audio.levelUp()
 		Fx.shake(0.3, 0.4)
@@ -199,8 +211,25 @@ function handlers.rebirth(n)
 	Fx.announce("REBORN", "★" .. n .. "  ·  +50% Aura and XP, forever", UI.Colors.Gold, 0.3)
 end
 
-function handlers.swing(gained)
-	Swing.result(gained)
+function handlers.swing(gained, tag, frenzy)
+	Swing.result(gained, tag, frenzy)
+end
+
+function handlers.frenzy(seconds)
+	Audio.milestone(20)
+	Fx.shake(0.4, 0.4)
+	Fx.flash(UI.Colors.Orange, 0.3, 0.5)
+	Fx.announce("MOG FRENZY!", "x2 Aura for " .. seconds .. " seconds, keep swinging", UI.Colors.Orange, 0.22)
+end
+
+function handlers.gift(aura, crates, index, total)
+	Audio.daily()
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		Fx.ring(root.Position, UI.Colors.Mint, 26)
+		Fx.burst(root.Position, UI.Colors.Mint, 30)
+	end
+	Toasts.push(string.format("🎁 Play-time gift %d/%d:  +%s Aura%s", index, total, Util.fmt(aura), crates > 0 and ("  +" .. crates .. " crate" .. (crates > 1 and "s" or "")) or ""), "gold")
 end
 
 function handlers.hammer(id, how)
@@ -219,6 +248,12 @@ function handlers.hatch(eggId, petId, copies)
 	Audio.reveal(Config.Rarities[pet.Rarity].Order)
 	Fx.shake(0.15 + rarity.Order * 0.08, 0.3)
 	Fx.flash(rarity.Color, 0.15 + rarity.Order * 0.05, 0.5)
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root and rarity.Order >= 3 then
+		Fx.ring(root.Position, rarity.Color, 14 + rarity.Order * 6)
+		Fx.pillar(root.Position, rarity.Color, 30 + rarity.Order * 14)
+		Fx.burst(root.Position, rarity.Color, 20 + rarity.Order * 10)
+	end
 	Fx.announce(pet.Name:upper(), string.format("%s pet  ·  +%d%% Aura%s", pet.Rarity, math.floor(Config.PetMult(pet, copies) * 100 + 0.5), copies > 1 and ("  ·  " .. string.rep("★", Config.PetStars(copies))) or "  ·  NEW!"), rarity.Color, 0.25)
 end
 

@@ -10,6 +10,34 @@ local HammerModel = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChil
 local Hammers = {}
 
 local lastSwing = {}
+local combo = {} -- player -> swings in a row
+local frenzyUntil = {} -- player -> os.clock when frenzy ends
+local rng = Random.new()
+
+local function setFrenzyEffect(p, on)
+	local head = p.Character and p.Character:FindFirstChild("Head")
+	if not head then
+		return
+	end
+	local old = head:FindFirstChild("FrenzyFx")
+	if old then
+		old:Destroy()
+	end
+	if on then
+		local e = Instance.new("ParticleEmitter")
+		e.Name = "FrenzyFx"
+		e.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		e.Color = ColorSequence.new(Color3.fromRGB(255, 190, 40), Color3.fromRGB(255, 80, 60))
+		e.LightEmission = 0.6
+		e.Rate = 40
+		e.Lifetime = NumberRange.new(0.6, 1.1)
+		e.Speed = NumberRange.new(3, 8)
+		e.SpreadAngle = Vector2.new(180, 180)
+		e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.2), NumberSequenceKeypoint.new(1, 0) })
+		e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1) })
+		e.Parent = head
+	end
+end
 
 function Hammers.current(p)
 	local profile = Data.get(p)
@@ -25,14 +53,46 @@ function Hammers.swing(p)
 	if now - (lastSwing[p] or 0) < Config.SwingInterval * 0.8 then
 		return
 	end
-	lastSwing[p] = now
 	local hammer = Hammers.current(p)
-	local gained = Stats.addAura(p, Config.SwingBase(profile.Level) * hammer.Mult)
+	-- Mog Streak: keep swinging without pausing to build up to FRENZY (double Aura).
+	local f = Config.Frenzy
+	if now - (lastSwing[p] or 0) <= f.Window + Config.SwingInterval then
+		combo[p] = (combo[p] or 0) + 1
+	else
+		combo[p] = 1
+	end
+	lastSwing[p] = now
+	local frenzy = (frenzyUntil[p] or 0) > now
+	if not frenzy and combo[p] >= f.Combo then
+		frenzy = true
+		combo[p] = 0
+		frenzyUntil[p] = now + f.Duration
+		p:SetAttribute("FrenzyEnd", workspace:GetServerTimeNow() + f.Duration)
+		setFrenzyEffect(p, true)
+		Stats.send(p, "frenzy", f.Duration)
+		task.delay(f.Duration + 0.1, function()
+			if (frenzyUntil[p] or 0) <= os.clock() then
+				setFrenzyEffect(p, false)
+			end
+		end)
+	end
+	p:SetAttribute("SwingCombo", combo[p] or 0)
+
+	-- Variable reward: any swing can crit.
+	local c = Config.Crit
+	local roll = rng:NextNumber()
+	local tag, critMult = nil, 1
+	if roll < c.JackpotChance then
+		tag, critMult = "jackpot", c.JackpotMult
+	elseif roll < c.JackpotChance + c.Chance then
+		tag, critMult = "crit", c.Mult
+	end
+	local gained = Stats.addAura(p, Config.SwingBase(profile.Level) * hammer.Mult * critMult * (frenzy and f.Mult or 1))
 	profile.Swings += 1
 	p:SetAttribute("Swings", profile.Swings)
 	Stats.addXP(p, 0.6)
 	Quests.progress(p, "swings", 1)
-	Stats.send(p, "swing", gained)
+	Stats.send(p, "swing", gained, tag, frenzy)
 end
 
 -- Step on a pedestal and press the button: buys the hammer, or equips it if you own it.
@@ -92,6 +152,8 @@ end
 
 function Hammers.release(p)
 	lastSwing[p] = nil
+	combo[p] = nil
+	frenzyUntil[p] = nil
 end
 
 return Hammers

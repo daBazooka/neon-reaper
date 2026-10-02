@@ -521,6 +521,26 @@ function Config.PetAps(pet, copies)
 end
 
 --------------------------------------------------------------------------------
+-- Retention mechanics: crits, the Mog Streak (frenzy) and play-time gifts
+--------------------------------------------------------------------------------
+Config.Crit = { Chance = 0.07, Mult = 5, JackpotChance = 0.005, JackpotMult = 25 }
+-- Swing again within `Window` seconds to keep the streak alive. Reach `Combo` swings for FRENZY.
+Config.Frenzy = { Combo = 30, Window = 0.7, Duration = 8, Mult = 2 }
+-- Gifts that arrive automatically while you stay in the server (seconds online, size, crates).
+Config.Gifts = {
+	{ Time = 60, Size = 1, Crates = 0 },
+	{ Time = 180, Size = 3, Crates = 0 },
+	{ Time = 300, Size = 6, Crates = 1 },
+	{ Time = 600, Size = 12, Crates = 0 },
+	{ Time = 900, Size = 20, Crates = 1 },
+	{ Time = 1500, Size = 40, Crates = 2 },
+	{ Time = 2400, Size = 80, Crates = 3 },
+}
+function Config.GiftAura(level, size)
+	return math.floor(size * 40 * (1 + level * 0.3))
+end
+
+--------------------------------------------------------------------------------
 -- Things you can interact with (press E, or tap the on-screen button). These work from any camera
 -- angle because they use the character's position, not the camera.
 --------------------------------------------------------------------------------
@@ -1166,6 +1186,7 @@ local Runway = require(Modules.Runway)
 local Board = require(Modules.Board)
 local Hammers = require(Modules.Hammers)
 local Pets = require(Modules.Pets)
+local Playtime = require(Modules.Playtime)
 local World = require(Modules.World)
 
 --------------------------------------------------------------------------------
@@ -1218,6 +1239,7 @@ local function onPlayer(p)
 	Stats.init(p)
 	Quests.init(p)
 	Daily.refresh(p)
+	Playtime.init(p)
 	Nameplate.init(p)
 	Cosmetics.sync(p)
 
@@ -1248,6 +1270,7 @@ Players.PlayerRemoving:Connect(function(p)
 	Training.release(p)
 	Hammers.release(p)
 	Pets.release(p)
+	Playtime.release(p)
 	Duels.release(p)
 	Competition.release(p)
 	Stats.forget(p)
@@ -1267,6 +1290,7 @@ task.spawn(function()
 				if rate > 0 then
 					Stats.addAuraFractional(p, rate * Stats.eventMult("AuraMult"), { raw = true })
 				end
+				Playtime.tick(p)
 				if tick % 30 == 0 then
 					Daily.refresh(p)
 				end
@@ -2853,6 +2877,34 @@ local HammerModel = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChil
 local Hammers = {}
 
 local lastSwing = {}
+local combo = {} -- player -> swings in a row
+local frenzyUntil = {} -- player -> os.clock when frenzy ends
+local rng = Random.new()
+
+local function setFrenzyEffect(p, on)
+	local head = p.Character and p.Character:FindFirstChild("Head")
+	if not head then
+		return
+	end
+	local old = head:FindFirstChild("FrenzyFx")
+	if old then
+		old:Destroy()
+	end
+	if on then
+		local e = Instance.new("ParticleEmitter")
+		e.Name = "FrenzyFx"
+		e.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		e.Color = ColorSequence.new(Color3.fromRGB(255, 190, 40), Color3.fromRGB(255, 80, 60))
+		e.LightEmission = 0.6
+		e.Rate = 40
+		e.Lifetime = NumberRange.new(0.6, 1.1)
+		e.Speed = NumberRange.new(3, 8)
+		e.SpreadAngle = Vector2.new(180, 180)
+		e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.2), NumberSequenceKeypoint.new(1, 0) })
+		e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1) })
+		e.Parent = head
+	end
+end
 
 function Hammers.current(p)
 	local profile = Data.get(p)
@@ -2868,14 +2920,46 @@ function Hammers.swing(p)
 	if now - (lastSwing[p] or 0) < Config.SwingInterval * 0.8 then
 		return
 	end
-	lastSwing[p] = now
 	local hammer = Hammers.current(p)
-	local gained = Stats.addAura(p, Config.SwingBase(profile.Level) * hammer.Mult)
+	-- Mog Streak: keep swinging without pausing to build up to FRENZY (double Aura).
+	local f = Config.Frenzy
+	if now - (lastSwing[p] or 0) <= f.Window + Config.SwingInterval then
+		combo[p] = (combo[p] or 0) + 1
+	else
+		combo[p] = 1
+	end
+	lastSwing[p] = now
+	local frenzy = (frenzyUntil[p] or 0) > now
+	if not frenzy and combo[p] >= f.Combo then
+		frenzy = true
+		combo[p] = 0
+		frenzyUntil[p] = now + f.Duration
+		p:SetAttribute("FrenzyEnd", workspace:GetServerTimeNow() + f.Duration)
+		setFrenzyEffect(p, true)
+		Stats.send(p, "frenzy", f.Duration)
+		task.delay(f.Duration + 0.1, function()
+			if (frenzyUntil[p] or 0) <= os.clock() then
+				setFrenzyEffect(p, false)
+			end
+		end)
+	end
+	p:SetAttribute("SwingCombo", combo[p] or 0)
+
+	-- Variable reward: any swing can crit.
+	local c = Config.Crit
+	local roll = rng:NextNumber()
+	local tag, critMult = nil, 1
+	if roll < c.JackpotChance then
+		tag, critMult = "jackpot", c.JackpotMult
+	elseif roll < c.JackpotChance + c.Chance then
+		tag, critMult = "crit", c.Mult
+	end
+	local gained = Stats.addAura(p, Config.SwingBase(profile.Level) * hammer.Mult * critMult * (frenzy and f.Mult or 1))
 	profile.Swings += 1
 	p:SetAttribute("Swings", profile.Swings)
 	Stats.addXP(p, 0.6)
 	Quests.progress(p, "swings", 1)
-	Stats.send(p, "swing", gained)
+	Stats.send(p, "swing", gained, tag, frenzy)
 end
 
 -- Step on a pedestal and press the button: buys the hammer, or equips it if you own it.
@@ -2935,6 +3019,8 @@ end
 
 function Hammers.release(p)
 	lastSwing[p] = nil
+	combo[p] = nil
+	frenzyUntil[p] = nil
 end
 
 return Hammers
@@ -3286,6 +3372,56 @@ return Pets
         </Item>
         <Item class="ModuleScript" referent="23">
           <Properties>
+            <string name="Name">Playtime</string>
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: play-time gifts. Stay in the server and gifts arrive on their own (Aura + crates),
+-- each one bigger than the last. The HUD shows a countdown to the next one.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Data = require(script.Parent.Data)
+local Stats = require(script.Parent.Stats)
+
+local Playtime = {}
+
+local sessions = {} -- player -> { joined = os.clock(), claimed = number }
+
+function Playtime.init(p)
+	sessions[p] = { joined = os.clock(), claimed = 0 }
+	p:SetAttribute("GiftAt", workspace:GetServerTimeNow() + Config.Gifts[1].Time)
+end
+
+function Playtime.release(p)
+	sessions[p] = nil
+end
+
+-- Called once a second for every player.
+function Playtime.tick(p)
+	local session = sessions[p]
+	local profile = Data.get(p)
+	if not session or not profile then
+		return
+	end
+	local elapsed = os.clock() - session.joined
+	local nextGift = Config.Gifts[session.claimed + 1]
+	if nextGift and elapsed >= nextGift.Time then
+		session.claimed += 1
+		local aura = Config.GiftAura(profile.Level, nextGift.Size)
+		Stats.addAura(p, aura, { raw = true })
+		if nextGift.Crates > 0 then
+			Stats.addFreeCrates(p, nextGift.Crates)
+		end
+		local following = Config.Gifts[session.claimed + 1]
+		p:SetAttribute("GiftAt", following and (workspace:GetServerTimeNow() + following.Time - elapsed) or 0)
+		Stats.send(p, "gift", aura, nextGift.Crates, session.claimed, #Config.Gifts)
+	end
+end
+
+return Playtime
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="24">
+          <Properties>
             <string name="Name">Quests</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: an endless chain of small goals. There is always exactly one active quest.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -3350,7 +3486,7 @@ return Quests
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="24">
+        <Item class="ModuleScript" referent="25">
           <Properties>
             <string name="Name">Quirks</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the gag that gives the game its name. Everyone starts with a goofy face, a big
@@ -3535,7 +3671,7 @@ return Quirks
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="25">
+        <Item class="ModuleScript" referent="26">
           <Properties>
             <string name="Name">Runway</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the runway in the middle of the district. Walk it for a steady Aura trickle that
@@ -3576,7 +3712,7 @@ return Runway
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="26">
+        <Item class="ModuleScript" referent="27">
           <Properties>
             <string name="Name">Shards</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the gym-and-health pickups scattered around the plaza: apples, protein shakes,
@@ -3822,7 +3958,7 @@ return Shards
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="27">
+        <Item class="ModuleScript" referent="28">
           <Properties>
             <string name="Name">Shop</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades and rebirth.
@@ -3894,7 +4030,7 @@ return Shop
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="28">
+        <Item class="ModuleScript" referent="29">
           <Properties>
             <string name="Name">Stats</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the heart of progression. Owns Aura, stats, Glow Score, rank and the
@@ -4251,7 +4387,7 @@ return Stats
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="29">
+        <Item class="ModuleScript" referent="30">
           <Properties>
             <string name="Name">Training</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame. A marker sweeps a bar; hit the zone for stat gains.
@@ -4429,7 +4565,7 @@ return Training
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="30">
+        <Item class="ModuleScript" referent="31">
           <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: builds the whole town from code (nothing to import).
@@ -5129,15 +5265,15 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="31">
+  <Item class="StarterPlayer" referent="32">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="32">
+    <Item class="StarterPlayerScripts" referent="33">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="33">
+      <Item class="LocalScript" referent="34">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: client entry point. Builds the interface, wires the menu tabs, and routes everything
@@ -5283,11 +5419,23 @@ function handlers.rank(rankIndex)
 	Fx.shake(0.4, 0.5)
 	Fx.flash(rank.Color, 0.35, 0.9)
 	Fx.announce(rank.Full:upper(), "NEW LOOKS TIER!", rank.Color, 0.2)
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		Fx.ring(root.Position, rank.Color, 50)
+		Fx.pillar(root.Position, rank.Color, 110)
+		Fx.burst(root.Position, rank.Color, 60)
+	end
 end
 
 -- Plain level-ups stay small (a toast); every 10th level gets a proper moment.
 function handlers.level(level, aura, crates)
 	Audio.quest()
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		Fx.ring(root.Position, UI.Colors.Gold, level % 10 == 0 and 40 or 18)
+		Fx.pillar(root.Position, UI.Colors.Gold, level % 10 == 0 and 90 or 40)
+		Fx.burst(root.Position, UI.Colors.Gold, level % 10 == 0 and 50 or 16)
+	end
 	if level % 10 == 0 then
 		Audio.levelUp()
 		Fx.shake(0.3, 0.4)
@@ -5341,8 +5489,25 @@ function handlers.rebirth(n)
 	Fx.announce("REBORN", "★" .. n .. "  ·  +50% Aura and XP, forever", UI.Colors.Gold, 0.3)
 end
 
-function handlers.swing(gained)
-	Swing.result(gained)
+function handlers.swing(gained, tag, frenzy)
+	Swing.result(gained, tag, frenzy)
+end
+
+function handlers.frenzy(seconds)
+	Audio.milestone(20)
+	Fx.shake(0.4, 0.4)
+	Fx.flash(UI.Colors.Orange, 0.3, 0.5)
+	Fx.announce("MOG FRENZY!", "x2 Aura for " .. seconds .. " seconds, keep swinging", UI.Colors.Orange, 0.22)
+end
+
+function handlers.gift(aura, crates, index, total)
+	Audio.daily()
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		Fx.ring(root.Position, UI.Colors.Mint, 26)
+		Fx.burst(root.Position, UI.Colors.Mint, 30)
+	end
+	Toasts.push(string.format("🎁 Play-time gift %d/%d:  +%s Aura%s", index, total, Util.fmt(aura), crates > 0 and ("  +" .. crates .. " crate" .. (crates > 1 and "s" or "")) or ""), "gold")
 end
 
 function handlers.hammer(id, how)
@@ -5361,6 +5526,12 @@ function handlers.hatch(eggId, petId, copies)
 	Audio.reveal(Config.Rarities[pet.Rarity].Order)
 	Fx.shake(0.15 + rarity.Order * 0.08, 0.3)
 	Fx.flash(rarity.Color, 0.15 + rarity.Order * 0.05, 0.5)
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root and rarity.Order >= 3 then
+		Fx.ring(root.Position, rarity.Color, 14 + rarity.Order * 6)
+		Fx.pillar(root.Position, rarity.Color, 30 + rarity.Order * 14)
+		Fx.burst(root.Position, rarity.Color, 20 + rarity.Order * 10)
+	end
 	Fx.announce(pet.Name:upper(), string.format("%s pet  ·  +%d%% Aura%s", pet.Rarity, math.floor(Config.PetMult(pet, copies) * 100 + 0.5), copies > 1 and ("  ·  " .. string.rep("★", Config.PetStars(copies))) or "  ·  NEW!"), rarity.Color, 0.25)
 end
 
@@ -5422,11 +5593,11 @@ task.spawn(function()
 end)
 ]]></string>
         </Properties>
-        <Item class="Folder" referent="34">
+        <Item class="Folder" referent="35">
           <Properties>
             <string name="Name">Modules</string>
           </Properties>
-          <Item class="ModuleScript" referent="35">
+          <Item class="ModuleScript" referent="36">
             <Properties>
               <string name="Name">CompetitionUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: Mog Competition overlay. Everyone on stage flexes (taps) for 8 seconds; a live
@@ -5710,7 +5881,7 @@ return CompetitionUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="36">
+          <Item class="ModuleScript" referent="37">
             <Properties>
               <string name="Name">DuelUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: duel overlay. Both sides tap as fast as they can for 7 seconds; Mog Power gives an
@@ -5950,7 +6121,7 @@ return DuelUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="37">
+          <Item class="ModuleScript" referent="38">
             <Properties>
               <string name="Name">Fx</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
@@ -6095,6 +6266,51 @@ function Fx.burst(pos, color, count)
 	e:Emit(count)
 end
 
+-- Expanding shockwave ring on the ground.
+function Fx.ring(pos, color, radius)
+	if not effectsOn() then
+		return
+	end
+	local part = UI.new("Part", {
+		Name = "FxRing",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.4, 2, 2),
+		CFrame = CFrame.new(pos.X, pos.Y - 2.5, pos.Z) * CFrame.Angles(0, 0, math.pi / 2),
+		Color = color,
+		Material = Enum.Material.SmoothPlastic,
+		Transparency = 0.2,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+	}, workspace)
+	local d = (radius or 24) * 2
+	UI.tween(part, 0.55, { Size = Vector3.new(0.4, d, d), Transparency = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	Debris:AddItem(part, 0.7)
+end
+
+-- A tall beam of light that shoots up and fades (level-ups, big hatches).
+function Fx.pillar(pos, color, height)
+	if not effectsOn() then
+		return
+	end
+	local h = height or 70
+	local part = UI.new("Part", {
+		Name = "FxPillar",
+		Size = Vector3.new(5, h, 5),
+		Position = Vector3.new(pos.X, pos.Y - 2.5 + h / 2, pos.Z),
+		Color = color,
+		Material = Enum.Material.SmoothPlastic,
+		Transparency = 0.45,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+	}, workspace)
+	UI.tween(part, 0.9, { Size = Vector3.new(0.4, h, 0.4), Transparency = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	Debris:AddItem(part, 1)
+end
+
 -- Big centred callout. Reserved for moments that deserve it (rank ups, rebirths, combos).
 function Fx.announce(title, sub, color, y)
 	if not gui then
@@ -6143,7 +6359,7 @@ return Fx
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="38">
+          <Item class="ModuleScript" referent="39">
             <Properties>
               <string name="Name">HammerRow</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: floating OWNED / EQUIPPED / price labels over every hammer pedestal.
@@ -6268,7 +6484,7 @@ return HammerRow
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="39">
+          <Item class="ModuleScript" referent="40">
             <Properties>
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the always-on screen.
@@ -6421,6 +6637,10 @@ local function buildTop(gui)
 	refs.chain, refs.chainText = chip(1, C.Sky, 170)
 	refs.chainScale = UI.new("UIScale", {}, refs.chain)
 	refs.chainBar = UI.bar(refs.chain, { Position = UDim2.new(0, 10, 1, -5), Size = UDim2.new(1, -20, 0, 2) }, C.Sky)
+	refs.streak, refs.streakText = chip(0, C.Orange, 200)
+	refs.streakScale = UI.new("UIScale", {}, refs.streak)
+	refs.streakBar = UI.bar(refs.streak, { Position = UDim2.new(0, 10, 1, -5), Size = UDim2.new(1, -20, 0, 2) }, C.Orange)
+	refs.gift, refs.giftText = chip(4, C.Mint, 200)
 	refs.comp, refs.compText = chip(2, C.Orange, 300)
 	refs.event, refs.eventText = chip(3, C.Pink, 300)
 end
@@ -6772,6 +6992,35 @@ function Hud.init(gui, Menu, Action)
 			refs.chain.Visible = false
 		end
 
+		-- Mog Streak / Frenzy chip
+		local now = workspace:GetServerTimeNow()
+		local frenzyLeft = (player:GetAttribute("FrenzyEnd") or 0) - now
+		local combo = player:GetAttribute("SwingCombo") or 0
+		if frenzyLeft > 0 then
+			refs.streak.Visible = true
+			refs.streakText.Text = string.format("🔥 FRENZY x%d  ·  %.1fs", Config.Frenzy.Mult, frenzyLeft)
+			refs.streakText.TextColor3 = C.Yellow
+			refs.streakBar.set(frenzyLeft / Config.Frenzy.Duration)
+			refs.streakBar.fill.BackgroundColor3 = C.Yellow
+		elseif combo >= 5 and (t - lastGain) < 1.2 then
+			refs.streak.Visible = true
+			refs.streakText.Text = string.format("MOG STREAK  %d/%d", combo, Config.Frenzy.Combo)
+			refs.streakText.TextColor3 = C.Orange
+			refs.streakBar.set(combo / Config.Frenzy.Combo)
+			refs.streakBar.fill.BackgroundColor3 = C.Orange
+		else
+			refs.streak.Visible = false
+		end
+		-- Next play-time gift
+		local giftIn = (player:GetAttribute("GiftAt") or 0) - now
+		if (player:GetAttribute("GiftAt") or 0) > 0 and giftIn > 0 then
+			refs.gift.Visible = true
+			refs.giftText.Text = "🎁 Gift in " .. Util.clock(giftIn)
+			refs.giftText.TextColor3 = C.Mint
+		else
+			refs.gift.Visible = false
+		end
+
 		if t - lastSlow > 0.15 then
 			lastSlow = t
 			Hud.refresh()
@@ -6894,7 +7143,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="40">
+          <Item class="ModuleScript" referent="41">
             <Properties>
               <string name="Name">Interact</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: "use" button for every place and hammer. Stand near something and a big button
@@ -7043,7 +7292,7 @@ return Interact
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="41">
+          <Item class="ModuleScript" referent="42">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the one main menu. A single window with a tab list so the screen never fills up with
@@ -7288,7 +7537,7 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="42">
+          <Item class="ModuleScript" referent="43">
             <Properties>
               <string name="Name">Orbs</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: pickups bob and spin locally so the server never has to animate them, and
@@ -7345,7 +7594,7 @@ return Orbs
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="43">
+          <Item class="ModuleScript" referent="44">
             <Properties>
               <string name="Name">Swing</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: click / tap anywhere (or hold) to swing your hammer at your own face.
@@ -7448,21 +7697,41 @@ function Swing.init(gui, action, menu)
 	end)
 end
 
--- The server confirmed a swing and says how much it paid.
-function Swing.result(gained)
+-- The server confirmed a swing and says how much it paid. tag is "crit" / "jackpot" / nil.
+function Swing.result(gained, tag, frenzy)
 	swingCount += 1
 	local char = player.Character
 	local head = char and char:FindFirstChild("Head")
-	if not head then
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not head or not root then
+		return
+	end
+	local C = UI.Colors
+	if tag == "jackpot" then
+		Audio.reveal(5)
+		Fx.shake(0.6, 0.6)
+		Fx.flash(C.Gold, 0.4, 0.6)
+		Fx.ring(root.Position, C.Gold, 40)
+		Fx.pillar(root.Position, C.Gold, 90)
+		Fx.burst(head.Position, C.Gold, 60)
+		Fx.floatText(head.Position + Vector3.new(0, 3, 0), "JACKPOT!  +" .. Util.fmt(gained), C.Gold, 34)
+		return
+	elseif tag == "crit" then
+		Audio.reveal(3)
+		Fx.shake(0.3, 0.3)
+		Fx.ring(root.Position, C.Orange, 22)
+		Fx.burst(head.Position, C.Orange, 24)
+		Fx.floatText(head.Position + Vector3.new(0, 3, 0), "CRIT!  +" .. Util.fmt(gained), C.Orange, 28)
 		return
 	end
 	Audio.pickup(0, 1)
 	Fx.punch(0.6)
+	local color = frenzy and C.Orange or C.Yellow
 	if swingCount % 3 == 1 then
-		Fx.floatText(head.Position + Vector3.new(0, 2.5, 0), "+" .. Util.fmt(gained), UI.Colors.Yellow, 22)
+		Fx.floatText(head.Position + Vector3.new(0, 2.5, 0), "+" .. Util.fmt(gained), color, frenzy and 24 or 20)
 	end
-	if swingCount % 6 == 1 then
-		Fx.burst(head.Position, UI.Colors.Orange, 6)
+	if swingCount % 4 == 1 or frenzy then
+		Fx.burst(head.Position, color, frenzy and 10 or 5)
 	end
 end
 
@@ -7470,7 +7739,7 @@ return Swing
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="44">
+          <Item class="ModuleScript" referent="45">
             <Properties>
               <string name="Name">TabCrates</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: crates tab. The server rolls; this plays the reveal (a spinning reel that slows
@@ -7769,7 +8038,7 @@ return TabCrates
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="45">
+          <Item class="ModuleScript" referent="46">
             <Properties>
               <string name="Name">TabPets</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Pets tab. Hatch eggs at the top, manage your pets below.
@@ -7969,7 +8238,7 @@ return TabPets
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="46">
+          <Item class="ModuleScript" referent="47">
             <Properties>
               <string name="Name">TabProfile</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: your character sheet: rank, stats, duel record and the current quest.
@@ -8148,7 +8417,7 @@ return TabProfile
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="47">
+          <Item class="ModuleScript" referent="48">
             <Properties>
               <string name="Name">TabRewards</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: daily streak rewards and the current server event.
@@ -8274,7 +8543,7 @@ return TabRewards
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="48">
+          <Item class="ModuleScript" referent="49">
             <Properties>
               <string name="Name">TabSettings</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: simple toggles. Settings are saved on the server so they follow the player.
@@ -8377,7 +8646,7 @@ return TabSettings
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="49">
+          <Item class="ModuleScript" referent="50">
             <Properties>
               <string name="Name">TabUpgrades</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades (bought with Aura) and the rebirth button.
@@ -8537,7 +8806,7 @@ return TabUpgrades
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="50">
+          <Item class="ModuleScript" referent="51">
             <Properties>
               <string name="Name">TabWardrobe</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the wardrobe. A collection grid: owned items can be worn, unowned ones show as locked
@@ -8764,7 +9033,7 @@ return TabWardrobe
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="51">
+          <Item class="ModuleScript" referent="52">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -8874,7 +9143,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="52">
+          <Item class="ModuleScript" referent="53">
             <Properties>
               <string name="Name">TrainingUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame overlay. A marker sweeps a bar; press Space (or tap) while it
@@ -9143,7 +9412,7 @@ return TrainingUI
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="53">
+  <Item class="Workspace" referent="54">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

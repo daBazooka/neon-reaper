@@ -98,21 +98,41 @@ function Swing.init(gui, action, menu)
 	end)
 end
 
--- The server confirmed a swing and says how much it paid.
-function Swing.result(gained)
+-- The server confirmed a swing and says how much it paid. tag is "crit" / "jackpot" / nil.
+function Swing.result(gained, tag, frenzy)
 	swingCount += 1
 	local char = player.Character
 	local head = char and char:FindFirstChild("Head")
-	if not head then
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not head or not root then
+		return
+	end
+	local C = UI.Colors
+	if tag == "jackpot" then
+		Audio.reveal(5)
+		Fx.shake(0.6, 0.6)
+		Fx.flash(C.Gold, 0.4, 0.6)
+		Fx.ring(root.Position, C.Gold, 40)
+		Fx.pillar(root.Position, C.Gold, 90)
+		Fx.burst(head.Position, C.Gold, 60)
+		Fx.floatText(head.Position + Vector3.new(0, 3, 0), "JACKPOT!  +" .. Util.fmt(gained), C.Gold, 34)
+		return
+	elseif tag == "crit" then
+		Audio.reveal(3)
+		Fx.shake(0.3, 0.3)
+		Fx.ring(root.Position, C.Orange, 22)
+		Fx.burst(head.Position, C.Orange, 24)
+		Fx.floatText(head.Position + Vector3.new(0, 3, 0), "CRIT!  +" .. Util.fmt(gained), C.Orange, 28)
 		return
 	end
 	Audio.pickup(0, 1)
 	Fx.punch(0.6)
+	local color = frenzy and C.Orange or C.Yellow
 	if swingCount % 3 == 1 then
-		Fx.floatText(head.Position + Vector3.new(0, 2.5, 0), "+" .. Util.fmt(gained), UI.Colors.Yellow, 22)
+		Fx.floatText(head.Position + Vector3.new(0, 2.5, 0), "+" .. Util.fmt(gained), color, frenzy and 24 or 20)
 	end
-	if swingCount % 6 == 1 then
-		Fx.burst(head.Position, UI.Colors.Orange, 6)
+	if swingCount % 4 == 1 or frenzy then
+		Fx.burst(head.Position, color, frenzy and 10 or 5)
 	end
 end
 
