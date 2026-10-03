@@ -33,6 +33,7 @@ Your look (stats + gear) multiplies XP, so a better look levels you faster. The 
 | **Buildings cost Aura** | Every building is locked until you pay: Gym free, Battle Arena 2.5K, Style Studio 4K, Mog Stage 15K, Charm Lounge 30K, Duel Ring 75K, Crate Shop 120K (buying crates needs it). Each has its own colours, chimneys with coloured smoke, a ground aura ring, chandelier, banners and a patterned floor. Floating signs show price and lock state. |
 | **Treadmill Hall** | 20 treadmills in two rows (just outside the plaza, press the 🏃 button to jump there), each a different colour with its own smoke and light beam. Buy one with Aura (Starter is free) and run for Aura every second: +2/s up to +470 billion/s. The belt really moves, you get a speed-lines screen, a wider view, a shockwave every second, and flames / sparks / lightning around you that grow with the tier (the last three are rainbow). **Heat**: every second you keep running adds +5% Aura (up to x2). |
 | **Store (real Robux)** | 3 game passes (2x Aura, 2x XP, VIP) and 3 Aura packs. Offers show COMING SOON until you create them on create.roblox.com and paste the ids into `Config.Store`. |
+| **Voxel island map** | The whole map is a bright LEGO-style island: studded green lawns with mown squares, tan brick paths with gold trim (a main cross plus a path to every building), a gold-trimmed brick plaza with black-and-gold corner pillars, blocky trees, flowers, bushes and rocks, gold lamp posts and benches, two stone statue busts, and a ring of stepped green-topped cliffs around everything with water and small islands beyond. Built by `Island.luau`. |
 | **Realistic animals** | The 13 pets are built as real animals (tabby cat, golden retriever, field mouse, wolf, fox, lion, bull, silverback gorilla, owl, shark, dragon, pegasus, phoenix) with skeletons, fur patterns, eyes, whiskers, bent hind legs, wings and tails. They walk, flap, swim and sway, follow their owner, and are drawn on every player's screen. The Pets tab shows each one in 3D. |
 | **Unique faces and bodies** | Every player has their own face (eye colour/size, brows, nose, mouth, jaw, ears, mole/scar/freckles, beard style) and body build, decided by their user id. Levels change how goofy or chiselled it is, and muscles grow. |
 | **Level-up fanfare** | Every level plays a power-up: sub drop, rising laser sweep, bright chord, sparkle run (bigger on every 10th level and tier-ups), plus the deep "Level up!" voice. |
@@ -64,7 +65,7 @@ It is built with Rojo from `src/`: `rojo build default.project.json -o SubFiveTo
 ```
 ReplicatedStorage.Shared      Config, Util, Audio, UI, HammerModel, Genome, Face, Animals
 ServerScriptService.Main      Script + Modules (Data, Stats, Appearance, Cosmetics, Shards, Training, Crates,
-                              Duels, Competition, Quests, Daily, Events, Runway, Shop, Nameplate, Board, Quirks, Hammers, Pets, Playtime, Aura, Tutorial, Buildings, Treadmill, Store, Decor, Architecture, World)
+                              Duels, Competition, Quests, Daily, Events, Runway, Shop, Nameplate, Board, Quirks, Hammers, Pets, Playtime, Aura, Tutorial, Buildings, Treadmill, Store, Decor, Architecture, Island, World)
 StarterPlayerScripts.Client   LocalScript + Modules (Fx, Toasts, Menu, Hud, 6 tabs, TrainingUI, DuelUI,
                               CompetitionUI, Orbs, Interact, HammerRow, Swing, TabPets, WorldTags, Runner, TabStore, PetsView, Guide)
 ```
@@ -78,5 +79,5 @@ All numbers (tiers, XP curve, body scales, costs, odds, rewards) live in `src/sh
 - `tests/` has a Roblox mock that validates every property, class and enum against Roblox's API dump.
 
 ## Previewing models without Studio
-`tests/preview/arch_preview.py out.png gym|studio|lounge` renders a building, `tests/preview/run.sh out.png cat wolf ...` renders side/front/top views of the animals, `tests/preview/face_render.py out.png` renders sample faces,
+`tests/preview/map_preview.py out.png` renders the island from above, `tests/preview/arch_preview.py out.png gym|studio|lounge` renders a building, `tests/preview/run.sh out.png cat wolf ...` renders side/front/top views of the animals, `tests/preview/face_render.py out.png` renders sample faces,
 and `python3 tests/preview/animate_test.py` animates every animal for hundreds of frames to prove nothing errors. They use a tiny stand-in for Vector3/CFrame/Instance, so they need only the Luau CLI and matplotlib.

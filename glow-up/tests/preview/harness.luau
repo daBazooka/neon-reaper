@@ -1,8 +1,13 @@
 -- Offline preview harness: tiny Vector3/CFrame/Instance implementations so Animals.build can run under the plain
 -- Luau CLI and dump every part (size, shape, world transform, colour) as JSON for tests/preview/render.py.
 local V = {}
-V.__index = function(t, k) if k == "Magnitude" then return math.sqrt(t.X*t.X+t.Y*t.Y+t.Z*t.Z) end return rawget(V, k) end
+V.__index = function(t, k)
+	if k == "Magnitude" then return math.sqrt(t.X*t.X+t.Y*t.Y+t.Z*t.Z) end
+	if k == "Unit" then local m = math.sqrt(t.X*t.X+t.Y*t.Y+t.Z*t.Z) if m == 0 then return t end return setmetatable({X=t.X/m,Y=t.Y/m,Z=t.Z/m}, V) end
+	return rawget(V, k)
+end
 V.__add = function(a, b) return setmetatable({X=a.X+b.X,Y=a.Y+b.Y,Z=a.Z+b.Z}, V) end
+V.__div = function(a, b) return setmetatable({X=a.X/b,Y=a.Y/b,Z=a.Z/b}, V) end
 V.__sub = function(a, b) return setmetatable({X=a.X-b.X,Y=a.Y-b.Y,Z=a.Z-b.Z}, V) end
 V.__unm = function(a) return setmetatable({X=-a.X,Y=-a.Y,Z=-a.Z}, V) end
 V.__mul = function(a, b)
@@ -45,6 +50,15 @@ CFrame = {}
 function CFrame.new(x, y, z)
 	if type(x) == "table" then return mk(x, I3) end
 	return mk(Vector3.new(x or 0, y or 0, z or 0), I3)
+end
+function CFrame.lookAt(from, to, up)
+	up = up or Vector3.new(0, 1, 0)
+	local f = (to - from).Unit
+	local r = Vector3.new(f.Y * up.Z - f.Z * up.Y, f.Z * up.X - f.X * up.Z, f.X * up.Y - f.Y * up.X).Unit
+	if r.X ~= r.X or (r.X == 0 and r.Y == 0 and r.Z == 0) then r = Vector3.new(1, 0, 0) end
+	-- right = f x up, true up = r x f ; basis columns: right, up, back(-f)
+	local u = Vector3.new(r.Y * f.Z - r.Z * f.Y, r.Z * f.X - r.X * f.Z, r.X * f.Y - r.Y * f.X)
+	return mk(from, { r.X, u.X, -f.X, r.Y, u.Y, -f.Y, r.Z, u.Z, -f.Z })
 end
 function CFrame.Angles(rx, ry, rz)
 	local cx, sx, cy, sy, cz, sz = math.cos(rx), math.sin(rx), math.cos(ry), math.sin(ry), math.cos(rz), math.sin(rz)

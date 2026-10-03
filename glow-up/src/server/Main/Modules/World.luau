@@ -7,6 +7,7 @@ local Lighting = game:GetService("Lighting")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Decor = require(script.Parent.Decor)
 local Architecture = require(script.Parent.Architecture)
+local Island = require(script.Parent.Island)
 local Util = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"))
 local HammerModel = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HammerModel"))
 
@@ -93,66 +94,6 @@ local function sign(parent, position, facing, size, text, boardColor, textColor)
 	label.Text = text
 	label.Parent = gui
 	return face, label
-end
-
-local function tree(parent, pos)
-	local h = 7 + rng:NextNumber() * 5
-	post(parent, "Trunk", pos + Vector3.new(0, h / 2, 0), 1, h, C3(110, 80, 55), M.Wood)
-	local leafColor = C3(60 + rng:NextInteger(0, 30), 130 + rng:NextInteger(0, 30), 55)
-	local r = 5 + rng:NextNumber() * 2
-	for i = 1, 3 do
-		part(parent, {
-			Name = "Leaves",
-			Shape = Enum.PartType.Ball,
-			Size = Vector3.one * (r * (1.25 - i * 0.12)),
-			Position = pos + Vector3.new((i - 2) * 1.6, h + 1.5 + i * 1.4, (i % 2) * 1.2),
-			Color = leafColor,
-			Material = M.Grass,
-			CanCollide = false,
-		})
-	end
-end
-
-local function lamp(parent, pos)
-	post(parent, "LampPole", pos + Vector3.new(0, 6, 0), 0.35, 12, DARK, M.Metal)
-	local bulb = part(parent, {
-		Name = "LampHead",
-		Size = Vector3.new(1.8, 0.8, 1.8),
-		Position = pos + Vector3.new(0, 12.3, 0),
-		Color = C3(255, 244, 200),
-		Material = M.SmoothPlastic,
-		CanCollide = false,
-	})
-	local light = Instance.new("PointLight")
-	light.Range = 22
-	light.Brightness = 0.8
-	light.Color = C3(255, 238, 200)
-	light.Parent = bulb
-end
-
-local function bench(parent, cf)
-	block(parent, "BenchSeat", Vector3.new(6, 0.5, 1.8), cf * CFrame.new(0, 1.6, 0), WOOD, M.Wood)
-	block(parent, "BenchBack", Vector3.new(6, 1.6, 0.4), cf * CFrame.new(0, 2.6, 0.8), WOOD, M.Wood)
-	for side = -1, 1, 2 do
-		block(parent, "BenchLeg", Vector3.new(0.4, 1.6, 1.6), cf * CFrame.new(side * 2.6, 0.8, 0), DARK, M.Metal)
-	end
-end
-
-local function building(parent, pos, w, h, d, color, facingCenter)
-	local cf = CFrame.lookAt(pos, Vector3.new(0, pos.Y, 0))
-	block(parent, "Building", Vector3.new(w, h, d), cf * CFrame.new(0, h / 2, 0), color, M.Concrete)
-	block(parent, "Roof", Vector3.new(w + 1, 1.2, d + 1), cf * CFrame.new(0, h + 0.6, 0), DARK, M.SmoothPlastic)
-	local rows = math.max(1, math.floor((h - 8) / 9))
-	for r = 1, rows do
-		local y = 5 + (r - 1) * 9
-		for _, face in { { 0, -d / 2 - 0.1, w * 0.8, 0.3 }, { 0, d / 2 + 0.1, w * 0.8, 0.3 } } do
-			block(parent, "Window", Vector3.new(face[3], 3.4, face[4]), cf * CFrame.new(face[1], y + 2, face[2]), C3(160, 205, 235), M.Glass, { Transparency = 0.25, CanCollide = false })
-		end
-		for side = -1, 1, 2 do
-			block(parent, "Window", Vector3.new(0.3, 3.4, d * 0.8), cf * CFrame.new(side * (w / 2 + 0.1), y + 2, 0), C3(160, 205, 235), M.Glass, { Transparency = 0.25, CanCollide = false })
-		end
-	end
-	block(parent, "Door", Vector3.new(4, 6, 0.3), cf * CFrame.new(0, 3, -d / 2 - 0.15), BLUE, M.SmoothPlastic, { CanCollide = false })
 end
 
 --------------------------------------------------------------------------------
@@ -799,79 +740,6 @@ local function buildBoard(parent)
 	return list
 end
 
-local function buildGround(parent)
-	-- Grass field
-	block(parent, "Grass", Vector3.new(720, 2, 720), CFrame.new(0, -1, 0), GRASS, M.Grass)
-	-- Plaza with a brick border
-	disk(parent, "PlazaBorder", Vector3.new(0, 0.18, 0), PLAZA + 4, 0.4, BRICK, M.Brick)
-	disk(parent, "Plaza", Vector3.new(0, 0.26, 0), PLAZA, 0.5, CONCRETE, M.Concrete)
-	for _, r in { 60, 108 } do
-		local ring = disk(parent, "PlazaRing", Vector3.new(0, 0.3, 0), r, 0.1, BRICK, M.Brick)
-		ring.CanCollide = false
-		local inner = disk(parent, "PlazaRingInner", Vector3.new(0, 0.33, 0), r - 1.5, 0.12, CONCRETE, M.Concrete)
-		inner.CanCollide = false
-	end
-	-- Roads out of the plaza in the four directions, with dashed centre lines
-	for _, dir in { Vector3.new(1, 0, 0), Vector3.new(-1, 0, 0), Vector3.new(0, 0, 1), Vector3.new(0, 0, -1) } do
-		local mid = dir * (PLAZA + 4 + 90)
-		local alongX = dir.X ~= 0
-		block(parent, "Road", Vector3.new(alongX and 180 or 20, 0.2, alongX and 20 or 180), CFrame.new(mid.X, 0.1, mid.Z), ASPHALT, M.Asphalt)
-		for i = 1, 12 do
-			local d = PLAZA + 14 + (i - 1) * 14
-			block(parent, "RoadLine", Vector3.new(alongX and 6 or 0.7, 0.05, alongX and 0.7 or 6), CFrame.new(dir.X * d, 0.24, dir.Z * d), YELLOW, M.SmoothPlastic, { CanCollide = false })
-		end
-	end
-	-- Invisible walls around the field
-	for _, w in {
-		{ Vector3.new(720, 80, 2), Vector3.new(0, 38, 360) },
-		{ Vector3.new(720, 80, 2), Vector3.new(0, 38, -360) },
-		{ Vector3.new(2, 80, 720), Vector3.new(360, 38, 0) },
-		{ Vector3.new(2, 80, 720), Vector3.new(-360, 38, 0) },
-	} do
-		part(parent, { Name = "EdgeWall", Size = w[1], Position = w[2], Transparency = 1, CanQuery = false })
-	end
-end
-
-local function buildTown(parent)
-	-- Buildings beyond the plaza, away from the roads
-	local colors = { C3(206, 190, 160), C3(176, 140, 120), C3(150, 160, 175), C3(190, 170, 130), C3(160, 130, 110) }
-	local count = 0
-	local attempts = 0
-	while count < 22 and attempts < 200 do
-		attempts += 1
-		local a = rng:NextNumber() * math.pi * 2
-		local r = 205 + rng:NextNumber() * 100
-		local x, z = math.cos(a) * r, math.sin(a) * r
-		if math.abs(x) > 24 and math.abs(z) > 24 and (Vector3.new(x, 0, z) - Config.TreadHallPos()).Magnitude > 95 then
-			count += 1
-			building(parent, Vector3.new(x, 0, z), 24 + rng:NextNumber() * 14, 30 + rng:NextNumber() * 40, 22 + rng:NextNumber() * 10, colors[rng:NextInteger(1, #colors)])
-		end
-	end
-	-- Trees on the grass
-	local trees = 0
-	attempts = 0
-	while trees < 70 and attempts < 400 do
-		attempts += 1
-		local a = rng:NextNumber() * math.pi * 2
-		local r = PLAZA + 14 + rng:NextNumber() * 190
-		local x, z = math.cos(a) * r, math.sin(a) * r
-		if math.abs(x) > 18 and math.abs(z) > 18 and (Vector3.new(x, 0, z) - Config.TreadHallPos()).Magnitude > 60 then
-			trees += 1
-			tree(parent, Vector3.new(x, 0, z))
-		end
-	end
-	-- Lamps and benches around the plaza edge
-	for i = 1, 20 do
-		local a = (i / 20) * math.pi * 2
-		lamp(parent, Vector3.new(math.cos(a) * (PLAZA - 6), 0.5, math.sin(a) * (PLAZA - 6)))
-	end
-	for i = 1, 12 do
-		local a = (i / 12) * math.pi * 2 + 0.13
-		local pos = Vector3.new(math.cos(a) * (PLAZA - 14), 0.5, math.sin(a) * (PLAZA - 14))
-		bench(parent, CFrame.lookAt(pos, Vector3.new(0, 0.5, 0)))
-	end
-end
-
 --------------------------------------------------------------------------------
 -- Coin placement
 --------------------------------------------------------------------------------
@@ -914,8 +782,7 @@ function World.build()
 	world.Name = "GlowWorld"
 	world.Parent = workspace
 
-	buildGround(world)
-	buildTown(world)
+	Island.build(world)
 	buildCatwalk(world)
 	local boardLabel = buildBoard(world)
 	local compBoard = buildStage(world)
