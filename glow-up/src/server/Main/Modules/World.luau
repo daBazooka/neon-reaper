@@ -453,27 +453,6 @@ local function buildGym(parent)
 	local pos, inward = stationAt("Gym")
 	local cf = pavilion(parent, pos, inward, RED, "💪  GYM", C3(150, 30, 20), C3(48, 50, 56), M.Slate, C3(150, 64, 56), M.Brick)
 	Decor.pavilion(parent, "gym", cf)
-	-- Bench press
-	block(parent, "Bench", Vector3.new(2.4, 1.2, 6.5), cf * CFrame.new(0, 1.9, 2), C3(40, 40, 46), M.SmoothPlastic)
-	for side = -1, 1, 2 do
-		block(parent, "BenchStand", Vector3.new(0.6, 3, 0.6), cf * CFrame.new(side * 2.4, 2.3, 1), DARK, M.Metal)
-	end
-	local bar = cf * CFrame.new(0, 4.6, 1)
-	block(parent, "Bar", Vector3.new(11, 0.5, 0.5), bar, C3(200, 205, 215), M.Metal, { Shape = Enum.PartType.Cylinder })
-	for side = -1, 1, 2 do
-		block(parent, "Plate", Vector3.new(0.8, 3.4, 3.4), bar * CFrame.new(side * 4.6, 0, 0), C3(30, 30, 36), M.Metal, { Shape = Enum.PartType.Cylinder })
-		block(parent, "Plate", Vector3.new(0.7, 2.4, 2.4), bar * CFrame.new(side * 5.3, 0, 0), RED, M.Metal, { Shape = Enum.PartType.Cylinder })
-	end
-	-- Dumbbell rack along the back wall
-	block(parent, "Rack", Vector3.new(14, 2.4, 2.6), cf * CFrame.new(-8, 2, 12.6), DARK, M.Metal)
-	for i = 1, 6 do
-		local d = cf * CFrame.new(-13.5 + i * 1.9, 3.7, 12.6)
-		block(parent, "Dumbbell", Vector3.new(1.8, 0.4, 0.4), d, C3(200, 205, 215), M.Metal, { Shape = Enum.PartType.Cylinder })
-		for side = -1, 1, 2 do
-			block(parent, "DumbbellHead", Vector3.new(0.5, 1, 1), d * CFrame.new(side * 0.8, 0, 0), C3(30, 30, 36), M.Metal, { Shape = Enum.PartType.Cylinder })
-		end
-	end
-	block(parent, "Mirror", Vector3.new(14, 7, 0.3), cf * CFrame.new(7, 6, 14), C3(190, 215, 235), M.Glass, { Transparency = 0.35, Reflectance = 0.3 })
 end
 
 local function buildStudio(parent)

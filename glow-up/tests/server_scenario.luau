@@ -235,6 +235,11 @@ do
 	p1.root.Position = Config.StationPos("Gym") + Vector3.new(0, 3, 0)
 	fireAll("Action", p1, "Interact", "Gym"); advance(0.1)
 	check(a1.Training == true, "gym in range starts training")
+	check(a1.LiftKg ~= nil and a1.LiftTier ~= nil, "gym training picks up weights: " .. tostring(a1.LiftKg) .. " kg " .. tostring(a1.LiftTier))
+	local idx = Config.WeightFor(0)
+	check(idx == 1 and Config.WeightFor(35) == 2 and Config.WeightFor(10 ^ 7) == #Config.Weights, "weight tiers follow Power")
+	local pad = Config.GymPadLocal
+	check(math.abs(pad.X) < 14 and math.abs(pad.Z) < 13, "the LIFT pad sits inside the gym floor")
 	fireAll("Action", p1, "TrainCancel"); advance(0.2)
 	a1.Training = false
 	-- rebirth is level based and keeps hammers

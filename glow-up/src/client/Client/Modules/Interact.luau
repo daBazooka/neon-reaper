@@ -132,6 +132,15 @@ local function trigger()
 	end
 end
 
+-- The big "use" button (the tutorial points at it) and whether it is showing right now.
+function Interact.button()
+	return button and button.Visible and button or nil
+end
+
+function Interact.current()
+	return current and current.id or nil
+end
+
 function Interact.init(gui, Action, Menu)
 	menu = Menu
 	actionFn = function(id)

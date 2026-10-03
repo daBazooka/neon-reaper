@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local GymEquipment = require(script.Parent.GymEquipment)
 
 local Decor = {}
 
@@ -124,25 +125,7 @@ end
 local WOODC = C3(120, 84, 58)
 
 local function gymProps(parent, cf)
-	-- rubber floor mat, squat rack, kettlebells, a plate tree and a pull-up frame
-	block(parent, "RubberMat", Vector3.new(12, 0.07, 9), cf * CFrame.new(9, 0.95, 5), C3(36, 36, 40), M.Rubber)
-	for side = -1, 1, 2 do
-		block(parent, "RackUpright", Vector3.new(0.5, 8, 0.5), cf * CFrame.new(9 + side * 2.2, 4.9, 5), C3(50, 52, 60), M.Metal, { CanCollide = true })
-		block(parent, "RackFoot", Vector3.new(0.6, 0.4, 4), cf * CFrame.new(9 + side * 2.2, 1.1, 5), C3(50, 52, 60), M.Metal)
-	end
-	block(parent, "RackTop", Vector3.new(5.2, 0.5, 0.5), cf * CFrame.new(9, 8.9, 5), C3(50, 52, 60), M.Metal)
-	block(parent, "SquatBar", Vector3.new(7, 0.3, 0.3), cf * CFrame.new(9, 6.4, 5), C3(210, 214, 222), M.Metal)
-	for side = -1, 1, 2 do
-		part(parent, { Name = "BarPlate", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 2.4, 2.4), CFrame = cf * CFrame.new(9 + side * 3.1, 6.4, 5) * CFrame.Angles(0, 0, math.pi / 2), Color = C3(30, 30, 34), Material = M.Metal })
-	end
-	for i = 1, 5 do
-		local x, z = -13, -4 + i * 2.2
-		part(parent, { Name = "Kettlebell", Shape = Enum.PartType.Ball, Size = Vector3.one * (1.1 + i * 0.12), CFrame = cf * CFrame.new(x, 1.7 + i * 0.05, z), Color = i % 2 == 0 and C3(210, 60, 50) or C3(40, 40, 46), Material = M.Metal })
-		part(parent, { Name = "KettlebellHandle", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.18, 0.9, 0.9), CFrame = cf * CFrame.new(x, 2.5 + i * 0.1, z) * CFrame.Angles(0, 0, math.pi / 2), Color = C3(40, 40, 46), Material = M.Metal })
-	end
-	for i = 1, 4 do
-		part(parent, { Name = "WallPlate", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 2.6 - i * 0.25, 2.6 - i * 0.25), CFrame = cf * CFrame.new(14.6, 3 + i * 1.5, -5) * CFrame.Angles(0, 0, 0), Color = i % 2 == 0 and C3(210, 60, 50) or C3(30, 30, 34), Material = M.Metal })
-	end
+	GymEquipment.build(parent, cf)
 end
 
 local function studioProps(parent, cf)

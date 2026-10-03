@@ -84,3 +84,12 @@ and `python3 tests/preview/animate_test.py` animates every animal for hundreds o
 
 ## Clean view
 There are no floating pickups, no big stage roof or banners, and world labels are small and only show up close. The Rewards window has FREE / Timed / Daily tabs.
+
+## Real gym training
+Pressing the Gym button makes your character pick up real dumbbells (5 kg up to 100 kg, bigger and a new colour as Power grows) and do a visible curl, press or raise after every rep. The Style Studio gives you a hand mirror and the Charm Lounge a rose. The gym has a 16-pair dumbbell rack, bench press, squat rack, cable machine, plate trees, kettlebells, a punching bag, a mirror wall and a glowing LIFT pad.
+
+## First entry is silent
+A new player sees no banners, cards or voice. Only bouncing arrows, a trail of glowing dots on the ground, a pulsing hand where to click, and an arrow on the button to press.
+
+## Tests
+`sh tests/run_all.sh` builds and runs the server, client and lift tests, the static checks and the animal animation test.

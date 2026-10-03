@@ -189,14 +189,6 @@ function Guide.init(gui, action)
 		Audio.click()
 		Guide.close()
 	end)
-
-	-- First visit: show it once everything has loaded.
-	task.spawn(function()
-		task.wait(1.2)
-		if player:GetAttribute("GuideSeen") ~= true then
-			Guide.open()
-		end
-	end)
 end
 
 return Guide

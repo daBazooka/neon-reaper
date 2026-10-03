@@ -128,6 +128,38 @@ Config.Stats = {
 	Charm = { Name = "Charm", Icon = "✨", Station = "CHARM LOUNGE", Color = Color3.fromRGB(90, 214, 255) },
 }
 Config.TrainReps = 5
+-- What your character holds while training. The weight tier follows your Power stat (heavier = bigger plates).
+Config.TrainProps = {
+	Power = { Item = "Dumbbells", Verb = "LIFTING" },
+	Style = { Item = "Hand Mirror", Verb = "STYLING" },
+	Charm = { Item = "Red Rose", Verb = "CHARMING" },
+}
+Config.Weights = {
+	{ Power = 0, Kg = 5, Name = "Starter", Color = C(150, 155, 165), Scale = 0.9 },
+	{ Power = 30, Kg = 10, Name = "Iron", Color = C(90, 95, 110), Scale = 1.0 },
+	{ Power = 100, Kg = 20, Name = "Steel", Color = C(70, 130, 230), Scale = 1.1 },
+	{ Power = 300, Kg = 30, Name = "Titan", Color = C(80, 200, 110), Scale = 1.2 },
+	{ Power = 800, Kg = 45, Name = "Gold", Color = C(255, 200, 50), Scale = 1.3 },
+	{ Power = 2000, Kg = 60, Name = "Crimson", Color = C(230, 60, 70), Scale = 1.4 },
+	{ Power = 5000, Kg = 80, Name = "Royal", Color = C(160, 100, 255), Scale = 1.5 },
+	{ Power = 15000, Kg = 100, Name = "Neon", Color = C(80, 255, 230), Scale = 1.6, Neon = true },
+}
+function Config.WeightFor(power)
+	local best = 1
+	for i, w in Config.Weights do
+		if (power or 0) >= w.Power then
+			best = i
+		end
+	end
+	return best, Config.Weights[best]
+end
+-- Where the glowing LIFT pad sits inside the gym (local to the gym's frame: x right, y up, z toward the back wall).
+Config.GymPadLocal = Vector3.new(0, 1.2, 3)
+function Config.GymPadPos()
+	local pos, inward = Config.StationPos("Gym"), Config.StationFront("Gym")
+	local cf = CFrame.lookAt(pos, pos + inward)
+	return (cf * CFrame.new(Config.GymPadLocal)).Position
+end
 Config.StatScore = 5 -- Glow Score per stat point
 
 --------------------------------------------------------------------------------
@@ -434,9 +466,9 @@ end
 --------------------------------------------------------------------------------
 Config.HammerRadius = 8
 Config.Interactables = {
-	{ Id = "Gym", Object = "Gym", Action = "Train Power", Pos = "station:Gym", Radius = 17, Building = "gym" },
-	{ Id = "Studio", Object = "Style Studio", Action = "Train Style", Pos = "station:Studio", Radius = 17, Building = "studio" },
-	{ Id = "Lounge", Object = "Charm Lounge", Action = "Train Charm", Pos = "station:Lounge", Radius = 17, Building = "lounge" },
+	{ Id = "Gym", Object = "Gym", Action = "Lift weights", Pos = "station:Gym", Radius = 17, Building = "gym" },
+	{ Id = "Studio", Object = "Style Studio", Action = "Style yourself", Pos = "station:Studio", Radius = 17, Building = "studio" },
+	{ Id = "Lounge", Object = "Charm Lounge", Action = "Practise charm", Pos = "station:Lounge", Radius = 17, Building = "lounge" },
 	{ Id = "Crates", Object = "Crate Shop", Action = "Open crates", Pos = "station:Crates", Radius = 16, Building = "crates" },
 	{ Id = "Ring", Object = "Duel Ring", Action = "Find a duel", Pos = "station:Ring", Radius = 24, Building = "ring" },
 	{ Id = "Bot", Object = "Mogger Bot", Action = "Duel the bot", Pos = "bot", Radius = 9, Building = "ring" },

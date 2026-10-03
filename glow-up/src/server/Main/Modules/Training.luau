@@ -8,6 +8,7 @@ local Util = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
 local Quests = require(script.Parent.Quests)
+local Lift = require(script.Parent.Lift)
 
 local Training = {}
 
@@ -83,11 +84,17 @@ resolve = function(p, session, grade)
 		nextRep = newRep(session)
 		armTimeout(p, session)
 	end
+	Lift.rep(p, grade, session.rep - (done and 0 or 1))
 	Stats.send(p, "trainRep", session.rep - (done and 0 or 1), grade, gain, session.streak, nextRep)
 	if done then
 		Stats.send(p, "trainEnd", session.stat, session.total)
 		sessions[p] = nil
 		p:SetAttribute("Training", false)
+		task.delay(1.1, function()
+			if not sessions[p] then
+				Lift.stop(p)
+			end
+		end)
 	end
 end
 
@@ -107,9 +114,10 @@ function Training.start(p, stat)
 	}
 	sessions[p] = session
 	p:SetAttribute("Training", true)
+	Lift.begin(p, stat)
 	local cfg = newRep(session)
 	armTimeout(p, session)
-	Stats.send(p, "trainStart", stat, cfg)
+	Stats.send(p, "trainStart", stat, cfg, p:GetAttribute("LiftKg"), p:GetAttribute("LiftTier"))
 end
 
 function Training.cancel(p)
@@ -118,6 +126,7 @@ function Training.cancel(p)
 		p:SetAttribute("Training", false)
 		Stats.send(p, "trainEnd", nil, 0)
 	end
+	Lift.stop(p)
 end
 
 function Training.hit(p, clientTime)
@@ -159,6 +168,7 @@ end
 
 function Training.release(p)
 	sessions[p] = nil
+	Lift.stop(p)
 end
 
 function Training.handle(p, kind, a)

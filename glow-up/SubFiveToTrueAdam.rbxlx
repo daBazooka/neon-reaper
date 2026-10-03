@@ -1247,6 +1247,38 @@ Config.Stats = {
 	Charm = { Name = "Charm", Icon = "✨", Station = "CHARM LOUNGE", Color = Color3.fromRGB(90, 214, 255) },
 }
 Config.TrainReps = 5
+-- What your character holds while training. The weight tier follows your Power stat (heavier = bigger plates).
+Config.TrainProps = {
+	Power = { Item = "Dumbbells", Verb = "LIFTING" },
+	Style = { Item = "Hand Mirror", Verb = "STYLING" },
+	Charm = { Item = "Red Rose", Verb = "CHARMING" },
+}
+Config.Weights = {
+	{ Power = 0, Kg = 5, Name = "Starter", Color = C(150, 155, 165), Scale = 0.9 },
+	{ Power = 30, Kg = 10, Name = "Iron", Color = C(90, 95, 110), Scale = 1.0 },
+	{ Power = 100, Kg = 20, Name = "Steel", Color = C(70, 130, 230), Scale = 1.1 },
+	{ Power = 300, Kg = 30, Name = "Titan", Color = C(80, 200, 110), Scale = 1.2 },
+	{ Power = 800, Kg = 45, Name = "Gold", Color = C(255, 200, 50), Scale = 1.3 },
+	{ Power = 2000, Kg = 60, Name = "Crimson", Color = C(230, 60, 70), Scale = 1.4 },
+	{ Power = 5000, Kg = 80, Name = "Royal", Color = C(160, 100, 255), Scale = 1.5 },
+	{ Power = 15000, Kg = 100, Name = "Neon", Color = C(80, 255, 230), Scale = 1.6, Neon = true },
+}
+function Config.WeightFor(power)
+	local best = 1
+	for i, w in Config.Weights do
+		if (power or 0) >= w.Power then
+			best = i
+		end
+	end
+	return best, Config.Weights[best]
+end
+-- Where the glowing LIFT pad sits inside the gym (local to the gym's frame: x right, y up, z toward the back wall).
+Config.GymPadLocal = Vector3.new(0, 1.2, 3)
+function Config.GymPadPos()
+	local pos, inward = Config.StationPos("Gym"), Config.StationFront("Gym")
+	local cf = CFrame.lookAt(pos, pos + inward)
+	return (cf * CFrame.new(Config.GymPadLocal)).Position
+end
 Config.StatScore = 5 -- Glow Score per stat point
 
 --------------------------------------------------------------------------------
@@ -1553,9 +1585,9 @@ end
 --------------------------------------------------------------------------------
 Config.HammerRadius = 8
 Config.Interactables = {
-	{ Id = "Gym", Object = "Gym", Action = "Train Power", Pos = "station:Gym", Radius = 17, Building = "gym" },
-	{ Id = "Studio", Object = "Style Studio", Action = "Train Style", Pos = "station:Studio", Radius = 17, Building = "studio" },
-	{ Id = "Lounge", Object = "Charm Lounge", Action = "Train Charm", Pos = "station:Lounge", Radius = 17, Building = "lounge" },
+	{ Id = "Gym", Object = "Gym", Action = "Lift weights", Pos = "station:Gym", Radius = 17, Building = "gym" },
+	{ Id = "Studio", Object = "Style Studio", Action = "Style yourself", Pos = "station:Studio", Radius = 17, Building = "studio" },
+	{ Id = "Lounge", Object = "Charm Lounge", Action = "Practise charm", Pos = "station:Lounge", Radius = 17, Building = "lounge" },
 	{ Id = "Crates", Object = "Crate Shop", Action = "Open crates", Pos = "station:Crates", Radius = 16, Building = "crates" },
 	{ Id = "Ring", Object = "Duel Ring", Action = "Find a duel", Pos = "station:Ring", Radius = 24, Building = "ring" },
 	{ Id = "Bot", Object = "Mogger Bot", Action = "Duel the bot", Pos = "bot", Radius = 9, Building = "ring" },
@@ -4268,6 +4300,7 @@ return Data
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local GymEquipment = require(script.Parent.GymEquipment)
 
 local Decor = {}
 
@@ -4389,25 +4422,7 @@ end
 local WOODC = C3(120, 84, 58)
 
 local function gymProps(parent, cf)
-	-- rubber floor mat, squat rack, kettlebells, a plate tree and a pull-up frame
-	block(parent, "RubberMat", Vector3.new(12, 0.07, 9), cf * CFrame.new(9, 0.95, 5), C3(36, 36, 40), M.Rubber)
-	for side = -1, 1, 2 do
-		block(parent, "RackUpright", Vector3.new(0.5, 8, 0.5), cf * CFrame.new(9 + side * 2.2, 4.9, 5), C3(50, 52, 60), M.Metal, { CanCollide = true })
-		block(parent, "RackFoot", Vector3.new(0.6, 0.4, 4), cf * CFrame.new(9 + side * 2.2, 1.1, 5), C3(50, 52, 60), M.Metal)
-	end
-	block(parent, "RackTop", Vector3.new(5.2, 0.5, 0.5), cf * CFrame.new(9, 8.9, 5), C3(50, 52, 60), M.Metal)
-	block(parent, "SquatBar", Vector3.new(7, 0.3, 0.3), cf * CFrame.new(9, 6.4, 5), C3(210, 214, 222), M.Metal)
-	for side = -1, 1, 2 do
-		part(parent, { Name = "BarPlate", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 2.4, 2.4), CFrame = cf * CFrame.new(9 + side * 3.1, 6.4, 5) * CFrame.Angles(0, 0, math.pi / 2), Color = C3(30, 30, 34), Material = M.Metal })
-	end
-	for i = 1, 5 do
-		local x, z = -13, -4 + i * 2.2
-		part(parent, { Name = "Kettlebell", Shape = Enum.PartType.Ball, Size = Vector3.one * (1.1 + i * 0.12), CFrame = cf * CFrame.new(x, 1.7 + i * 0.05, z), Color = i % 2 == 0 and C3(210, 60, 50) or C3(40, 40, 46), Material = M.Metal })
-		part(parent, { Name = "KettlebellHandle", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.18, 0.9, 0.9), CFrame = cf * CFrame.new(x, 2.5 + i * 0.1, z) * CFrame.Angles(0, 0, math.pi / 2), Color = C3(40, 40, 46), Material = M.Metal })
-	end
-	for i = 1, 4 do
-		part(parent, { Name = "WallPlate", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 2.6 - i * 0.25, 2.6 - i * 0.25), CFrame = cf * CFrame.new(14.6, 3 + i * 1.5, -5) * CFrame.Angles(0, 0, 0), Color = i % 2 == 0 and C3(210, 60, 50) or C3(30, 30, 34), Material = M.Metal })
-	end
+	GymEquipment.build(parent, cf)
 end
 
 local function studioProps(parent, cf)
@@ -4948,6 +4963,372 @@ return Events
         </Item>
         <Item class="ModuleScript" referent="27">
           <Properties>
+            <string name="Name">GymEquipment</string>
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: everything you would find in a real gym, built from parts: a big dumbbell rack (5 kg to 100 kg),
+-- bench press, squat rack, cable machine, plate trees, kettlebells, a punching bag, mirrors and a glowing LIFT pad in
+-- the middle where training happens. All local to the gym's frame `cf` (floor top at y = 0.9, entrance toward -Z).
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+
+local GymEquipment = {}
+
+local M = Enum.Material
+local C3 = Color3.fromRGB
+local CYL, BALL = Enum.PartType.Cylinder, Enum.PartType.Ball
+local FLOOR = 0.9
+
+local STEEL = C3(205, 210, 220)
+local DARKSTEEL = C3(58, 60, 70)
+local BLACK = C3(30, 30, 36)
+local RED = C3(210, 55, 50)
+local YELLOW = C3(255, 214, 70)
+
+local function make(parent, props)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false -- decoration never blocks players or the camera
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Material = M.SmoothPlastic
+	for k, v in props do
+		p[k] = v
+	end
+	p.Parent = parent
+	return p
+end
+
+local function box(parent, name, size, cf, color, material, extra)
+	local props = { Name = name, Size = size, CFrame = cf, Color = color, Material = material or M.SmoothPlastic }
+	if extra then
+		for k, v in extra do
+			props[k] = v
+		end
+	end
+	return make(parent, props)
+end
+
+-- Cylinder whose long axis is cf's X axis (pass cf * CFrame.Angles(0, 0, math.pi / 2) for an upright one).
+local function cyl(parent, name, cf, length, diameter, color, material, extra)
+	local props = { Name = name, Shape = CYL, Size = Vector3.new(length, diameter, diameter), CFrame = cf, Color = color, Material = material or M.Metal }
+	if extra then
+		for k, v in extra do
+			props[k] = v
+		end
+	end
+	return make(parent, props)
+end
+
+local function upright(parent, name, cf, height, diameter, color, material)
+	return cyl(parent, name, cf * CFrame.Angles(0, 0, math.pi / 2), height, diameter, color, material)
+end
+
+local function ball(parent, name, cf, diameter, color, material)
+	return make(parent, { Name = name, Shape = BALL, Size = Vector3.one * diameter, CFrame = cf, Color = color, Material = material or M.Metal })
+end
+
+-- A cylinder stretched between two world points (cables, chains).
+local function rod(parent, name, a, b, thickness, color, material)
+	local length = (a - b).Magnitude
+	if length < 0.05 then
+		return nil
+	end
+	return cyl(parent, name, CFrame.lookAt((a + b) / 2, b) * CFrame.Angles(0, math.pi / 2, 0), length, thickness, color, material or M.Metal)
+end
+
+local function surfaceText(part, face, text, color, size, scaled)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = face
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.LightInfluence = 0.3
+	gui.Parent = part
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBlack
+	label.TextScaled = scaled ~= false
+	label.TextSize = size or 24
+	label.TextColor3 = color or C3(255, 255, 255)
+	label.Text = text
+	label.Parent = gui
+	return label
+end
+
+local function glow(parent, color, range, brightness)
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = range
+	light.Brightness = brightness
+	light.Parent = parent
+	return light
+end
+
+--------------------------------------------------------------------------------
+-- Dumbbell rack on the back wall: 16 pairs from 5 kg to 100 kg, bigger heads and a new colour every step
+--------------------------------------------------------------------------------
+local RACK_KG = { 5, 7.5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100 }
+
+local function dumbbell(parent, at, headDiameter, color, neon)
+	local material = neon and M.Neon or M.Metal
+	cyl(parent, "DumbbellHandle", at, 1.5, 0.22, STEEL, M.Metal)
+	for _, side in { -1, 1 } do
+		cyl(parent, "DumbbellHead", at * CFrame.new(side * 0.62, 0, 0), 0.5, headDiameter, color, material)
+		cyl(parent, "DumbbellCap", at * CFrame.new(side * 0.92, 0, 0), 0.18, headDiameter * 0.5, STEEL, M.Metal)
+	end
+end
+
+local function dumbbellRack(parent, cf)
+	local z = 13.0
+	for _, x in { -11.2, 11.2 } do
+		box(parent, "RackUpright", Vector3.new(0.6, 7.2, 1.9), cf * CFrame.new(x, FLOOR + 3.6, z), DARKSTEEL, M.Metal)
+		box(parent, "RackFoot", Vector3.new(0.9, 0.3, 2.6), cf * CFrame.new(x, FLOOR + 0.15, z), BLACK, M.Metal)
+	end
+	box(parent, "RackTopBar", Vector3.new(23, 0.5, 0.6), cf * CFrame.new(0, FLOOR + 7.0, z + 0.5), RED, M.Metal)
+	local trays = { FLOOR + 1.0, FLOOR + 3.7 }
+	for row, trayY in trays do
+		box(parent, "RackTray", Vector3.new(22.4, 0.3, 2.0), cf * CFrame.new(0, trayY, z), DARKSTEEL, M.Metal)
+		local strip = box(parent, "RackLabelStrip", Vector3.new(22.4, 0.8, 0.2), cf * CFrame.new(0, trayY - 0.5, z - 1.0), BLACK, M.SmoothPlastic)
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = Enum.NormalId.Front
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 40
+		gui.Parent = strip
+		for col = 1, 8 do
+			local j = (row - 1) * 8 + col
+			local lbl = Instance.new("TextLabel")
+			lbl.Position = UDim2.fromScale((col - 1) / 8, 0)
+			lbl.Size = UDim2.fromScale(1 / 8, 1)
+			lbl.BackgroundTransparency = 1
+			lbl.Font = Enum.Font.GothamBlack
+			lbl.TextScaled = true
+			lbl.TextColor3 = YELLOW
+			lbl.Text = tostring(RACK_KG[j])
+			lbl.Parent = gui
+		end
+	end
+	for row, trayY in trays do
+		for col = 1, 8 do
+			local j = (row - 1) * 8 + col
+			local tier = Config.Weights[math.min(#Config.Weights, math.ceil(j / 2))]
+			local d = row == 1 and (0.8 + 0.13 * col) or (1.5 + 0.1 * col)
+			local x = -9.8 + (col - 1) * 2.8
+			dumbbell(parent, cf * CFrame.new(x, trayY + 0.15 + d / 2, z), d, tier.Color, tier.Neon)
+		end
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Mirror wall with a neon slogan
+--------------------------------------------------------------------------------
+local function mirrorWall(parent, cf)
+	local z = 14.82
+	box(parent, "MirrorGlass", Vector3.new(24, 9.2, 0.15), cf * CFrame.new(0, FLOOR + 4.9, z), C3(190, 215, 235), M.Glass, { Transparency = 0.35, Reflectance = 0.35 })
+	for _, y in { FLOOR + 0.2, FLOOR + 9.6 } do
+		box(parent, "MirrorFrame", Vector3.new(24.6, 0.4, 0.3), cf * CFrame.new(0, y, z - 0.05), RED, M.Metal)
+	end
+	for _, x in { -12.2, 12.2 } do
+		box(parent, "MirrorFrame", Vector3.new(0.4, 9.8, 0.3), cf * CFrame.new(x, FLOOR + 4.9, z - 0.05), RED, M.Metal)
+	end
+	local sign = box(parent, "NeonSign", Vector3.new(15, 1.7, 0.2), cf * CFrame.new(0, FLOOR + 11.3, z - 0.1), C3(25, 10, 12), M.SmoothPlastic)
+	surfaceText(sign, Enum.NormalId.Front, "NO PAIN  ·  NO GAIN", C3(255, 90, 80))
+	glow(sign, C3(255, 90, 80), 22, 0.8)
+end
+
+--------------------------------------------------------------------------------
+-- The glowing LIFT pad: a wooden platform with a neon dumbbell inlaid in the rubber
+--------------------------------------------------------------------------------
+local function liftPad(parent, cf)
+	local c = cf * CFrame.new(Config.GymPadLocal.X, 0, Config.GymPadLocal.Z)
+	box(parent, "LiftPlatform", Vector3.new(12, 0.3, 12), c * CFrame.new(0, FLOOR + 0.15, 0), C3(150, 108, 70), M.WoodPlanks)
+	box(parent, "LiftRubber", Vector3.new(10.4, 0.06, 10.4), c * CFrame.new(0, FLOOR + 0.32, 0), C3(32, 32, 38), M.Rubber)
+	local top = FLOOR + 0.37
+	for _, s in { -1, 1 } do
+		box(parent, "PadBorder", Vector3.new(11.2, 0.06, 0.35), c * CFrame.new(0, top, s * 5.4), YELLOW, M.Neon)
+		box(parent, "PadBorder", Vector3.new(0.35, 0.06, 10.5), c * CFrame.new(s * 5.4, top, 0), YELLOW, M.Neon)
+	end
+	-- the inlaid dumbbell (identical from every side, so it never reads upside down)
+	box(parent, "PadHandle", Vector3.new(4.2, 0.06, 0.55), c * CFrame.new(0, top, 0), YELLOW, M.Neon)
+	for _, s in { -1, 1 } do
+		box(parent, "PadHead", Vector3.new(0.9, 0.06, 3.2), c * CFrame.new(s * 2.2, top, 0), YELLOW, M.Neon)
+		box(parent, "PadHead", Vector3.new(0.6, 0.06, 2.2), c * CFrame.new(s * 3.0, top, 0), YELLOW, M.Neon)
+	end
+	local lamp = box(parent, "PadLight", Vector3.one * 0.4, c * CFrame.new(0, FLOOR + 6, 0), YELLOW, M.Neon, { Transparency = 1 })
+	glow(lamp, YELLOW, 28, 1.2)
+end
+
+--------------------------------------------------------------------------------
+-- Bench press (left side)
+--------------------------------------------------------------------------------
+local function plateSet(parent, at, side, sizes)
+	local x = 2.7
+	for i, d in sizes do
+		local colour = i == 1 and RED or (i == 2 and C3(60, 110, 220) or BLACK)
+		cyl(parent, "BarPlate", at * CFrame.new(side * x, 0, 0), 0.42, d, colour, M.Metal)
+		x += 0.5
+	end
+	cyl(parent, "BarCollar", at * CFrame.new(side * (x + 0.05), 0, 0), 0.22, 0.6, STEEL, M.Metal)
+end
+
+local function benchPress(parent, cf)
+	local c = cf * CFrame.new(-8.6, 0, -3)
+	box(parent, "BenchPad", Vector3.new(1.5, 0.55, 5.6), c * CFrame.new(0, FLOOR + 1.95, 0), BLACK, M.Leather)
+	box(parent, "BenchStripe", Vector3.new(0.3, 0.57, 5.6), c * CFrame.new(0, FLOOR + 1.96, 0), RED, M.Leather)
+	for _, z in { -2.2, 2.2 } do
+		box(parent, "BenchLeg", Vector3.new(2.4, 0.3, 0.4), c * CFrame.new(0, FLOOR + 0.15, z), DARKSTEEL, M.Metal)
+		box(parent, "BenchPost", Vector3.new(0.4, 1.6, 0.4), c * CFrame.new(0, FLOOR + 1.1, z), DARKSTEEL, M.Metal)
+	end
+	for _, x in { -2.0, 2.0 } do
+		box(parent, "BenchUpright", Vector3.new(0.5, 4.2, 0.5), c * CFrame.new(x, FLOOR + 2.1, 2.9), DARKSTEEL, M.Metal)
+		box(parent, "BenchHook", Vector3.new(0.6, 0.25, 0.9), c * CFrame.new(x, FLOOR + 3.55, 2.65), RED, M.Metal)
+		box(parent, "BenchFoot", Vector3.new(0.7, 0.3, 2.4), c * CFrame.new(x, FLOOR + 0.15, 2.9), BLACK, M.Metal)
+	end
+	local bar = c * CFrame.new(0, FLOOR + 3.85, 2.65)
+	cyl(parent, "Barbell", bar, 7.4, 0.24, STEEL, M.Metal)
+	for _, side in { -1, 1 } do
+		plateSet(parent, bar, side, { 3.0, 2.6, 2.1 })
+	end
+	box(parent, "BenchMat", Vector3.new(7, 0.06, 8.6), c * CFrame.new(0, FLOOR + 0.05, 0), C3(40, 40, 46), M.Rubber)
+end
+
+--------------------------------------------------------------------------------
+-- Squat rack (right side)
+--------------------------------------------------------------------------------
+local function squatRack(parent, cf)
+	local c = cf * CFrame.new(9.6, 0, 6)
+	box(parent, "SquatMat", Vector3.new(10.5, 0.06, 8), c * CFrame.new(0, FLOOR + 0.05, 0), C3(38, 38, 44), M.Rubber)
+	box(parent, "SquatWood", Vector3.new(8.4, 0.12, 5), c * CFrame.new(0, FLOOR + 0.11, 0), C3(150, 108, 70), M.WoodPlanks)
+	for _, side in { -1, 1 } do
+		box(parent, "RackUpright", Vector3.new(0.6, 8.4, 0.6), c * CFrame.new(side * 2.6, FLOOR + 4.2, 0), DARKSTEEL, M.Metal)
+		box(parent, "RackFoot", Vector3.new(0.8, 0.3, 4), c * CFrame.new(side * 2.6, FLOOR + 0.15, 0), BLACK, M.Metal)
+		box(parent, "RackHook", Vector3.new(0.7, 0.25, 1.0), c * CFrame.new(side * 2.6, FLOOR + 5.9, -0.7), RED, M.Metal)
+		box(parent, "SafetyArm", Vector3.new(0.5, 0.25, 2.2), c * CFrame.new(side * 2.6, FLOOR + 2.4, -1.0), RED, M.Metal)
+	end
+	box(parent, "RackTop", Vector3.new(5.8, 0.6, 0.6), c * CFrame.new(0, FLOOR + 8.4, 0), RED, M.Metal)
+	local bar = c * CFrame.new(0, FLOOR + 6.2, -0.7)
+	cyl(parent, "SquatBar", bar, 7.6, 0.24, STEEL, M.Metal)
+	for _, side in { -1, 1 } do
+		plateSet(parent, bar, side, { 3.2, 2.8, 2.4, 2.0 })
+	end
+	-- chalk bucket
+	cyl(parent, "ChalkBucket", c * CFrame.new(4.4, FLOOR + 0.9, 2.2) * CFrame.Angles(0, 0, math.pi / 2), 1.6, 1.3, C3(240, 240, 245), M.SmoothPlastic)
+	cyl(parent, "ChalkTop", c * CFrame.new(4.4, FLOOR + 1.75, 2.2) * CFrame.Angles(0, 0, math.pi / 2), 0.2, 1.1, C3(250, 250, 255), M.Sand)
+end
+
+--------------------------------------------------------------------------------
+-- Cable crossover machine (right wall, near the door)
+--------------------------------------------------------------------------------
+local function cableMachine(parent, cf)
+	local base = cf * CFrame.new(11.4, 0, -9)
+	local points = {}
+	for _, side in { -1, 1 } do
+		local tower = base * CFrame.new(side * 3.7, 0, 0)
+		box(parent, "CableTower", Vector3.new(1.7, 10.4, 0.5), tower * CFrame.new(0, FLOOR + 5.2, 0.9), DARKSTEEL, M.Metal)
+		box(parent, "CableTowerSide", Vector3.new(0.4, 10.4, 1.8), tower * CFrame.new(-0.65, FLOOR + 5.2, 0), DARKSTEEL, M.Metal)
+		box(parent, "CableTowerSide", Vector3.new(0.4, 10.4, 1.8), tower * CFrame.new(0.65, FLOOR + 5.2, 0), DARKSTEEL, M.Metal)
+		box(parent, "CableBase", Vector3.new(2.2, 0.4, 2.8), tower * CFrame.new(0, FLOOR + 0.2, 0), BLACK, M.Metal)
+		for i = 1, 11 do
+			local colour = i <= 4 and C3(220, 70, 60) or (i <= 8 and C3(70, 120, 225) or C3(235, 195, 60))
+			box(parent, "WeightSlab", Vector3.new(0.9, 0.5, 1.3), tower * CFrame.new(0, FLOOR + 0.7 + i * 0.62, 0), colour, M.Metal)
+		end
+		cyl(parent, "Pulley", tower * CFrame.new(0, FLOOR + 9.6, -0.5), 0.3, 0.9, STEEL, M.Metal)
+		cyl(parent, "Pulley", tower * CFrame.new(0, FLOOR + 3.2, -1.0), 0.3, 0.9, STEEL, M.Metal)
+		local handle = base * CFrame.new(side * 1.2, FLOOR + 4.3, -2.6)
+		box(parent, "CableHandle", Vector3.new(1.2, 0.2, 0.2), handle, STEEL, M.Metal)
+		table.insert(points, { top = (tower * CFrame.new(0, FLOOR + 9.6, -0.5)).Position, handle = handle.Position })
+	end
+	for _, pt in points do
+		rod(parent, "Cable", pt.top, pt.handle, 0.08, C3(90, 92, 100), M.Metal)
+	end
+	box(parent, "CableCrossbar", Vector3.new(8.4, 0.6, 0.6), base * CFrame.new(0, FLOOR + 10.5, 0.2), RED, M.Metal)
+end
+
+--------------------------------------------------------------------------------
+-- Left wall: kettlebell shelf, plate stacks, water cooler, punching bag
+--------------------------------------------------------------------------------
+local function kettlebells(parent, cf)
+	box(parent, "KettlebellShelf", Vector3.new(1.8, 1.0, 10), cf * CFrame.new(-14.4, FLOOR + 0.5, 3.6), C3(120, 84, 58), M.Wood)
+	for i = 1, 6 do
+		local z = -0.6 + i * 1.4
+		local d = 1.0 + i * 0.12
+		local colour = i % 2 == 0 and RED or BLACK
+		ball(parent, "Kettlebell", cf * CFrame.new(-14.4, FLOOR + 1.0 + d / 2, z), d, colour, M.Metal)
+		upright(parent, "KettlebellHandle", cf * CFrame.new(-14.4 + d * 0.38, FLOOR + 1.0 + d + 0.2, z), 0.7, 0.16, colour, M.Metal)
+		upright(parent, "KettlebellHandle", cf * CFrame.new(-14.4 - d * 0.38, FLOOR + 1.0 + d + 0.2, z), 0.7, 0.16, colour, M.Metal)
+		box(parent, "KettlebellGrip", Vector3.new(d * 0.9, 0.16, 0.16), cf * CFrame.new(-14.4, FLOOR + 1.0 + d + 0.52, z), colour, M.Metal)
+	end
+end
+
+local function plateTrees(parent, cf)
+	for n, z in { 11.0, 13.2 } do
+		local c = cf * CFrame.new(-14.2, 0, z)
+		upright(parent, "PlatePost", c * CFrame.new(0, FLOOR + 2.4, 0), 4.8, 0.3, STEEL, M.Metal)
+		cyl(parent, "PlateBase", c * CFrame.new(0, FLOOR + 0.1, 0) * CFrame.Angles(0, 0, math.pi / 2), 0.2, 2.6, BLACK, M.Metal)
+		for i = 1, 6 do
+			local d = 2.5 - (i % 3) * 0.2
+			local colour = (i + n) % 3 == 0 and RED or ((i + n) % 3 == 1 and C3(60, 110, 220) or BLACK)
+			cyl(parent, "StackPlate", c * CFrame.new(0, FLOOR + 0.2 + i * 0.52, 0) * CFrame.Angles(0, 0, math.pi / 2), 0.42, d, colour, M.Metal)
+		end
+	end
+end
+
+local function punchingBag(parent, cf)
+	local x, z = -8.6, -11.5
+	rod(parent, "BagChain", (cf * CFrame.new(x, 13.0, z)).Position, (cf * CFrame.new(x, 9.4, z)).Position, 0.14, C3(120, 124, 132), M.Metal)
+	upright(parent, "BagTop", cf * CFrame.new(x, 9.2, z), 0.4, 1.2, DARKSTEEL, M.Metal)
+	upright(parent, "PunchingBag", cf * CFrame.new(x, 6.6, z), 5.0, 2.2, C3(150, 40, 36), M.Leather)
+	upright(parent, "BagBand", cf * CFrame.new(x, 7.6, z), 0.5, 2.3, YELLOW, M.Fabric)
+	upright(parent, "BagBand", cf * CFrame.new(x, 5.6, z), 0.5, 2.3, YELLOW, M.Fabric)
+	upright(parent, "BagBottom", cf * CFrame.new(x, 4.0, z), 0.3, 1.9, BLACK, M.Leather)
+end
+
+local function waterCooler(parent, cf)
+	local x, z = -14.4, -12.5
+	box(parent, "CoolerBase", Vector3.new(1.7, 2.6, 1.7), cf * CFrame.new(x, FLOOR + 1.3, z), C3(235, 238, 245), M.SmoothPlastic)
+	box(parent, "CoolerTap", Vector3.new(0.5, 0.25, 0.4), cf * CFrame.new(x + 0.9, FLOOR + 2.0, z), C3(70, 130, 230), M.SmoothPlastic)
+	upright(parent, "CoolerJug", cf * CFrame.new(x, FLOOR + 3.7, z), 2.0, 1.3, C3(120, 190, 255), M.Glass)
+	upright(parent, "CoolerCap", cf * CFrame.new(x, FLOOR + 4.8, z), 0.3, 0.7, C3(70, 130, 230), M.SmoothPlastic)
+end
+
+-- A giant landmark dumbbell on the roof so the gym can be spotted from anywhere in the plaza.
+local function roofDumbbell(parent, cf)
+	local at = cf * CFrame.new(0, 23.5, 6)
+	cyl(parent, "GiantHandle", at, 13, 1.1, STEEL, M.Metal)
+	for _, side in { -1, 1 } do
+		cyl(parent, "GiantPlate", at * CFrame.new(side * 5.4, 0, 0), 1.6, 6.8, RED, M.Metal)
+		cyl(parent, "GiantPlate", at * CFrame.new(side * 6.6, 0, 0), 1.2, 5.2, BLACK, M.Metal)
+		cyl(parent, "GiantCap", at * CFrame.new(side * 7.5, 0, 0), 0.6, 2.6, YELLOW, M.Metal)
+	end
+	for _, x in { -3, 3 } do
+		box(parent, "GiantStand", Vector3.new(0.8, 9.2, 0.8), cf * CFrame.new(x, 18.95, 6), DARKSTEEL, M.Metal)
+	end
+end
+
+local function floorTape(parent, cf)
+	for _, z in { -13.2, -1.4 } do
+		box(parent, "FloorTape", Vector3.new(30, 0.04, 0.3), cf * CFrame.new(0, FLOOR + 0.03, z), YELLOW, M.SmoothPlastic)
+	end
+end
+
+function GymEquipment.build(parent, cf)
+	local folder = Instance.new("Folder")
+	folder.Name = "GymEquipment"
+	folder.Parent = parent
+	for _, build in { liftPad, dumbbellRack, mirrorWall, benchPress, squatRack, cableMachine, kettlebells, plateTrees, punchingBag, waterCooler, roofDumbbell, floorTape } do
+		local ok, err = pcall(build, folder, cf)
+		if not ok then
+			warn("[TrueAdam] gym equipment piece failed:", err)
+		end
+	end
+	return folder
+end
+
+return GymEquipment
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="28">
+          <Properties>
             <string name="Name">Hammers</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: click / tap to swing a hammer, plus buying and equipping hammers.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -5111,7 +5492,7 @@ return Hammers
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="28">
+        <Item class="ModuleScript" referent="29">
           <Properties>
             <string name="Name">Island</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the island. A bright voxel (LEGO-style) world: studded green lawns, tan brick paths with gold
@@ -5554,7 +5935,305 @@ return Island
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="29">
+        <Item class="ModuleScript" referent="30">
+          <Properties>
+            <string name="Name">Lift</string>
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: makes training look like training. While you train, your character really holds the thing
+-- (dumbbells in the gym, a hand mirror in the studio, a rose in the lounge) and performs a visible rep after every
+-- press: curls, overhead presses and front raises. The dumbbells get bigger and change colour as your Power grows.
+-- Everything is built from simple parts welded to the hands, so every player in the server sees it.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Data = require(script.Parent.Data)
+
+local Lift = {}
+
+local FOLDER = "LiftProps"
+local active = {} -- player -> entry
+
+-- Peak joint angles (radians) for each kind of rep; 0 = arms hanging down.
+local MOTIONS = {
+	curl = { time = 0.85, shoulder = 0.12, elbow = 2.05 },
+	press = { time = 1.0, shoulder = 2.75, elbow = 0.45 },
+	raise = { time = 0.9, shoulder = 1.6, elbow = 0.08 },
+	hair = { time = 0.9, shoulder = 2.2, elbow = 2.0, rightOnly = true },
+	toast = { time = 0.9, shoulder = 1.15, elbow = 1.7, rightOnly = true },
+}
+local PLAN = {
+	Power = { "curl", "press", "raise", "curl", "press" },
+	Style = { "hair" },
+	Charm = { "toast" },
+}
+local AMPLITUDE = { perfect = 1, good = 0.85, miss = 0.35 }
+
+local function motor(char, partName, jointName)
+	local part = char:FindFirstChild(partName)
+	local joint = part and part:FindFirstChild(jointName)
+	if joint and joint:IsA("Motor6D") then
+		return joint
+	end
+	return nil
+end
+
+-- Finds the arm joints for an R15 or R6 body.
+local function findJoints(char)
+	local joints = {}
+	for _, side in { "Right", "Left" } do
+		local shoulder = motor(char, side .. "UpperArm", side .. "Shoulder") or motor(char, "Torso", side .. " Shoulder")
+		local elbow = motor(char, side .. "LowerArm", side .. "Elbow")
+		joints[side] = { shoulder = shoulder, elbow = elbow, shoulderRest = shoulder and shoulder.C0, elbowRest = elbow and elbow.C0 }
+	end
+	return joints
+end
+
+local function hand(char, side)
+	local h = char:FindFirstChild(side .. "Hand")
+	if h then
+		return h, CFrame.new(0, -0.05, 0)
+	end
+	local arm = char:FindFirstChild(side .. " Arm")
+	if arm then
+		return arm, CFrame.new(0, -0.95, 0)
+	end
+	return nil, nil
+end
+
+local function piece(folder, hostPart, base, name, size, offset, color, material, shape, extra)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = size
+	p.Color = color
+	p.Material = material or Enum.Material.Metal
+	if shape then
+		p.Shape = shape
+	end
+	p.Anchored = false
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Massless = true
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	if extra then
+		for k, v in extra do
+			p[k] = v
+		end
+	end
+	p.Parent = folder
+	local weld = Instance.new("Weld")
+	weld.Part0 = hostPart
+	weld.Part1 = p
+	weld.C0 = base * offset
+	weld.Parent = p
+	return p
+end
+
+local CYL = Enum.PartType.Cylinder
+local BALL = Enum.PartType.Ball
+
+local function buildDumbbell(folder, host, base, tier)
+	local d = 0.95 * tier.Scale -- head diameter
+	local steel = Color3.fromRGB(205, 210, 220)
+	local material = tier.Neon and Enum.Material.Neon or Enum.Material.Metal
+	-- the handle runs left-right through the fist; a cylinder's long axis is its X axis
+	piece(folder, host, base, "Handle", Vector3.new(1.35, 0.2, 0.2), CFrame.new(), steel, Enum.Material.Metal, CYL)
+	for _, side in { -1, 1 } do
+		piece(folder, host, base, "Plate", Vector3.new(0.42, d, d), CFrame.new(side * 0.62, 0, 0), tier.Color, material, CYL)
+		piece(folder, host, base, "Cap", Vector3.new(0.18, d * 0.55, d * 0.55), CFrame.new(side * 0.88, 0, 0), steel, Enum.Material.Metal, CYL)
+	end
+end
+
+local function buildMirror(folder, host, base)
+	local gold = Color3.fromRGB(255, 205, 80)
+	piece(folder, host, base, "MirrorHandle", Vector3.new(1.1, 0.18, 0.18), CFrame.new(0, 0.45, 0) * CFrame.Angles(0, 0, math.pi / 2), gold, Enum.Material.Metal, CYL)
+	piece(folder, host, base, "MirrorRim", Vector3.new(0.14, 1.5, 1.5), CFrame.new(0, 1.05, 0) * CFrame.Angles(0, math.pi / 2, 0), gold, Enum.Material.Metal, CYL)
+	piece(folder, host, base, "MirrorGlass", Vector3.new(0.18, 1.25, 1.25), CFrame.new(0, 1.05, -0.03) * CFrame.Angles(0, math.pi / 2, 0), Color3.fromRGB(190, 230, 255), Enum.Material.Glass, CYL, { Reflectance = 0.5, Transparency = 0.1 })
+end
+
+local function buildRose(folder, host, base)
+	local green = Color3.fromRGB(60, 150, 70)
+	piece(folder, host, base, "RoseStem", Vector3.new(1.5, 0.12, 0.12), CFrame.new(0, 0.55, 0) * CFrame.Angles(0, 0, math.pi / 2), green, Enum.Material.SmoothPlastic, CYL)
+	piece(folder, host, base, "RoseBloom", Vector3.one * 0.55, CFrame.new(0, 1.35, 0), Color3.fromRGB(225, 40, 70), Enum.Material.SmoothPlastic, BALL)
+	piece(folder, host, base, "RoseHeart", Vector3.one * 0.32, CFrame.new(0, 1.5, 0), Color3.fromRGB(255, 110, 140), Enum.Material.SmoothPlastic, BALL)
+	for _, side in { -1, 1 } do
+		piece(folder, host, base, "RoseLeaf", Vector3.new(0.4, 0.06, 0.2), CFrame.new(side * 0.22, 0.75, 0) * CFrame.Angles(0, 0, side * 0.5), green, Enum.Material.SmoothPlastic)
+	end
+end
+
+-- The equipped hammer would clip through the dumbbells, so it turns invisible while you train.
+local function setHammerHidden(char, hidden)
+	local model = char and char:FindFirstChild("GlowHammer")
+	if not model then
+		return
+	end
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			if hidden then
+				if d:GetAttribute("LiftOrigT") == nil then
+					d:SetAttribute("LiftOrigT", d.Transparency)
+				end
+				d.Transparency = 1
+			else
+				local original = d:GetAttribute("LiftOrigT")
+				if original ~= nil then
+					d.Transparency = original
+					d:SetAttribute("LiftOrigT", nil)
+				end
+			end
+		end
+	end
+end
+
+local function restore(entry)
+	for _, j in entry.joints do
+		if j.shoulder and j.shoulder.Parent then
+			j.shoulder.C0 = j.shoulderRest
+		end
+		if j.elbow and j.elbow.Parent then
+			j.elbow.C0 = j.elbowRest
+		end
+	end
+end
+
+local function emitter(parent, name, color, speed, size, lifetime, accel)
+	local e = Instance.new("ParticleEmitter")
+	e.Name = name
+	e.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	e.Color = ColorSequence.new(color)
+	e.Size = NumberSequence.new(size)
+	e.Lifetime = NumberRange.new(lifetime * 0.7, lifetime)
+	e.Speed = NumberRange.new(speed * 0.6, speed)
+	e.SpreadAngle = Vector2.new(60, 60)
+	e.Acceleration = accel
+	e.LightEmission = 0.4
+	e.Rate = 0
+	e.Parent = parent
+	return e
+end
+
+-- Picks up the training prop for `stat` (also sets the attributes the training window shows).
+function Lift.begin(p, stat)
+	Lift.stop(p)
+	local char = p.Character
+	local profile = Data.get(p)
+	if not char or not profile or not Config.TrainProps[stat] then
+		return nil
+	end
+	local index, tier = Config.WeightFor(profile.Power)
+	local folder = Instance.new("Folder")
+	folder.Name = FOLDER
+	folder.Parent = char
+	local entry = { char = char, folder = folder, joints = findJoints(char), token = 0, count = 0, stat = stat, alive = true }
+	active[p] = entry
+	setHammerHidden(char, true)
+
+	for _, side in { "Right", "Left" } do
+		if stat == "Power" or side == "Right" then
+			local host, base = hand(char, side)
+			if host then
+				if stat == "Power" then
+					buildDumbbell(folder, host, base, tier)
+				elseif stat == "Style" then
+					buildMirror(folder, host, base)
+				else
+					buildRose(folder, host, base)
+				end
+			end
+		end
+	end
+
+	local head = char:FindFirstChild("Head")
+	local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+	if head then
+		entry.sweat = emitter(head, "Sweat", Color3.fromRGB(190, 225, 255), 9, 0.22, 0.7, Vector3.new(0, -40, 0))
+	end
+	if torso then
+		entry.sparks = emitter(torso, "RepSparks", Color3.fromRGB(255, 220, 90), 14, 0.5, 0.8, Vector3.new(0, -6, 0))
+	end
+	p:SetAttribute("LiftKg", tier.Kg)
+	p:SetAttribute("LiftTier", tier.Name)
+	p:SetAttribute("LiftIndex", index)
+	return entry
+end
+
+-- One visible rep. `grade` is "perfect", "good" or "miss" (a miss is a weak, wobbly rep).
+function Lift.rep(p, grade, repIndex)
+	local entry = active[p]
+	if not entry or not entry.alive then
+		return
+	end
+	local plan = PLAN[entry.stat] or PLAN.Power
+	local motion = MOTIONS[plan[(math.max(repIndex or 1, 1) - 1) % #plan + 1]]
+	local amp = AMPLITUDE[grade] or 0.6
+	entry.token += 1
+	local token = entry.token
+	if entry.sweat then
+		entry.sweat:Emit(grade == "miss" and 2 or 5)
+	end
+	if grade == "perfect" and entry.sparks then
+		entry.sparks:Emit(16)
+	end
+	task.spawn(function()
+		local t0 = os.clock()
+		while entry.alive and entry.token == token do
+			local a = (os.clock() - t0) / motion.time
+			if a >= 1 then
+				break
+			end
+			local k = math.sin(a * math.pi) * amp
+			if grade == "miss" then
+				k *= 1 + math.sin(a * 40) * 0.08 -- a shaky failed rep
+			end
+			for side, j in entry.joints do
+				if not (motion.rightOnly and side == "Left") then
+					if j.shoulder and j.shoulder.Parent then
+						j.shoulder.C0 = j.shoulderRest * CFrame.Angles(motion.shoulder * k, 0, 0)
+					end
+					if j.elbow and j.elbow.Parent then
+						j.elbow.C0 = j.elbowRest * CFrame.Angles(motion.elbow * k, 0, 0)
+					end
+				end
+			end
+			task.wait(1 / 30)
+		end
+		if entry.alive and entry.token == token then
+			restore(entry)
+		end
+	end)
+end
+
+function Lift.stop(p)
+	local entry = active[p]
+	if not entry then
+		return
+	end
+	active[p] = nil
+	entry.alive = false
+	restore(entry)
+	setHammerHidden(entry.char, false)
+	if entry.folder then
+		entry.folder:Destroy()
+	end
+	for _, name in { "sweat", "sparks" } do
+		if entry[name] then
+			entry[name]:Destroy()
+		end
+	end
+	p:SetAttribute("LiftKg", nil)
+	p:SetAttribute("LiftTier", nil)
+	p:SetAttribute("LiftIndex", nil)
+end
+
+function Lift.holding(p)
+	return active[p] ~= nil
+end
+
+return Lift
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="31">
           <Properties>
             <string name="Name">Nameplate</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the tag above every player. It says what they are (their looks tier)
@@ -5642,7 +6321,7 @@ return Nameplate
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="30">
+        <Item class="ModuleScript" referent="32">
           <Properties>
             <string name="Name">Pets</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: pets. Hatch eggs, equip up to 3; they follow you around (everyone sees them),
@@ -5793,7 +6472,7 @@ return Pets
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="31">
+        <Item class="ModuleScript" referent="33">
           <Properties>
             <string name="Name">Playtime</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: play-time gifts. Stay in the server and gifts arrive on their own (Aura + crates),
@@ -5845,7 +6524,7 @@ return Playtime
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="32">
+        <Item class="ModuleScript" referent="34">
           <Properties>
             <string name="Name">Quests</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: an endless chain of small goals. There is always exactly one active quest.
@@ -5911,7 +6590,7 @@ return Quests
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="33">
+        <Item class="ModuleScript" referent="35">
           <Properties>
             <string name="Name">Quirks</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: faces, hair and muscles. Every player has their own face (see Genome) that starts goofy
@@ -6108,7 +6787,7 @@ return Quirks
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="34">
+        <Item class="ModuleScript" referent="36">
           <Properties>
             <string name="Name">Runway</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the runway in the middle of the district. Walk it for a steady Aura trickle that
@@ -6149,7 +6828,7 @@ return Runway
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="35">
+        <Item class="ModuleScript" referent="37">
           <Properties>
             <string name="Name">Shop</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades and rebirth.
@@ -6221,7 +6900,7 @@ return Shop
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="36">
+        <Item class="ModuleScript" referent="38">
           <Properties>
             <string name="Name">Stats</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the heart of progression. Owns Aura, stats, Glow Score, rank and the
@@ -6606,7 +7285,7 @@ return Stats
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="37">
+        <Item class="ModuleScript" referent="39">
           <Properties>
             <string name="Name">Store</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: real-money store (game passes + Aura packs). Nothing is charged until you paste real ids into
@@ -6686,7 +7365,7 @@ return Store
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="38">
+        <Item class="ModuleScript" referent="40">
           <Properties>
             <string name="Name">Training</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame. A marker sweeps a bar; hit the zone for stat gains.
@@ -6699,6 +7378,7 @@ local Util = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
 local Quests = require(script.Parent.Quests)
+local Lift = require(script.Parent.Lift)
 
 local Training = {}
 
@@ -6774,11 +7454,17 @@ resolve = function(p, session, grade)
 		nextRep = newRep(session)
 		armTimeout(p, session)
 	end
+	Lift.rep(p, grade, session.rep - (done and 0 or 1))
 	Stats.send(p, "trainRep", session.rep - (done and 0 or 1), grade, gain, session.streak, nextRep)
 	if done then
 		Stats.send(p, "trainEnd", session.stat, session.total)
 		sessions[p] = nil
 		p:SetAttribute("Training", false)
+		task.delay(1.1, function()
+			if not sessions[p] then
+				Lift.stop(p)
+			end
+		end)
 	end
 end
 
@@ -6798,9 +7484,10 @@ function Training.start(p, stat)
 	}
 	sessions[p] = session
 	p:SetAttribute("Training", true)
+	Lift.begin(p, stat)
 	local cfg = newRep(session)
 	armTimeout(p, session)
-	Stats.send(p, "trainStart", stat, cfg)
+	Stats.send(p, "trainStart", stat, cfg, p:GetAttribute("LiftKg"), p:GetAttribute("LiftTier"))
 end
 
 function Training.cancel(p)
@@ -6809,6 +7496,7 @@ function Training.cancel(p)
 		p:SetAttribute("Training", false)
 		Stats.send(p, "trainEnd", nil, 0)
 	end
+	Lift.stop(p)
 end
 
 function Training.hit(p, clientTime)
@@ -6850,6 +7538,7 @@ end
 
 function Training.release(p)
 	sessions[p] = nil
+	Lift.stop(p)
 end
 
 function Training.handle(p, kind, a)
@@ -6864,7 +7553,7 @@ return Training
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="39">
+        <Item class="ModuleScript" referent="41">
           <Properties>
             <string name="Name">Treadmill</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: treadmills. Buy one with Aura, press the use button to hop on and run. You earn Aura (and a little
@@ -7096,7 +7785,7 @@ return Treadmill
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="40">
+        <Item class="ModuleScript" referent="42">
           <Properties>
             <string name="Name">Tutorial</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the first-time tutorial. Five short steps that teach the core loop (swing, hammer, train, pet,
@@ -7203,7 +7892,7 @@ return Tutorial
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="41">
+        <Item class="ModuleScript" referent="43">
           <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: builds the whole town from code (nothing to import).
@@ -7661,27 +8350,6 @@ local function buildGym(parent)
 	local pos, inward = stationAt("Gym")
 	local cf = pavilion(parent, pos, inward, RED, "💪  GYM", C3(150, 30, 20), C3(48, 50, 56), M.Slate, C3(150, 64, 56), M.Brick)
 	Decor.pavilion(parent, "gym", cf)
-	-- Bench press
-	block(parent, "Bench", Vector3.new(2.4, 1.2, 6.5), cf * CFrame.new(0, 1.9, 2), C3(40, 40, 46), M.SmoothPlastic)
-	for side = -1, 1, 2 do
-		block(parent, "BenchStand", Vector3.new(0.6, 3, 0.6), cf * CFrame.new(side * 2.4, 2.3, 1), DARK, M.Metal)
-	end
-	local bar = cf * CFrame.new(0, 4.6, 1)
-	block(parent, "Bar", Vector3.new(11, 0.5, 0.5), bar, C3(200, 205, 215), M.Metal, { Shape = Enum.PartType.Cylinder })
-	for side = -1, 1, 2 do
-		block(parent, "Plate", Vector3.new(0.8, 3.4, 3.4), bar * CFrame.new(side * 4.6, 0, 0), C3(30, 30, 36), M.Metal, { Shape = Enum.PartType.Cylinder })
-		block(parent, "Plate", Vector3.new(0.7, 2.4, 2.4), bar * CFrame.new(side * 5.3, 0, 0), RED, M.Metal, { Shape = Enum.PartType.Cylinder })
-	end
-	-- Dumbbell rack along the back wall
-	block(parent, "Rack", Vector3.new(14, 2.4, 2.6), cf * CFrame.new(-8, 2, 12.6), DARK, M.Metal)
-	for i = 1, 6 do
-		local d = cf * CFrame.new(-13.5 + i * 1.9, 3.7, 12.6)
-		block(parent, "Dumbbell", Vector3.new(1.8, 0.4, 0.4), d, C3(200, 205, 215), M.Metal, { Shape = Enum.PartType.Cylinder })
-		for side = -1, 1, 2 do
-			block(parent, "DumbbellHead", Vector3.new(0.5, 1, 1), d * CFrame.new(side * 0.8, 0, 0), C3(30, 30, 36), M.Metal, { Shape = Enum.PartType.Cylinder })
-		end
-	end
-	block(parent, "Mirror", Vector3.new(14, 7, 0.3), cf * CFrame.new(7, 6, 14), C3(190, 215, 235), M.Glass, { Transparency = 0.35, Reflectance = 0.3 })
 end
 
 local function buildStudio(parent)
@@ -7977,15 +8645,15 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="42">
+  <Item class="StarterPlayer" referent="44">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="43">
+    <Item class="StarterPlayerScripts" referent="45">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="44">
+      <Item class="LocalScript" referent="46">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: client entry point. Builds the interface, wires the menu tabs, and routes everything
@@ -8079,7 +8747,7 @@ CompetitionUI.init(gui, Action)
 Interact.init(gui, Action, Menu)
 HammerRow.init()
 Swing.init(gui, Action, Menu)
-Tutorial.init(gui, Action)
+Tutorial.init(gui, Action, Hud, Interact, Menu)
 Guide.init(gui, Action)
 Hud.onHelp = Guide.open
 WorldTags.init()
@@ -8303,9 +8971,9 @@ function handlers.openMenu(tab)
 	Menu.open(tab)
 end
 
-function handlers.trainStart(stat, cfg)
+function handlers.trainStart(stat, cfg, kg, tier)
 	Menu.close()
-	TrainingUI.start(stat, cfg)
+	TrainingUI.start(stat, cfg, kg, tier)
 end
 
 function handlers.trainRep(...)
@@ -8340,28 +9008,24 @@ Notify.OnClientEvent:Connect(function(kind, ...)
 end)
 
 --------------------------------------------------------------------------------
--- Welcome back
+-- Welcome back (returning players only; a brand-new player sees no text at all)
 --------------------------------------------------------------------------------
 task.spawn(function()
 	task.wait(2.5)
-	if (player:GetAttribute("Level") or 1) <= 1 and (player:GetAttribute("XP") or 0) < 5 then
-		Fx.announce("SUB 5", "That's you. Level up to evolve!", Config.Ranks[1].Color, 0.22)
-		task.wait(3)
-	end
 	local gain = player:GetAttribute("OfflineGain")
 	if gain and gain > 0 then
 		Toasts.push("Welcome back! Your look earned ✦" .. Util.fmt(gain) .. " while you were away", "gold")
-	elseif player:GetAttribute("DailyReady") then
+	elseif player:GetAttribute("DailyReady") and (player:GetAttribute("TutStep") or 99) > #Config.Tutorial then
 		Toasts.push("Your daily reward is ready", "gold")
 	end
 end)
 ]]></string>
         </Properties>
-        <Item class="Folder" referent="45">
+        <Item class="Folder" referent="47">
           <Properties>
             <string name="Name">Modules</string>
           </Properties>
-          <Item class="ModuleScript" referent="46">
+          <Item class="ModuleScript" referent="48">
             <Properties>
               <string name="Name">CompetitionUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: Mog Competition overlay. Everyone on stage flexes (taps) for 8 seconds; a live
@@ -8645,7 +9309,7 @@ return CompetitionUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="47">
+          <Item class="ModuleScript" referent="49">
             <Properties>
               <string name="Name">DuelUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: duel overlay. Both sides tap as fast as they can for 7 seconds; Mog Power gives an
@@ -8885,7 +9549,7 @@ return DuelUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="48">
+          <Item class="ModuleScript" referent="50">
             <Properties>
               <string name="Name">Fx</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
@@ -9123,7 +9787,7 @@ return Fx
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="49">
+          <Item class="ModuleScript" referent="51">
             <Properties>
               <string name="Name">Guide</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the welcome guide. Shown once on a player's very first visit (and again from the ? button):
@@ -9317,21 +9981,13 @@ function Guide.init(gui, action)
 		Audio.click()
 		Guide.close()
 	end)
-
-	-- First visit: show it once everything has loaded.
-	task.spawn(function()
-		task.wait(1.2)
-		if player:GetAttribute("GuideSeen") ~= true then
-			Guide.open()
-		end
-	end)
 end
 
 return Guide
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="50">
+          <Item class="ModuleScript" referent="52">
             <Properties>
               <string name="Name">HammerRow</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: floating OWNED / EQUIPPED / price labels over every hammer pedestal.
@@ -9456,7 +10112,7 @@ return HammerRow
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="51">
+          <Item class="ModuleScript" referent="53">
             <Properties>
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the always-on screen.
@@ -9741,9 +10397,10 @@ local function buildSides(gui, Menu)
 		Menu.toggle("Rewards")
 	end)
 	refs.badges.Rewards = rewardsBadge
-	sideButton(left, 4, 66, C.Purple, "🐾", "Pets", function()
+	local petsBtn = sideButton(left, 4, 66, C.Purple, "🐾", "Pets", function()
 		Menu.toggle("Pets")
 	end)
+	refs.buttons = { Pets = petsBtn }
 	local _, _, wardrobeBadge = sideButton(left, 5, 66, C.Orange, "👗", "Outfit", function()
 		Menu.toggle("Wardrobe")
 	end)
@@ -10091,6 +10748,11 @@ function Hud.init(gui, Menu, Action)
 	end)
 end
 
+-- A named side button (used by the tutorial arrow).
+function Hud.button(name)
+	return refs.buttons and refs.buttons[name]
+end
+
 function Hud.pulseQuest()
 	UI.pop(refs.questScale, 1.15)
 end
@@ -10222,7 +10884,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="52">
+          <Item class="ModuleScript" referent="54">
             <Properties>
               <string name="Name">Interact</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: "use" button for every place and hammer. Stand near something and a big button
@@ -10359,6 +11021,15 @@ local function trigger()
 	end
 end
 
+-- The big "use" button (the tutorial points at it) and whether it is showing right now.
+function Interact.button()
+	return button and button.Visible and button or nil
+end
+
+function Interact.current()
+	return current and current.id or nil
+end
+
 function Interact.init(gui, Action, Menu)
 	menu = Menu
 	actionFn = function(id)
@@ -10427,7 +11098,7 @@ return Interact
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="53">
+          <Item class="ModuleScript" referent="55">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the one main menu. A single window with a tab list so the screen never fills up with
@@ -10680,7 +11351,7 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="54">
+          <Item class="ModuleScript" referent="56">
             <Properties>
               <string name="Name">PetsView</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: draws every player's equipped pets on your own screen. They trot after their owner with real
@@ -10831,7 +11502,7 @@ return PetsView
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="55">
+          <Item class="ModuleScript" referent="57">
             <Properties>
               <string name="Name">Runner</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: everything you see and feel while running on a treadmill: the run animation, a wider field of
@@ -10957,7 +11628,7 @@ return Runner
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="56">
+          <Item class="ModuleScript" referent="58">
             <Properties>
               <string name="Name">Swing</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: click / tap anywhere (or hold) to swing your hammer at your own face.
@@ -11011,7 +11682,7 @@ local function animateArm()
 	end
 	armBusy = true
 	local rest = motor.C0
-	local down = TweenService:Create(motor, TweenInfo.new(0.07, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { C0 = rest * CFrame.Angles(math.rad(-120), 0, 0) })
+	local down = TweenService:Create(motor, TweenInfo.new(0.07, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { C0 = rest * CFrame.Angles(math.rad(150), 0, 0) })
 	local up = TweenService:Create(motor, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { C0 = rest })
 	down.Completed:Once(function()
 		up:Play()
@@ -11102,7 +11773,7 @@ return Swing
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="57">
+          <Item class="ModuleScript" referent="59">
             <Properties>
               <string name="Name">TabCrates</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: crates tab. The server rolls; this plays the reveal (a spinning reel that slows
@@ -11401,7 +12072,7 @@ return TabCrates
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="58">
+          <Item class="ModuleScript" referent="60">
             <Properties>
               <string name="Name">TabPets</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Pets tab. Hatch eggs at the top, manage your pets below.
@@ -11624,7 +12295,7 @@ return TabPets
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="59">
+          <Item class="ModuleScript" referent="61">
             <Properties>
               <string name="Name">TabProfile</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: your character sheet: rank, stats, duel record and the current quest.
@@ -11803,7 +12474,7 @@ return TabProfile
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="60">
+          <Item class="ModuleScript" referent="62">
             <Properties>
               <string name="Name">TabRewards</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Rewards window with three tabs, FREE (free crates + live event), Timed (play-time gifts
@@ -12026,7 +12697,7 @@ return TabRewards
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="61">
+          <Item class="ModuleScript" referent="63">
             <Properties>
               <string name="Name">TabSettings</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: simple toggles. Settings are saved on the server so they follow the player.
@@ -12131,7 +12802,7 @@ return TabSettings
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="62">
+          <Item class="ModuleScript" referent="64">
             <Properties>
               <string name="Name">TabStore</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Store window. Colourful offer cards with a green Robux button each. Offers whose id
@@ -12363,7 +13034,7 @@ return TabStore
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="63">
+          <Item class="ModuleScript" referent="65">
             <Properties>
               <string name="Name">TabUpgrades</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades (bought with Aura) and the rebirth button.
@@ -12523,7 +13194,7 @@ return TabUpgrades
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="64">
+          <Item class="ModuleScript" referent="66">
             <Properties>
               <string name="Name">TabWardrobe</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the wardrobe. A collection grid: owned items can be worn, unowned ones show as locked
@@ -12750,7 +13421,7 @@ return TabWardrobe
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="65">
+          <Item class="ModuleScript" referent="67">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -12860,7 +13531,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="66">
+          <Item class="ModuleScript" referent="68">
             <Properties>
               <string name="Name">TrainingUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame overlay. A marker sweeps a bar; press Space (or tap) while it
@@ -12869,6 +13540,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ContextActionService = game:GetService("ContextActionService")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -12925,14 +13597,15 @@ function TrainingUI.init(gui, action)
 		Name = "Training",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -66),
-		Size = UDim2.fromOffset(340, 104),
+		Size = UDim2.fromOffset(400, 118),
 		Visible = false,
 		ZIndex = 10,
 	})
 	scale = UI.new("UIScale", {}, panel)
 	title = UI.label(panel, {
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		Position = UDim2.fromOffset(14, 8),
-		Size = UDim2.fromOffset(220, 18),
+		Size = UDim2.new(1, -120, 0, 18),
 		Font = UI.Fonts.Title,
 		TextSize = 12,
 		TextWrapped = false,
@@ -12977,8 +13650,8 @@ function TrainingUI.init(gui, action)
 	barButton.Activated:Connect(press)
 
 	message = UI.label(panel, {
-		Position = UDim2.fromOffset(14, 62),
-		Size = UDim2.new(1, -28, 0, 22),
+		Position = UDim2.fromOffset(14, 64),
+		Size = UDim2.new(1, -160, 0, 22),
 		Font = UI.Fonts.Title,
 		TextSize = 17,
 		TextXAlignment = Enum.TextXAlignment.Center,
@@ -12988,19 +13661,31 @@ function TrainingUI.init(gui, action)
 	})
 	msgScale = UI.new("UIScale", {}, message)
 	hint = UI.label(panel, {
-		Position = UDim2.fromOffset(14, 84),
-		Size = UDim2.new(1, -60, 0, 14),
+		Position = UDim2.fromOffset(40, 90),
+		Size = UDim2.new(1, -190, 0, 20),
 		Font = UI.Fonts.Body,
 		TextSize = 10,
 		TextColor3 = C.Muted,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
-		Text = "SPACE / tap when the marker is in the gold zone",
+		Text = "SPACE or tap when the line is in the gold",
 		ZIndex = 11,
 	})
-	local cancel = UI.button(panel, {
+	-- a big button so phones and mice have something obvious to press (a tap anywhere in the world works too)
+	local lift = UI.button(panel, {
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -8, 1, -6),
+		Position = UDim2.new(1, -12, 1, -10),
+		Size = UDim2.fromOffset(124, 44),
+		BackgroundColor3 = C.Good,
+		Text = "LIFT!",
+		TextSize = 22,
+		ZIndex = 12,
+		Radius = 12,
+	}, "primary")
+	lift.Activated:Connect(press)
+	local cancel = UI.button(panel, {
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 10, 1, -8),
 		Size = UDim2.fromOffset(22, 22),
 		Text = "✕",
 		TextSize = 10,
@@ -13009,6 +13694,12 @@ function TrainingUI.init(gui, action)
 	}, "card")
 	cancel.Activated:Connect(function()
 		Action:FireServer("TrainCancel")
+	end)
+
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if active and not processed and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+			press()
+		end
 	end)
 
 	-- Space is "swallowed" while training so the character doesn't jump away.
@@ -13063,12 +13754,17 @@ local function loadCfg(newCfg)
 	end
 end
 
-function TrainingUI.start(statId, firstCfg)
+function TrainingUI.start(statId, firstCfg, kg, tierName)
 	stat = statId
 	local def = Config.Stats[statId]
+	local prop = Config.TrainProps[statId]
 	active = true
 	resultText = nil
-	title.Text = def.Icon .. "  " .. def.Station .. " TRAINING"
+	if statId == "Power" and kg then
+		title.Text = string.format("%s  %s  ·  %s DUMBBELLS  ·  %s KG", def.Icon, prop.Verb, tostring(tierName or "Iron"):upper(), Util.fmt(kg))
+	else
+		title.Text = def.Icon .. "  " .. prop.Verb .. "  ·  " .. prop.Item:upper()
+	end
 	title.TextColor3 = def.Color
 	for _, dot in dots do
 		dot.BackgroundColor3 = C.Disabled
@@ -13125,11 +13821,12 @@ return TrainingUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="67">
+          <Item class="ModuleScript" referent="69">
             <Properties>
               <string name="Name">Tutorial</string>
-              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the first-time tutorial card and the bouncing arrow that points at where to go.
--- It reads the TutStep attribute from the server (7 = finished). Players can skip it.
+              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the first-time guide. A brand-new player sees NO banners, cards or voice. They only get arrows:
+-- a bouncing arrow over where to go, a trail of glowing dots on the ground leading there, a pulsing hand when they
+-- should click, and an arrow on the button to press. The server counts the steps (TutStep, 6 = finished).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -13145,24 +13842,44 @@ local player = Players.LocalPlayer
 local C = UI.Colors
 local DONE = #Config.Tutorial + 1
 
-local card, title, body, bar, countLabel, scale
-local pointer, pointerGui
-local shownStep = 0
+local TRAIL_DOTS = 16
+local TRAIL_SPACING = 5.5
 
--- Where the arrow should point for each step (nil = no arrow).
-local function target(step)
+local Hud, Interact, Menu
+local pointer, pointerGui, pointerIcon
+local trail = {}
+local screenArrow, screenArrowLabel
+local clickHint
+local lastStep = 0
+
+local function flat(a, b)
+	local d = a - b
+	return Vector3.new(d.X, 0, d.Z).Magnitude
+end
+
+local function rootPosition()
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	return root and root.Position
+end
+
+-- Where the world arrow goes for each step, with the icon on it. Returns nil when there is nothing to walk to.
+local function target(step, here)
 	if step == 2 then
-		return Config.HammerPos(2) + Vector3.new(0, 11, 0)
+		return Config.HammerPos(2) + Vector3.new(0, 10, 0), "🔨"
 	elseif step == 3 then
-		local pos, front = Config.StationPos("Gym"), Config.StationFront("Gym")
-		return pos + front * 7 + Vector3.new(0, 8, 0)
+		local station, front = Config.StationPos("Gym"), Config.StationFront("Gym")
+		if here and flat(here, station) < 17 then
+			return Config.GymPadPos() + Vector3.new(0, 6, 0), "🏋️"
+		end
+		return station + front * 20 + Vector3.new(0, 10, 0), "🏋️"
 	elseif step == 5 then
-		return Config.BattlePos() + Config.BattleFront() * 30 + Vector3.new(0, 10, 0)
+		return Config.BattlePos() + Config.BattleFront() * 30 + Vector3.new(0, 10, 0), "⚔️"
 	end
 	return nil
 end
 
-local function ensurePointer()
+local function ensureWorld()
 	if pointer then
 		return
 	end
@@ -13177,141 +13894,211 @@ local function ensurePointer()
 	}, workspace)
 	pointerGui = UI.new("BillboardGui", {
 		Adornee = pointer,
-		Size = UDim2.fromOffset(120, 90),
+		Size = UDim2.fromOffset(110, 110),
 		AlwaysOnTop = true,
-		MaxDistance = 400,
+		MaxDistance = 600,
 	}, pointer)
-	UI.label(pointerGui, {
-		Size = UDim2.new(1, 0, 0, 24),
+	pointerIcon = UI.label(pointerGui, {
+		Size = UDim2.new(1, 0, 0, 40),
 		Font = UI.Fonts.Title,
-		TextSize = 18,
-		TextColor3 = C.Yellow,
+		TextSize = 34,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
-		TextStrokeTransparency = 0,
-		Text = "GO HERE",
+		TextStrokeTransparency = 1,
+		Text = "",
 	})
 	UI.label(pointerGui, {
-		Position = UDim2.fromOffset(0, 22),
-		Size = UDim2.new(1, 0, 0, 60),
+		Position = UDim2.fromOffset(0, 36),
+		Size = UDim2.new(1, 0, 0, 70),
 		Font = UI.Fonts.Title,
-		TextSize = 54,
+		TextSize = 64,
 		TextColor3 = C.Yellow,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
 		TextStrokeTransparency = 0,
 		Text = "▼",
 	})
+	for i = 1, TRAIL_DOTS do
+		trail[i] = UI.new("Part", {
+			Name = "TutorialDot",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.one,
+			Material = Enum.Material.Neon,
+			Color = C.Yellow,
+			Transparency = 1,
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+		}, workspace)
+	end
 end
 
-local function show(step)
-	local def = Config.Tutorial[step]
-	if not def then
-		card.Visible = false
-		if pointer then
-			pointer.Parent = nil
+local function hideWorld()
+	if pointer then
+		pointer.Parent = nil
+	end
+	for _, dot in trail do
+		dot.Transparency = 1
+	end
+end
+
+-- Arrows drawn on the screen (over a button), and the pulsing click hand for step 1.
+local function ensureScreen(gui)
+	screenArrow = UI.new("Frame", {
+		Name = "TutorialArrow",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Size = UDim2.fromOffset(70, 70),
+		BackgroundTransparency = 1,
+		Visible = false,
+		ZIndex = 60,
+	}, gui)
+	screenArrowLabel = UI.label(screenArrow, {
+		Size = UDim2.fromScale(1, 1),
+		Font = UI.Fonts.Title,
+		TextSize = 60,
+		TextColor3 = C.Yellow,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextWrapped = false,
+		TextStrokeTransparency = 0,
+		ZIndex = 61,
+		Text = "▼",
+	})
+	clickHint = UI.new("Frame", {
+		Name = "TutorialClick",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.62),
+		Size = UDim2.fromOffset(90, 90),
+		BackgroundTransparency = 1,
+		Visible = false,
+		ZIndex = 60,
+	}, gui)
+	local ring = UI.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.8, 0.8), BackgroundTransparency = 0.7, BackgroundColor3 = C.Yellow, ZIndex = 60 }, clickHint)
+	UI.corner(ring, 45)
+	UI.stroke(ring, C.Yellow, 3, 0)
+	UI.label(clickHint, {
+		Size = UDim2.fromScale(1, 1),
+		Font = UI.Fonts.Title,
+		TextSize = 52,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextWrapped = false,
+		TextStrokeTransparency = 1,
+		ZIndex = 61,
+		Text = "👆",
+	})
+end
+
+-- The dotted trail from the player to the target, scrolling toward it.
+local function drawTrail(from, to, t)
+	local groundY = from.Y - 2.6
+	local flatDir = Vector3.new(to.X - from.X, 0, to.Z - from.Z)
+	local distance = flatDir.Magnitude
+	if distance < 4 then
+		for _, dot in trail do
+			dot.Transparency = 1
 		end
 		return
 	end
-	card.Visible = true
-	title.Text = string.format("TUTORIAL %d/%d  ·  %s", step, #Config.Tutorial, def.Title:upper())
-	body.Text = def.Text
-	bar.back.Visible = def.Goal ~= nil
-	countLabel.Visible = def.Goal ~= nil
-	if step ~= shownStep then
-		shownStep = step
-		UI.pop(scale, 1.1)
-		if step == 1 then
-			Audio.say("welcome")
+	local dir = flatDir.Unit
+	local phase = (t * 4) % TRAIL_SPACING
+	for i, dot in trail do
+		local along = (i - 1) * TRAIL_SPACING + phase + 4
+		if along >= distance - 2 then
+			dot.Transparency = 1
 		else
-			Audio.say("nice")
+			local fade = math.clamp(1 - along / (TRAIL_DOTS * TRAIL_SPACING), 0.1, 1)
+			local size = 0.9 + 0.35 * math.sin(t * 6 - i * 0.7)
+			dot.Size = Vector3.one * size
+			dot.Position = Vector3.new(from.X + dir.X * along, groundY, from.Z + dir.Z * along)
+			dot.Transparency = 1 - fade * 0.85
 		end
-		Audio.quest()
-	end
-	local at = target(step)
-	if at then
-		ensurePointer()
-		pointer.Parent = workspace
-		pointer.Position = at
-	elseif pointer then
-		pointer.Parent = nil
 	end
 end
 
-function Tutorial.init(gui, Action)
-	card = UI.panel(gui, {
-		Name = "TutorialCard",
+function Tutorial.init(gui, Action, hud, interact, menu)
+	Hud, Interact, Menu = hud, interact, menu
+	ensureScreen(gui)
+	-- A small skip chip for players who already know the game (the only text a new player sees).
+	local skip = UI.button(gui, {
+		Name = "TutorialSkip",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 84, 0.5, -185),
-		Size = UDim2.fromOffset(250, 126),
-		Visible = false,
-		Radius = 12,
-	})
-	card:FindFirstChildOfClass("UIStroke").Color = C.Yellow
-	scale = UI.new("UIScale", {}, card)
-	title = UI.label(card, {
-		Position = UDim2.fromOffset(10, 6),
-		Size = UDim2.new(1, -20, 0, 16),
-		Font = UI.Fonts.Title,
-		TextSize = 11,
-		TextColor3 = C.Yellow,
-		TextWrapped = false,
-		Text = "",
-	})
-	body = UI.label(card, {
-		Position = UDim2.fromOffset(10, 24),
-		Size = UDim2.new(1, -20, 0, 66),
-		Font = UI.Fonts.Bold,
-		TextSize = 12,
-		TextYAlignment = Enum.TextYAlignment.Top,
-		Text = "",
-	})
-	bar = UI.bar(card, { Position = UDim2.new(0, 10, 1, -26), Size = UDim2.new(1, -90, 0, 8) }, C.Good)
-	countLabel = UI.label(card, {
-		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(1, -78, 1, -22),
-		Size = UDim2.fromOffset(30, 14),
-		Font = UI.Fonts.Title,
-		TextSize = 11,
-		TextColor3 = C.Good,
-		TextWrapped = false,
-		Text = "",
-	})
-	local skip = UI.button(card, {
-		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -8, 1, -6),
-		Size = UDim2.fromOffset(46, 20),
+		Position = UDim2.new(0, 84, 0, 8),
+		Size = UDim2.fromOffset(62, 22),
 		BackgroundColor3 = C.Disabled,
+		BackgroundTransparency = 0.35,
 		Text = "SKIP",
 		TextSize = 10,
-		Radius = 6,
+		Radius = 8,
+		Visible = false,
 	}, "card")
 	skip.Activated:Connect(function()
 		Audio.click()
 		Action:FireServer("TutorialSkip")
 	end)
 
-	local lastStep = 0
 	local t0 = os.clock()
 	RunService.Heartbeat:Connect(function()
 		local step = player:GetAttribute("TutStep") or DONE
 		if step ~= lastStep then
 			lastStep = step
-			show(step)
+			if step >= DONE then
+				hideWorld()
+			end
 		end
-		if step < DONE then
-			local goal = player:GetAttribute("TutGoal") or 0
-			if goal > 0 then
-				local progress = player:GetAttribute("TutProgress") or 0
-				bar.set(progress / goal)
-				countLabel.Text = progress .. "/" .. goal
+		skip.Visible = step < DONE
+		if step >= DONE then
+			screenArrow.Visible = false
+			clickHint.Visible = false
+			return
+		end
+		local t = os.clock() - t0
+		local here = rootPosition()
+		local trainingNow = player:GetAttribute("Training") == true
+
+		-- world arrow + dotted trail
+		local at, icon
+		if here and not trainingNow then
+			at, icon = target(step, here)
+		end
+		if at then
+			ensureWorld()
+			pointer.Parent = workspace
+			pointerIcon.Text = icon
+			pointer.Position = at + Vector3.new(0, math.sin(t * 4) * 1.2, 0)
+			drawTrail(here, at, t)
+		else
+			hideWorld()
+		end
+
+		-- screen arrows: the "use" button when you are standing at the right place, or the Pets button
+		local arrowTarget
+		if step == 3 and not trainingNow and Interact.current() == "Gym" then
+			arrowTarget = Interact.button()
+		elseif step == 4 and not Menu.isOpen() then
+			arrowTarget = Hud.button("Pets")
+		elseif step == 5 and Interact.current() == "Battle" then
+			arrowTarget = Interact.button()
+		end
+		if arrowTarget then
+			local pos, size = arrowTarget.AbsolutePosition, arrowTarget.AbsoluteSize
+			local bounce = math.sin(t * 6) * 6
+			if arrowTarget == Interact.button() then
+				screenArrowLabel.Text = "▼"
+				screenArrow.Position = UDim2.fromOffset(pos.X + size.X / 2, pos.Y - 30 + bounce)
+			else
+				screenArrowLabel.Text = "◀"
+				screenArrow.Position = UDim2.fromOffset(pos.X + size.X + 30 + bounce, pos.Y + size.Y / 2)
 			end
-			if pointer and pointer.Parent then
-				local at = target(step)
-				if at then
-					pointer.Position = at + Vector3.new(0, math.sin((os.clock() - t0) * 4) * 1.2, 0)
-				end
-			end
+			screenArrow.Visible = true
+		else
+			screenArrow.Visible = false
+		end
+
+		-- step 1: pulse a hand where to click
+		clickHint.Visible = step == 1
+		if step == 1 then
+			local s = 1 + 0.12 * math.sin(t * 6)
+			clickHint.Size = UDim2.fromOffset(90 * s, 90 * s)
 		end
 	end)
 end
@@ -13325,7 +14112,7 @@ return Tutorial
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="68">
+          <Item class="ModuleScript" referent="70">
             <Properties>
               <string name="Name">WorldTags</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: floating signs over every building and treadmill that show what it costs, what it gives and
@@ -13473,7 +14260,7 @@ return WorldTags
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="69">
+  <Item class="Workspace" referent="71">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

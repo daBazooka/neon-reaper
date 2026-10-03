@@ -102,10 +102,10 @@ send("tutorialStep", 2); send("tutorialDone", 1000, 2); fireAll("Heartbeat", 0.1
 check(true, "tutorial card and pointer run through every step")
 a.GuideSeen = false; advance(2); fireAll("Heartbeat", 0.1)
 local Guide = require(ModN.children.Guide); Guide.open(); Guide.close(); Guide.open()
+local Hud = require(ModN.children.Hud)
 Hud.togglePlaces(true); advance(0.3); fireAll("RenderStepped", 0.016); Hud.togglePlaces(false)
 check(true, "welcome guide and places window open and close")
 -- rebirth window
-local Hud = require(ModN.children.Hud)
 Hud.toggleRebirth(true); advance(0.3); fireAll("RenderStepped", 0.016); Hud.toggleRebirth(false)
 check(true, "rebirth window opens and closes")
 -- Mog Competition flow

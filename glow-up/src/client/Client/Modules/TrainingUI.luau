@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ContextActionService = game:GetService("ContextActionService")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -60,14 +61,15 @@ function TrainingUI.init(gui, action)
 		Name = "Training",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -66),
-		Size = UDim2.fromOffset(340, 104),
+		Size = UDim2.fromOffset(400, 118),
 		Visible = false,
 		ZIndex = 10,
 	})
 	scale = UI.new("UIScale", {}, panel)
 	title = UI.label(panel, {
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		Position = UDim2.fromOffset(14, 8),
-		Size = UDim2.fromOffset(220, 18),
+		Size = UDim2.new(1, -120, 0, 18),
 		Font = UI.Fonts.Title,
 		TextSize = 12,
 		TextWrapped = false,
@@ -112,8 +114,8 @@ function TrainingUI.init(gui, action)
 	barButton.Activated:Connect(press)
 
 	message = UI.label(panel, {
-		Position = UDim2.fromOffset(14, 62),
-		Size = UDim2.new(1, -28, 0, 22),
+		Position = UDim2.fromOffset(14, 64),
+		Size = UDim2.new(1, -160, 0, 22),
 		Font = UI.Fonts.Title,
 		TextSize = 17,
 		TextXAlignment = Enum.TextXAlignment.Center,
@@ -123,19 +125,31 @@ function TrainingUI.init(gui, action)
 	})
 	msgScale = UI.new("UIScale", {}, message)
 	hint = UI.label(panel, {
-		Position = UDim2.fromOffset(14, 84),
-		Size = UDim2.new(1, -60, 0, 14),
+		Position = UDim2.fromOffset(40, 90),
+		Size = UDim2.new(1, -190, 0, 20),
 		Font = UI.Fonts.Body,
 		TextSize = 10,
 		TextColor3 = C.Muted,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextWrapped = false,
-		Text = "SPACE / tap when the marker is in the gold zone",
+		Text = "SPACE or tap when the line is in the gold",
 		ZIndex = 11,
 	})
-	local cancel = UI.button(panel, {
+	-- a big button so phones and mice have something obvious to press (a tap anywhere in the world works too)
+	local lift = UI.button(panel, {
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -8, 1, -6),
+		Position = UDim2.new(1, -12, 1, -10),
+		Size = UDim2.fromOffset(124, 44),
+		BackgroundColor3 = C.Good,
+		Text = "LIFT!",
+		TextSize = 22,
+		ZIndex = 12,
+		Radius = 12,
+	}, "primary")
+	lift.Activated:Connect(press)
+	local cancel = UI.button(panel, {
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 10, 1, -8),
 		Size = UDim2.fromOffset(22, 22),
 		Text = "✕",
 		TextSize = 10,
@@ -144,6 +158,12 @@ function TrainingUI.init(gui, action)
 	}, "card")
 	cancel.Activated:Connect(function()
 		Action:FireServer("TrainCancel")
+	end)
+
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if active and not processed and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+			press()
+		end
 	end)
 
 	-- Space is "swallowed" while training so the character doesn't jump away.
@@ -198,12 +218,17 @@ local function loadCfg(newCfg)
 	end
 end
 
-function TrainingUI.start(statId, firstCfg)
+function TrainingUI.start(statId, firstCfg, kg, tierName)
 	stat = statId
 	local def = Config.Stats[statId]
+	local prop = Config.TrainProps[statId]
 	active = true
 	resultText = nil
-	title.Text = def.Icon .. "  " .. def.Station .. " TRAINING"
+	if statId == "Power" and kg then
+		title.Text = string.format("%s  %s  ·  %s DUMBBELLS  ·  %s KG", def.Icon, prop.Verb, tostring(tierName or "Iron"):upper(), Util.fmt(kg))
+	else
+		title.Text = def.Icon .. "  " .. prop.Verb .. "  ·  " .. prop.Item:upper()
+	end
 	title.TextColor3 = def.Color
 	for _, dot in dots do
 		dot.BackgroundColor3 = C.Disabled

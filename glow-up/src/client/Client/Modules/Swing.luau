@@ -49,7 +49,7 @@ local function animateArm()
 	end
 	armBusy = true
 	local rest = motor.C0
-	local down = TweenService:Create(motor, TweenInfo.new(0.07, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { C0 = rest * CFrame.Angles(math.rad(-120), 0, 0) })
+	local down = TweenService:Create(motor, TweenInfo.new(0.07, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { C0 = rest * CFrame.Angles(math.rad(150), 0, 0) })
 	local up = TweenService:Create(motor, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { C0 = rest })
 	down.Completed:Once(function()
 		up:Play()

@@ -280,9 +280,10 @@ local function buildSides(gui, Menu)
 		Menu.toggle("Rewards")
 	end)
 	refs.badges.Rewards = rewardsBadge
-	sideButton(left, 4, 66, C.Purple, "🐾", "Pets", function()
+	local petsBtn = sideButton(left, 4, 66, C.Purple, "🐾", "Pets", function()
 		Menu.toggle("Pets")
 	end)
+	refs.buttons = { Pets = petsBtn }
 	local _, _, wardrobeBadge = sideButton(left, 5, 66, C.Orange, "👗", "Outfit", function()
 		Menu.toggle("Wardrobe")
 	end)
@@ -628,6 +629,11 @@ function Hud.init(gui, Menu, Action)
 			Hud.refresh()
 		end
 	end)
+end
+
+-- A named side button (used by the tutorial arrow).
+function Hud.button(name)
+	return refs.buttons and refs.buttons[name]
 end
 
 function Hud.pulseQuest()

@@ -89,7 +89,7 @@ CompetitionUI.init(gui, Action)
 Interact.init(gui, Action, Menu)
 HammerRow.init()
 Swing.init(gui, Action, Menu)
-Tutorial.init(gui, Action)
+Tutorial.init(gui, Action, Hud, Interact, Menu)
 Guide.init(gui, Action)
 Hud.onHelp = Guide.open
 WorldTags.init()
@@ -313,9 +313,9 @@ function handlers.openMenu(tab)
 	Menu.open(tab)
 end
 
-function handlers.trainStart(stat, cfg)
+function handlers.trainStart(stat, cfg, kg, tier)
 	Menu.close()
-	TrainingUI.start(stat, cfg)
+	TrainingUI.start(stat, cfg, kg, tier)
 end
 
 function handlers.trainRep(...)
@@ -350,18 +350,14 @@ Notify.OnClientEvent:Connect(function(kind, ...)
 end)
 
 --------------------------------------------------------------------------------
--- Welcome back
+-- Welcome back (returning players only; a brand-new player sees no text at all)
 --------------------------------------------------------------------------------
 task.spawn(function()
 	task.wait(2.5)
-	if (player:GetAttribute("Level") or 1) <= 1 and (player:GetAttribute("XP") or 0) < 5 then
-		Fx.announce("SUB 5", "That's you. Level up to evolve!", Config.Ranks[1].Color, 0.22)
-		task.wait(3)
-	end
 	local gain = player:GetAttribute("OfflineGain")
 	if gain and gain > 0 then
 		Toasts.push("Welcome back! Your look earned ✦" .. Util.fmt(gain) .. " while you were away", "gold")
-	elseif player:GetAttribute("DailyReady") then
+	elseif player:GetAttribute("DailyReady") and (player:GetAttribute("TutStep") or 99) > #Config.Tutorial then
 		Toasts.push("Your daily reward is ready", "gold")
 	end
 end)
