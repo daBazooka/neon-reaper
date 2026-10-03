@@ -134,7 +134,6 @@ Config.StatScore = 5 -- Glow Score per stat point
 -- Upgrades (bought with Aura)
 --------------------------------------------------------------------------------
 Config.Upgrades = {
-	{ Id = "Magnet", Name = "Aura Magnet", Icon = "🧲", Desc = "Grab shards from farther away", Base = 40, Growth = 1.5, Max = 25 },
 	{ Id = "Boots", Name = "Glide Sneakers", Icon = "👟", Desc = "Run faster around the district", Base = 60, Growth = 1.55, Max = 20 },
 	{ Id = "Training", Name = "Pro Coach", Icon = "🏋️", Desc = "+25% stat gain from training", Base = 120, Growth = 1.7, Max = 30 },
 	{ Id = "Luck", Name = "Lucky Charm", Icon = "🍀", Desc = "Better odds for rare crate drops", Base = 150, Growth = 1.75, Max = 30 },
@@ -143,9 +142,6 @@ Config.Upgrades = {
 
 function Config.UpgradeCost(def, level)
 	return math.floor(def.Base * def.Growth ^ level)
-end
-function Config.MagnetRadius(level)
-	return 9 + level * 1.6
 end
 function Config.WalkSpeed(level)
 	return 18 + level * 1.2
@@ -414,15 +410,18 @@ end
 -- An id of 0 means "not set up yet" and the offer is shown as coming soon.
 --------------------------------------------------------------------------------
 Config.Store = {
+	-- Passes and products are shown as cards. Paste a real id into PassId / ProductId to switch a card on;
+	-- until then its button says "Coming soon". Price is only the number printed on the green button.
 	Passes = {
-		{ Id = "x2aura", Name = "2x Aura", Desc = "Doubles all Aura you earn, forever.", PassId = 0 },
-		{ Id = "x2xp", Name = "2x XP", Desc = "Level up twice as fast, forever.", PassId = 0 },
-		{ Id = "vip", Name = "VIP", Desc = "Gold VIP tag, +25% Aura and a free crate every day.", PassId = 0 },
+		{ Id = "vip", Name = "VIP", Desc = "Gold tag, +25% Aura, free crate daily", Icon = "👑", Color = C(255, 196, 40), Price = 399, PassId = 0 },
+		{ Id = "x2aura", Name = "2x Aura", Desc = "Doubles all Aura you earn", Icon = "✦", Color = C(255, 150, 60), Price = 299, PassId = 0 },
+		{ Id = "x2xp", Name = "2x Levels", Desc = "Level up twice as fast", Icon = "⬆️", Color = C(88, 186, 255), Price = 249, PassId = 0 },
 	},
 	Products = {
-		{ Id = "aura_s", Name = "Aura Pack S", Size = 20, ProductId = 0 },
-		{ Id = "aura_m", Name = "Aura Pack M", Size = 120, ProductId = 0 },
-		{ Id = "aura_l", Name = "Aura Pack L", Size = 800, ProductId = 0 },
+		{ Id = "starter", Name = "Starter Pack", Desc = "Aura boost + 5 crates", Icon = "🎁", Color = C(255, 112, 176), Price = 99, Size = 40, Crates = 5, ProductId = 0 },
+		{ Id = "aura_s", Name = "Aura Pack", Desc = "Instant Aura", Icon = "💎", Color = C(84, 224, 176), Price = 49, Size = 20, ProductId = 0 },
+		{ Id = "aura_m", Name = "Big Aura Pack", Desc = "Instant Aura", Icon = "💎", Color = C(62, 140, 255), Price = 199, Size = 120, ProductId = 0 },
+		{ Id = "aura_l", Name = "Mega Aura Pack", Desc = "Instant Aura", Icon = "🏆", Color = C(162, 112, 255), Price = 799, Size = 800, Tag = "BEST VALUE", Rainbow = true, ProductId = 0 },
 	},
 }
 function Config.ProductAura(level, size)
@@ -557,34 +556,7 @@ for _, crate in Config.Crates do
 	Config.CrateById[crate.Id] = crate
 end
 
---------------------------------------------------------------------------------
--- Aura shards scattered around the district
---------------------------------------------------------------------------------
-Config.ShardTypes = {
-	{ Name = "Apple", Kind = "apple", Value = 2, Weight = 70, Scale = 0, Color = C(220, 50, 50) },
-	{ Name = "Protein Shake", Kind = "shake", Value = 12, Weight = 22, Scale = 0.2, Color = C(120, 190, 255) },
-	{ Name = "Dumbbell", Kind = "dumbbell", Value = 60, Weight = 7, Scale = 0.4, Color = C(90, 95, 110) },
-	{ Name = "Trophy", Kind = "trophy", Value = 300, Weight = 1, Scale = 0.6, Color = C(255, 205, 60) },
-}
-Config.ShardMutations = {
-	{ Name = "Rainbow", Chance = 0.005, Mult = 10, Color = C(255, 120, 200) },
-	{ Name = "Shiny", Chance = 0.04, Mult = 3, Color = C(255, 245, 160) },
-}
-Config.ShardRespawn = 4
-Config.ChainWindow = 2.5
-Config.ChainMax = 30
-function Config.ChainMult(chain)
-	return 1 + math.min(chain, Config.ChainMax) * 0.05
-end
-function Config.ShardTier(name)
-	for i, t in Config.ShardTypes do
-		if t.Name == name then
-			return i
-		end
-	end
-	return 1
-end
--- Shards pay more as you rank up, so early crates stay exciting without trivialising late ones.
+-- Training pays more as you rank up, so early crates stay exciting without trivialising late ones.
 function Config.RankScaling(rankIndex)
 	return 1 + (rankIndex - 1) * 0.6
 end
@@ -620,15 +592,13 @@ Config.Runway = { MinZ = 26, MaxZ = 96, HalfWidth = 7, AuraPerScore = 0.04 }
 --------------------------------------------------------------------------------
 -- Quests (an endless chain of small goals)
 --------------------------------------------------------------------------------
-local QUEST_KINDS = { "swings", "shards", "train", "duel", "crate", "perfect" }
+local QUEST_KINDS = { "swings", "train", "duel", "crate", "perfect" }
 function Config.MakeQuest(done, rebirths)
 	local kind = QUEST_KINDS[done % #QUEST_KINDS + 1]
 	local step = done // #QUEST_KINDS
 	local goal, per
 	if kind == "swings" then
 		goal, per = math.min(40 + step * 15, 400), 2
-	elseif kind == "shards" then
-		goal, per = math.min(25 + step * 8, 150), 6
 	elseif kind == "train" then
 		goal, per = math.min(5 + step, 20), 40
 	elseif kind == "duel" then
@@ -643,8 +613,6 @@ end
 function Config.QuestText(kind, goal)
 	if kind == "swings" then
 		return string.format("Swing your hammer %d times", goal)
-	elseif kind == "shards" then
-		return string.format("Collect %d pickups", goal)
 	elseif kind == "train" then
 		return string.format("Land %d training reps", goal)
 	elseif kind == "duel" then
@@ -674,7 +642,6 @@ Config.Daily = {
 Config.EventGap = { 150, 280 }
 Config.Events = {
 	{ Id = "Golden", Name = "GOLDEN HOUR", Icon = "🌟", Desc = "All Aura x2", Duration = 90, AuraMult = 2, Tint = C(255, 240, 200) },
-	{ Id = "Storm", Name = "PICKUP STORM", Icon = "☄️", Desc = "Gym goodies are raining down", Duration = 60, Tint = C(215, 230, 255) },
 	{ Id = "Frenzy", Name = "DUEL FRENZY", Icon = "⚔️", Desc = "Duel rewards x3", Duration = 90, DuelMult = 3, Tint = C(255, 215, 220) },
 	{ Id = "Runway", Name = "RUNWAY NIGHT", Icon = "💃", Desc = "Runway Aura x4", Duration = 90, RunwayMult = 4, Tint = C(235, 215, 255) },
 }

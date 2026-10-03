@@ -29,7 +29,6 @@ local TabSettings = require(Modules.TabSettings)
 local TrainingUI = require(Modules.TrainingUI)
 local DuelUI = require(Modules.DuelUI)
 local CompetitionUI = require(Modules.CompetitionUI)
-local Orbs = require(Modules.Orbs)
 local Interact = require(Modules.Interact)
 local HammerRow = require(Modules.HammerRow)
 local Swing = require(Modules.Swing)
@@ -57,7 +56,6 @@ local gui = UI.new("ScreenGui", {
 --------------------------------------------------------------------------------
 Audio.Init()
 Fx.init(gui)
-Orbs.init()
 Menu.init(gui)
 Menu.addTab("Wardrobe", "👗", function(page)
 	return TabWardrobe.build(page, Action)
@@ -69,8 +67,8 @@ Menu.addTab("Pets", "🐾", function(page)
 	return TabPets.build(page, Action)
 end)
 Menu.addTab("Store", "💎", function(page)
-	return TabStore.build(page)
-end)
+	return TabStore.build(page, Menu)
+end, true)
 Menu.addTab("Upgrades", "⬆️", function(page)
 	return TabUpgrades.build(page, Action)
 end)
@@ -78,8 +76,8 @@ Menu.addTab("Profile", "📈", function(page)
 	return TabProfile.build(page)
 end)
 Menu.addTab("Rewards", "📅", function(page)
-	return TabRewards.build(page, Action)
-end)
+	return TabRewards.build(page, Action, Menu)
+end, true)
 Menu.addTab("Settings", "⚙️", function(page)
 	return TabSettings.build(page, Action)
 end)
@@ -121,27 +119,6 @@ end)
 -- Server messages
 --------------------------------------------------------------------------------
 local handlers = {}
-
-function handlers.shard(pos, gained, tier, color, mut, chain)
-	local tierIndex = Config.ShardTier(tier)
-	Audio.pickup(chain, tierIndex + (mut and 2 or 0))
-	Fx.burst(pos, color, 5 + tierIndex * 4 + (mut and 14 or 0))
-	Fx.punch(1 + tierIndex * 0.8 + (mut and 3 or 0))
-	-- Only notable pickups get a floating number; the Aura counter covers the rest.
-	if mut or tierIndex >= 3 then
-		local text = (mut and (mut:upper() .. "! ") or "") .. "+" .. Util.fmt(gained)
-		Fx.floatText(pos, text, color, mut and 26 or 22)
-	end
-	if mut then
-		Fx.shake(0.25, 0.3)
-		Fx.flash(color, 0.22, 0.35)
-	end
-	if chain == 10 or chain == 20 or chain == Config.ChainMax then
-		Audio.milestone(chain)
-		Toasts.push("CHAIN x" .. chain .. "!", "gold")
-		Hud.pulseChain()
-	end
-end
 
 function handlers.toast(text, kind)
 	if kind == "bad" then

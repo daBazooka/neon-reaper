@@ -641,38 +641,12 @@ local function buildStage(parent)
 	disk(parent, "Stage", Vector3.new(0, 1.8, 0), 24, 0.9, C3(196, 196, 202), M.Concrete)
 	disk(parent, "StageEmblem", Vector3.new(0, 1.85, 0), 15, 0.1, YELLOW, M.SmoothPlastic)
 	disk(parent, "StageEmblemInner", Vector3.new(0, 1.9, 0), 13.5, 0.1, C3(196, 196, 202), M.Concrete)
-	-- Canopy
-	for sx = -1, 1, 2 do
-		for sz = -1, 1, 2 do
-			block(parent, "StagePillar", Vector3.new(2, 31, 2), CFrame.new(sx * 32, 15.5, sz * 22), DARK, M.Metal)
-		end
-	end
-	block(parent, "StageRoof", Vector3.new(70, 2, 48), CFrame.new(0, 32, 0), C3(48, 50, 58), M.Metal)
-	block(parent, "StageRoofTrim", Vector3.new(71, 0.7, 49), CFrame.new(0, 30.7, 0), YELLOW, M.SmoothPlastic)
-	for i = 1, 8 do
-		local x = -28 + (i - 1) * 8
-		local lampPart = block(parent, "StageLight", Vector3.new(2.4, 1.6, 2.4), CFrame.new(x, 30, (i % 2 == 0) and -8 or 8), C3(230, 230, 235), M.Metal, { CanCollide = false })
-		local light = Instance.new("SpotLight")
-		light.Face = Enum.NormalId.Bottom
-		light.Angle = 70
-		light.Range = 60
-		light.Brightness = 1.6
-		light.Color = C3(255, 244, 220)
-		light.Parent = lampPart
-	end
-	local stageGlow = Config.Buildings.stage.Glow
-	for sx = -1, 1, 2 do
-		for sz = -1, 1, 2 do
-			Decor.smoke(parent, Vector3.new(sx * 32, 31.5, sz * 22), stageGlow, 1.1)
-		end
-	end
-	Decor.groundAura(parent, Vector3.zero, 40, stageGlow)
-	-- Banners
-	sign(parent, Vector3.new(0, 25.5, 23), Vector3.new(0, 0, 1), Vector3.new(48, 9, 0.8), "SUB 5 TO TRUE ADAM", C3(20, 70, 140), C3(255, 214, 70))
-	local _, boardLabel = sign(parent, Vector3.new(0, 14.5, 23), Vector3.new(0, 0, 1), Vector3.new(34, 8, 0.8), "MOG COMPETITION\nsoon...", C3(30, 30, 38), WHITE)
+	Decor.groundAura(parent, Vector3.zero, 40, Config.Buildings.stage.Glow)
+	-- A low status board behind the stage (kept short so it never blocks the view)
+	local _, boardLabel = sign(parent, Vector3.new(0, 4.4, 31), Vector3.new(0, 0, 1), Vector3.new(22, 5, 0.8), "MOG COMPETITION\nsoon...", C3(30, 30, 38), WHITE)
 	boardLabel.TextScaled = true
 	for side = -1, 1, 2 do
-		block(parent, "BannerPost", Vector3.new(1.4, 31, 1.4), CFrame.new(side * 27, 15.5, 23), DARK, M.Metal)
+		block(parent, "BannerPost", Vector3.new(1, 3, 1), CFrame.new(side * 9, 1.5, 31), DARK, M.Metal)
 	end
 	-- Podium
 	local function podium(x, h, color, number)
@@ -741,33 +715,6 @@ local function buildBoard(parent)
 end
 
 --------------------------------------------------------------------------------
--- Coin placement
---------------------------------------------------------------------------------
-local function shardSlots(avoid)
-	local slots = {}
-	local attempts = 0
-	while #slots < 150 and attempts < 3000 do
-		attempts += 1
-		local a = rng:NextNumber() * math.pi * 2
-		local r = 8 + math.sqrt(rng:NextNumber()) * (PLAZA - 16)
-		local x, z = math.cos(a) * r, math.sin(a) * r
-		local ok = true
-		for _, zone in avoid do
-			if (Vector3.new(x, 0, z) - zone.pos).Magnitude < zone.r then
-				ok = false
-			end
-		end
-		if math.abs(x) < 14 and z > 20 and z < 104 then
-			ok = false
-		end
-		if ok then
-			table.insert(slots, Vector3.new(x, 3.4, z))
-		end
-	end
-	return slots
-end
-
---------------------------------------------------------------------------------
 -- Entry point
 --------------------------------------------------------------------------------
 function World.build()
@@ -806,13 +753,7 @@ function World.build()
 	buildTreadHall(world)
 	local battle = buildBattle(world)
 
-	local avoid = { { pos = Vector3.zero, r = 36 }, { pos = Vector3.new(0, 0, 124), r = 56 }, { pos = Config.BattlePos(), r = 40 }, { pos = Config.TreadHallPos(), r = 75 } }
-	for name in Config.Stations do
-		table.insert(avoid, { pos = (stationAt(name)), r = 28 })
-	end
-
 	return {
-		slots = shardSlots(avoid),
 		arena = arena,
 		battle = battle,
 		board = boardLabel,

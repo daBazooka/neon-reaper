@@ -4,7 +4,6 @@ local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
-local Shards = require(script.Parent.Shards)
 
 local Events = {}
 
@@ -21,15 +20,11 @@ local function start(ev)
 	workspace:SetAttribute("Event", ev.Id)
 	workspace:SetAttribute("EventEnd", workspace:GetServerTimeNow() + ev.Duration)
 	tint(ev.Tint)
-	if ev.Id == "Storm" then
-		Shards.storm(50)
-	end
 end
 
 local function finish()
 	workspace:SetAttribute("Event", "")
 	tint(Color3.new(1, 1, 1))
-	Shards.clearTemp()
 end
 
 function Events.init()

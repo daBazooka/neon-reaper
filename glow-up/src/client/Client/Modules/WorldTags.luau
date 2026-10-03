@@ -44,7 +44,7 @@ local function makeTag(adornee, offset, width, height, maxDistance)
 		Adornee = adornee,
 		Size = UDim2.fromOffset(width, height),
 		StudsOffset = offset,
-		AlwaysOnTop = true,
+		AlwaysOnTop = false,
 		MaxDistance = maxDistance,
 		LightInfluence = 0,
 		ResetOnSpawn = false,
@@ -72,7 +72,7 @@ local function buildBuildingTags()
 		local def = Config.Buildings[id]
 		local at = Config.BuildingPos[id]()
 		local height = (id == "stage" or id == "battle") and 40 or (id == "treadmills" and 28 or 22)
-		local frame, stroke = makeTag(anchorAt(at + Vector3.new(0, height, 0)), Vector3.zero, 180, 46, 190)
+		local frame, stroke = makeTag(anchorAt(at + Vector3.new(0, height, 0)), Vector3.zero, 150, 38, 95)
 		line(frame, 3, 18, 13, def.Main:Lerp(Color3.new(1, 1, 1), 0.4), def.Name:upper())
 		local status = line(frame, 22, 20, 15, C.Yellow, "")
 		buildingTags[id] = { status = status, stroke = stroke, def = def }
@@ -81,7 +81,7 @@ end
 
 local function buildTreadTags(row)
 	for _, t in Config.Treadmills do
-		local frame, stroke = makeTag(anchorAt(Config.TreadPos(t.Id) + Vector3.new(0, 12.5, 0)), Vector3.zero, 110, 44, 80)
+		local frame, stroke = makeTag(anchorAt(Config.TreadPos(t.Id) + Vector3.new(0, 12.5, 0)), Vector3.zero, 90, 36, 38)
 		line(frame, 3, 22, 18, t.Color, "+" .. Util.fmt(t.Rate) .. "/s")
 		local status = line(frame, 25, 16, 12, C.Yellow, "")
 		treadTags[t.Id] = { status = status, stroke = stroke, def = t }

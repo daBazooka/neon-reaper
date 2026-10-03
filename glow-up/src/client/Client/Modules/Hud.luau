@@ -104,6 +104,7 @@ local function buildTop(gui, Menu)
 	-- Hint banner
 	local banner = pill(stack, "Banner", UDim2.fromOffset(440, 28), C.Orange)
 	banner.LayoutOrder = 1
+	banner.Visible = false -- the multiplier lives in the Rewards/Shop windows; the top of the screen stays clear
 	refs.banner = UI.label(banner, {
 		Size = UDim2.fromScale(1, 1),
 		Font = UI.Fonts.Title,
@@ -136,16 +137,7 @@ local function buildTop(gui, Menu)
 		return label
 	end
 	refs.rebirthPill = counter(1, 90, C.Mint, C.Mint)
-	-- The store button only shows once at least one real purchase has been set up in Config.Store.
-	local storeLive = false
-	for _, pass in Config.Store.Passes do
-		storeLive = storeLive or pass.PassId ~= 0
-	end
-	for _, product in Config.Store.Products do
-		storeLive = storeLive or product.ProductId ~= 0
-	end
 	local store = UI.button(row, {
-		Visible = storeLive,
 		LayoutOrder = 3,
 		Size = UDim2.fromOffset(104, 30),
 		BackgroundColor3 = C.Accent2,
@@ -184,7 +176,7 @@ local function buildTop(gui, Menu)
 		end
 	end)
 
-	-- Chips (chain, event, competition), only visible while relevant
+	-- Chips (frenzy, event, competition), only visible while relevant
 	local chips = UI.new("Frame", { Name = "Chips", Size = UDim2.fromOffset(440, 70), BackgroundTransparency = 1, LayoutOrder = 3 }, stack)
 	UI.new("UIListLayout", {
 		HorizontalAlignment = Enum.HorizontalAlignment.Center,
@@ -205,13 +197,9 @@ local function buildTop(gui, Menu)
 		})
 		return c, label
 	end
-	refs.chain, refs.chainText = chip(1, C.Sky, 170)
-	refs.chainScale = UI.new("UIScale", {}, refs.chain)
-	refs.chainBar = UI.bar(refs.chain, { Position = UDim2.new(0, 10, 1, -5), Size = UDim2.new(1, -20, 0, 2) }, C.Sky)
 	refs.streak, refs.streakText = chip(0, C.Orange, 200)
 	refs.streakScale = UI.new("UIScale", {}, refs.streak)
 	refs.streakBar = UI.bar(refs.streak, { Position = UDim2.new(0, 10, 1, -5), Size = UDim2.new(1, -20, 0, 2) }, C.Orange)
-	refs.gift, refs.giftText = chip(4, C.Mint, 200)
 	refs.comp, refs.compText = chip(2, C.Orange, 300)
 	refs.event, refs.eventText = chip(3, C.Pink, 300)
 	refs.run, refs.runText = chip(0, C.Mint, 220)
@@ -614,33 +602,15 @@ function Hud.init(gui, Menu, Action)
 			end
 		end
 
-		local chain = player:GetAttribute("Chain") or 0
-		local remaining = (player:GetAttribute("ChainExpire") or 0) - workspace:GetServerTimeNow()
-		if chain >= 3 and remaining > 0 then
-			refs.chain.Visible = true
-			refs.chainText.Text = string.format("CHAIN x%d  ·  +%d%%", chain, math.floor((Config.ChainMult(chain) - 1) * 100 + 0.5))
-			refs.chainText.TextColor3 = C.Sky:Lerp(C.Pink, math.clamp(chain / Config.ChainMax, 0, 1))
-			refs.chainBar.set(remaining / Config.ChainWindow)
-		else
-			refs.chain.Visible = false
-		end
-
 		-- Mog Streak / Frenzy chip
 		local now = workspace:GetServerTimeNow()
 		local frenzyLeft = (player:GetAttribute("FrenzyEnd") or 0) - now
-		local combo = player:GetAttribute("SwingCombo") or 0
 		if frenzyLeft > 0 then
 			refs.streak.Visible = true
 			refs.streakText.Text = string.format("🔥 FRENZY x%d  ·  %.1fs", Config.Frenzy.Mult, frenzyLeft)
 			refs.streakText.TextColor3 = C.Yellow
 			refs.streakBar.set(frenzyLeft / Config.Frenzy.Duration)
 			refs.streakBar.fill.BackgroundColor3 = C.Yellow
-		elseif combo >= 5 and (t - lastGain) < 1.2 then
-			refs.streak.Visible = true
-			refs.streakText.Text = string.format("MOG STREAK  %d/%d", combo, Config.Frenzy.Combo)
-			refs.streakText.TextColor3 = C.Orange
-			refs.streakBar.set(combo / Config.Frenzy.Combo)
-			refs.streakBar.fill.BackgroundColor3 = C.Orange
 		else
 			refs.streak.Visible = false
 		end
@@ -653,25 +623,11 @@ function Hud.init(gui, Menu, Action)
 		else
 			refs.run.Visible = false
 		end
-		-- Next play-time gift
-		local giftIn = (player:GetAttribute("GiftAt") or 0) - now
-		if (player:GetAttribute("GiftAt") or 0) > 0 and giftIn > 0 then
-			refs.gift.Visible = true
-			refs.giftText.Text = "🎁 Gift in " .. Util.clock(giftIn)
-			refs.giftText.TextColor3 = C.Mint
-		else
-			refs.gift.Visible = false
-		end
-
 		if t - lastSlow > 0.15 then
 			lastSlow = t
 			Hud.refresh()
 		end
 	end)
-end
-
-function Hud.pulseChain()
-	UI.pop(refs.chainScale, 1.12)
 end
 
 function Hud.pulseQuest()
@@ -778,10 +734,6 @@ function Hud.refresh()
 		refs.comp.Visible = true
 		refs.compText.Text = string.format("🏆 Mog Competition OPEN  %s", Util.clock(compLeft))
 		refs.compText.TextColor3 = C.Orange
-	elseif compState == "idle" and compLeft > 0 then
-		refs.comp.Visible = true
-		refs.compText.Text = string.format("🏆 Mog Competition in %s", Util.clock(compLeft))
-		refs.compText.TextColor3 = C.Muted
 	else
 		refs.comp.Visible = false
 	end

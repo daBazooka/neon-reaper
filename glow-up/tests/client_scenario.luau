@@ -6,10 +6,10 @@ a.Ready = true; a.Aura = 1500; a.GlowScore = 130; a.Rank = 2; a.Level = 14; a.XP
 a.Power = 12; a.Style = 3.5; a.Charm = 0; a.Wins = 4; a.DuelStreak = 2
 a.Inv = "head_cap:2,face_visor:1,aura_spark:1"; a.Eq_Head = "head_cap"; a.Eq_Back = ""; a.Eq_Face = ""; a.Eq_Aura = ""; a.Eq_Trail = ""
 a.FreeCrates = 1; a.Pity_neon = 3; a.Pity_icon = 0
-a.QuestKind = "shards"; a.QuestGoal = 25; a.QuestProgress = 10; a.QuestReward = 150
+a.QuestKind = "swings"; a.QuestGoal = 25; a.QuestProgress = 10; a.QuestReward = 150
 a.DailyReady = true; a.DailyDay = 2; a.DailyStreak = 1
-a.Chain = 7; a.ChainExpire = clock + 2
-a.Lv_Magnet = 2; a.Lv_Boots = 0; a.Lv_Training = 1; a.Lv_Luck = 0; a.Lv_Boost = 0
+a.GiftsClaimed = 2
+a.Lv_Boots = 0; a.Lv_Training = 1; a.Lv_Luck = 0; a.Lv_Boost = 0
 a.Set_Music = true; a.Set_Sfx = true; a.Set_Fx = true; a.Set_Duels = true
 a.OfflineGain = 5000
 attrsWS.Event = "Golden"; attrsWS.EventEnd = clock + 60; attrsWS.CompState = "open"; attrsWS.CompEnd = clock + 25
@@ -33,9 +33,6 @@ Menu.close()
 
 -- server messages
 local function send(...) fireAll("notify", ...) end
-send("shard", Vector3.new(1, 3, 1), 120, "Nova", U("c"), nil, 10)
-send("shard", Vector3.new(1, 3, 1), 900, "Spark", U("c"), "Golden", 20)
-send("shard", Vector3.new(1, 3, 1), 4, "Spark", U("c"), nil, 1)
 send("toast", "Not enough Aura", "bad")
 send("toast", "Not enough Aura", "bad")
 send("toast", "Another", "info")
@@ -46,7 +43,7 @@ send("level", 15, 225, 0)
 send("level", 20, 300, 1)
 send("quest", "Collect 25 Aura shards", 150, " + free crate")
 send("daily", 2, 300, 1)
-send("upgrade", "Magnet", 1)
+send("upgrade", "Boost", 1)
 send("rebirth", 1)
 send("openMenu", "Rewards")
 send("crate", "street", "head_halo", "new", 1, 0)
@@ -125,7 +122,6 @@ attrsWS.CompState = "idle"; attrsWS.CompEnd = clock + 90
 advance(0.5); fireAll("RenderStepped", 0.016)
 -- bogus messages must not crash
 send("nonsense", 1, 2, 3)
-send("shard")
 send("crate", "street", "does_not_exist", "new", 1, 0)
 advance(1)
 -- settings toggle path

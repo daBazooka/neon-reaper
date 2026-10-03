@@ -13,6 +13,7 @@ local sessions = {} -- player -> { joined = os.clock(), claimed = number }
 function Playtime.init(p)
 	sessions[p] = { joined = os.clock(), claimed = 0 }
 	p:SetAttribute("GiftAt", workspace:GetServerTimeNow() + Config.Gifts[1].Time)
+	p:SetAttribute("GiftsClaimed", 0)
 end
 
 function Playtime.release(p)
@@ -30,6 +31,7 @@ function Playtime.tick(p)
 	local nextGift = Config.Gifts[session.claimed + 1]
 	if nextGift and elapsed >= nextGift.Time then
 		session.claimed += 1
+		p:SetAttribute("GiftsClaimed", session.claimed)
 		local aura = Config.GiftAura(profile.Level, nextGift.Size)
 		Stats.addAura(p, aura, { raw = true })
 		if nextGift.Crates > 0 then

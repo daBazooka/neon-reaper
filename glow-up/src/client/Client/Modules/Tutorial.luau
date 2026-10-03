@@ -113,7 +113,7 @@ function Tutorial.init(gui, Action)
 		Name = "TutorialCard",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.new(0, 84, 0.5, -185),
-		Size = UDim2.fromOffset(270, 132),
+		Size = UDim2.fromOffset(250, 126),
 		Visible = false,
 		Radius = 12,
 	})

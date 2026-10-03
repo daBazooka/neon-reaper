@@ -63,6 +63,9 @@ function Store.start()
 			return Enum.ProductPurchaseDecision.NotProcessedYet
 		end
 		Stats.addAura(p, Config.ProductAura(profile.Level, product.Size), { raw = true })
+		if product.Crates and product.Crates > 0 then
+			Stats.addFreeCrates(p, product.Crates)
+		end
 		Stats.toast(p, product.Name .. " received!", "gold")
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end

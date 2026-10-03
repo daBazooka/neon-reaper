@@ -49,10 +49,10 @@ local function makeTag(pedestal, hammer)
 	local gui = UI.new("BillboardGui", {
 		Name = "HammerTag" .. hammer.Id,
 		Adornee = pedestal,
-		Size = UDim2.fromOffset(130, 74),
+		Size = UDim2.fromOffset(104, 60),
 		StudsOffset = Vector3.new(0, 11.5, 0),
-		AlwaysOnTop = true,
-		MaxDistance = 110,
+		AlwaysOnTop = false,
+		MaxDistance = 42,
 		LightInfluence = 0,
 		ResetOnSpawn = false,
 	}, player:WaitForChild("PlayerGui"))

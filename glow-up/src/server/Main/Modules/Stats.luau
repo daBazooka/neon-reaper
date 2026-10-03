@@ -174,7 +174,6 @@ function Stats.recompute(p)
 	if rank > oldRank and p:GetAttribute("Ready") then
 		Stats.send(p, "rank", rank)
 	end
-	p:SetAttribute("MagnetRadius", Config.MagnetRadius(profile.Levels.Magnet or 0))
 end
 
 --------------------------------------------------------------------------------
@@ -254,8 +253,6 @@ function Stats.init(p)
 	end
 	p:SetAttribute("Wins", profile.Wins)
 	p:SetAttribute("DuelStreak", 0)
-	p:SetAttribute("Chain", 0)
-	p:SetAttribute("ChainExpire", 0)
 	for key, value in profile.Settings do
 		p:SetAttribute("Set_" .. key, value)
 	end

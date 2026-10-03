@@ -40,6 +40,11 @@ local function select(name)
 	for _, tab in tabs do
 		local active = tab.name == name
 		tab.page.Visible = active
+		if active and Menu.sidebar then
+			-- "bare" tabs (Store, Rewards) draw their own header, so the shared title, X and sidebar step aside
+			Menu.sidebar.Visible = not tab.bare
+			Menu.chrome.Visible = not tab.bare
+		end
 		UI.tween(tab.button, 0.15, {
 			BackgroundColor3 = active and UI.Colors.Accent or UI.Colors.Card,
 			BackgroundTransparency = active and 0.1 or 0.35,
@@ -87,7 +92,9 @@ function Menu.init(gui)
 	-- Clicks inside the window must not fall through to the backdrop.
 	UI.new("TextButton", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "", ZIndex = 21, AutoButtonColor = false }, window)
 
-	local header = UI.label(window, {
+	local chrome = UI.new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 22 }, window)
+	Menu.chrome = chrome
+	local header = UI.label(chrome, {
 		Position = UDim2.fromOffset(24, 14),
 		Size = UDim2.fromOffset(420, 30),
 		Font = UI.Fonts.Title,
@@ -98,7 +105,7 @@ function Menu.init(gui)
 	})
 	UI.gradient(header, UI.Colors.Cyan, UI.Colors.Accent2, 0)
 
-	local closeButton = UI.button(window, {
+	local closeButton = UI.button(chrome, {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -16, 0, 14),
 		Size = UDim2.fromOffset(34, 34),
@@ -130,10 +137,11 @@ function Menu.init(gui)
 	}, window)
 end
 
-function Menu.addTab(name, icon, builder)
+function Menu.addTab(name, icon, builder, bare)
 	local index = #tabs + 1
 	local button = UI.button(Menu.sidebar, {
 		LayoutOrder = index,
+		Visible = not bare,
 		Size = UDim2.new(1, 0, 0, 38),
 		BackgroundTransparency = 0.35,
 		Text = "",
@@ -164,9 +172,9 @@ function Menu.addTab(name, icon, builder)
 		BackgroundTransparency = 1,
 		Visible = false,
 		ZIndex = 22,
-	}, content)
+	}, bare and window or content)
 	local api = builder(page) or {}
-	local tab = { name = name, icon = icon, button = button, page = page, refresh = api.refresh, badge = badge }
+	local tab = { name = name, icon = icon, button = button, page = page, refresh = api.refresh, badge = badge, bare = bare }
 	table.insert(tabs, tab)
 	button.Activated:Connect(function()
 		Audio.click()

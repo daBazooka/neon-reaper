@@ -52,15 +52,8 @@ check(a1.DailyReady == true, "daily reward ready")
 
 check(math.abs(p1.scaleVals.BodyWidthScale.Value - 1.9) < 1.9 * 0.1, "level 1 body is wide (width " .. p1.scaleVals.BodyWidthScale.Value .. ")")
 check(math.abs(p1.scaleVals.BodyHeightScale.Value - 0.78) < 0.78 * 0.1, "level 1 body is short (height " .. p1.scaleVals.BodyHeightScale.Value .. ")")
--- shards: heartbeat collects everything in the mock
-for i = 1, 160 do
-	p1.root.Position = Vector3.new(math.random(-150, 150), 3, math.random(-150, 150))
-	fireAll("Heartbeat", 0.2)
-end
-check((a1.Aura or 0) > 0, "collected shards, Aura = " .. tostring(a1.Aura))
-local shardMsgs = 0
-for _, m in notifyLog do if m[1] == "shard" then shardMsgs += 1 end end
-check(shardMsgs > 20, "shard notifications sent: " .. shardMsgs)
+-- no floating pickups exist any more
+Stats.addAura(p1, 50, {raw = true})
 
 -- crates
 Data.get(p1).Buildings.crates = true
@@ -134,14 +127,14 @@ check(a1.InDuel == false, "queued duel finished")
 fireAll("Action", p1, "Claim")
 check(a1.DailyReady == false, "daily claimed")
 Stats.addAura(p1, 1e7, {raw = true})
-fireAll("Action", p1, "Buy", "Magnet")
-check(a1.Lv_Magnet == 1, "bought Magnet level 1")
+fireAll("Action", p1, "Buy", "Boost")
+check(a1.Lv_Boost == 1, "bought Boost level 1")
 Stats.addStat(p1, "Power", 5000)
 Data.get(p1).Level = 200; Stats.recompute(p1)
 check(a1.Level >= Config.RebirthRequirement(0), "level " .. a1.Level .. " meets rebirth requirement")
 fireAll("Action", p1, "Rebirth")
 check(a1.Rebirths == 1, "rebirth done")
-check(a1.Lv_Magnet == 0, "rebirth reset upgrades")
+check(a1.Lv_Boost == 0, "rebirth reset upgrades")
 check(Data.get(p1).Inv ~= nil and next(Data.get(p1).Inv) ~= nil, "rebirth kept cosmetics")
 
 -- events
