@@ -47,6 +47,7 @@ local function defaults()
 		Hammer = 1,
 		HammersOwned = { ["1"] = true },
 		Perfects = 0,
+		Records = {}, -- machine id -> best set total
 		CratesOpened = 0,
 		Pity = { neon = 0, icon = 0 },
 		QuestsDone = 0,

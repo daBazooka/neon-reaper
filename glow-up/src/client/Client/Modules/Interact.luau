@@ -105,6 +105,14 @@ local function scan()
 			best, bestScore = { id = "Tread:" .. t.Id, text = text, color = color }, d / r
 		end
 	end
+	if ownedBuilding("gym") then
+		for _, m in Config.GymMachines do
+			local d = flat(pos, Config.MachinePos(m))
+			if d <= m.Radius and (not bestScore or d / m.Radius < bestScore) then
+				best, bestScore = { id = "Machine:" .. m.Id, text = m.Icon .. "  Use " .. m.Name, color = C.Good }, d / m.Radius
+			end
+		end
+	end
 	for _, entry in Config.Interactables do
 		local d = flat(pos, Config.InteractPos(entry))
 		if d <= entry.Radius and (not bestScore or d / entry.Radius < bestScore) then

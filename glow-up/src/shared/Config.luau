@@ -153,12 +153,56 @@ function Config.WeightFor(power)
 	end
 	return best, Config.Weights[best]
 end
--- Where the glowing LIFT pad sits inside the gym (local to the gym's frame: x right, y up, z toward the back wall).
-Config.GymPadLocal = Vector3.new(0, 1.2, 3)
-function Config.GymPadPos()
+-- The gym frame: x = right, y = up, z = toward the back wall (the entrance is at -z), floor top at y = 0.9.
+function Config.GymFrame()
 	local pos, inward = Config.StationPos("Gym"), Config.StationFront("Gym")
-	local cf = CFrame.lookAt(pos, pos + inward)
-	return (cf * CFrame.new(Config.GymPadLocal)).Position
+	return CFrame.lookAt(pos, pos + inward)
+end
+Config.GymPadLocal = Vector3.new(0, 1.2, 1.5)
+-- A point in the gym frame as a world position (plain vector maths, no CFrame needed).
+function Config.GymPoint(localPos)
+	local pos, inward = Config.StationPos("Gym"), Config.StationFront("Gym")
+	local right = Vector3.new(-inward.Z, 0, inward.X)
+	return pos + right * localPos.X + Vector3.new(0, localPos.Y, 0) - inward * localPos.Z
+end
+function Config.GymPadPos()
+	return Config.GymPoint(Config.GymPadLocal)
+end
+
+-- Every machine in the gym. Mode decides the mini-game: "sweep" (press when the marker is in the zone),
+-- "hold" (hold to push, release in the zone), "rhythm" (alternate Left / Right on the beat) and "mash" (tap fast).
+-- Local = where you stand (also where the glowing ring is), Face = turn from facing the entrance (radians).
+Config.GymMachines = {
+	{ Id = "rack", Name = "Dumbbell Rack", Icon = "🏋️", Mode = "sweep", Pose = "curl", Local = Vector3.new(0, 0, 10.4), Face = math.pi, Radius = 6, Reps = 5, Gain = 1.0, Tip = "Press when the line is in the gold" },
+	{ Id = "bench", Name = "Bench Press", Icon = "🛏️", Mode = "hold", Pose = "bench", Local = Vector3.new(-5.2, 0, -2.6), Face = 0, Radius = 3.4, Reps = 5, Gain = 1.25, Tip = "Hold to push the bar up, let go in the gold" },
+	{ Id = "squat", Name = "Squat Rack", Icon = "🦵", Mode = "hold", Pose = "squat", Local = Vector3.new(9.6, 0, 2.3), Face = 0, Radius = 3.4, Reps = 4, Gain = 1.5, Tip = "Hold to squat down, let go at the right depth" },
+	{ Id = "cable", Name = "Cable Machine", Icon = "🔗", Mode = "rhythm", Pose = "cable", Local = Vector3.new(11.4, 0, -12.4), Face = math.pi, Radius = 3.4, Reps = 4, Gain = 1.4, Tip = "Pull Left and Right on the beat (A / D)" },
+	{ Id = "bag", Name = "Punching Bag", Icon = "🥊", Mode = "rhythm", Pose = "bag", Local = Vector3.new(-9.5, 0, -9.0), Face = 0, Radius = 3.4, Reps = 4, Gain = 1.6, Tip = "Punch Left and Right on the beat (A / D)" },
+	{ Id = "pullup", Name = "Pull-Up Bar", Icon = "🧗", Mode = "mash", Pose = "pullup", Local = Vector3.new(12.6, 0, 9.0), Face = 0, Radius = 3.4, Reps = 3, Gain = 1.8, Tip = "Tap as fast as you can to pull up" },
+}
+-- Fixed spots inside the gym (local to the gym frame) shared by the building, the poses and the tests.
+Config.GymLayout = {
+	BenchCenter = Vector3.new(-9.5, 0, -2),
+	BenchTop = 3.125, -- top of the bench pad (absolute y)
+	PullupBar = Vector3.new(12.6, 8.5, 9.0), -- centre of the pull-up bar
+	BagPos = Vector3.new(-9.5, 0, -11.5),
+	BagPivotY = 13.0,
+	SquatBar = Vector3.new(9.6, 7.1, 2.3), -- the bar on its hooks
+}
+Config.GymMachineById = {}
+for _, m in Config.GymMachines do
+	Config.GymMachineById[m.Id] = m
+end
+-- The machines used by the other training buildings (a single exercise each).
+Config.StatMachines = {
+	Style = { Id = "style", Name = "Hand Mirror", Icon = "💅", Mode = "sweep", Pose = "hair", Reps = 5, Gain = 1.0, Tip = "Press when the line is in the gold" },
+	Charm = { Id = "charm", Name = "Red Rose", Icon = "🌹", Mode = "sweep", Pose = "toast", Reps = 5, Gain = 1.0, Tip = "Press when the line is in the gold" },
+}
+function Config.MachineStandCF(machine)
+	return Config.GymFrame() * CFrame.new(machine.Local) * CFrame.Angles(0, machine.Face, 0)
+end
+function Config.MachinePos(machine)
+	return Config.GymPoint(machine.Local)
 end
 Config.StatScore = 5 -- Glow Score per stat point
 
@@ -336,7 +380,7 @@ Config.VoiceText = {
 Config.Tutorial = {
 	{ Title = "Swing your hammer", Text = "Click or tap anywhere to hit yourself. Every hit earns Aura.", Goal = 10 },
 	{ Title = "Buy the Stone Hammer", Text = "Walk to the glowing Stone Hammer and press the big button at the bottom. Bigger hammer, more Aura per swing.", Gift = 60 },
-	{ Title = "Train on a platform", Text = "Walk onto the Gym platform, press the big button, then hit SPACE (or tap) when the marker is in the green.", Goal = 3 },
+	{ Title = "Use a gym machine", Text = "Walk to the glowing ring at the dumbbell rack, press the big button and lift.", Goal = 3 },
 	{ Title = "Hatch a pet", Text = "Press the 🐾 Pets button on the right and hatch a Basic Egg. Pets boost your Aura.", Gift = 500 },
 	{ Title = "Fight Stage 1", Text = "Press the ⚔️ Battle button. Press the big button to unlock the arena (free gift), press it again to fight, and tap fast!", Gift = 2600 },
 }
@@ -466,7 +510,6 @@ end
 --------------------------------------------------------------------------------
 Config.HammerRadius = 8
 Config.Interactables = {
-	{ Id = "Gym", Object = "Gym", Action = "Lift weights", Pos = "station:Gym", Radius = 17, Building = "gym" },
 	{ Id = "Studio", Object = "Style Studio", Action = "Style yourself", Pos = "station:Studio", Radius = 17, Building = "studio" },
 	{ Id = "Lounge", Object = "Charm Lounge", Action = "Practise charm", Pos = "station:Lounge", Radius = 17, Building = "lounge" },
 	{ Id = "Crates", Object = "Crate Shop", Action = "Open crates", Pos = "station:Crates", Radius = 16, Building = "crates" },

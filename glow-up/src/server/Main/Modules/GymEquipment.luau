@@ -18,6 +18,16 @@ local BLACK = C3(30, 30, 36)
 local RED = C3(210, 55, 50)
 local YELLOW = C3(255, 214, 70)
 
+-- Parts other modules need to find again: the bars that hide while you use them, and the punching bag that swings.
+local hideSets = {} -- id -> { { part, transparency } }
+local bag = nil -- { pivot = CFrame, parts = { { part, rest } }, token = number }
+
+local function register(id, part)
+	hideSets[id] = hideSets[id] or {}
+	table.insert(hideSets[id], { part = part, t = part.Transparency })
+	return part
+end
+
 local function make(parent, props)
 	local p = Instance.new("Part")
 	p.Anchored = true
@@ -174,18 +184,18 @@ end
 --------------------------------------------------------------------------------
 local function liftPad(parent, cf)
 	local c = cf * CFrame.new(Config.GymPadLocal.X, 0, Config.GymPadLocal.Z)
-	box(parent, "LiftPlatform", Vector3.new(12, 0.3, 12), c * CFrame.new(0, FLOOR + 0.15, 0), C3(150, 108, 70), M.WoodPlanks)
-	box(parent, "LiftRubber", Vector3.new(10.4, 0.06, 10.4), c * CFrame.new(0, FLOOR + 0.32, 0), C3(32, 32, 38), M.Rubber)
+	box(parent, "LiftPlatform", Vector3.new(9.4, 0.3, 9.4), c * CFrame.new(0, FLOOR + 0.15, 0), C3(150, 108, 70), M.WoodPlanks)
+	box(parent, "LiftRubber", Vector3.new(8.2, 0.06, 8.2), c * CFrame.new(0, FLOOR + 0.32, 0), C3(32, 32, 38), M.Rubber)
 	local top = FLOOR + 0.37
 	for _, s in { -1, 1 } do
-		box(parent, "PadBorder", Vector3.new(11.2, 0.06, 0.35), c * CFrame.new(0, top, s * 5.4), YELLOW, M.Neon)
-		box(parent, "PadBorder", Vector3.new(0.35, 0.06, 10.5), c * CFrame.new(s * 5.4, top, 0), YELLOW, M.Neon)
+		box(parent, "PadBorder", Vector3.new(8.9, 0.06, 0.3), c * CFrame.new(0, top, s * 4.3), YELLOW, M.Neon)
+		box(parent, "PadBorder", Vector3.new(0.3, 0.06, 8.3), c * CFrame.new(s * 4.3, top, 0), YELLOW, M.Neon)
 	end
 	-- the inlaid dumbbell (identical from every side, so it never reads upside down)
-	box(parent, "PadHandle", Vector3.new(4.2, 0.06, 0.55), c * CFrame.new(0, top, 0), YELLOW, M.Neon)
+	box(parent, "PadHandle", Vector3.new(3.4, 0.06, 0.45), c * CFrame.new(0, top, 0), YELLOW, M.Neon)
 	for _, s in { -1, 1 } do
-		box(parent, "PadHead", Vector3.new(0.9, 0.06, 3.2), c * CFrame.new(s * 2.2, top, 0), YELLOW, M.Neon)
-		box(parent, "PadHead", Vector3.new(0.6, 0.06, 2.2), c * CFrame.new(s * 3.0, top, 0), YELLOW, M.Neon)
+		box(parent, "PadHead", Vector3.new(0.8, 0.06, 2.8), c * CFrame.new(s * 1.8, top, 0), YELLOW, M.Neon)
+		box(parent, "PadHead", Vector3.new(0.5, 0.06, 1.9), c * CFrame.new(s * 2.5, top, 0), YELLOW, M.Neon)
 	end
 	local lamp = box(parent, "PadLight", Vector3.one * 0.4, c * CFrame.new(0, FLOOR + 6, 0), YELLOW, M.Neon, { Transparency = 1 })
 	glow(lamp, YELLOW, 28, 1.2)
@@ -194,44 +204,52 @@ end
 --------------------------------------------------------------------------------
 -- Bench press (left side)
 --------------------------------------------------------------------------------
-local function plateSet(parent, at, side, sizes)
+local function plateSet(parent, at, side, sizes, setId)
 	local x = 2.7
 	for i, d in sizes do
 		local colour = i == 1 and RED or (i == 2 and C3(60, 110, 220) or BLACK)
-		cyl(parent, "BarPlate", at * CFrame.new(side * x, 0, 0), 0.42, d, colour, M.Metal)
+		local plate = cyl(parent, "BarPlate", at * CFrame.new(side * x, 0, 0), 0.42, d, colour, M.Metal)
+		if setId then
+			register(setId, plate)
+		end
 		x += 0.5
 	end
-	cyl(parent, "BarCollar", at * CFrame.new(side * (x + 0.05), 0, 0), 0.22, 0.6, STEEL, M.Metal)
+	local collar = cyl(parent, "BarCollar", at * CFrame.new(side * (x + 0.05), 0, 0), 0.22, 0.6, STEEL, M.Metal)
+	if setId then
+		register(setId, collar)
+	end
 end
 
 local function benchPress(parent, cf)
-	local c = cf * CFrame.new(-8.6, 0, -3)
-	box(parent, "BenchPad", Vector3.new(1.5, 0.55, 5.6), c * CFrame.new(0, FLOOR + 1.95, 0), BLACK, M.Leather)
-	box(parent, "BenchStripe", Vector3.new(0.3, 0.57, 5.6), c * CFrame.new(0, FLOOR + 1.96, 0), RED, M.Leather)
-	for _, z in { -2.2, 2.2 } do
+	local layout = Config.GymLayout
+	local c = cf * CFrame.new(layout.BenchCenter.X, 0, layout.BenchCenter.Z)
+	box(parent, "BenchPad", Vector3.new(1.5, 0.55, 7), c * CFrame.new(0, FLOOR + 1.95, 0), BLACK, M.Leather)
+	box(parent, "BenchStripe", Vector3.new(0.3, 0.57, 7), c * CFrame.new(0, FLOOR + 1.96, 0), RED, M.Leather)
+	for _, z in { -2.8, 2.8 } do
 		box(parent, "BenchLeg", Vector3.new(2.4, 0.3, 0.4), c * CFrame.new(0, FLOOR + 0.15, z), DARKSTEEL, M.Metal)
 		box(parent, "BenchPost", Vector3.new(0.4, 1.6, 0.4), c * CFrame.new(0, FLOOR + 1.1, z), DARKSTEEL, M.Metal)
 	end
 	for _, x in { -2.0, 2.0 } do
-		box(parent, "BenchUpright", Vector3.new(0.5, 4.2, 0.5), c * CFrame.new(x, FLOOR + 2.1, 2.9), DARKSTEEL, M.Metal)
-		box(parent, "BenchHook", Vector3.new(0.6, 0.25, 0.9), c * CFrame.new(x, FLOOR + 3.55, 2.65), RED, M.Metal)
-		box(parent, "BenchFoot", Vector3.new(0.7, 0.3, 2.4), c * CFrame.new(x, FLOOR + 0.15, 2.9), BLACK, M.Metal)
+		box(parent, "BenchUpright", Vector3.new(0.5, 4.2, 0.5), c * CFrame.new(x, FLOOR + 2.1, 3.9), DARKSTEEL, M.Metal)
+		box(parent, "BenchHook", Vector3.new(0.6, 0.25, 0.9), c * CFrame.new(x, FLOOR + 3.55, 3.6), RED, M.Metal)
+		box(parent, "BenchFoot", Vector3.new(0.7, 0.3, 2.4), c * CFrame.new(x, FLOOR + 0.15, 3.9), BLACK, M.Metal)
 	end
-	local bar = c * CFrame.new(0, FLOOR + 3.85, 2.65)
-	cyl(parent, "Barbell", bar, 7.4, 0.24, STEEL, M.Metal)
+	local bar = c * CFrame.new(0, FLOOR + 3.85, 3.6)
+	register("bench", cyl(parent, "Barbell", bar, 7.4, 0.24, STEEL, M.Metal))
 	for _, side in { -1, 1 } do
-		plateSet(parent, bar, side, { 3.0, 2.6, 2.1 })
+		plateSet(parent, bar, side, { 3.0, 2.6, 2.1 }, "bench")
 	end
-	box(parent, "BenchMat", Vector3.new(7, 0.06, 8.6), c * CFrame.new(0, FLOOR + 0.05, 0), C3(40, 40, 46), M.Rubber)
+	box(parent, "BenchMat", Vector3.new(7, 0.06, 10), c * CFrame.new(0, FLOOR + 0.05, 1), C3(40, 40, 46), M.Rubber)
 end
 
 --------------------------------------------------------------------------------
 -- Squat rack (right side)
 --------------------------------------------------------------------------------
 local function squatRack(parent, cf)
-	local c = cf * CFrame.new(9.6, 0, 6)
-	box(parent, "SquatMat", Vector3.new(10.5, 0.06, 8), c * CFrame.new(0, FLOOR + 0.05, 0), C3(38, 38, 44), M.Rubber)
-	box(parent, "SquatWood", Vector3.new(8.4, 0.12, 5), c * CFrame.new(0, FLOOR + 0.11, 0), C3(150, 108, 70), M.WoodPlanks)
+	local barPos = Config.GymLayout.SquatBar
+	local c = cf * CFrame.new(barPos.X, 0, barPos.Z + 0.7)
+	box(parent, "SquatMat", Vector3.new(10.5, 0.06, 8), c * CFrame.new(0, FLOOR + 0.05, -0.7), C3(38, 38, 44), M.Rubber)
+	box(parent, "SquatWood", Vector3.new(8.4, 0.12, 5), c * CFrame.new(0, FLOOR + 0.11, -0.7), C3(150, 108, 70), M.WoodPlanks)
 	for _, side in { -1, 1 } do
 		box(parent, "RackUpright", Vector3.new(0.6, 8.4, 0.6), c * CFrame.new(side * 2.6, FLOOR + 4.2, 0), DARKSTEEL, M.Metal)
 		box(parent, "RackFoot", Vector3.new(0.8, 0.3, 4), c * CFrame.new(side * 2.6, FLOOR + 0.15, 0), BLACK, M.Metal)
@@ -239,12 +257,11 @@ local function squatRack(parent, cf)
 		box(parent, "SafetyArm", Vector3.new(0.5, 0.25, 2.2), c * CFrame.new(side * 2.6, FLOOR + 2.4, -1.0), RED, M.Metal)
 	end
 	box(parent, "RackTop", Vector3.new(5.8, 0.6, 0.6), c * CFrame.new(0, FLOOR + 8.4, 0), RED, M.Metal)
-	local bar = c * CFrame.new(0, FLOOR + 6.2, -0.7)
-	cyl(parent, "SquatBar", bar, 7.6, 0.24, STEEL, M.Metal)
+	local bar = c * CFrame.new(0, barPos.Y, -0.7)
+	register("squat", cyl(parent, "SquatBar", bar, 7.6, 0.24, STEEL, M.Metal))
 	for _, side in { -1, 1 } do
-		plateSet(parent, bar, side, { 3.2, 2.8, 2.4, 2.0 })
+		plateSet(parent, bar, side, { 3.2, 2.8, 2.4, 2.0 }, "squat")
 	end
-	-- chalk bucket
 	cyl(parent, "ChalkBucket", c * CFrame.new(4.4, FLOOR + 0.9, 2.2) * CFrame.Angles(0, 0, math.pi / 2), 1.6, 1.3, C3(240, 240, 245), M.SmoothPlastic)
 	cyl(parent, "ChalkTop", c * CFrame.new(4.4, FLOOR + 1.75, 2.2) * CFrame.Angles(0, 0, math.pi / 2), 0.2, 1.1, C3(250, 250, 255), M.Sand)
 end
@@ -278,6 +295,52 @@ local function cableMachine(parent, cf)
 end
 
 --------------------------------------------------------------------------------
+-- Pull-up bar (right-back corner)
+--------------------------------------------------------------------------------
+local function pullupBar(parent, cf)
+	local bar = Config.GymLayout.PullupBar
+	local c = cf * CFrame.new(bar.X, 0, bar.Z)
+	for _, side in { -1, 1 } do
+		box(parent, "PullupUpright", Vector3.new(0.6, bar.Y - FLOOR + 0.8, 0.6), c * CFrame.new(side * 2.6, FLOOR + (bar.Y - FLOOR + 0.8) / 2, 0), DARKSTEEL, M.Metal)
+		box(parent, "PullupFoot", Vector3.new(0.9, 0.3, 3.6), c * CFrame.new(side * 2.6, FLOOR + 0.15, 0), BLACK, M.Metal)
+		box(parent, "PullupBrace", Vector3.new(0.4, 0.4, 2.6), c * CFrame.new(side * 2.6, bar.Y - 1.5, 1.2), DARKSTEEL, M.Metal)
+	end
+	cyl(parent, "PullupBar", c * CFrame.new(0, bar.Y, 0), 5.6, 0.22, STEEL, M.Metal)
+	for _, x in { -1.1, 1.1 } do
+		cyl(parent, "PullupGrip", c * CFrame.new(x, bar.Y, 0), 1.1, 0.34, RED, M.Fabric)
+	end
+	box(parent, "PullupMat", Vector3.new(6.4, 0.06, 5), c * CFrame.new(0, FLOOR + 0.05, 0), C3(40, 40, 46), M.Rubber)
+end
+
+--------------------------------------------------------------------------------
+-- Stationary bikes and a leg press (extra detail, not used)
+--------------------------------------------------------------------------------
+local function bikes(parent, cf)
+	for n, x in { -10.6, -8.0 } do
+		local c = cf * CFrame.new(x, 0, 6.8)
+		box(parent, "BikeFoot", Vector3.new(1.2, 0.25, 3.4), c * CFrame.new(0, FLOOR + 0.12, 0), BLACK, M.Metal)
+		box(parent, "BikeFrame", Vector3.new(0.35, 3.4, 0.35), c * CFrame.new(0, FLOOR + 2.0, 0.2) * CFrame.Angles(0.25, 0, 0), n == 1 and RED or C3(60, 110, 220), M.Metal)
+		cyl(parent, "BikeFlywheel", c * CFrame.new(0, FLOOR + 1.5, -1.0), 0.4, 2.0, DARKSTEEL, M.Metal)
+		box(parent, "BikeSeat", Vector3.new(0.9, 0.3, 1.2), c * CFrame.new(0, FLOOR + 3.5, 0.9), BLACK, M.Leather)
+		box(parent, "BikeBars", Vector3.new(1.6, 0.25, 0.25), c * CFrame.new(0, FLOOR + 3.9, -1.1), STEEL, M.Metal)
+		box(parent, "BikeScreen", Vector3.new(0.9, 0.5, 0.15), c * CFrame.new(0, FLOOR + 4.4, -1.15), C3(20, 30, 40), M.Neon)
+	end
+end
+
+local function legPress(parent, cf)
+	local c = cf * CFrame.new(-4.9, 0, -9.2)
+	box(parent, "LegPressBase", Vector3.new(2.6, 0.3, 6.4), c * CFrame.new(0, FLOOR + 0.15, 0), BLACK, M.Metal)
+	box(parent, "LegPressSeat", Vector3.new(2.0, 0.5, 2.4), c * CFrame.new(0, FLOOR + 1.6, 1.8), RED, M.Leather)
+	box(parent, "LegPressBack", Vector3.new(2.0, 2.4, 0.5), c * CFrame.new(0, FLOOR + 2.6, 3.0) * CFrame.Angles(-0.4, 0, 0), RED, M.Leather)
+	box(parent, "LegPressRail", Vector3.new(0.3, 0.3, 5.4), c * CFrame.new(-0.9, FLOOR + 1.0, -0.6) * CFrame.Angles(0.45, 0, 0), STEEL, M.Metal)
+	box(parent, "LegPressRail", Vector3.new(0.3, 0.3, 5.4), c * CFrame.new(0.9, FLOOR + 1.0, -0.6) * CFrame.Angles(0.45, 0, 0), STEEL, M.Metal)
+	box(parent, "LegPressSled", Vector3.new(2.4, 2.0, 0.4), c * CFrame.new(0, FLOOR + 2.8, -1.8) * CFrame.Angles(0.45, 0, 0), DARKSTEEL, M.Metal)
+	for i = 1, 3 do
+		cyl(parent, "LegPressPlate", c * CFrame.new(1.5 + i * 0.1, FLOOR + 1.9, -1.4), 0.42, 2.2 - i * 0.3, i == 2 and C3(60, 110, 220) or BLACK, M.Metal)
+	end
+end
+
+--------------------------------------------------------------------------------
 -- Left wall: kettlebell shelf, plate stacks, water cooler, punching bag
 --------------------------------------------------------------------------------
 local function kettlebells(parent, cf)
@@ -307,13 +370,21 @@ local function plateTrees(parent, cf)
 end
 
 local function punchingBag(parent, cf)
-	local x, z = -8.6, -11.5
-	rod(parent, "BagChain", (cf * CFrame.new(x, 13.0, z)).Position, (cf * CFrame.new(x, 9.4, z)).Position, 0.14, C3(120, 124, 132), M.Metal)
-	upright(parent, "BagTop", cf * CFrame.new(x, 9.2, z), 0.4, 1.2, DARKSTEEL, M.Metal)
-	upright(parent, "PunchingBag", cf * CFrame.new(x, 6.6, z), 5.0, 2.2, C3(150, 40, 36), M.Leather)
-	upright(parent, "BagBand", cf * CFrame.new(x, 7.6, z), 0.5, 2.3, YELLOW, M.Fabric)
-	upright(parent, "BagBand", cf * CFrame.new(x, 5.6, z), 0.5, 2.3, YELLOW, M.Fabric)
-	upright(parent, "BagBottom", cf * CFrame.new(x, 4.0, z), 0.3, 1.9, BLACK, M.Leather)
+	local layout = Config.GymLayout
+	local x, z = layout.BagPos.X, layout.BagPos.Z
+	local pivot = cf * CFrame.new(x, layout.BagPivotY, z)
+	rod(parent, "BagChainFixed", (cf * CFrame.new(x, 13.4, z)).Position, pivot.Position, 0.14, C3(120, 124, 132), M.Metal)
+	local parts = {}
+	local function swingPart(p)
+		table.insert(parts, { part = p, rest = p.CFrame })
+	end
+	swingPart(rod(parent, "BagChain", pivot.Position, (cf * CFrame.new(x, 9.4, z)).Position, 0.14, C3(120, 124, 132), M.Metal))
+	swingPart(upright(parent, "BagTop", cf * CFrame.new(x, 9.2, z), 0.4, 1.2, DARKSTEEL, M.Metal))
+	swingPart(upright(parent, "PunchingBag", cf * CFrame.new(x, 6.6, z), 5.0, 2.2, C3(150, 40, 36), M.Leather))
+	swingPart(upright(parent, "BagBand", cf * CFrame.new(x, 7.6, z), 0.5, 2.3, YELLOW, M.Fabric))
+	swingPart(upright(parent, "BagBand", cf * CFrame.new(x, 5.6, z), 0.5, 2.3, YELLOW, M.Fabric))
+	swingPart(upright(parent, "BagBottom", cf * CFrame.new(x, 4.0, z), 0.3, 1.9, BLACK, M.Leather))
+	bag = { pivot = pivot, parts = parts, token = 0 }
 end
 
 local function waterCooler(parent, cf)
@@ -344,11 +415,90 @@ local function floorTape(parent, cf)
 	end
 end
 
+-- A glowing ring on the floor and a small name tag at every machine, so you always know where to stand.
+local MODE_COLOR = {
+	sweep = C3(90, 200, 255),
+	hold = C3(255, 160, 60),
+	rhythm = C3(255, 110, 190),
+	mash = C3(110, 230, 120),
+}
+
+local function markers(parent, cf)
+	for _, m in Config.GymMachines do
+		local color = MODE_COLOR[m.Mode] or YELLOW
+		local at = cf * CFrame.new(m.Local.X, FLOOR + 0.05, m.Local.Z)
+		upright(parent, "UseRing", at, 0.08, 5.2, color, M.Neon)
+		upright(parent, "UseRingInner", at * CFrame.new(0, 0.02, 0), 0.08, 4.4, C3(30, 34, 44), M.SmoothPlastic)
+		local tag = box(parent, "UseTag", Vector3.one * 0.4, cf * CFrame.new(m.Local.X, FLOOR + 6.2, m.Local.Z), color, M.SmoothPlastic, { Transparency = 1 })
+		local gui = Instance.new("BillboardGui")
+		gui.Size = UDim2.fromOffset(170, 34)
+		gui.AlwaysOnTop = false
+		gui.MaxDistance = 42
+		gui.LightInfluence = 0
+		gui.Adornee = tag
+		gui.Parent = tag
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBlack
+		label.TextSize = 16
+		label.TextColor3 = color
+		label.TextStrokeTransparency = 0
+		label.Text = m.Icon .. " " .. m.Name:upper()
+		label.Parent = gui
+	end
+end
+
+-- Hides (or shows) the static bar of a machine while someone is lifting the same bar in their hands.
+function GymEquipment.setHidden(id, hidden)
+	for _, entry in hideSets[id] or {} do
+		if entry.part.Parent then
+			entry.part.Transparency = hidden and 1 or entry.t
+		end
+	end
+end
+
+-- Makes the punching bag swing away from a punch (strength 0..1.5) and settle.
+function GymEquipment.swingBag(strength)
+	if not bag then
+		return
+	end
+	bag.token += 1
+	local token = bag.token
+	local pivot = bag.pivot
+	task.spawn(function()
+		local t0 = os.clock()
+		while bag and bag.token == token do
+			local t = os.clock() - t0
+			if t > 1.5 then
+				break
+			end
+			local angle = (strength or 1) * 0.5 * math.exp(-3.0 * t) * math.sin(9 * t)
+			local rot = pivot * CFrame.Angles(angle, 0, 0) * pivot:Inverse()
+			for _, e in bag.parts do
+				if e.part.Parent then
+					e.part.CFrame = rot * e.rest
+				end
+			end
+			task.wait(1 / 30)
+		end
+		if bag and bag.token == token then
+			for _, e in bag.parts do
+				if e.part.Parent then
+					e.part.CFrame = e.rest
+				end
+			end
+		end
+	end)
+end
+
 function GymEquipment.build(parent, cf)
+	hideSets = {}
+	bag = nil
 	local folder = Instance.new("Folder")
 	folder.Name = "GymEquipment"
 	folder.Parent = parent
-	for _, build in { liftPad, dumbbellRack, mirrorWall, benchPress, squatRack, cableMachine, kettlebells, plateTrees, punchingBag, waterCooler, roofDumbbell, floorTape } do
+	for _, build in { liftPad, dumbbellRack, mirrorWall, benchPress, squatRack, cableMachine, pullupBar, bikes, legPress, kettlebells, plateTrees, punchingBag, waterCooler, roofDumbbell, floorTape, markers } do
 		local ok, err = pcall(build, folder, cf)
 		if not ok then
 			warn("[TrueAdam] gym equipment piece failed:", err)

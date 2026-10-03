@@ -52,14 +52,82 @@ send("crate", "icon", "head_horns", "star", 2, 0)
 advance(3)
 send("crate", "neon", "back_cape", "max", 5, 900)
 advance(3)
--- training flow
-send("trainStart", "Power", {rep = 1, reps = 5, startedAt = clock + 1.1, speed = 1.05, center = 0.5, goodWidth = 0.26, perfectWidth = 0.09})
-for i = 1, 20 do advance(0.1); fireAll("RenderStepped", 0.016) end
-send("trainRep", 1, "perfect", 2.2, 1, {rep = 2, reps = 5, startedAt = clock + 1.1, speed = 1.2, center = 0.4, goodWidth = 0.26, perfectWidth = 0.09})
-send("trainRep", 2, "miss", 0, 0, {rep = 3, reps = 5, startedAt = clock + 1.1, speed = 1.35, center = 0.6, goodWidth = 0.26, perfectWidth = 0.09})
+-- training flow: every machine mini-game (the server sets Training = true while you train, which stops hammer swings)
+a.Training = true
+local function fired(kind) local n = 0 for _, f in firedLog do if f[1] == kind then n += 1 end end return n end
+local function lastFired(kind) for i = #firedLog, 1, -1 do if firedLog[i][1] == kind then return firedLog[i] end end end
+local click = {KeyCode = Enum.KeyCode.A, UserInputType = Enum.UserInputType.MouseButton1, Position = Vector3.new(960, 500, 0)}
+local clickLeft = {KeyCode = Enum.KeyCode.A, UserInputType = Enum.UserInputType.MouseButton1, Position = Vector3.new(100, 500, 0)}
+local clickRight = {KeyCode = Enum.KeyCode.A, UserInputType = Enum.UserInputType.MouseButton1, Position = Vector3.new(1800, 500, 0)}
+local function frames(n) for i = 1, n do advance(0.1); fireAll("RenderStepped", 0.016) end end
+
+-- sweep (dumbbell rack): a click after the countdown sends one timed press
+send("trainStart", "Power", {mode = "sweep", rep = 1, reps = 5, startedAt = clock + 1.1, speed = 1.05, center = 0.5, goodWidth = 0.26, perfectWidth = 0.09}, 5, "Starter", "rack")
+frames(3)
+local before = fired("TrainHit")
+fireAll("input", click, false); check(fired("TrainHit") == before, "a press during the countdown is ignored")
+frames(12)
+fireAll("input", click, false); fireAll("input", click, false)
+check(fired("TrainHit") == before + 1 and type(lastFired("TrainHit")[2]) == "number", "sweep: one timed press is sent")
+send("trainRep", 1, "perfect", 2.2, 1, {mode = "sweep", rep = 2, reps = 5, startedAt = clock + 1.1, speed = 1.2, center = 0.4, goodWidth = 0.26, perfectWidth = 0.09})
+frames(14)
+send("trainRep", 2, "miss", 0, 0, {mode = "sweep", rep = 3, reps = 5, startedAt = clock + 1.1, speed = 1.35, center = 0.6, goodWidth = 0.26, perfectWidth = 0.09})
 send("trainRep", 3, "good", 1.25, 0, nil)
-send("trainEnd", "Power", 3.5)
+send("trainEnd", "Power", 3.5, true)
 advance(2)
+check(true, "sweep training window runs a whole set")
+
+-- hold (bench press): pressing sends TrainDown, letting go sends TrainHit
+send("trainStart", "Power", {mode = "hold", rep = 1, reps = 5, startedAt = clock + 1.1, fillTime = 1.4, center = 0.7, goodWidth = 0.24, perfectWidth = 0.09}, 20, "Steel", "bench")
+frames(14)
+local downs, hits = fired("TrainDown"), fired("TrainHit")
+fireAll("input", click, false); frames(8)
+check(fired("TrainDown") == downs + 1, "hold: pressing sends TrainDown")
+fireAll("inputEnd", click)
+check(fired("TrainHit") == hits + 1 and lastFired("TrainHit")[2] == nil, "hold: letting go sends the release")
+fireAll("inputEnd", click)
+check(fired("TrainHit") == hits + 1, "hold: letting go twice sends only one release")
+send("trainRep", 1, "good", 1.5, 0, {mode = "hold", rep = 2, reps = 5, startedAt = clock + 1.1, fillTime = 1.3, center = 0.6, goodWidth = 0.24, perfectWidth = 0.09})
+frames(14); fireAll("input", click, false); frames(20)
+send("trainRep", 2, "miss", 0, 0, nil)
+send("trainEnd", "Power", 1.5, false)
+advance(2)
+
+-- rhythm (cable machine / bag): left half of the screen is Left, right half is Right
+local beats = {}
+for i = 1, 4 do beats[i] = {at = 1.2 + (i - 1) * 0.7, side = (i % 2 == 1) and "L" or "R"} end
+send("trainStart", "Power", {mode = "rhythm", rep = 1, reps = 4, startedAt = clock, beats = beats, travel = 1.3, window = 0.24}, 10, "Iron", "bag")
+frames(14)
+local hitsBefore = fired("TrainHit")
+fireAll("input", clickLeft, false)
+check(lastFired("TrainHit")[2] == "L" and type(lastFired("TrainHit")[3]) == "number", "rhythm: the left half sends Left with a time")
+fireAll("input", clickRight, false)
+check(lastFired("TrainHit")[2] == "R" and fired("TrainHit") == hitsBefore + 2, "rhythm: the right half sends Right")
+send("trainBeat", 1, "perfect"); send("trainBeat", 2, "good"); frames(5)
+send("trainRep", 1, "good", 1.4, 0, {mode = "rhythm", rep = 2, reps = 4, startedAt = clock, beats = beats, travel = 1.3, window = 0.24})
+frames(20)
+send("trainRep", 2, "perfect", 2.8, 1, nil)
+send("trainEnd", "Power", 4.2, true)
+advance(2)
+
+-- mash (pull-up bar): every click is sent, but no more than ~12 a second
+send("trainStart", "Power", {mode = "mash", rep = 1, reps = 3, startedAt = clock + 1.1, duration = 3.4, target = 15}, 40, "Titan", "pullup")
+frames(14)
+local mashBefore = fired("TrainHit")
+for i = 1, 40 do fireAll("input", click, false) end
+local sent = fired("TrainHit") - mashBefore
+check(sent >= 10 and sent <= 12, "mash: very fast clicking is capped (" .. sent .. " sent)")
+frames(20)
+send("trainRep", 1, "perfect", 3.0, 1, nil)
+send("trainEnd", "Power", 3.0, false)
+advance(2)
+send("trainStart", "Style", {mode = "sweep", rep = 1, reps = 5, startedAt = clock + 1.1, speed = 1.05, center = 0.5, goodWidth = 0.26, perfectWidth = 0.09}, nil, nil, "style")
+frames(5); send("trainEnd", nil, 0)
+advance(2)
+for _, e in {click, clickLeft, clickRight} do fireAll("inputEnd", e) end
+a.Training = false
+check(true, "every machine window opens, plays and closes")
+
 -- duel flow
 send("duelStart", "Mogger Bot", 2, 150, 130, clock + 3, 7)
 for i = 1, 100 do advance(0.1); fireAll("RenderStepped", 0.016) end

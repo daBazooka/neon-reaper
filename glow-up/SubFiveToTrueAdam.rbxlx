@@ -1272,12 +1272,56 @@ function Config.WeightFor(power)
 	end
 	return best, Config.Weights[best]
 end
--- Where the glowing LIFT pad sits inside the gym (local to the gym's frame: x right, y up, z toward the back wall).
-Config.GymPadLocal = Vector3.new(0, 1.2, 3)
-function Config.GymPadPos()
+-- The gym frame: x = right, y = up, z = toward the back wall (the entrance is at -z), floor top at y = 0.9.
+function Config.GymFrame()
 	local pos, inward = Config.StationPos("Gym"), Config.StationFront("Gym")
-	local cf = CFrame.lookAt(pos, pos + inward)
-	return (cf * CFrame.new(Config.GymPadLocal)).Position
+	return CFrame.lookAt(pos, pos + inward)
+end
+Config.GymPadLocal = Vector3.new(0, 1.2, 1.5)
+-- A point in the gym frame as a world position (plain vector maths, no CFrame needed).
+function Config.GymPoint(localPos)
+	local pos, inward = Config.StationPos("Gym"), Config.StationFront("Gym")
+	local right = Vector3.new(-inward.Z, 0, inward.X)
+	return pos + right * localPos.X + Vector3.new(0, localPos.Y, 0) - inward * localPos.Z
+end
+function Config.GymPadPos()
+	return Config.GymPoint(Config.GymPadLocal)
+end
+
+-- Every machine in the gym. Mode decides the mini-game: "sweep" (press when the marker is in the zone),
+-- "hold" (hold to push, release in the zone), "rhythm" (alternate Left / Right on the beat) and "mash" (tap fast).
+-- Local = where you stand (also where the glowing ring is), Face = turn from facing the entrance (radians).
+Config.GymMachines = {
+	{ Id = "rack", Name = "Dumbbell Rack", Icon = "🏋️", Mode = "sweep", Pose = "curl", Local = Vector3.new(0, 0, 10.4), Face = math.pi, Radius = 6, Reps = 5, Gain = 1.0, Tip = "Press when the line is in the gold" },
+	{ Id = "bench", Name = "Bench Press", Icon = "🛏️", Mode = "hold", Pose = "bench", Local = Vector3.new(-5.2, 0, -2.6), Face = 0, Radius = 3.4, Reps = 5, Gain = 1.25, Tip = "Hold to push the bar up, let go in the gold" },
+	{ Id = "squat", Name = "Squat Rack", Icon = "🦵", Mode = "hold", Pose = "squat", Local = Vector3.new(9.6, 0, 2.3), Face = 0, Radius = 3.4, Reps = 4, Gain = 1.5, Tip = "Hold to squat down, let go at the right depth" },
+	{ Id = "cable", Name = "Cable Machine", Icon = "🔗", Mode = "rhythm", Pose = "cable", Local = Vector3.new(11.4, 0, -12.4), Face = math.pi, Radius = 3.4, Reps = 4, Gain = 1.4, Tip = "Pull Left and Right on the beat (A / D)" },
+	{ Id = "bag", Name = "Punching Bag", Icon = "🥊", Mode = "rhythm", Pose = "bag", Local = Vector3.new(-9.5, 0, -9.0), Face = 0, Radius = 3.4, Reps = 4, Gain = 1.6, Tip = "Punch Left and Right on the beat (A / D)" },
+	{ Id = "pullup", Name = "Pull-Up Bar", Icon = "🧗", Mode = "mash", Pose = "pullup", Local = Vector3.new(12.6, 0, 9.0), Face = 0, Radius = 3.4, Reps = 3, Gain = 1.8, Tip = "Tap as fast as you can to pull up" },
+}
+-- Fixed spots inside the gym (local to the gym frame) shared by the building, the poses and the tests.
+Config.GymLayout = {
+	BenchCenter = Vector3.new(-9.5, 0, -2),
+	BenchTop = 3.125, -- top of the bench pad (absolute y)
+	PullupBar = Vector3.new(12.6, 8.5, 9.0), -- centre of the pull-up bar
+	BagPos = Vector3.new(-9.5, 0, -11.5),
+	BagPivotY = 13.0,
+	SquatBar = Vector3.new(9.6, 7.1, 2.3), -- the bar on its hooks
+}
+Config.GymMachineById = {}
+for _, m in Config.GymMachines do
+	Config.GymMachineById[m.Id] = m
+end
+-- The machines used by the other training buildings (a single exercise each).
+Config.StatMachines = {
+	Style = { Id = "style", Name = "Hand Mirror", Icon = "💅", Mode = "sweep", Pose = "hair", Reps = 5, Gain = 1.0, Tip = "Press when the line is in the gold" },
+	Charm = { Id = "charm", Name = "Red Rose", Icon = "🌹", Mode = "sweep", Pose = "toast", Reps = 5, Gain = 1.0, Tip = "Press when the line is in the gold" },
+}
+function Config.MachineStandCF(machine)
+	return Config.GymFrame() * CFrame.new(machine.Local) * CFrame.Angles(0, machine.Face, 0)
+end
+function Config.MachinePos(machine)
+	return Config.GymPoint(machine.Local)
 end
 Config.StatScore = 5 -- Glow Score per stat point
 
@@ -1455,7 +1499,7 @@ Config.VoiceText = {
 Config.Tutorial = {
 	{ Title = "Swing your hammer", Text = "Click or tap anywhere to hit yourself. Every hit earns Aura.", Goal = 10 },
 	{ Title = "Buy the Stone Hammer", Text = "Walk to the glowing Stone Hammer and press the big button at the bottom. Bigger hammer, more Aura per swing.", Gift = 60 },
-	{ Title = "Train on a platform", Text = "Walk onto the Gym platform, press the big button, then hit SPACE (or tap) when the marker is in the green.", Goal = 3 },
+	{ Title = "Use a gym machine", Text = "Walk to the glowing ring at the dumbbell rack, press the big button and lift.", Goal = 3 },
 	{ Title = "Hatch a pet", Text = "Press the 🐾 Pets button on the right and hatch a Basic Egg. Pets boost your Aura.", Gift = 500 },
 	{ Title = "Fight Stage 1", Text = "Press the ⚔️ Battle button. Press the big button to unlock the arena (free gift), press it again to fight, and tap fast!", Gift = 2600 },
 }
@@ -1585,7 +1629,6 @@ end
 --------------------------------------------------------------------------------
 Config.HammerRadius = 8
 Config.Interactables = {
-	{ Id = "Gym", Object = "Gym", Action = "Lift weights", Pos = "station:Gym", Radius = 17, Building = "gym" },
 	{ Id = "Studio", Object = "Style Studio", Action = "Style yourself", Pos = "station:Studio", Radius = 17, Building = "studio" },
 	{ Id = "Lounge", Object = "Charm Lounge", Action = "Practise charm", Pos = "station:Lounge", Radius = 17, Building = "lounge" },
 	{ Id = "Crates", Object = "Crate Shop", Action = "Open crates", Pos = "station:Crates", Radius = 16, Building = "crates" },
@@ -2655,9 +2698,6 @@ end)
 -- character is, so it works the same from any camera angle.
 local INTERACT_SLACK = 8
 local interactions = {
-	Gym = function(p)
-		Training.start(p, "Power")
-	end,
 	Studio = function(p)
 		Training.start(p, "Style")
 	end,
@@ -2696,6 +2736,14 @@ local function interact(p, id)
 		local n = tonumber(hammerId)
 		if Config.HammerById[n] and nearTo(p, Config.HammerPos(n), Config.HammerRadius) then
 			Hammers.use(p, n)
+		end
+		return
+	end
+	local machineId = string.match(id, "^Machine:(%w+)$")
+	if machineId then
+		local machine = Config.GymMachineById[machineId]
+		if machine and Buildings.owned(p, "gym") and nearTo(p, Config.MachinePos(machine), machine.Radius) and not Treadmill.isRunning(p) then
+			Training.start(p, "Power", machine)
 		end
 		return
 	end
@@ -2752,8 +2800,8 @@ local function handleAction(p, kind, a, b)
 		interact(p, a)
 	elseif kind == "Claim" then
 		Daily.claim(p)
-	elseif kind == "TrainHit" or kind == "TrainCancel" then
-		Training.handle(p, kind, a)
+	elseif kind == "TrainHit" or kind == "TrainDown" or kind == "TrainCancel" then
+		Training.handle(p, kind, a, b)
 	elseif kind == "DuelTaps" then
 		Duels.handle(p, kind, a)
 	elseif kind == "CompTaps" then
@@ -4203,6 +4251,7 @@ local function defaults()
 		Hammer = 1,
 		HammersOwned = { ["1"] = true },
 		Perfects = 0,
+		Records = {}, -- machine id -> best set total
 		CratesOpened = 0,
 		Pity = { neon = 0, icon = 0 },
 		QuestsDone = 0,
@@ -4984,6 +5033,16 @@ local BLACK = C3(30, 30, 36)
 local RED = C3(210, 55, 50)
 local YELLOW = C3(255, 214, 70)
 
+-- Parts other modules need to find again: the bars that hide while you use them, and the punching bag that swings.
+local hideSets = {} -- id -> { { part, transparency } }
+local bag = nil -- { pivot = CFrame, parts = { { part, rest } }, token = number }
+
+local function register(id, part)
+	hideSets[id] = hideSets[id] or {}
+	table.insert(hideSets[id], { part = part, t = part.Transparency })
+	return part
+end
+
 local function make(parent, props)
 	local p = Instance.new("Part")
 	p.Anchored = true
@@ -5140,18 +5199,18 @@ end
 --------------------------------------------------------------------------------
 local function liftPad(parent, cf)
 	local c = cf * CFrame.new(Config.GymPadLocal.X, 0, Config.GymPadLocal.Z)
-	box(parent, "LiftPlatform", Vector3.new(12, 0.3, 12), c * CFrame.new(0, FLOOR + 0.15, 0), C3(150, 108, 70), M.WoodPlanks)
-	box(parent, "LiftRubber", Vector3.new(10.4, 0.06, 10.4), c * CFrame.new(0, FLOOR + 0.32, 0), C3(32, 32, 38), M.Rubber)
+	box(parent, "LiftPlatform", Vector3.new(9.4, 0.3, 9.4), c * CFrame.new(0, FLOOR + 0.15, 0), C3(150, 108, 70), M.WoodPlanks)
+	box(parent, "LiftRubber", Vector3.new(8.2, 0.06, 8.2), c * CFrame.new(0, FLOOR + 0.32, 0), C3(32, 32, 38), M.Rubber)
 	local top = FLOOR + 0.37
 	for _, s in { -1, 1 } do
-		box(parent, "PadBorder", Vector3.new(11.2, 0.06, 0.35), c * CFrame.new(0, top, s * 5.4), YELLOW, M.Neon)
-		box(parent, "PadBorder", Vector3.new(0.35, 0.06, 10.5), c * CFrame.new(s * 5.4, top, 0), YELLOW, M.Neon)
+		box(parent, "PadBorder", Vector3.new(8.9, 0.06, 0.3), c * CFrame.new(0, top, s * 4.3), YELLOW, M.Neon)
+		box(parent, "PadBorder", Vector3.new(0.3, 0.06, 8.3), c * CFrame.new(s * 4.3, top, 0), YELLOW, M.Neon)
 	end
 	-- the inlaid dumbbell (identical from every side, so it never reads upside down)
-	box(parent, "PadHandle", Vector3.new(4.2, 0.06, 0.55), c * CFrame.new(0, top, 0), YELLOW, M.Neon)
+	box(parent, "PadHandle", Vector3.new(3.4, 0.06, 0.45), c * CFrame.new(0, top, 0), YELLOW, M.Neon)
 	for _, s in { -1, 1 } do
-		box(parent, "PadHead", Vector3.new(0.9, 0.06, 3.2), c * CFrame.new(s * 2.2, top, 0), YELLOW, M.Neon)
-		box(parent, "PadHead", Vector3.new(0.6, 0.06, 2.2), c * CFrame.new(s * 3.0, top, 0), YELLOW, M.Neon)
+		box(parent, "PadHead", Vector3.new(0.8, 0.06, 2.8), c * CFrame.new(s * 1.8, top, 0), YELLOW, M.Neon)
+		box(parent, "PadHead", Vector3.new(0.5, 0.06, 1.9), c * CFrame.new(s * 2.5, top, 0), YELLOW, M.Neon)
 	end
 	local lamp = box(parent, "PadLight", Vector3.one * 0.4, c * CFrame.new(0, FLOOR + 6, 0), YELLOW, M.Neon, { Transparency = 1 })
 	glow(lamp, YELLOW, 28, 1.2)
@@ -5160,44 +5219,52 @@ end
 --------------------------------------------------------------------------------
 -- Bench press (left side)
 --------------------------------------------------------------------------------
-local function plateSet(parent, at, side, sizes)
+local function plateSet(parent, at, side, sizes, setId)
 	local x = 2.7
 	for i, d in sizes do
 		local colour = i == 1 and RED or (i == 2 and C3(60, 110, 220) or BLACK)
-		cyl(parent, "BarPlate", at * CFrame.new(side * x, 0, 0), 0.42, d, colour, M.Metal)
+		local plate = cyl(parent, "BarPlate", at * CFrame.new(side * x, 0, 0), 0.42, d, colour, M.Metal)
+		if setId then
+			register(setId, plate)
+		end
 		x += 0.5
 	end
-	cyl(parent, "BarCollar", at * CFrame.new(side * (x + 0.05), 0, 0), 0.22, 0.6, STEEL, M.Metal)
+	local collar = cyl(parent, "BarCollar", at * CFrame.new(side * (x + 0.05), 0, 0), 0.22, 0.6, STEEL, M.Metal)
+	if setId then
+		register(setId, collar)
+	end
 end
 
 local function benchPress(parent, cf)
-	local c = cf * CFrame.new(-8.6, 0, -3)
-	box(parent, "BenchPad", Vector3.new(1.5, 0.55, 5.6), c * CFrame.new(0, FLOOR + 1.95, 0), BLACK, M.Leather)
-	box(parent, "BenchStripe", Vector3.new(0.3, 0.57, 5.6), c * CFrame.new(0, FLOOR + 1.96, 0), RED, M.Leather)
-	for _, z in { -2.2, 2.2 } do
+	local layout = Config.GymLayout
+	local c = cf * CFrame.new(layout.BenchCenter.X, 0, layout.BenchCenter.Z)
+	box(parent, "BenchPad", Vector3.new(1.5, 0.55, 7), c * CFrame.new(0, FLOOR + 1.95, 0), BLACK, M.Leather)
+	box(parent, "BenchStripe", Vector3.new(0.3, 0.57, 7), c * CFrame.new(0, FLOOR + 1.96, 0), RED, M.Leather)
+	for _, z in { -2.8, 2.8 } do
 		box(parent, "BenchLeg", Vector3.new(2.4, 0.3, 0.4), c * CFrame.new(0, FLOOR + 0.15, z), DARKSTEEL, M.Metal)
 		box(parent, "BenchPost", Vector3.new(0.4, 1.6, 0.4), c * CFrame.new(0, FLOOR + 1.1, z), DARKSTEEL, M.Metal)
 	end
 	for _, x in { -2.0, 2.0 } do
-		box(parent, "BenchUpright", Vector3.new(0.5, 4.2, 0.5), c * CFrame.new(x, FLOOR + 2.1, 2.9), DARKSTEEL, M.Metal)
-		box(parent, "BenchHook", Vector3.new(0.6, 0.25, 0.9), c * CFrame.new(x, FLOOR + 3.55, 2.65), RED, M.Metal)
-		box(parent, "BenchFoot", Vector3.new(0.7, 0.3, 2.4), c * CFrame.new(x, FLOOR + 0.15, 2.9), BLACK, M.Metal)
+		box(parent, "BenchUpright", Vector3.new(0.5, 4.2, 0.5), c * CFrame.new(x, FLOOR + 2.1, 3.9), DARKSTEEL, M.Metal)
+		box(parent, "BenchHook", Vector3.new(0.6, 0.25, 0.9), c * CFrame.new(x, FLOOR + 3.55, 3.6), RED, M.Metal)
+		box(parent, "BenchFoot", Vector3.new(0.7, 0.3, 2.4), c * CFrame.new(x, FLOOR + 0.15, 3.9), BLACK, M.Metal)
 	end
-	local bar = c * CFrame.new(0, FLOOR + 3.85, 2.65)
-	cyl(parent, "Barbell", bar, 7.4, 0.24, STEEL, M.Metal)
+	local bar = c * CFrame.new(0, FLOOR + 3.85, 3.6)
+	register("bench", cyl(parent, "Barbell", bar, 7.4, 0.24, STEEL, M.Metal))
 	for _, side in { -1, 1 } do
-		plateSet(parent, bar, side, { 3.0, 2.6, 2.1 })
+		plateSet(parent, bar, side, { 3.0, 2.6, 2.1 }, "bench")
 	end
-	box(parent, "BenchMat", Vector3.new(7, 0.06, 8.6), c * CFrame.new(0, FLOOR + 0.05, 0), C3(40, 40, 46), M.Rubber)
+	box(parent, "BenchMat", Vector3.new(7, 0.06, 10), c * CFrame.new(0, FLOOR + 0.05, 1), C3(40, 40, 46), M.Rubber)
 end
 
 --------------------------------------------------------------------------------
 -- Squat rack (right side)
 --------------------------------------------------------------------------------
 local function squatRack(parent, cf)
-	local c = cf * CFrame.new(9.6, 0, 6)
-	box(parent, "SquatMat", Vector3.new(10.5, 0.06, 8), c * CFrame.new(0, FLOOR + 0.05, 0), C3(38, 38, 44), M.Rubber)
-	box(parent, "SquatWood", Vector3.new(8.4, 0.12, 5), c * CFrame.new(0, FLOOR + 0.11, 0), C3(150, 108, 70), M.WoodPlanks)
+	local barPos = Config.GymLayout.SquatBar
+	local c = cf * CFrame.new(barPos.X, 0, barPos.Z + 0.7)
+	box(parent, "SquatMat", Vector3.new(10.5, 0.06, 8), c * CFrame.new(0, FLOOR + 0.05, -0.7), C3(38, 38, 44), M.Rubber)
+	box(parent, "SquatWood", Vector3.new(8.4, 0.12, 5), c * CFrame.new(0, FLOOR + 0.11, -0.7), C3(150, 108, 70), M.WoodPlanks)
 	for _, side in { -1, 1 } do
 		box(parent, "RackUpright", Vector3.new(0.6, 8.4, 0.6), c * CFrame.new(side * 2.6, FLOOR + 4.2, 0), DARKSTEEL, M.Metal)
 		box(parent, "RackFoot", Vector3.new(0.8, 0.3, 4), c * CFrame.new(side * 2.6, FLOOR + 0.15, 0), BLACK, M.Metal)
@@ -5205,12 +5272,11 @@ local function squatRack(parent, cf)
 		box(parent, "SafetyArm", Vector3.new(0.5, 0.25, 2.2), c * CFrame.new(side * 2.6, FLOOR + 2.4, -1.0), RED, M.Metal)
 	end
 	box(parent, "RackTop", Vector3.new(5.8, 0.6, 0.6), c * CFrame.new(0, FLOOR + 8.4, 0), RED, M.Metal)
-	local bar = c * CFrame.new(0, FLOOR + 6.2, -0.7)
-	cyl(parent, "SquatBar", bar, 7.6, 0.24, STEEL, M.Metal)
+	local bar = c * CFrame.new(0, barPos.Y, -0.7)
+	register("squat", cyl(parent, "SquatBar", bar, 7.6, 0.24, STEEL, M.Metal))
 	for _, side in { -1, 1 } do
-		plateSet(parent, bar, side, { 3.2, 2.8, 2.4, 2.0 })
+		plateSet(parent, bar, side, { 3.2, 2.8, 2.4, 2.0 }, "squat")
 	end
-	-- chalk bucket
 	cyl(parent, "ChalkBucket", c * CFrame.new(4.4, FLOOR + 0.9, 2.2) * CFrame.Angles(0, 0, math.pi / 2), 1.6, 1.3, C3(240, 240, 245), M.SmoothPlastic)
 	cyl(parent, "ChalkTop", c * CFrame.new(4.4, FLOOR + 1.75, 2.2) * CFrame.Angles(0, 0, math.pi / 2), 0.2, 1.1, C3(250, 250, 255), M.Sand)
 end
@@ -5244,6 +5310,52 @@ local function cableMachine(parent, cf)
 end
 
 --------------------------------------------------------------------------------
+-- Pull-up bar (right-back corner)
+--------------------------------------------------------------------------------
+local function pullupBar(parent, cf)
+	local bar = Config.GymLayout.PullupBar
+	local c = cf * CFrame.new(bar.X, 0, bar.Z)
+	for _, side in { -1, 1 } do
+		box(parent, "PullupUpright", Vector3.new(0.6, bar.Y - FLOOR + 0.8, 0.6), c * CFrame.new(side * 2.6, FLOOR + (bar.Y - FLOOR + 0.8) / 2, 0), DARKSTEEL, M.Metal)
+		box(parent, "PullupFoot", Vector3.new(0.9, 0.3, 3.6), c * CFrame.new(side * 2.6, FLOOR + 0.15, 0), BLACK, M.Metal)
+		box(parent, "PullupBrace", Vector3.new(0.4, 0.4, 2.6), c * CFrame.new(side * 2.6, bar.Y - 1.5, 1.2), DARKSTEEL, M.Metal)
+	end
+	cyl(parent, "PullupBar", c * CFrame.new(0, bar.Y, 0), 5.6, 0.22, STEEL, M.Metal)
+	for _, x in { -1.1, 1.1 } do
+		cyl(parent, "PullupGrip", c * CFrame.new(x, bar.Y, 0), 1.1, 0.34, RED, M.Fabric)
+	end
+	box(parent, "PullupMat", Vector3.new(6.4, 0.06, 5), c * CFrame.new(0, FLOOR + 0.05, 0), C3(40, 40, 46), M.Rubber)
+end
+
+--------------------------------------------------------------------------------
+-- Stationary bikes and a leg press (extra detail, not used)
+--------------------------------------------------------------------------------
+local function bikes(parent, cf)
+	for n, x in { -10.6, -8.0 } do
+		local c = cf * CFrame.new(x, 0, 6.8)
+		box(parent, "BikeFoot", Vector3.new(1.2, 0.25, 3.4), c * CFrame.new(0, FLOOR + 0.12, 0), BLACK, M.Metal)
+		box(parent, "BikeFrame", Vector3.new(0.35, 3.4, 0.35), c * CFrame.new(0, FLOOR + 2.0, 0.2) * CFrame.Angles(0.25, 0, 0), n == 1 and RED or C3(60, 110, 220), M.Metal)
+		cyl(parent, "BikeFlywheel", c * CFrame.new(0, FLOOR + 1.5, -1.0), 0.4, 2.0, DARKSTEEL, M.Metal)
+		box(parent, "BikeSeat", Vector3.new(0.9, 0.3, 1.2), c * CFrame.new(0, FLOOR + 3.5, 0.9), BLACK, M.Leather)
+		box(parent, "BikeBars", Vector3.new(1.6, 0.25, 0.25), c * CFrame.new(0, FLOOR + 3.9, -1.1), STEEL, M.Metal)
+		box(parent, "BikeScreen", Vector3.new(0.9, 0.5, 0.15), c * CFrame.new(0, FLOOR + 4.4, -1.15), C3(20, 30, 40), M.Neon)
+	end
+end
+
+local function legPress(parent, cf)
+	local c = cf * CFrame.new(-4.9, 0, -9.2)
+	box(parent, "LegPressBase", Vector3.new(2.6, 0.3, 6.4), c * CFrame.new(0, FLOOR + 0.15, 0), BLACK, M.Metal)
+	box(parent, "LegPressSeat", Vector3.new(2.0, 0.5, 2.4), c * CFrame.new(0, FLOOR + 1.6, 1.8), RED, M.Leather)
+	box(parent, "LegPressBack", Vector3.new(2.0, 2.4, 0.5), c * CFrame.new(0, FLOOR + 2.6, 3.0) * CFrame.Angles(-0.4, 0, 0), RED, M.Leather)
+	box(parent, "LegPressRail", Vector3.new(0.3, 0.3, 5.4), c * CFrame.new(-0.9, FLOOR + 1.0, -0.6) * CFrame.Angles(0.45, 0, 0), STEEL, M.Metal)
+	box(parent, "LegPressRail", Vector3.new(0.3, 0.3, 5.4), c * CFrame.new(0.9, FLOOR + 1.0, -0.6) * CFrame.Angles(0.45, 0, 0), STEEL, M.Metal)
+	box(parent, "LegPressSled", Vector3.new(2.4, 2.0, 0.4), c * CFrame.new(0, FLOOR + 2.8, -1.8) * CFrame.Angles(0.45, 0, 0), DARKSTEEL, M.Metal)
+	for i = 1, 3 do
+		cyl(parent, "LegPressPlate", c * CFrame.new(1.5 + i * 0.1, FLOOR + 1.9, -1.4), 0.42, 2.2 - i * 0.3, i == 2 and C3(60, 110, 220) or BLACK, M.Metal)
+	end
+end
+
+--------------------------------------------------------------------------------
 -- Left wall: kettlebell shelf, plate stacks, water cooler, punching bag
 --------------------------------------------------------------------------------
 local function kettlebells(parent, cf)
@@ -5273,13 +5385,21 @@ local function plateTrees(parent, cf)
 end
 
 local function punchingBag(parent, cf)
-	local x, z = -8.6, -11.5
-	rod(parent, "BagChain", (cf * CFrame.new(x, 13.0, z)).Position, (cf * CFrame.new(x, 9.4, z)).Position, 0.14, C3(120, 124, 132), M.Metal)
-	upright(parent, "BagTop", cf * CFrame.new(x, 9.2, z), 0.4, 1.2, DARKSTEEL, M.Metal)
-	upright(parent, "PunchingBag", cf * CFrame.new(x, 6.6, z), 5.0, 2.2, C3(150, 40, 36), M.Leather)
-	upright(parent, "BagBand", cf * CFrame.new(x, 7.6, z), 0.5, 2.3, YELLOW, M.Fabric)
-	upright(parent, "BagBand", cf * CFrame.new(x, 5.6, z), 0.5, 2.3, YELLOW, M.Fabric)
-	upright(parent, "BagBottom", cf * CFrame.new(x, 4.0, z), 0.3, 1.9, BLACK, M.Leather)
+	local layout = Config.GymLayout
+	local x, z = layout.BagPos.X, layout.BagPos.Z
+	local pivot = cf * CFrame.new(x, layout.BagPivotY, z)
+	rod(parent, "BagChainFixed", (cf * CFrame.new(x, 13.4, z)).Position, pivot.Position, 0.14, C3(120, 124, 132), M.Metal)
+	local parts = {}
+	local function swingPart(p)
+		table.insert(parts, { part = p, rest = p.CFrame })
+	end
+	swingPart(rod(parent, "BagChain", pivot.Position, (cf * CFrame.new(x, 9.4, z)).Position, 0.14, C3(120, 124, 132), M.Metal))
+	swingPart(upright(parent, "BagTop", cf * CFrame.new(x, 9.2, z), 0.4, 1.2, DARKSTEEL, M.Metal))
+	swingPart(upright(parent, "PunchingBag", cf * CFrame.new(x, 6.6, z), 5.0, 2.2, C3(150, 40, 36), M.Leather))
+	swingPart(upright(parent, "BagBand", cf * CFrame.new(x, 7.6, z), 0.5, 2.3, YELLOW, M.Fabric))
+	swingPart(upright(parent, "BagBand", cf * CFrame.new(x, 5.6, z), 0.5, 2.3, YELLOW, M.Fabric))
+	swingPart(upright(parent, "BagBottom", cf * CFrame.new(x, 4.0, z), 0.3, 1.9, BLACK, M.Leather))
+	bag = { pivot = pivot, parts = parts, token = 0 }
 end
 
 local function waterCooler(parent, cf)
@@ -5310,11 +5430,90 @@ local function floorTape(parent, cf)
 	end
 end
 
+-- A glowing ring on the floor and a small name tag at every machine, so you always know where to stand.
+local MODE_COLOR = {
+	sweep = C3(90, 200, 255),
+	hold = C3(255, 160, 60),
+	rhythm = C3(255, 110, 190),
+	mash = C3(110, 230, 120),
+}
+
+local function markers(parent, cf)
+	for _, m in Config.GymMachines do
+		local color = MODE_COLOR[m.Mode] or YELLOW
+		local at = cf * CFrame.new(m.Local.X, FLOOR + 0.05, m.Local.Z)
+		upright(parent, "UseRing", at, 0.08, 5.2, color, M.Neon)
+		upright(parent, "UseRingInner", at * CFrame.new(0, 0.02, 0), 0.08, 4.4, C3(30, 34, 44), M.SmoothPlastic)
+		local tag = box(parent, "UseTag", Vector3.one * 0.4, cf * CFrame.new(m.Local.X, FLOOR + 6.2, m.Local.Z), color, M.SmoothPlastic, { Transparency = 1 })
+		local gui = Instance.new("BillboardGui")
+		gui.Size = UDim2.fromOffset(170, 34)
+		gui.AlwaysOnTop = false
+		gui.MaxDistance = 42
+		gui.LightInfluence = 0
+		gui.Adornee = tag
+		gui.Parent = tag
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBlack
+		label.TextSize = 16
+		label.TextColor3 = color
+		label.TextStrokeTransparency = 0
+		label.Text = m.Icon .. " " .. m.Name:upper()
+		label.Parent = gui
+	end
+end
+
+-- Hides (or shows) the static bar of a machine while someone is lifting the same bar in their hands.
+function GymEquipment.setHidden(id, hidden)
+	for _, entry in hideSets[id] or {} do
+		if entry.part.Parent then
+			entry.part.Transparency = hidden and 1 or entry.t
+		end
+	end
+end
+
+-- Makes the punching bag swing away from a punch (strength 0..1.5) and settle.
+function GymEquipment.swingBag(strength)
+	if not bag then
+		return
+	end
+	bag.token += 1
+	local token = bag.token
+	local pivot = bag.pivot
+	task.spawn(function()
+		local t0 = os.clock()
+		while bag and bag.token == token do
+			local t = os.clock() - t0
+			if t > 1.5 then
+				break
+			end
+			local angle = (strength or 1) * 0.5 * math.exp(-3.0 * t) * math.sin(9 * t)
+			local rot = pivot * CFrame.Angles(angle, 0, 0) * pivot:Inverse()
+			for _, e in bag.parts do
+				if e.part.Parent then
+					e.part.CFrame = rot * e.rest
+				end
+			end
+			task.wait(1 / 30)
+		end
+		if bag and bag.token == token then
+			for _, e in bag.parts do
+				if e.part.Parent then
+					e.part.CFrame = e.rest
+				end
+			end
+		end
+	end)
+end
+
 function GymEquipment.build(parent, cf)
+	hideSets = {}
+	bag = nil
 	local folder = Instance.new("Folder")
 	folder.Name = "GymEquipment"
 	folder.Parent = parent
-	for _, build in { liftPad, dumbbellRack, mirrorWall, benchPress, squatRack, cableMachine, kettlebells, plateTrees, punchingBag, waterCooler, roofDumbbell, floorTape } do
+	for _, build in { liftPad, dumbbellRack, mirrorWall, benchPress, squatRack, cableMachine, pullupBar, bikes, legPress, kettlebells, plateTrees, punchingBag, waterCooler, roofDumbbell, floorTape, markers } do
 		local ok, err = pcall(build, folder, cf)
 		if not ok then
 			warn("[TrueAdam] gym equipment piece failed:", err)
@@ -5938,21 +6137,26 @@ return Island
         <Item class="ModuleScript" referent="30">
           <Properties>
             <string name="Name">Lift</string>
-            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: makes training look like training. While you train, your character really holds the thing
--- (dumbbells in the gym, a hand mirror in the studio, a rose in the lounge) and performs a visible rep after every
--- press: curls, overhead presses and front raises. The dumbbells get bigger and change colour as your Power grows.
--- Everything is built from simple parts welded to the hands, so every player in the server sees it.
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: makes training look like training. At every gym machine your character really does the exercise:
+-- curls with dumbbells at the rack, lies down and presses a barbell on the bench, front-squats under the bar, pulls
+-- cables, throws punches at the swinging bag and hangs from the pull-up bar. The body is posed by turning the arm and
+-- leg joints, so every player in the server sees it. Studio and Lounge give you a hand mirror and a rose.
+-- Joint maths: turning a joint's C0 about X by +angle swings a hanging limb FORWARD, so arm angle 0 = hanging down,
+-- pi/2 = pointing forward, pi = straight up.
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Data = require(script.Parent.Data)
+local Stats = require(script.Parent.Stats)
+local GymEquipment = require(script.Parent.GymEquipment)
 
 local Lift = {}
 
 local FOLDER = "LiftProps"
 local active = {} -- player -> entry
 
--- Peak joint angles (radians) for each kind of rep; 0 = arms hanging down.
+-- Simple repetition motions (angles at the peak of the rep, 0 = arms hanging down).
 local MOTIONS = {
 	curl = { time = 0.85, shoulder = 0.12, elbow = 2.05 },
 	press = { time = 1.0, shoulder = 2.75, elbow = 0.45 },
@@ -5961,12 +6165,56 @@ local MOTIONS = {
 	toast = { time = 0.9, shoulder = 1.15, elbow = 1.7, rightOnly = true },
 }
 local PLAN = {
-	Power = { "curl", "press", "raise", "curl", "press" },
-	Style = { "hair" },
-	Charm = { "toast" },
+	curl = { "curl", "press", "raise", "curl", "press" },
+	hair = { "hair" },
+	toast = { "toast" },
 }
 local AMPLITUDE = { perfect = 1, good = 0.85, miss = 0.35 }
 
+local function clamp(x, a, b)
+	return math.max(a, math.min(b, x))
+end
+
+--------------------------------------------------------------------------------
+-- Pose maths (pure functions, tested offline)
+--------------------------------------------------------------------------------
+-- d = { u = upper arm length, f = forearm length, thigh, calf }; level 0..1 is how far into the movement you are.
+function Lift.pose(kind, level, d)
+	level = clamp(level or 0, 0, 1)
+	if kind == "bench" then
+		-- lying down: the bar starts at the chest (level 0) and reaches full lockout overhead (level 1)
+		return { shoulder = 0.5 + 1.07 * level, elbow = 1.07 * (1 - level) }
+	elseif kind == "squat" then
+		-- front squat: bar across the shoulders, hips back and down, feet stay planted
+		local hip, knee = 1.35 * level, 1.85 * level
+		local drop = (d.thigh + d.calf) - (d.thigh * math.cos(hip) + d.calf * math.cos(hip - knee))
+		local back = d.thigh * math.sin(hip) + d.calf * math.sin(hip - knee)
+		return { shoulder = 1.0, elbow = 2.1, hip = hip, knee = knee, ankle = knee - hip, drop = drop, back = back }
+	elseif kind == "pullup" then
+		-- level 0 = dead hang, level 1 = chin over the bar; the forearms stay vertical on the bar
+		local psi = math.pi - 2.64 * level
+		return { shoulder = psi, elbow = math.pi - psi, hip = 0, knee = 0.6, ankle = 0.6, rise = d.u * (1 + math.cos(psi)) }
+	elseif kind == "cable" then
+		return { shoulder = 1.2, elbow = 0.25 }
+	elseif kind == "bag" then
+		return { shoulder = 0.6, elbow = 1.9 }
+	end
+	return { shoulder = 0, elbow = 0 }
+end
+
+-- One arm's angles during a cable pull or a punch; a runs from 0 to 1.
+function Lift.beatPose(kind, a)
+	if kind == "bag" then
+		local k = a < 0.35 and a / 0.35 or (1 - a) / 0.65
+		return 0.6 + 0.9 * k, 1.9 - 1.75 * k
+	end
+	local k = 1 - math.abs(2 * a - 1)
+	return 1.2 - 1.05 * k, 0.25 + 1.1 * k
+end
+
+--------------------------------------------------------------------------------
+-- Finding the body parts
+--------------------------------------------------------------------------------
 local function motor(char, partName, jointName)
 	local part = char:FindFirstChild(partName)
 	local joint = part and part:FindFirstChild(jointName)
@@ -5976,15 +6224,37 @@ local function motor(char, partName, jointName)
 	return nil
 end
 
--- Finds the arm joints for an R15 or R6 body.
 local function findJoints(char)
 	local joints = {}
 	for _, side in { "Right", "Left" } do
-		local shoulder = motor(char, side .. "UpperArm", side .. "Shoulder") or motor(char, "Torso", side .. " Shoulder")
-		local elbow = motor(char, side .. "LowerArm", side .. "Elbow")
-		joints[side] = { shoulder = shoulder, elbow = elbow, shoulderRest = shoulder and shoulder.C0, elbowRest = elbow and elbow.C0 }
+		local j = {
+			shoulder = motor(char, side .. "UpperArm", side .. "Shoulder") or motor(char, "Torso", side .. " Shoulder"),
+			elbow = motor(char, side .. "LowerArm", side .. "Elbow"),
+			hip = motor(char, side .. "UpperLeg", side .. "Hip"),
+			knee = motor(char, side .. "LowerLeg", side .. "Knee"),
+			ankle = motor(char, side .. "Foot", side .. "Ankle"),
+		}
+		for _, name in { "shoulder", "elbow", "hip", "knee", "ankle" } do
+			j[name .. "Rest"] = j[name] and j[name].C0
+		end
+		joints[side] = j
 	end
 	return joints
+end
+
+local function sizeY(char, name, fallback)
+	local part = char:FindFirstChild(name)
+	local size = part and part.Size
+	return size and size.Y or fallback
+end
+
+local function measure(char)
+	return {
+		u = sizeY(char, "RightUpperArm", 1.2),
+		f = sizeY(char, "RightLowerArm", 1.1),
+		thigh = sizeY(char, "RightUpperLeg", 1.5),
+		calf = sizeY(char, "RightLowerLeg", 1.5),
+	}
 end
 
 local function hand(char, side)
@@ -5998,6 +6268,13 @@ local function hand(char, side)
 	end
 	return nil, nil
 end
+
+--------------------------------------------------------------------------------
+-- Props held in the hands
+--------------------------------------------------------------------------------
+local CYL = Enum.PartType.Cylinder
+local BALL = Enum.PartType.Ball
+local STEEL = Color3.fromRGB(205, 210, 220)
 
 local function piece(folder, hostPart, base, name, size, offset, color, material, shape, extra)
 	local p = Instance.new("Part")
@@ -6029,19 +6306,40 @@ local function piece(folder, hostPart, base, name, size, offset, color, material
 	return p
 end
 
-local CYL = Enum.PartType.Cylinder
-local BALL = Enum.PartType.Ball
-
 local function buildDumbbell(folder, host, base, tier)
-	local d = 0.95 * tier.Scale -- head diameter
-	local steel = Color3.fromRGB(205, 210, 220)
+	local d = 0.95 * tier.Scale
 	local material = tier.Neon and Enum.Material.Neon or Enum.Material.Metal
-	-- the handle runs left-right through the fist; a cylinder's long axis is its X axis
-	piece(folder, host, base, "Handle", Vector3.new(1.35, 0.2, 0.2), CFrame.new(), steel, Enum.Material.Metal, CYL)
+	piece(folder, host, base, "Handle", Vector3.new(1.35, 0.2, 0.2), CFrame.new(), STEEL, Enum.Material.Metal, CYL)
 	for _, side in { -1, 1 } do
 		piece(folder, host, base, "Plate", Vector3.new(0.42, d, d), CFrame.new(side * 0.62, 0, 0), tier.Color, material, CYL)
-		piece(folder, host, base, "Cap", Vector3.new(0.18, d * 0.55, d * 0.55), CFrame.new(side * 0.88, 0, 0), steel, Enum.Material.Metal, CYL)
+		piece(folder, host, base, "Cap", Vector3.new(0.18, d * 0.55, d * 0.55), CFrame.new(side * 0.88, 0, 0), STEEL, Enum.Material.Metal, CYL)
 	end
+end
+
+-- A full barbell held by both hands; it hangs off the right hand, shifted to the middle between the hands.
+local function buildBarbell(folder, host, base, tier, half)
+	local material = tier.Neon and Enum.Material.Neon or Enum.Material.Metal
+	local middle = base * CFrame.new(-half, 0, 0)
+	piece(folder, host, middle, "Bar", Vector3.new(7.2, 0.24, 0.24), CFrame.new(), STEEL, Enum.Material.Metal, CYL)
+	for _, side in { -1, 1 } do
+		local x = 2.7
+		for i, d in { 3.0, 2.6, 2.1 } do
+			local colour = i == 1 and tier.Color or Color3.fromRGB(30, 30, 36)
+			piece(folder, host, middle, "Plate", Vector3.new(0.42, d, d), CFrame.new(side * x, 0, 0), colour, i == 1 and material or Enum.Material.Metal, CYL)
+			x += 0.5
+		end
+		piece(folder, host, middle, "Collar", Vector3.new(0.22, 0.6, 0.6), CFrame.new(side * (x + 0.05), 0, 0), STEEL, Enum.Material.Metal, CYL)
+	end
+end
+
+local function buildHandle(folder, host, base)
+	piece(folder, host, base, "CableHandle", Vector3.new(1.2, 0.2, 0.2), CFrame.new(), STEEL, Enum.Material.Metal, CYL)
+	piece(folder, host, base, "CableGrip", Vector3.new(0.6, 0.3, 0.3), CFrame.new(), Color3.fromRGB(210, 55, 50), Enum.Material.Fabric, CYL)
+end
+
+local function buildGlove(folder, host, base)
+	piece(folder, host, base, "Glove", Vector3.one * 1.15, CFrame.new(0, -0.15, -0.1), Color3.fromRGB(215, 40, 50), Enum.Material.Leather, BALL)
+	piece(folder, host, base, "GloveCuff", Vector3.new(1.0, 0.3, 1.0), CFrame.new(0, 0.45, 0), Color3.fromRGB(245, 245, 250), Enum.Material.Fabric)
 end
 
 local function buildMirror(folder, host, base)
@@ -6061,7 +6359,23 @@ local function buildRose(folder, host, base)
 	end
 end
 
--- The equipped hammer would clip through the dumbbells, so it turns invisible while you train.
+local function emitter(parent, name, color, speed, size, lifetime, accel)
+	local e = Instance.new("ParticleEmitter")
+	e.Name = name
+	e.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	e.Color = ColorSequence.new(color)
+	e.Size = NumberSequence.new(size)
+	e.Lifetime = NumberRange.new(lifetime * 0.7, lifetime)
+	e.Speed = NumberRange.new(speed * 0.6, speed)
+	e.SpreadAngle = Vector2.new(60, 60)
+	e.Acceleration = accel
+	e.LightEmission = 0.4
+	e.Rate = 0
+	e.Parent = parent
+	return e
+end
+
+-- The equipped hammer would clip through the props, so it turns invisible while you train.
 local function setHammerHidden(char, hidden)
 	local model = char and char:FindFirstChild("GlowHammer")
 	if not model then
@@ -6085,58 +6399,206 @@ local function setHammerHidden(char, hidden)
 	end
 end
 
+--------------------------------------------------------------------------------
+-- Moving the body
+--------------------------------------------------------------------------------
+local function setJoint(joint, rest, angle)
+	if joint and joint.Parent and rest then
+		joint.C0 = rest * CFrame.Angles(angle, 0, 0)
+	end
+end
+
 local function restore(entry)
 	for _, j in entry.joints do
-		if j.shoulder and j.shoulder.Parent then
-			j.shoulder.C0 = j.shoulderRest
-		end
-		if j.elbow and j.elbow.Parent then
-			j.elbow.C0 = j.elbowRest
+		for _, name in { "shoulder", "elbow", "hip", "knee", "ankle" } do
+			local joint = j[name]
+			if joint and joint.Parent and j[name .. "Rest"] then
+				joint.C0 = j[name .. "Rest"]
+			end
 		end
 	end
 end
 
-local function emitter(parent, name, color, speed, size, lifetime, accel)
-	local e = Instance.new("ParticleEmitter")
-	e.Name = name
-	e.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-	e.Color = ColorSequence.new(color)
-	e.Size = NumberSequence.new(size)
-	e.Lifetime = NumberRange.new(lifetime * 0.7, lifetime)
-	e.Speed = NumberRange.new(speed * 0.6, speed)
-	e.SpreadAngle = Vector2.new(60, 60)
-	e.Acceleration = accel
-	e.LightEmission = 0.4
-	e.Rate = 0
-	e.Parent = parent
-	return e
+local function sideName(side)
+	return (side == "L" or side == "Left") and "Left" or "Right"
 end
 
--- Picks up the training prop for `stat` (also sets the attributes the training window shows).
-function Lift.begin(p, stat)
+-- Works out and applies the whole body pose for this instant.
+local function step(entry, now)
+	local dt = math.min(0.2, now - (entry.last or now))
+	entry.last = now
+	local level = entry.level
+	if entry.hold then
+		level = clamp((now - entry.hold.t0) / entry.hold.fill, 0, 1)
+	elseif entry.release then
+		local a = (now - entry.release.t0) / entry.release.dur
+		if a >= 1 then
+			entry.release = nil
+			level = 0
+		else
+			level = entry.release.from * (1 - a * a * (3 - 2 * a))
+		end
+	elseif entry.mashing then
+		entry.target = math.max(0, entry.target - 0.45 * dt)
+		level = level + (entry.target - level) * math.min(1, 10 * dt)
+	end
+	entry.level = level
+
+	local pose = Lift.pose(entry.kind, level, entry.dims)
+	local rep = entry.rep
+	local k = 0
+	if rep then
+		local a = (now - rep.t0) / rep.motion.time
+		if a >= 1 then
+			entry.rep = nil
+			rep = nil
+		else
+			k = math.sin(a * math.pi) * rep.amp
+			if rep.grade == "miss" then
+				k *= 1 + math.sin(a * 40) * 0.08 -- a shaky failed rep
+			end
+		end
+	end
+	for side, j in entry.joints do
+		local sh, el = pose.shoulder or 0, pose.elbow or 0
+		local beat = entry.beats[side]
+		if beat then
+			local a = (now - beat.t0) / beat.dur
+			if a >= 1 then
+				entry.beats[side] = nil
+			else
+				sh, el = Lift.beatPose(entry.kind, a)
+			end
+		end
+		if rep and not (rep.motion.rightOnly and side == "Left") then
+			sh += rep.motion.shoulder * k
+			el += rep.motion.elbow * k
+		end
+		setJoint(j.shoulder, j.shoulderRest, sh)
+		setJoint(j.elbow, j.elbowRest, el)
+		if pose.hip then
+			setJoint(j.hip, j.hipRest, pose.hip)
+			setJoint(j.knee, j.kneeRest, -(pose.knee or 0))
+			setJoint(j.ankle, j.ankleRest, pose.ankle or 0)
+		end
+	end
+	local drop, rise, back = pose.drop or 0, pose.rise or 0, pose.back or 0
+	if entry.root and entry.root.Parent and entry.baseCF and (drop ~= 0 or rise ~= 0 or back ~= 0 or entry.moved) then
+		local key = drop - rise + back * 7
+		if entry.lastKey == nil or math.abs(key - entry.lastKey) > 0.004 then
+			entry.lastKey = key
+			entry.moved = true
+			entry.root.CFrame = entry.baseCF * CFrame.new(0, rise - drop, back)
+		end
+	end
+end
+
+local function startLoop(p, entry)
+	task.spawn(function()
+		while entry.alive and active[p] == entry do
+			step(entry, os.clock())
+			task.wait(1 / 30)
+		end
+	end)
+end
+
+--------------------------------------------------------------------------------
+-- Placing the player at the machine
+--------------------------------------------------------------------------------
+local function faceCF(position, look)
+	return CFrame.lookAt(position, position + Vector3.new(look.X, 0, look.Z))
+end
+
+local function placeAt(entry, machine, root, char)
+	local frame = Config.GymFrame()
+	local rootY = root.Position.Y
+	local standCF = Config.MachineStandCF(machine)
+	entry.exitCF = faceCF(Vector3.new(standCF.Position.X, rootY, standCF.Position.Z), standCF.LookVector)
+	if machine.Pose == "bench" then
+		local layout = Config.GymLayout
+		local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+		local thickness = torso and torso.Size.Z / 2 or 0.5
+		entry.baseCF = frame * CFrame.new(layout.BenchCenter.X, layout.BenchTop + thickness + 0.1, layout.BenchCenter.Z + 1.0) * CFrame.Angles(math.rad(90), 0, 0)
+	elseif machine.Pose == "pullup" then
+		local layout = Config.GymLayout
+		local shoulder = char:FindFirstChild("RightUpperArm")
+		local shoulderRel = shoulder and (shoulder.Position.Y + shoulder.Size.Y / 2 - rootY) or 1.3
+		local above = shoulderRel + entry.dims.u + entry.dims.f
+		entry.baseCF = frame * CFrame.new(layout.PullupBar.X, layout.PullupBar.Y - above, layout.PullupBar.Z)
+	else
+		entry.baseCF = entry.exitCF
+	end
+	root.AssemblyLinearVelocity = Vector3.zero
+	root.Anchored = true
+	root.CFrame = entry.baseCF
+end
+
+local function unlock(p, root)
+	if root and root.Parent then
+		root.Anchored = false
+	end
+	p:SetAttribute("MachineLock", nil)
+	pcall(Stats.applyMovement, p)
+end
+
+--------------------------------------------------------------------------------
+-- Public API
+--------------------------------------------------------------------------------
+-- Starts a machine session. `machine` is an entry of Config.GymMachines or Config.StatMachines.
+function Lift.begin(p, machine)
 	Lift.stop(p)
 	local char = p.Character
 	local profile = Data.get(p)
-	if not char or not profile or not Config.TrainProps[stat] then
+	if not char or not profile or not machine then
 		return nil
 	end
 	local index, tier = Config.WeightFor(profile.Power)
 	local folder = Instance.new("Folder")
 	folder.Name = FOLDER
 	folder.Parent = char
-	local entry = { char = char, folder = folder, joints = findJoints(char), token = 0, count = 0, stat = stat, alive = true }
+	local entry = {
+		char = char,
+		folder = folder,
+		joints = findJoints(char),
+		dims = measure(char),
+		machine = machine,
+		kind = machine.Pose,
+		level = 0,
+		target = 0,
+		beats = {},
+		alive = true,
+		root = char:FindFirstChild("HumanoidRootPart"),
+	}
 	active[p] = entry
 	setHammerHidden(char, true)
 
-	for _, side in { "Right", "Left" } do
-		if stat == "Power" or side == "Right" then
-			local host, base = hand(char, side)
+	-- props
+	local pose = machine.Pose
+	local rightHand, rightBase = hand(char, "Right")
+	local leftHand, leftBase = hand(char, "Left")
+	local half = 1.4
+	if rightHand and leftHand then
+		half = math.max(0.8, (rightHand.Position - leftHand.Position).Magnitude / 2)
+	end
+	if pose == "bench" or pose == "squat" then
+		if rightHand then
+			buildBarbell(folder, rightHand, rightBase, tier, half)
+		end
+		GymEquipment.setHidden(pose, true)
+		entry.hidden = pose
+	else
+		for _, side in { { "Right", rightHand, rightBase }, { "Left", leftHand, leftBase } } do
+			local name, host, base = side[1], side[2], side[3]
 			if host then
-				if stat == "Power" then
+				if pose == "curl" then
 					buildDumbbell(folder, host, base, tier)
-				elseif stat == "Style" then
+				elseif pose == "cable" then
+					buildHandle(folder, host, base)
+				elseif pose == "bag" then
+					buildGlove(folder, host, base)
+				elseif pose == "hair" and name == "Right" then
 					buildMirror(folder, host, base)
-				else
+				elseif pose == "toast" and name == "Right" then
 					buildRose(folder, host, base)
 				end
 			end
@@ -6151,56 +6613,105 @@ function Lift.begin(p, stat)
 	if torso then
 		entry.sparks = emitter(torso, "RepSparks", Color3.fromRGB(255, 220, 90), 14, 0.5, 0.8, Vector3.new(0, -6, 0))
 	end
+
+	-- gym machines hold you in place; the other buildings let you stand where you are
+	if machine.Local and entry.root then
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum.WalkSpeed = 0
+			hum.JumpHeight = 0
+		end
+		p:SetAttribute("MachineLock", machine.Id)
+		placeAt(entry, machine, entry.root, char)
+	end
+
 	p:SetAttribute("LiftKg", tier.Kg)
 	p:SetAttribute("LiftTier", tier.Name)
 	p:SetAttribute("LiftIndex", index)
+	startLoop(p, entry)
 	return entry
 end
 
--- One visible rep. `grade` is "perfect", "good" or "miss" (a miss is a weak, wobbly rep).
+-- One visible rep for the simple machines (curls, mirror, rose). grade: "perfect" | "good" | "miss".
 function Lift.rep(p, grade, repIndex)
 	local entry = active[p]
 	if not entry or not entry.alive then
 		return
 	end
-	local plan = PLAN[entry.stat] or PLAN.Power
-	local motion = MOTIONS[plan[(math.max(repIndex or 1, 1) - 1) % #plan + 1]]
-	local amp = AMPLITUDE[grade] or 0.6
-	entry.token += 1
-	local token = entry.token
+	local plan = PLAN[entry.kind]
+	if plan then
+		local motion = MOTIONS[plan[(math.max(repIndex or 1, 1) - 1) % #plan + 1]]
+		entry.rep = { t0 = os.clock(), motion = motion, amp = AMPLITUDE[grade] or 0.6, grade = grade }
+	end
 	if entry.sweat then
 		entry.sweat:Emit(grade == "miss" and 2 or 5)
 	end
 	if grade == "perfect" and entry.sparks then
 		entry.sparks:Emit(16)
 	end
-	task.spawn(function()
-		local t0 = os.clock()
-		while entry.alive and entry.token == token do
-			local a = (os.clock() - t0) / motion.time
-			if a >= 1 then
-				break
-			end
-			local k = math.sin(a * math.pi) * amp
-			if grade == "miss" then
-				k *= 1 + math.sin(a * 40) * 0.08 -- a shaky failed rep
-			end
-			for side, j in entry.joints do
-				if not (motion.rightOnly and side == "Left") then
-					if j.shoulder and j.shoulder.Parent then
-						j.shoulder.C0 = j.shoulderRest * CFrame.Angles(motion.shoulder * k, 0, 0)
-					end
-					if j.elbow and j.elbow.Parent then
-						j.elbow.C0 = j.elbowRest * CFrame.Angles(motion.elbow * k, 0, 0)
-					end
-				end
-			end
-			task.wait(1 / 30)
-		end
-		if entry.alive and entry.token == token then
-			restore(entry)
-		end
-	end)
+end
+
+-- Hold machines: the bar / body moves with how long you hold, then returns when you let go.
+function Lift.holdStart(p, fillTime)
+	local entry = active[p]
+	if entry and entry.alive then
+		entry.release = nil
+		entry.hold = { t0 = os.clock(), fill = math.max(0.3, fillTime or 1) }
+	end
+end
+
+function Lift.holdRelease(p, grade)
+	local entry = active[p]
+	if not entry or not entry.alive then
+		return
+	end
+	local from = entry.level
+	if entry.hold then
+		from = clamp((os.clock() - entry.hold.t0) / entry.hold.fill, 0, 1)
+	end
+	entry.hold = nil
+	entry.release = { from = from, t0 = os.clock(), dur = grade == "miss" and 0.3 or 0.8 }
+	if entry.sweat then
+		entry.sweat:Emit(grade == "miss" and 2 or 5)
+	end
+	if grade == "perfect" and entry.sparks then
+		entry.sparks:Emit(16)
+	end
+end
+
+-- Rhythm machines: one arm pulls / punches. side is "L" or "R"; accuracy "perfect" | "good".
+function Lift.beat(p, side, accuracy)
+	local entry = active[p]
+	if not entry or not entry.alive then
+		return
+	end
+	entry.beats[sideName(side)] = { t0 = os.clock(), dur = entry.kind == "bag" and 0.32 or 0.55 }
+	if entry.kind == "bag" then
+		GymEquipment.swingBag(accuracy == "perfect" and 1.3 or 0.8)
+	end
+	if entry.sweat then
+		entry.sweat:Emit(1)
+	end
+	if accuracy == "perfect" and entry.sparks then
+		entry.sparks:Emit(6)
+	end
+end
+
+-- Tap machines: progress 0..1 pulls the body up; it sinks back if you stop.
+function Lift.mash(p, progress)
+	local entry = active[p]
+	if entry and entry.alive then
+		entry.mashing = true
+		entry.target = clamp(progress, 0, 1)
+	end
+end
+
+-- The mash round is over: drop back down.
+function Lift.relax(p)
+	local entry = active[p]
+	if entry and entry.alive then
+		entry.target = 0
+	end
 end
 
 function Lift.stop(p)
@@ -6211,7 +6722,16 @@ function Lift.stop(p)
 	active[p] = nil
 	entry.alive = false
 	restore(entry)
+	if p:GetAttribute("MachineLock") then
+		if entry.exitCF and entry.root and entry.root.Parent then
+			entry.root.CFrame = entry.exitCF
+		end
+		unlock(p, entry.root)
+	end
 	setHammerHidden(entry.char, false)
+	if entry.hidden then
+		GymEquipment.setHidden(entry.hidden, false)
+	end
 	if entry.folder then
 		entry.folder:Destroy()
 	end
@@ -6227,6 +6747,16 @@ end
 
 function Lift.holding(p)
 	return active[p] ~= nil
+end
+
+-- Safety net: nobody can stay frozen at a machine they are no longer using.
+function Lift.sweep()
+	for _, p in Players:GetPlayers() do
+		if p:GetAttribute("MachineLock") and not active[p] then
+			local char = p.Character
+			unlock(p, char and char:FindFirstChild("HumanoidRootPart"))
+		end
+	end
 end
 
 return Lift
@@ -7368,9 +7898,12 @@ return Store
         <Item class="ModuleScript" referent="40">
           <Properties>
             <string name="Name">Training</string>
-            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame. A marker sweeps a bar; hit the zone for stat gains.
--- The server picks the zone, computes where the marker was when you pressed, and grades it,
--- so the result can't be faked from the client.
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: machine training. Every gym machine has its own mini-game, and the server grades all of them,
+-- so results can't be faked from the client:
+--   sweep  - a marker sweeps a bar; press while it is in the zone (dumbbell rack, mirror, rose)
+--   hold   - hold to push, let go in the zone (bench press, squat rack)
+--   rhythm - alternate Left / Right on the beat (cable machine, punching bag)
+--   mash   - tap as fast as you can before the time runs out (pull-up bar)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
@@ -7388,33 +7921,249 @@ local sessions = {} -- Player -> session
 local GOOD_WIDTH = 0.26
 local PERFECT_WIDTH = 0.09
 local REP_TIMEOUT = 5
+local BEAT_GOOD = 0.24
+local BEAT_PERFECT = 0.09
+local MASH_RATE = 10 -- taps per second that count
+local COUNTDOWN = 1.1
 
-local function newRep(session)
-	session.rep += 1
-	session.token += 1
-	session.resolved = false
-	session.speed = 0.9 + 0.15 * session.rep
-	session.center = 0.3 + rng:NextNumber() * 0.4
-	session.startedAt = workspace:GetServerTimeNow() + 1.1
-	return {
-		rep = session.rep,
-		reps = Config.TrainReps,
-		startedAt = session.startedAt,
-		speed = session.speed,
-		center = session.center,
-		goodWidth = GOOD_WIDTH,
-		perfectWidth = PERFECT_WIDTH,
-	}
+local function serverNow()
+	return workspace:GetServerTimeNow()
+end
+
+local function gradeByDistance(dist, perfectWidth, goodWidth)
+	if dist <= perfectWidth / 2 then
+		return "perfect"
+	elseif dist <= goodWidth / 2 then
+		return "good"
+	end
+	return "miss"
 end
 
 local resolve
 
-local function armTimeout(p, session)
+-- Runs `fn` after `seconds` if the session is still on the same rep.
+local function later(p, session, seconds, fn)
 	local token = session.token
-	task.delay(REP_TIMEOUT + 1.1, function()
+	task.delay(seconds, function()
 		if sessions[p] == session and session.token == token and not session.resolved then
-			resolve(p, session, "miss")
+			fn()
 		end
+	end)
+end
+
+--------------------------------------------------------------------------------
+-- Modes: new(session) builds the next rep and returns (config for the client, seconds until it expires)
+--------------------------------------------------------------------------------
+local MODES = {}
+
+MODES.sweep = {
+	new = function(session)
+		session.speed = 0.9 + 0.15 * session.rep
+		session.center = 0.3 + rng:NextNumber() * 0.4
+		session.startedAt = serverNow() + COUNTDOWN
+		return {
+			startedAt = session.startedAt,
+			speed = session.speed,
+			center = session.center,
+			goodWidth = GOOD_WIDTH,
+			perfectWidth = PERFECT_WIDTH,
+		}, REP_TIMEOUT + COUNTDOWN
+	end,
+	timeout = function(p, session)
+		resolve(p, session, "miss")
+	end,
+	hit = function(p, session, clientTime)
+		local now = serverNow()
+		local t = type(clientTime) == "number" and clientTime or now
+		t = math.clamp(t, now - 0.6, now)
+		if t < session.startedAt then
+			return
+		end
+		local marker = Util.tri((t - session.startedAt) * session.speed)
+		resolve(p, session, gradeByDistance(math.abs(marker - session.center), PERFECT_WIDTH, GOOD_WIDTH))
+	end,
+}
+
+MODES.hold = {
+	new = function(session)
+		session.fill = math.max(0.9, 1.5 - 0.12 * session.rep)
+		session.center = 0.5 + rng:NextNumber() * 0.35
+		session.downAt = nil
+		session.startedAt = serverNow() + COUNTDOWN
+		return {
+			startedAt = session.startedAt,
+			fillTime = session.fill,
+			center = session.center,
+			goodWidth = 0.24,
+			perfectWidth = 0.09,
+		}, REP_TIMEOUT + COUNTDOWN
+	end,
+	timeout = function(p, session)
+		resolve(p, session, "miss")
+	end,
+	down = function(p, session)
+		local now = serverNow()
+		if session.downAt or now < session.startedAt - 0.1 then
+			return
+		end
+		session.downAt = now
+		Lift.holdStart(p, session.fill)
+		local mark = now
+		-- holding far too long drops the bar
+		later(p, session, session.fill * 1.3 + 0.25, function()
+			if session.downAt == mark then
+				resolve(p, session, "miss")
+			end
+		end)
+	end,
+	hit = function(p, session)
+		if not session.downAt then
+			return
+		end
+		local level = (serverNow() - session.downAt) / session.fill
+		if level > 1.08 then
+			resolve(p, session, "miss")
+		else
+			resolve(p, session, gradeByDistance(math.abs(math.min(level, 1) - session.center), 0.09, 0.24))
+		end
+	end,
+}
+
+MODES.rhythm = {
+	new = function(session)
+		local count = 4
+		local lead = 1.4
+		local gap = math.max(0.45, 0.72 - 0.05 * session.rep)
+		session.startedAt = serverNow()
+		session.beats = {}
+		local list = {}
+		local side = rng:NextNumber() < 0.5 and "L" or "R"
+		for i = 1, count do
+			local offset = lead + (i - 1) * gap
+			table.insert(session.beats, { at = session.startedAt + offset, side = side, hit = nil })
+			table.insert(list, { at = offset, side = side })
+			if rng:NextNumber() < 0.75 then
+				side = side == "L" and "R" or "L"
+			end
+		end
+		session.lastBeat = lead + (count - 1) * gap
+		return { startedAt = session.startedAt, beats = list, travel = 1.3, window = BEAT_GOOD }, session.lastBeat + 0.45
+	end,
+	timeout = function(p, session)
+		MODES.rhythm.finish(p, session)
+	end,
+	finish = function(p, session)
+		if session.resolved then
+			return
+		end
+		local hits, perfects = 0, 0
+		for _, beat in session.beats do
+			if beat.hit then
+				hits += 1
+				if beat.hit == "perfect" then
+					perfects += 1
+				end
+			end
+		end
+		local grade = "miss"
+		if hits == #session.beats and perfects >= 3 then
+			grade = "perfect"
+		elseif hits >= 2 then
+			grade = "good"
+		end
+		resolve(p, session, grade)
+	end,
+	hit = function(p, session, side, clientTime)
+		if side ~= "L" and side ~= "R" then
+			return
+		end
+		local now = serverNow()
+		local t = type(clientTime) == "number" and clientTime or now
+		t = math.clamp(t, now - 0.6, now)
+		local best, bestDist, bestIndex
+		for i, beat in session.beats do
+			if not beat.hit and beat.side == side then
+				local d = math.abs(t - beat.at)
+				if d <= BEAT_GOOD + 0.04 and (not bestDist or d < bestDist) then
+					best, bestDist, bestIndex = beat, d, i
+				end
+			end
+		end
+		if not best then
+			return -- wrong side or off the beat: nothing happens
+		end
+		best.hit = bestDist <= BEAT_PERFECT and "perfect" or "good"
+		Lift.beat(p, side, best.hit)
+		Stats.send(p, "trainBeat", bestIndex, best.hit)
+		for _, beat in session.beats do
+			if not beat.hit and now < beat.at + BEAT_GOOD then
+				return
+			end
+		end
+		if now > session.beats[#session.beats].at - 0.05 then
+			MODES.rhythm.finish(p, session)
+		end
+	end,
+}
+
+MODES.mash = {
+	new = function(session)
+		session.duration = 3.4
+		session.target = 12 + 3 * session.rep
+		session.count = 0
+		session.tapTimes = {}
+		session.startedAt = serverNow() + COUNTDOWN
+		return { startedAt = session.startedAt, duration = session.duration, target = session.target }, COUNTDOWN + session.duration + 0.25
+	end,
+	timeout = function(p, session)
+		MODES.mash.finish(p, session)
+	end,
+	finish = function(p, session)
+		if session.resolved then
+			return
+		end
+		local ratio = session.count / session.target
+		resolve(p, session, ratio >= 1.25 and "perfect" or (ratio >= 1 and "good" or "miss"))
+	end,
+	hit = function(p, session)
+		local now = serverNow()
+		if now < session.startedAt or now > session.startedAt + session.duration + 0.15 then
+			return
+		end
+		local recent = 0
+		for i = #session.tapTimes, 1, -1 do
+			if now - session.tapTimes[i] <= 1 then
+				recent += 1
+			else
+				table.remove(session.tapTimes, i)
+			end
+		end
+		if recent >= MASH_RATE then
+			return
+		end
+		table.insert(session.tapTimes, now)
+		session.count += 1
+		Lift.mash(p, session.count / session.target)
+	end,
+}
+
+--------------------------------------------------------------------------------
+-- Reps
+--------------------------------------------------------------------------------
+local function newRep(session)
+	session.rep += 1
+	session.token += 1
+	session.resolved = false
+	local cfg, timeout = MODES[session.mode].new(session)
+	cfg.mode = session.mode
+	cfg.rep = session.rep
+	cfg.reps = session.reps
+	return cfg, timeout
+end
+
+local function arm(p, session, timeout)
+	later(p, session, timeout, function()
+		MODES[session.mode].timeout(p, session)
 	end)
 end
 
@@ -7430,12 +8179,13 @@ resolve = function(p, session, grade)
 		session.streak += 1
 	elseif grade == "miss" then
 		session.streak = 0
+		session.misses += 1
 	end
 
 	if grade ~= "miss" and profile then
 		local base = grade == "perfect" and 2 or 1
 		local streakMult = 1 + math.min(session.streak, 5) * 0.1
-		gain = base * Config.TrainMult(profile.Levels.Training or 0) * streakMult
+		gain = base * (session.machine.Gain or 1) * Config.TrainMult(profile.Levels.Training or 0) * streakMult
 		Stats.addStat(p, session.stat, gain)
 		Stats.addAura(p, gain * 4 * Config.RankScaling(p:GetAttribute("Rank") or 1))
 		Stats.addXP(p, gain * 10)
@@ -7448,16 +8198,44 @@ resolve = function(p, session, grade)
 		session.total += gain
 	end
 
-	local nextRep
-	local done = session.rep >= Config.TrainReps
-	if not done then
-		nextRep = newRep(session)
-		armTimeout(p, session)
+	local mode = session.mode
+	local repNumber = session.rep
+	if mode == "sweep" then
+		Lift.rep(p, grade, repNumber)
+	elseif mode == "hold" then
+		Lift.holdRelease(p, grade)
+	elseif mode == "mash" then
+		Lift.relax(p)
 	end
-	Lift.rep(p, grade, session.rep - (done and 0 or 1))
-	Stats.send(p, "trainRep", session.rep - (done and 0 or 1), grade, gain, session.streak, nextRep)
+
+	local nextRep
+	local done = session.rep >= session.reps
+	if not done then
+		local cfg, timeout = newRep(session)
+		nextRep = cfg
+		arm(p, session, timeout)
+	end
+	Stats.send(p, "trainRep", repNumber, grade, gain, session.streak, nextRep)
 	if done then
-		Stats.send(p, "trainEnd", session.stat, session.total)
+		-- a clean set (no misses) pays a 25% bonus
+		local bonus = 0
+		if session.misses == 0 and profile then
+			bonus = session.total * 0.25
+			Stats.addStat(p, session.stat, bonus)
+			Stats.addAura(p, bonus * 4 * Config.RankScaling(p:GetAttribute("Rank") or 1))
+			Stats.addXP(p, bonus * 10)
+			session.total += bonus
+		end
+		-- beating your own best set on a machine is a record
+		local record = false
+		if profile then
+			local best = profile.Records[session.machine.Id] or 0
+			if session.total > best + 0.05 then
+				profile.Records[session.machine.Id] = session.total
+				record = best > 0
+			end
+		end
+		Stats.send(p, "trainEnd", session.stat, session.total, bonus > 0, record)
 		sessions[p] = nil
 		p:SetAttribute("Training", false)
 		task.delay(1.1, function()
@@ -7468,26 +8246,38 @@ resolve = function(p, session, grade)
 	end
 end
 
-function Training.start(p, stat)
+--------------------------------------------------------------------------------
+-- Public API
+--------------------------------------------------------------------------------
+-- machine: an entry of Config.GymMachines (or nil for the stat's default machine)
+function Training.start(p, stat, machine)
 	if sessions[p] or p:GetAttribute("InDuel") or not Config.Stats[stat] then
+		return
+	end
+	machine = machine or Config.StatMachines[stat] or Config.GymMachineById.rack
+	if not MODES[machine.Mode] then
 		return
 	end
 	local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
 	local session = {
 		stat = stat,
+		machine = machine,
+		mode = machine.Mode,
+		reps = machine.Reps or Config.TrainReps,
 		rep = 0,
 		token = 0,
 		streak = 0,
+		misses = 0,
 		total = 0,
 		resolved = true,
-		origin = root and root.Position,
+		origin = machine.Local and Config.MachinePos(machine) or (root and root.Position),
 	}
 	sessions[p] = session
 	p:SetAttribute("Training", true)
-	Lift.begin(p, stat)
-	local cfg = newRep(session)
-	armTimeout(p, session)
-	Stats.send(p, "trainStart", stat, cfg, p:GetAttribute("LiftKg"), p:GetAttribute("LiftTier"))
+	Lift.begin(p, machine)
+	local cfg, timeout = newRep(session)
+	arm(p, session, timeout)
+	Stats.send(p, "trainStart", stat, cfg, p:GetAttribute("LiftKg"), p:GetAttribute("LiftTier"), machine.Id)
 end
 
 function Training.cancel(p)
@@ -7499,39 +8289,39 @@ function Training.cancel(p)
 	Lift.stop(p)
 end
 
-function Training.hit(p, clientTime)
+-- "TrainHit": the press / release / tap. a and b depend on the mode (see MODES).
+function Training.hit(p, a, b)
 	local session = sessions[p]
 	if not session or session.resolved then
 		return
 	end
-	local now = workspace:GetServerTimeNow()
-	local t = type(clientTime) == "number" and clientTime or now
-	t = math.clamp(t, now - 0.6, now)
-	if t < session.startedAt then
+	MODES[session.mode].hit(p, session, a, b)
+end
+
+-- "TrainDown": the start of a hold.
+function Training.down(p)
+	local session = sessions[p]
+	if not session or session.resolved then
 		return
 	end
-	local marker = Util.tri((t - session.startedAt) * session.speed)
-	local dist = math.abs(marker - session.center)
-	local grade = "miss"
-	if dist <= PERFECT_WIDTH / 2 then
-		grade = "perfect"
-	elseif dist <= GOOD_WIDTH / 2 then
-		grade = "good"
+	local mode = MODES[session.mode]
+	if mode.down then
+		mode.down(p, session)
 	end
-	resolve(p, session, grade)
 end
 
 function Training.init()
-	-- Walking away from the station cancels the session.
+	-- Walking away from the station cancels the session; the safety net frees anyone left frozen at a machine.
 	task.spawn(function()
 		while true do
 			task.wait(1)
 			for p, session in sessions do
 				local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-				if not root or (session.origin and (root.Position - session.origin).Magnitude > 22) then
+				if not root or (session.origin and (root.Position - session.origin).Magnitude > 24) then
 					Training.cancel(p)
 				end
 			end
+			Lift.sweep()
 		end
 	end)
 end
@@ -7541,9 +8331,11 @@ function Training.release(p)
 	Lift.stop(p)
 end
 
-function Training.handle(p, kind, a)
+function Training.handle(p, kind, a, b)
 	if kind == "TrainHit" then
-		Training.hit(p, a)
+		Training.hit(p, a, b)
+	elseif kind == "TrainDown" then
+		Training.down(p)
 	elseif kind == "TrainCancel" then
 		Training.cancel(p)
 	end
@@ -8971,17 +9763,21 @@ function handlers.openMenu(tab)
 	Menu.open(tab)
 end
 
-function handlers.trainStart(stat, cfg, kg, tier)
+function handlers.trainStart(stat, cfg, kg, tier, machineId)
 	Menu.close()
-	TrainingUI.start(stat, cfg, kg, tier)
+	TrainingUI.start(stat, cfg, kg, tier, machineId)
 end
 
 function handlers.trainRep(...)
 	TrainingUI.rep(...)
 end
 
-function handlers.trainEnd(stat, total)
-	TrainingUI.finish(stat, total)
+function handlers.trainBeat(index, accuracy)
+	TrainingUI.beat(index, accuracy)
+end
+
+function handlers.trainEnd(stat, total, clean, record)
+	TrainingUI.finish(stat, total, clean, record)
 end
 
 function handlers.duelStart(...)
@@ -10992,6 +11788,14 @@ local function scan()
 		if d <= r and (not bestScore or d / r < bestScore) then
 			local text, color = treadText(t)
 			best, bestScore = { id = "Tread:" .. t.Id, text = text, color = color }, d / r
+		end
+	end
+	if ownedBuilding("gym") then
+		for _, m in Config.GymMachines do
+			local d = flat(pos, Config.MachinePos(m))
+			if d <= m.Radius and (not bestScore or d / m.Radius < bestScore) then
+				best, bestScore = { id = "Machine:" .. m.Id, text = m.Icon .. "  Use " .. m.Name, color = C.Good }, d / m.Radius
+			end
 		end
 	end
 	for _, entry in Config.Interactables do
@@ -13534,8 +14338,12 @@ return Toasts
           <Item class="ModuleScript" referent="68">
             <Properties>
               <string name="Name">TrainingUI</string>
-              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the training minigame overlay. A marker sweeps a bar; press Space (or tap) while it
--- is inside the zone. The server decides the zone and grades the press, so this only draws it.
+              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the machine training window. Each kind of machine has its own mini-game:
+--   sweep  - press while the white line is in the gold zone      (SPACE / click / LIFT!)
+--   hold   - hold to push the bar, let go in the gold zone       (hold SPACE / mouse / HOLD)
+--   rhythm - notes fall down two lanes, hit Left (A) and Right (D) on the line
+--   mash   - tap as fast as you can until the bar is full        (SPACE / click / TAP!)
+-- The server decides every zone and grades every press, so this window only draws things and sends presses.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -13552,14 +14360,30 @@ local Toasts = require(script.Parent.Toasts)
 
 local TrainingUI = {}
 
+local player = Players.LocalPlayer
+local camera = workspace:WaitForChild("Camera")
 local C = UI.Colors
-local panel, title, dots, bar, goodZone, perfectZone, marker, message, hint, scale, msgScale
+
+local MAX_DOTS = 6
+local LANE_COLOR = { L = Color3.fromRGB(90, 200, 255), R = Color3.fromRGB(255, 110, 190) }
+
+local panel, title, dots, message, msgScale, tip, scale
+local barArea, goodZone, perfectZone, marker, fill
+local rhythmArea, lanes, noteFrames, hitLine
+local mashArea, mashBar, mashCount, mashTime
+local controls = {}
+local holdButton, tapButton
 local Action
-local cfg, stat
-local pressed = false
-local frozenPos = 0
-local resultText, resultColor
+
+local cfg, stat, machine
 local active = false
+local pressed = false -- the single press of a sweep / hold rep has been used
+local holding, holdAt, frozenLevel = false, 0, 0
+local frozenPos = 0
+local resultText, resultColor, resultUntil = nil, nil, 0
+local mashCount_, mashStamps = 0, {}
+local beatResult = {} -- beat index -> "perfect" | "good"
+local lastTapSide
 
 local GRADE = {
 	perfect = { text = "PERFECT", color = Color3.fromRGB(255, 214, 90) },
@@ -13567,8 +14391,108 @@ local GRADE = {
 	miss = { text = "MISS", color = Color3.fromRGB(255, 100, 120) },
 }
 
+local function serverNow()
+	return workspace:GetServerTimeNow()
+end
+
+local function mode()
+	return cfg and cfg.mode
+end
+
+--------------------------------------------------------------------------------
+-- Sending presses
+--------------------------------------------------------------------------------
+local function ready()
+	return active and cfg and serverNow() >= cfg.startedAt
+end
+
+local function sweepPress()
+	if not ready() or pressed or mode() ~= "sweep" then
+		return
+	end
+	pressed = true
+	local now = serverNow()
+	frozenPos = Util.tri((now - cfg.startedAt) * cfg.speed)
+	Audio.click()
+	Action:FireServer("TrainHit", now)
+end
+
+local function holdDown()
+	if not active or not cfg or mode() ~= "hold" or pressed or holding or serverNow() < cfg.startedAt - 0.1 then
+		return
+	end
+	holding, holdAt = true, serverNow()
+	Audio.click()
+	Action:FireServer("TrainDown")
+end
+
+local function holdUp()
+	if not holding then
+		return
+	end
+	holding = false
+	pressed = true
+	frozenLevel = math.clamp((serverNow() - holdAt) / cfg.fillTime, 0, 1.2)
+	Action:FireServer("TrainHit")
+end
+
+local function beatTap(side)
+	if not ready() or mode() ~= "rhythm" then
+		return
+	end
+	lastTapSide = side
+	Audio.click()
+	Action:FireServer("TrainHit", side, serverNow())
+end
+
+local function mashTap()
+	if not ready() or mode() ~= "mash" then
+		return
+	end
+	local now = os.clock()
+	for i = #mashStamps, 1, -1 do
+		if now - mashStamps[i] > 1 then
+			table.remove(mashStamps, i)
+		end
+	end
+	if #mashStamps >= 12 then
+		return
+	end
+	table.insert(mashStamps, now)
+	mashCount_ += 1
+	Audio.click()
+	Action:FireServer("TrainHit", serverNow())
+end
+
+local function primaryDown()
+	local m = mode()
+	if m == "sweep" then
+		sweepPress()
+	elseif m == "hold" then
+		holdDown()
+	elseif m == "mash" then
+		mashTap()
+	end
+end
+
+local function primaryUp()
+	if mode() == "hold" then
+		holdUp()
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Building the window
+--------------------------------------------------------------------------------
+local function bigButton(parent, props)
+	props.Radius = props.Radius or 12
+	props.ZIndex = props.ZIndex or 13
+	props.TextSize = props.TextSize or 22
+	return UI.button(parent, props, "primary")
+end
+
 local function layoutZones()
-	if not cfg then
+	if not cfg or not cfg.center then
 		return
 	end
 	goodZone.Position = UDim2.fromScale(cfg.center - cfg.goodWidth / 2, 0)
@@ -13577,18 +14501,49 @@ local function layoutZones()
 	perfectZone.Size = UDim2.fromScale(cfg.perfectWidth, 1)
 end
 
-local function press()
-	if not active or not cfg or pressed then
+local function showMode(m)
+	barArea.Visible = m == "sweep" or m == "hold"
+	fill.Visible = m == "hold"
+	rhythmArea.Visible = m == "rhythm"
+	mashArea.Visible = m == "mash"
+	for name, frame in controls do
+		frame.Visible = name == m
+	end
+end
+
+local function loadCfg(newCfg)
+	cfg = newCfg
+	pressed = false
+	holding = false
+	frozenLevel = 0
+	frozenPos = 0
+	mashCount_ = 0
+	mashStamps = {}
+	beatResult = {}
+	if not cfg then
 		return
 	end
-	local now = workspace:GetServerTimeNow()
-	if now < cfg.startedAt then
-		return
+	showMode(cfg.mode)
+	if cfg.mode == "sweep" or cfg.mode == "hold" then
+		layoutZones()
 	end
-	pressed = true
-	frozenPos = Util.tri((now - cfg.startedAt) * cfg.speed)
-	Audio.click()
-	Action:FireServer("TrainHit", now)
+	if cfg.mode == "rhythm" then
+		for i, note in noteFrames do
+			local beat = cfg.beats[i]
+			note.Visible = beat ~= nil
+			if beat then
+				note.BackgroundColor3 = LANE_COLOR[beat.side]
+				note.Position = UDim2.new(beat.side == "L" and 0.25 or 0.75, 0, 0, -30)
+				note.Size = UDim2.fromOffset(34, 34)
+				note.BackgroundTransparency = 0
+				note:FindFirstChildOfClass("TextLabel").Text = beat.side == "L" and "A" or "D"
+			end
+		end
+	end
+	if cfg.mode == "mash" then
+		mashBar.set(0)
+		mashCount.Text = "0 / " .. cfg.target
+	end
 end
 
 function TrainingUI.init(gui, action)
@@ -13597,7 +14552,7 @@ function TrainingUI.init(gui, action)
 		Name = "Training",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -66),
-		Size = UDim2.fromOffset(400, 118),
+		Size = UDim2.fromOffset(460, 208),
 		Visible = false,
 		ZIndex = 10,
 	})
@@ -13605,7 +14560,7 @@ function TrainingUI.init(gui, action)
 	title = UI.label(panel, {
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		Position = UDim2.fromOffset(14, 8),
-		Size = UDim2.new(1, -120, 0, 18),
+		Size = UDim2.new(1, -170, 0, 18),
 		Font = UI.Fonts.Title,
 		TextSize = 12,
 		TextWrapped = false,
@@ -13613,10 +14568,10 @@ function TrainingUI.init(gui, action)
 		ZIndex = 11,
 	})
 	dots = {}
-	for i = 1, Config.TrainReps do
+	for i = 1, MAX_DOTS do
 		local dot = UI.new("Frame", {
 			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -14 - (Config.TrainReps - i) * 16, 0, 11),
+			Position = UDim2.new(1, -40 - (MAX_DOTS - i) * 16, 0, 11),
 			Size = UDim2.fromOffset(11, 11),
 			BackgroundColor3 = C.Disabled,
 			ZIndex = 11,
@@ -13624,68 +14579,9 @@ function TrainingUI.init(gui, action)
 		UI.corner(dot, 7)
 		dots[i] = dot
 	end
-
-	local barButton = UI.new("TextButton", {
-		Position = UDim2.fromOffset(14, 32),
-		Size = UDim2.new(1, -28, 0, 26),
-		BackgroundColor3 = Color3.fromRGB(14, 11, 32),
-		AutoButtonColor = false,
-		Text = "",
-		ZIndex = 11,
-		ClipsDescendants = true,
-	}, panel)
-	UI.corner(barButton, 12)
-	UI.stroke(barButton, C.Stroke, 1.5, 0.5)
-	bar = barButton
-	goodZone = UI.new("Frame", { BackgroundColor3 = C.Good, BackgroundTransparency = 0.35, BorderSizePixel = 0, ZIndex = 12 }, bar)
-	perfectZone = UI.new("Frame", { BackgroundColor3 = C.Gold, BackgroundTransparency = 0.1, BorderSizePixel = 0, ZIndex = 13 }, bar)
-	marker = UI.new("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0),
-		Size = UDim2.new(0, 6, 1, 0),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BorderSizePixel = 0,
-		ZIndex = 14,
-	}, bar)
-	UI.corner(marker, 3)
-	barButton.Activated:Connect(press)
-
-	message = UI.label(panel, {
-		Position = UDim2.fromOffset(14, 64),
-		Size = UDim2.new(1, -160, 0, 22),
-		Font = UI.Fonts.Title,
-		TextSize = 17,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		TextWrapped = false,
-		Text = "",
-		ZIndex = 11,
-	})
-	msgScale = UI.new("UIScale", {}, message)
-	hint = UI.label(panel, {
-		Position = UDim2.fromOffset(40, 90),
-		Size = UDim2.new(1, -190, 0, 20),
-		Font = UI.Fonts.Body,
-		TextSize = 10,
-		TextColor3 = C.Muted,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		TextWrapped = false,
-		Text = "SPACE or tap when the line is in the gold",
-		ZIndex = 11,
-	})
-	-- a big button so phones and mice have something obvious to press (a tap anywhere in the world works too)
-	local lift = UI.button(panel, {
-		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -12, 1, -10),
-		Size = UDim2.fromOffset(124, 44),
-		BackgroundColor3 = C.Good,
-		Text = "LIFT!",
-		TextSize = 22,
-		ZIndex = 12,
-		Radius = 12,
-	}, "primary")
-	lift.Activated:Connect(press)
 	local cancel = UI.button(panel, {
-		AnchorPoint = Vector2.new(0, 1),
-		Position = UDim2.new(0, 10, 1, -8),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -8, 0, 6),
 		Size = UDim2.fromOffset(22, 22),
 		Text = "✕",
 		TextSize = 10,
@@ -13696,77 +14592,235 @@ function TrainingUI.init(gui, action)
 		Action:FireServer("TrainCancel")
 	end)
 
-	UserInputService.InputBegan:Connect(function(input, processed)
-		if active and not processed and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-			press()
-		end
-	end)
+	-- sweep / hold bar
+	barArea = UI.new("Frame", { Position = UDim2.fromOffset(14, 34), Size = UDim2.new(1, -28, 0, 72), BackgroundTransparency = 1, ZIndex = 11 }, panel)
+	local bar = UI.new("Frame", {
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.fromScale(0, 0.5),
+		Size = UDim2.new(1, 0, 0, 34),
+		BackgroundColor3 = Color3.fromRGB(14, 11, 32),
+		ClipsDescendants = true,
+		ZIndex = 11,
+	}, barArea)
+	UI.corner(bar, 12)
+	UI.stroke(bar, C.Stroke, 1.5, 0.4)
+	fill = UI.new("Frame", { BackgroundColor3 = C.Accent, BackgroundTransparency = 0.45, BorderSizePixel = 0, Size = UDim2.fromScale(0, 1), ZIndex = 11 }, bar)
+	goodZone = UI.new("Frame", { BackgroundColor3 = C.Good, BackgroundTransparency = 0.35, BorderSizePixel = 0, ZIndex = 12 }, bar)
+	perfectZone = UI.new("Frame", { BackgroundColor3 = C.Gold, BackgroundTransparency = 0.1, BorderSizePixel = 0, ZIndex = 13 }, bar)
+	marker = UI.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Size = UDim2.new(0, 7, 1, 0),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+		ZIndex = 14,
+	}, bar)
+	UI.corner(marker, 3)
 
-	-- Space is "swallowed" while training so the character doesn't jump away.
+	-- rhythm lanes
+	rhythmArea = UI.new("Frame", { Position = UDim2.fromOffset(14, 34), Size = UDim2.new(1, -28, 0, 72), BackgroundColor3 = Color3.fromRGB(14, 11, 32), ClipsDescendants = true, Visible = false, ZIndex = 11 }, panel)
+	UI.corner(rhythmArea, 12)
+	UI.stroke(rhythmArea, C.Stroke, 1.5, 0.4)
+	lanes = {}
+	for i, side in { "L", "R" } do
+		local lane = UI.new("Frame", { Position = UDim2.fromScale((i - 1) * 0.5, 0), Size = UDim2.fromScale(0.5, 1), BackgroundColor3 = LANE_COLOR[side], BackgroundTransparency = 0.88, BorderSizePixel = 0, ZIndex = 11 }, rhythmArea)
+		lanes[side] = lane
+	end
+	hitLine = UI.new("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.fromScale(0, 0.82), Size = UDim2.new(1, 0, 0, 4), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 12 }, rhythmArea)
+	noteFrames = {}
+	for i = 1, 6 do
+		local note = UI.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(34, 34), Visible = false, ZIndex = 13 }, rhythmArea)
+		UI.corner(note, 17)
+		UI.stroke(note, Color3.new(1, 1, 1), 2, 0)
+		UI.label(note, { Size = UDim2.fromScale(1, 1), Font = UI.Fonts.Title, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, ZIndex = 14, Text = "" })
+		noteFrames[i] = note
+	end
+
+	-- mash
+	mashArea = UI.new("Frame", { Position = UDim2.fromOffset(14, 34), Size = UDim2.new(1, -28, 0, 72), BackgroundTransparency = 1, Visible = false, ZIndex = 11 }, panel)
+	mashCount = UI.label(mashArea, { Position = UDim2.fromOffset(0, 2), Size = UDim2.new(1, 0, 0, 36), Font = UI.Fonts.Title, TextSize = 30, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, ZIndex = 12, Text = "" })
+	mashBar = UI.bar(mashArea, { Position = UDim2.fromOffset(0, 42), Size = UDim2.new(1, 0, 0, 14) }, C.Good)
+	mashTime = UI.bar(mashArea, { Position = UDim2.fromOffset(0, 60), Size = UDim2.new(1, 0, 0, 6) }, C.Orange)
+
+	message = UI.label(panel, {
+		Position = UDim2.fromOffset(14, 110),
+		Size = UDim2.new(1, -28, 0, 22),
+		Font = UI.Fonts.Title,
+		TextSize = 17,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextWrapped = false,
+		Text = "",
+		ZIndex = 11,
+	})
+	msgScale = UI.new("UIScale", {}, message)
+	tip = UI.label(panel, {
+		Position = UDim2.fromOffset(14, 132),
+		Size = UDim2.new(1, -28, 0, 16),
+		Font = UI.Fonts.Body,
+		TextSize = 11,
+		TextColor3 = C.Muted,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextWrapped = false,
+		Text = "",
+		ZIndex = 11,
+	})
+
+	-- the big buttons (one set per mode)
+	local function row(name)
+		local frame = UI.new("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.new(1, -28, 0, 48), BackgroundTransparency = 1, Visible = false, ZIndex = 12 }, panel)
+		controls[name] = frame
+		return frame
+	end
+	local sweepButton = bigButton(row("sweep"), { Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.Good, Text = "LIFT!" })
+	sweepButton.Activated:Connect(sweepPress)
+	holdButton = bigButton(row("hold"), { Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.Accent2, Text = "HOLD TO PUSH" })
+	holdButton.MouseButton1Down:Connect(holdDown)
+	holdButton.MouseButton1Up:Connect(holdUp)
+	holdButton.MouseLeave:Connect(holdUp)
+	local rhythm = row("rhythm")
+	local left = bigButton(rhythm, { Size = UDim2.new(0.5, -4, 1, 0), BackgroundColor3 = LANE_COLOR.L, Text = "◀  LEFT  (A)" })
+	left.MouseButton1Down:Connect(function()
+		beatTap("L")
+	end)
+	local right = bigButton(rhythm, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.new(0.5, -4, 1, 0), BackgroundColor3 = LANE_COLOR.R, Text = "RIGHT  (D)  ▶" })
+	right.MouseButton1Down:Connect(function()
+		beatTap("R")
+	end)
+	tapButton = bigButton(row("mash"), { Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.Good, Text = "TAP! TAP! TAP!" })
+	tapButton.MouseButton1Down:Connect(mashTap)
+
+	-- keyboard: SPACE does the main action, A / D (or the arrows) are the two sides
 	ContextActionService:BindActionAtPriority("GlowTrainPress", function(_, state)
-		if active then
+		if not active then
+			return Enum.ContextActionResult.Pass
+		end
+		if state == Enum.UserInputState.Begin then
+			primaryDown()
+		elseif state == Enum.UserInputState.End then
+			primaryUp()
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.Space)
+	for _, entry in { { "GlowTrainLeft", "L", Enum.KeyCode.A, Enum.KeyCode.Left }, { "GlowTrainRight", "R", Enum.KeyCode.D, Enum.KeyCode.Right } } do
+		ContextActionService:BindActionAtPriority(entry[1], function(_, state)
+			if not active or mode() ~= "rhythm" then
+				return Enum.ContextActionResult.Pass
+			end
 			if state == Enum.UserInputState.Begin then
-				press()
+				beatTap(entry[2])
 			end
 			return Enum.ContextActionResult.Sink
+		end, false, Enum.ContextActionPriority.High.Value, entry[3], entry[4])
+	end
+
+	-- a click or tap anywhere in the world works too (in rhythm mode the left / right half of the screen is the side)
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if not active or processed then
+			return
 		end
-		return Enum.ContextActionResult.Pass
-	end, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.Space)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			if mode() == "rhythm" then
+				local x = input.Position and input.Position.X or 0
+				beatTap(x < camera.ViewportSize.X / 2 and "L" or "R")
+			else
+				primaryDown()
+			end
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if active and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+			primaryUp()
+		end
+	end)
 
 	RunService.RenderStepped:Connect(function()
 		if not active or not cfg then
 			return
 		end
-		local now = workspace:GetServerTimeNow()
-		if now < cfg.startedAt then
-			marker.Position = UDim2.fromScale(0, 0)
-			if resultText then
-				message.Text = resultText
-				message.TextColor3 = resultColor
-			else
-				message.Text = string.format("GET READY  %.1f", cfg.startedAt - now)
-				message.TextColor3 = C.Muted
-			end
-			return
+		local now = serverNow()
+		local m = cfg.mode
+		local started = now >= cfg.startedAt
+		local prompt, promptColor = "", C.Text
+		if not started then
+			prompt, promptColor = string.format("GET READY  %.1f", cfg.startedAt - now), C.Muted
 		end
-		resultText = nil
-		if pressed then
-			marker.Position = UDim2.fromScale(frozenPos, 0)
+		if m == "sweep" then
+			marker.Position = UDim2.fromScale(started and (pressed and frozenPos or Util.tri((now - cfg.startedAt) * cfg.speed)) or 0, 0)
+			if started and not pressed then
+				prompt = "NOW!"
+			end
+		elseif m == "hold" then
+			local level = 0
+			if holding then
+				level = math.clamp((now - holdAt) / cfg.fillTime, 0, 1.2)
+			elseif pressed then
+				level = frozenLevel
+			end
+			if started and not pressed then
+				prompt, promptColor = holding and "LET GO IN THE GOLD!" or "HOLD!", holding and C.Gold or C.Text
+			end
+			local shown = math.min(level, 1)
+			fill.Size = UDim2.fromScale(shown, 1)
+			marker.Position = UDim2.fromScale(shown, 0)
+			local inZone = math.abs(shown - cfg.center) <= cfg.goodWidth / 2
+			fill.BackgroundColor3 = (holding and inZone) and C.Gold or C.Accent
+		elseif m == "rhythm" then
+			local height = rhythmArea.AbsoluteSize.Y
+			local hitY = height * 0.82
+			for i, beat in cfg.beats do
+				local note = noteFrames[i]
+				if note then
+					local t = beat.at + cfg.startedAt - now -- seconds until the beat
+					if beatResult[i] then
+						note.Visible = false
+					else
+						note.Visible = t > -0.35 and t < cfg.travel
+						note.Position = UDim2.new(beat.side == "L" and 0.25 or 0.75, 0, 0, hitY - (t / cfg.travel) * (hitY + 20))
+						note.Size = math.abs(t) <= cfg.window and UDim2.fromOffset(42, 42) or UDim2.fromOffset(34, 34)
+					end
+				end
+			end
+			if now > cfg.startedAt - 1.2 then
+				prompt, promptColor = "HIT THE LINE!", C.Text
+			end
+		elseif m == "mash" then
+			local left = cfg.startedAt + cfg.duration - now
+			mashCount.Text = mashCount_ .. " / " .. cfg.target
+			mashBar.set(math.min(1, mashCount_ / cfg.target))
+			mashBar.fill.BackgroundColor3 = mashCount_ >= cfg.target and C.Gold or C.Good
+			mashTime.set(started and math.clamp(left / cfg.duration, 0, 1) or 1)
+			if started then
+				prompt = left > 0 and string.format("TAP!  %.1fs", left) or "..."
+				promptColor = mashCount_ >= cfg.target and C.Gold or C.Text
+			end
+		end
+		-- the latest result stays up for a moment, then the prompt returns
+		if resultText and os.clock() < resultUntil then
+			message.Text, message.TextColor3 = resultText, resultColor
 		else
-			message.Text = "NOW!"
-			message.TextColor3 = C.Text
-			marker.Position = UDim2.fromScale(Util.tri((now - cfg.startedAt) * cfg.speed), 0)
+			message.Text, message.TextColor3 = prompt, promptColor
 		end
 	end)
 end
 
-local function setDots(upTo, grade)
-	if grade then
-		dots[upTo].BackgroundColor3 = GRADE[grade].color
-	end
-end
-
-local function loadCfg(newCfg)
-	cfg = newCfg
-	pressed = false
-	if cfg then
-		layoutZones()
-	end
-end
-
-function TrainingUI.start(statId, firstCfg, kg, tierName)
+--------------------------------------------------------------------------------
+-- Server messages
+--------------------------------------------------------------------------------
+function TrainingUI.start(statId, firstCfg, kg, tierName, machineId)
 	stat = statId
 	local def = Config.Stats[statId]
-	local prop = Config.TrainProps[statId]
+	machine = Config.GymMachineById[machineId or ""] or Config.StatMachines[statId] or Config.GymMachineById.rack
 	active = true
-	resultText = nil
+	resultText, resultUntil = nil, 0
+	local heading = machine.Icon .. "  " .. machine.Name:upper()
 	if statId == "Power" and kg then
-		title.Text = string.format("%s  %s  ·  %s DUMBBELLS  ·  %s KG", def.Icon, prop.Verb, tostring(tierName or "Iron"):upper(), Util.fmt(kg))
-	else
-		title.Text = def.Icon .. "  " .. prop.Verb .. "  ·  " .. prop.Item:upper()
+		heading ..= string.format("  ·  %s %s KG", tostring(tierName or "Iron"):upper(), Util.fmt(kg))
 	end
+	title.Text = heading
 	title.TextColor3 = def.Color
-	for _, dot in dots do
+	tip.Text = machine.Tip or ""
+	local reps = (firstCfg and firstCfg.reps) or Config.TrainReps
+	for i, dot in dots do
+		dot.Visible = i <= reps
 		dot.BackgroundColor3 = C.Disabled
 	end
 	loadCfg(firstCfg)
@@ -13776,11 +14830,14 @@ end
 
 function TrainingUI.rep(repIndex, grade, gain, streak, nextCfg)
 	local g = GRADE[grade]
-	if not g then
+	if not g or not stat then
 		return
 	end
-	setDots(repIndex, grade)
+	if dots[repIndex] then
+		dots[repIndex].BackgroundColor3 = g.color
+	end
 	local def = Config.Stats[stat]
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	if grade == "miss" then
 		resultText = "MISS"
 		Audio.error()
@@ -13792,22 +14849,51 @@ function TrainingUI.rep(repIndex, grade, gain, streak, nextCfg)
 		else
 			Audio.pickup(3, 1)
 		end
+		if root then
+			Fx.floatText(root.Position + Vector3.new(0, 3.5, 0), string.format("+%.1f %s", gain, def and def.Name or ""), g.color, grade == "perfect" and 26 or 20)
+			Fx.burst(root.Position, g.color, grade == "perfect" and 18 or 8)
+		end
 	end
 	resultColor = g.color
-	message.Text = resultText
-	message.TextColor3 = resultColor
+	resultUntil = os.clock() + 1.0
 	UI.pop(msgScale, 1.2)
 	if nextCfg then
 		loadCfg(nextCfg)
 	end
 end
 
-function TrainingUI.finish(statId, total)
+-- The server graded one beat of a rhythm machine.
+function TrainingUI.beat(index, accuracy)
+	beatResult[index] = accuracy
+	local g = GRADE[accuracy]
+	if not g then
+		return
+	end
+	resultText, resultColor, resultUntil = g.text .. "!", g.color, os.clock() + 0.45
+	UI.pop(msgScale, 1.25)
+	if accuracy == "perfect" then
+		Audio.pickup(10, 3)
+	else
+		Audio.pickup(4, 1)
+	end
+	local lane = cfg and cfg.beats and cfg.beats[index] and lanes[cfg.beats[index].side]
+	if lane then
+		lane.BackgroundTransparency = 0.4
+		UI.tween(lane, 0.3, { BackgroundTransparency = 0.88 })
+	end
+end
+
+function TrainingUI.finish(statId, total, clean, record)
 	active = false
 	cfg = nil
+	holding = false
 	if statId and total and total > 0 then
 		local def = Config.Stats[statId]
-		Toasts.push(string.format("%s +%.1f %s", def.Icon, total, def.Name), "good")
+		Toasts.push(string.format("%s +%.1f %s%s", def.Icon, total, def.Name, clean and "  ·  CLEAN SET +25%!" or ""), clean and "gold" or "good")
+		if record then
+			Toasts.push("🏅 NEW RECORD on the " .. (machine and machine.Name or "machine") .. "!", "gold")
+			Audio.levelUp(false)
+		end
 		Audio.quest()
 	end
 	task.delay(statId and 1.2 or 0, function()
@@ -13869,8 +14955,9 @@ local function target(step, here)
 		return Config.HammerPos(2) + Vector3.new(0, 10, 0), "🔨"
 	elseif step == 3 then
 		local station, front = Config.StationPos("Gym"), Config.StationFront("Gym")
-		if here and flat(here, station) < 17 then
-			return Config.GymPadPos() + Vector3.new(0, 6, 0), "🏋️"
+		local rack = Config.MachinePos(Config.GymMachineById.rack)
+		if here and flat(here, station) < 20 then
+			return rack + Vector3.new(0, 7, 0), "🏋️"
 		end
 		return station + front * 20 + Vector3.new(0, 10, 0), "🏋️"
 	elseif step == 5 then
@@ -14072,7 +15159,7 @@ function Tutorial.init(gui, Action, hud, interact, menu)
 
 		-- screen arrows: the "use" button when you are standing at the right place, or the Pets button
 		local arrowTarget
-		if step == 3 and not trainingNow and Interact.current() == "Gym" then
+		if step == 3 and not trainingNow and Interact.current() == "Machine:rack" then
 			arrowTarget = Interact.button()
 		elseif step == 4 and not Menu.isOpen() then
 			arrowTarget = Hud.button("Pets")

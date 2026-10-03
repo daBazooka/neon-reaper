@@ -188,9 +188,6 @@ end)
 -- character is, so it works the same from any camera angle.
 local INTERACT_SLACK = 8
 local interactions = {
-	Gym = function(p)
-		Training.start(p, "Power")
-	end,
 	Studio = function(p)
 		Training.start(p, "Style")
 	end,
@@ -229,6 +226,14 @@ local function interact(p, id)
 		local n = tonumber(hammerId)
 		if Config.HammerById[n] and nearTo(p, Config.HammerPos(n), Config.HammerRadius) then
 			Hammers.use(p, n)
+		end
+		return
+	end
+	local machineId = string.match(id, "^Machine:(%w+)$")
+	if machineId then
+		local machine = Config.GymMachineById[machineId]
+		if machine and Buildings.owned(p, "gym") and nearTo(p, Config.MachinePos(machine), machine.Radius) and not Treadmill.isRunning(p) then
+			Training.start(p, "Power", machine)
 		end
 		return
 	end
@@ -285,8 +290,8 @@ local function handleAction(p, kind, a, b)
 		interact(p, a)
 	elseif kind == "Claim" then
 		Daily.claim(p)
-	elseif kind == "TrainHit" or kind == "TrainCancel" then
-		Training.handle(p, kind, a)
+	elseif kind == "TrainHit" or kind == "TrainDown" or kind == "TrainCancel" then
+		Training.handle(p, kind, a, b)
 	elseif kind == "DuelTaps" then
 		Duels.handle(p, kind, a)
 	elseif kind == "CompTaps" then

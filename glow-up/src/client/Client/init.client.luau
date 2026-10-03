@@ -313,17 +313,21 @@ function handlers.openMenu(tab)
 	Menu.open(tab)
 end
 
-function handlers.trainStart(stat, cfg, kg, tier)
+function handlers.trainStart(stat, cfg, kg, tier, machineId)
 	Menu.close()
-	TrainingUI.start(stat, cfg, kg, tier)
+	TrainingUI.start(stat, cfg, kg, tier, machineId)
 end
 
 function handlers.trainRep(...)
 	TrainingUI.rep(...)
 end
 
-function handlers.trainEnd(stat, total)
-	TrainingUI.finish(stat, total)
+function handlers.trainBeat(index, accuracy)
+	TrainingUI.beat(index, accuracy)
+end
+
+function handlers.trainEnd(stat, total, clean, record)
+	TrainingUI.finish(stat, total, clean, record)
 end
 
 function handlers.duelStart(...)

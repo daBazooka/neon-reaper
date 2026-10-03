@@ -37,7 +37,16 @@ NumberSequence = { new = function(a) return a end }
 ColorSequenceKeypoint = { new = function(t, c) return { Time = t, Value = c } end }
 ColorSequence = { new = function(a) return a end }
 Random = { new = function(seed) math.randomseed(seed) return { NextNumber = function() return math.random() end, NextInteger = function(_, a, b) return math.random(a, b) end } end }
-local ConfigStub = { GymPadLocal = Vector3.new(0, 1.2, 3), Weights = {
+local ConfigStub = { GymPadLocal = Vector3.new(0, 1.2, 1.5),
+	GymLayout = { BenchCenter = Vector3.new(-9.5, 0, -2), BenchTop = 3.125, PullupBar = Vector3.new(12.6, 8.5, 9.0), BagPos = Vector3.new(-9.5, 0, -11.5), BagPivotY = 13.0, SquatBar = Vector3.new(9.6, 7.1, 2.3) },
+	GymMachines = {
+		{ Id = "rack", Name = "Dumbbell Rack", Icon = "R", Mode = "sweep", Local = Vector3.new(0, 0, 10.4) },
+		{ Id = "bench", Name = "Bench Press", Icon = "B", Mode = "hold", Local = Vector3.new(-5.2, 0, -2.6) },
+		{ Id = "squat", Name = "Squat Rack", Icon = "S", Mode = "hold", Local = Vector3.new(9.6, 0, 2.3) },
+		{ Id = "cable", Name = "Cable Machine", Icon = "C", Mode = "rhythm", Local = Vector3.new(11.4, 0, -12.4) },
+		{ Id = "bag", Name = "Punching Bag", Icon = "P", Mode = "rhythm", Local = Vector3.new(-9.5, 0, -9.0) },
+		{ Id = "pullup", Name = "Pull-Up Bar", Icon = "U", Mode = "mash", Local = Vector3.new(12.6, 0, 9.0) },
+	}, Weights = {
 	{ Kg = 5, Color = Color3.fromRGB(150, 155, 165) }, { Kg = 10, Color = Color3.fromRGB(90, 95, 110) }, { Kg = 20, Color = Color3.fromRGB(70, 130, 230) },
 	{ Kg = 30, Color = Color3.fromRGB(80, 200, 110) }, { Kg = 45, Color = Color3.fromRGB(255, 200, 50) }, { Kg = 60, Color = Color3.fromRGB(230, 60, 70) },
 	{ Kg = 80, Color = Color3.fromRGB(160, 100, 255) }, { Kg = 100, Color = Color3.fromRGB(80, 255, 230), Neon = true } },

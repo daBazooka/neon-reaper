@@ -1692,7 +1692,8 @@ end
 
 local notifyLog = {}
 local Notify = {FireClient = function(_, p, ...) table.insert(notifyLog, {...}) end, OnClientEvent = signal("notify")}
-local Action = {OnServerEvent = signal("Action"), FireServer = function() end}
+firedLog = {}
+local Action = {OnServerEvent = signal("Action"), FireServer = function(_, ...) table.insert(firedLog, {...}) end}
 
 local dataStoreMode = "fail"
 local DataStoreService = {GetDataStore = function() error("You must publish this place to the web to access DataStore.") end}

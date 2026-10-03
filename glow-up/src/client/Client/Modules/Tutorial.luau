@@ -43,8 +43,9 @@ local function target(step, here)
 		return Config.HammerPos(2) + Vector3.new(0, 10, 0), "🔨"
 	elseif step == 3 then
 		local station, front = Config.StationPos("Gym"), Config.StationFront("Gym")
-		if here and flat(here, station) < 17 then
-			return Config.GymPadPos() + Vector3.new(0, 6, 0), "🏋️"
+		local rack = Config.MachinePos(Config.GymMachineById.rack)
+		if here and flat(here, station) < 20 then
+			return rack + Vector3.new(0, 7, 0), "🏋️"
 		end
 		return station + front * 20 + Vector3.new(0, 10, 0), "🏋️"
 	elseif step == 5 then
@@ -246,7 +247,7 @@ function Tutorial.init(gui, Action, hud, interact, menu)
 
 		-- screen arrows: the "use" button when you are standing at the right place, or the Pets button
 		local arrowTarget
-		if step == 3 and not trainingNow and Interact.current() == "Gym" then
+		if step == 3 and not trainingNow and Interact.current() == "Machine:rack" then
 			arrowTarget = Interact.button()
 		elseif step == 4 and not Menu.isOpen() then
 			arrowTarget = Hud.button("Pets")

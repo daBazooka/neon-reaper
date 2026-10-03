@@ -35,7 +35,7 @@ local function newPlayer(id, name)
 	-- leaderstats is created via Instance.new in Stats.init; give it settable values
 	ls.Aura = {Value = 0}; ls.Level = {Value = 1}; ls.Rebirths = {Value = 0}
 	ls.FindFirstChild = function(self, n) return self[n] end
-	local root = {Position = Vector3.new(0, 3, 0), AssemblyLinearVelocity = Vector3.new(0, 0, 0), GetChildren = function() return {} end}
+	local root = {Parent = {}, Anchored = false, Position = Vector3.new(0, 3, 0), AssemblyLinearVelocity = Vector3.new(0, 0, 0), GetChildren = function() return {} end}
 	char.FindFirstChild = function(_, n) if n == "HumanoidRootPart" then return root end return U("part") end
 	p.root = root
 	return p, attrs
@@ -81,6 +81,7 @@ check(a1.Eq_Head == "", "unequip works")
 
 -- training: full 5-rep session using the server's own marker math
 local Util = require(RS.children.Shared.children.Util)
+p1.root.Position = Config.MachinePos(Config.GymMachineById.rack) + Vector3.new(0, 3, 0)
 Training.start(p1, "Power")
 local statBefore = Data.get(p1).Power
 for rep = 1, Config.TrainReps do
@@ -100,6 +101,145 @@ local ended = false
 for _, m in notifyLog do if m[1] == "trainEnd" then ended = true end end
 check(ended, "training session ended cleanly")
 check(a1.Training == false, "Training flag cleared")
+
+-- machine mini-games: hold, rhythm and mash are graded by the server too
+do
+	local function lastNotify(kind)
+		for i = #notifyLog, 1, -1 do if notifyLog[i][1] == kind then return notifyLog[i] end end
+	end
+	local function currentCfg()
+		for i = #notifyLog, 1, -1 do
+			local m = notifyLog[i]
+			if m[1] == "trainStart" then return m[3] end
+			if m[1] == "trainRep" and m[6] then return m[6] end
+		end
+	end
+	local function begin(id)
+		p1.root.Position = Config.MachinePos(Config.GymMachineById[id]) + Vector3.new(0, 3, 0)
+		a1.InDuel = false; a1.Training = false
+		Training.cancel(p1); advance(0.2)
+		Training.start(p1, "Power", Config.GymMachineById[id])
+		return Config.GymMachineById[id]
+	end
+	local function lastGrade() return lastNotify("trainRep")[3] end
+
+	-- HOLD (bench press): release near the centre = perfect, too early = miss, never letting go = miss
+	local bench = begin("bench")
+	local cfg = currentCfg()
+	check(cfg and cfg.mode == "hold" and cfg.fillTime > 0.5 and cfg.center > 0.4 and cfg.center < 0.9, "bench press is a hold game")
+	check(lastNotify("trainStart")[6] == "bench", "the client is told which machine it is using")
+	advance(cfg.startedAt - clock + 0.01)
+	fireAll("Action", p1, "TrainHit"); advance(0.05)
+	check(lastNotify("trainRep") == nil or lastNotify("trainRep")[2] ~= 1, "releasing without holding is ignored")
+	fireAll("Action", p1, "TrainDown"); advance(cfg.center * cfg.fillTime)
+	fireAll("Action", p1, "TrainHit"); advance(0.1)
+	check(lastGrade() == "perfect", "holding to the zone and letting go is perfect: " .. tostring(lastGrade()))
+	cfg = currentCfg(); advance(cfg.startedAt - clock + 0.01)
+	fireAll("Action", p1, "TrainDown"); advance(0.05); fireAll("Action", p1, "TrainHit"); advance(0.1)
+	check(lastGrade() == "miss", "letting go straight away is a miss")
+	cfg = currentCfg(); advance(cfg.startedAt - clock + 0.01)
+	fireAll("Action", p1, "TrainDown"); advance(cfg.fillTime * 1.6)
+	check(lastGrade() == "miss" and lastNotify("trainRep")[2] == 3, "holding too long drops the bar (rep 3 missed)")
+	for i = 1, 3 do
+		cfg = currentCfg(); if not cfg then break end
+		advance(cfg.startedAt - clock + 0.01)
+		fireAll("Action", p1, "TrainDown"); advance(cfg.center * cfg.fillTime); fireAll("Action", p1, "TrainHit"); advance(0.1)
+	end
+	check(a1.Training == false, "the bench set ends after " .. bench.Reps .. " reps")
+	advance(1.5)
+	check(a1.MachineLock == nil, "the player is freed after the set")
+
+	-- RHYTHM (cable machine): hit each beat on its side
+	local powerBefore = Data.get(p1).Power
+	begin("cable")
+	cfg = currentCfg()
+	check(cfg.mode == "rhythm" and #cfg.beats == 4, "cable machine is a rhythm game with 4 beats")
+	local beatsSeen = 0
+	for i, beat in cfg.beats do
+		advance(cfg.startedAt + beat.at - clock)
+		local wrong = beat.side == "L" and "R" or "L"
+		fireAll("Action", p1, "TrainHit", wrong, clock) -- the wrong side does nothing
+		fireAll("Action", p1, "TrainHit", beat.side, clock)
+		advance(0.05)
+	end
+	advance(0.3)
+	check(lastGrade() == "perfect", "four on-beat hits is a perfect rep: " .. tostring(lastGrade()))
+	for _, m in notifyLog do if m[1] == "trainBeat" then beatsSeen += 1 end end
+	check(beatsSeen >= 4, "every graded beat is reported to the client (" .. beatsSeen .. ")")
+	cfg = currentCfg()
+	advance(cfg.startedAt + cfg.beats[#cfg.beats].at + 1.2 - clock)
+	check(lastNotify("trainRep")[2] == 2 and lastGrade() == "miss", "ignoring a whole rhythm rep is a miss")
+	Training.cancel(p1); advance(0.3)
+
+	-- MASH (pull-up bar): the server counts taps and caps the speed
+	begin("pullup")
+	cfg = currentCfg()
+	check(cfg.mode == "mash" and cfg.target >= 12, "pull-up bar is a tap game (target " .. tostring(cfg.target) .. ")")
+	advance(cfg.startedAt - clock + 0.01)
+	for i = 1, 40 do fireAll("Action", p1, "TrainHit", clock) end -- way too fast: only ~10 count
+	for i = 1, 20 do advance(0.1); fireAll("Action", p1, "TrainHit", clock) end
+	advance(cfg.duration + 0.5)
+	local g = lastGrade()
+	check(g == "good" or g == "perfect", "tapping steadily fills the pull-up bar: " .. tostring(g))
+	cfg = currentCfg(); advance(cfg.startedAt - clock + 0.01)
+	advance(cfg.duration + 0.5)
+	check(lastGrade() == "miss", "not tapping at all is a miss")
+	Training.cancel(p1); advance(0.3)
+
+	-- the squat rack hold works the same way
+	begin("squat")
+	cfg = currentCfg()
+	check(cfg.mode == "hold", "squat rack is a hold game")
+	Training.cancel(p1); advance(0.3)
+	check(Data.get(p1).Power > powerBefore, "machines raise Power")
+	a1.Training = false
+end
+
+-- garbage thrown at every machine never errors and never breaks the session
+do
+	local junk = {nil, true, false, "L", "R", "x", "", 0, -1, 1e308, -1e308, 0/0, math.huge, {}, {1}, function() end}
+	local warnsBefore = #warns
+	for _, machine in Config.GymMachines do
+		p1.root.Position = Config.MachinePos(machine) + Vector3.new(0, 3, 0)
+		a1.InDuel = false; a1.Training = false
+		Training.cancel(p1); advance(0.2)
+		Training.start(p1, "Power", machine)
+		for i = 1, 150 do
+			local kind = ({"TrainHit", "TrainDown", "TrainHit", "TrainCancel"})[math.random(1, i % 40 == 0 and 4 or 3)]
+			fireAll("Action", p1, kind, junk[math.random(1, #junk)], junk[math.random(1, #junk)])
+			advance(0.07)
+		end
+		Training.cancel(p1); advance(0.3)
+	end
+	a1.Training = false
+	check(#warns == warnsBefore, "garbage presses on every machine cause no errors (" .. (#warns - warnsBefore) .. " warnings)")
+	check(a1.MachineLock == nil and p1.root.Anchored == false, "no machine ever leaves the player stuck")
+end
+
+-- gym layout sanity: every machine is inside the gym, apart from the others, with one clear place to stand
+do
+	local m = Config.GymMachines
+	check(#m >= 6, "the gym has " .. #m .. " machines")
+	local modes = {}
+	local okLayout, okReps, okGain = true, true, true
+	for i, a in m do
+		modes[a.Mode] = true
+		if math.abs(a.Local.X) > 14.5 or a.Local.Z < -14 or a.Local.Z > 13.5 then okLayout = false end
+		if (a.Reps or 0) < 1 or a.Reps > 6 then okReps = false end
+		if (a.Gain or 0) <= 0 then okGain = false end
+		for j = i + 1, #m do
+			local b = m[j]
+			local d = math.sqrt((a.Local.X - b.Local.X) ^ 2 + (a.Local.Z - b.Local.Z) ^ 2)
+			if d < a.Radius + b.Radius - 0.5 then okLayout = false print("machines too close:", a.Id, b.Id, d) end
+		end
+	end
+	check(okLayout, "machines sit inside the gym and their buttons never overlap")
+	check(okReps and okGain, "every machine has a sensible rep count and reward")
+	check(modes.sweep and modes.hold and modes.rhythm and modes.mash, "all four mini-game types are used")
+	local up = true
+	for i = 2, #Config.Weights do if Config.Weights[i].Power <= Config.Weights[i - 1].Power or Config.Weights[i].Kg <= Config.Weights[i - 1].Kg then up = false end end
+	check(up, "dumbbell tiers get heavier as Power grows")
+end
 
 -- duel vs bot
 local auraBefore = Data.get(p1).Aura
@@ -232,15 +372,20 @@ do
 	p1.root.Position = Vector3.new(0, 3, 0)
 	fireAll("Action", p1, "Interact", "Gym"); advance(0.1)
 	check(a1.Training ~= true, "gym far away does nothing")
-	p1.root.Position = Config.StationPos("Gym") + Vector3.new(0, 3, 0)
-	fireAll("Action", p1, "Interact", "Gym"); advance(0.1)
-	check(a1.Training == true, "gym in range starts training")
+	p1.root.Position = Config.GymPoint(Vector3.new(0, 3, -24))
+	fireAll("Action", p1, "Interact", "Machine:bench"); advance(0.1)
+	check(a1.Training ~= true, "a machine is not used from outside the gym")
+	p1.root.Position = Config.MachinePos(Config.GymMachineById.rack) + Vector3.new(0, 3, 0)
+	fireAll("Action", p1, "Interact", "Machine:rack"); advance(0.1)
+	check(a1.Training == true, "standing at the dumbbell rack starts training")
+	check(a1.MachineLock == "rack", "the player is held at the machine")
 	check(a1.LiftKg ~= nil and a1.LiftTier ~= nil, "gym training picks up weights: " .. tostring(a1.LiftKg) .. " kg " .. tostring(a1.LiftTier))
 	local idx = Config.WeightFor(0)
 	check(idx == 1 and Config.WeightFor(35) == 2 and Config.WeightFor(10 ^ 7) == #Config.Weights, "weight tiers follow Power")
 	local pad = Config.GymPadLocal
 	check(math.abs(pad.X) < 14 and math.abs(pad.Z) < 13, "the LIFT pad sits inside the gym floor")
 	fireAll("Action", p1, "TrainCancel"); advance(0.2)
+	check(a1.MachineLock == nil and p1.root.Anchored == false, "cancelling frees the player from the machine")
 	a1.Training = false
 	-- rebirth is level based and keeps hammers
 	local d = Data.get(p1)
