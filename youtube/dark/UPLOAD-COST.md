@@ -56,6 +56,7 @@ Which act of Sam's story were you in? Write 1 to 5. And save the leash: 1 sleep 
 ## Thumbnails
 youtube/brand/thumbs/thumbnail-cost-A.jpg (Discipline vs Obsession split), -B.jpg ("Obsession beats discipline… until it bills you"), -C.jpg ("4 prices of obsession"). Suggest testing A vs C.
 New clean options: -D.jpg ("Who is holding whom?", flame on a leash) and -E.jpg (receipt: "Obsession sends a bill. Total: everything").
+Most minimal: -F.jpg (scale: trophy vs SLEEP/BODY/PEOPLE/SELF, "Worth it?") and -G.jpg (equation: Obsession - Sleep - Body - People - Self = ?).
 
 ## Short
 youtube/videos/dark/cost-short.mp4 (about 48 s, 1080x1920). Title: Obsession beats discipline. Until it sends the bill. #shorts
