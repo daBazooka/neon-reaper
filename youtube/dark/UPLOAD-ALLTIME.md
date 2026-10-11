@@ -61,6 +61,7 @@ How many golden hourglasses did you find? (There are 7.) And which rung stunned 
 
 ## Thumbnails
 youtube/brand/thumbs/thumbnail-alltime-A.jpg (title), -B.jpg ("150 rungs"), -C.jpg ("You are early"). Suggest A/B testing A vs B.
+New: -D.jpg ("Your entire life = this dot", recommended) and -E.jpg (golden hourglass + "7 hidden hourglasses").
 
 ## CREATOR ANSWER KEY (do not publish)
 Hourglasses (real ones, besides the promo ones in the opening and closing scenes):
