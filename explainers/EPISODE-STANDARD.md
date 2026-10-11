@@ -56,3 +56,10 @@ Every new episode must clear **all** of these before it ships, and beat the prev
 - **A live thermometer** whose marker drives the bacteria's speed and doubling time in real time.
 - **A "wait, what?" twist**: reheating can't destroy some toxins (heat kills bacteria, not always their toxins).
 - **A four-rule checklist** the viewer can use tonight.
+
+## EP 06 (You have never touched anything) raised the bar by
+- **A single idea that reframes reality** ("solid is a force"), told as one continuous powers-of-ten zoom (fingertip → skin cells → rough surfaces → molecules → atoms) with a live scale bar and "view width" readout.
+- **Zero-clutter design**: almost no chips, the picture does the talking; the zoom itself is the hook.
+- **Real numbers, honest simplifications**: 1 : 100,000 nucleus-to-atom, ~0.3 nm gap, ~250,000× thinner than a hair, 8 billion humans ≈ 2 cm³ (nuclei packed), plus the Pauli rule.
+- **A question that follows the viewer out**: "So what else have you been so sure about?"
+- **Loop game**: the final frame is the first frame; "find where your finger actually touches".

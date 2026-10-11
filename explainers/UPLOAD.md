@@ -294,6 +294,64 @@ Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synth
 
 ---------------------------------------------------------------------
 
+## VIDEO 6: You Have Never Touched Anything (the "mind-blower")
+**File:** `episode-06-touch-final.mp4` · 63 s · 1080×1920 · *post this one when you want a big reach swing; it is the most shareable of the set*
+
+### Title (pick one; A is the default)
+- **A:** `You Have Never Touched Anything in Your Life` (44 chars)
+- B: `Atoms Never Touch. So What Are You Feeling?`
+- C: `Why Nothing You've Ever Touched Was Really Touching You`
+
+### Description
+```
+You have never touched anything. Not your phone, not your chair, not the people you love. Zoom from a fingertip all the way down to the atoms and see why nothing ever actually touches.
+
+00:00 You have never touched anything
+00:09 Zoom in: skin cells, molecules, atoms
+00:16 The atom is almost entirely empty
+00:25 The gap: why atoms never meet
+00:46 How empty are we? (all humans in a sugar cube)
+00:53 So what is "solid"?
+
+Key ideas:
+• Zooming into a fingertip pressing a table shows skin cells, then molecules, then atoms.
+• Almost all of an atom's volume holds no solid matter. The nucleus is roughly 100,000 times smaller than the atom (a grain of sand in a football stadium).
+• The atoms in your finger and the table never merge. Their electron clouds repel (electromagnetism), and the Pauli exclusion principle (two identical electrons can't share the same quantum state) keeps them apart.
+• That repulsion is what we feel as "solid". The gap is about a fraction of a nanometer (about a billionth of a meter).
+• If you could remove all the empty space, packing the nuclei together, all 8 billion humans would fit in roughly a sugar cube's volume (about 2 cm³).
+
+Simplified for clarity: atoms are not tiny balls. The electron "cloud" is a probability distribution, and "empty" means no solid matter, not a vacuum. The gap and sugar-cube figures are rounded, order-of-magnitude values.
+
+Subscribe to CUTAWAY: everything has an inside.
+
+Voice: AI-generated narration. Animation made for CUTAWAY.
+
+#shorts #physics #mindblown
+```
+
+### Hashtags
+`#shorts #physics #mindblown` + `#science #atoms #quantum #howitworks #didyouknow`
+
+### Tags
+`you have never touched anything, atoms never touch, why do solid objects feel solid, electron clouds repel, pauli exclusion principle explained, atoms are mostly empty space, nucleus size vs atom, humanity in a sugar cube, powers of ten zoom, physics explained, quantum physics for beginners, mind blowing facts, science shorts, how things work`
+
+### TikTok / Instagram caption
+```
+You have never touched anything in your life. Zoom into your fingertip and watch why atoms never meet 🤯 So what are you actually feeling? (Watch twice: find where the finger touches.)
+#mindblown #physics #science #atoms #didyouknow
+```
+
+### Cover / thumbnail
+Frame at **34 s** (`episode-06-touch.html?t=34`): two glowing electron clouds with the arrows pushing apart. Or **15 s** (the molecule lattice, two colors facing each other) for a cleaner look.
+
+### Pinned comment
+`Find the exact spot where your finger touches. You can't. 🤯 What's the next thing you want CUTAWAY to blow open?`
+
+### Settings
+Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synthetic content: **yes for the AI voice** if asked · Category: Education
+
+---------------------------------------------------------------------
+
 ## Posting checklist (each video)
 1. Upload MP4 → paste title / description / tags.
 2. Set cover frame (Shorts: pick a frame in the editor; TikTok/IG: choose cover).
