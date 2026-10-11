@@ -67,7 +67,7 @@ Hourglasses (real ones, besides the promo ones in the opening and closing scenes
 1. 0:41 scene, top right of the quantum-foam panel
 2. 2:04 scene, far right edge
 3. 3:20 scene, upper right
-4. 4:56ish scene (1 s / notifications), right side mid
+4. 5:01 scene (a day, a year), right side
 5. 6:24 scene (fog / first light), bottom right corner
 6. 7:44 scene (+5 billion years), upper right
 7. 8:58 scene (10¹⁰⁰ years), lower right
