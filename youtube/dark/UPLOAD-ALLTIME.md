@@ -76,3 +76,8 @@ Verify against the video before revealing; placement was set in code, positions 
 
 ## Honest limits
 Audio was never listened to by me; check it once before uploading. Nothing here guarantees views.
+
+## YouTube Short (youtube/videos/dark/alltime-short.mp4, 0:46, 1080x1920)
+Title: One second contains this. #shorts
+Description: One second, cut a billion times, a quadrillion times, down to 150 attoseconds, then back up to your whole life and the end of the universe. Full film: ALL OF TIME (link in pinned comment). #shorts #science #universe #time
+Post it a day or two after the main film and pin the main film's link in its comments.
