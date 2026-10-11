@@ -97,7 +97,7 @@ for b in range(int(DUR / BAR) + 1):
     a = seg_at(t0 + 1e-6)
     if a is None: continue
     en = int(a[2]); fl = int(a[6]) if len(a) > 6 else 0; g = EG.get(en, .85)
-    ch = CH['u' if fl in (5, 6) else 'm'][b % 4]
+    ch = CH['u' if (fl in (5, 6) or (os.environ.get('MAJ') and fl != 0)) else 'm'][b % 4]
     bi = int(round((t0 - a[0]) / BAR)); nb = max(1, int(round((a[1] - a[0]) / BAR))); left = nb - bi
     L, R = strings(ch['pad'], BAR + 1.6); i0 = int(t0 * SR); gp = {0: .07, 1: .06, 2: .09, 3: .05, 4: .08, 5: .12, 6: .13}[fl] * (1.2 if en == 1 else 1.0)
     PADB[0, i0:i0 + len(L)] += (L * gp)[:N - i0]; PADB[1, i0:i0 + len(R)] += (R * gp)[:N - i0]
