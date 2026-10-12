@@ -1,0 +1,294 @@
+-- ===== client scenario =====
+local function check(cond, msg) print((cond and "PASS  " or "FAIL  ") .. msg) end
+local a = attrsP
+local me = localPlayer
+local function send(...) fireAll("notify", ...) end
+local function frames(n) for _ = 1, n do advance(0.1); fireAll("RenderStepped", 0.016) end end
+local function fired(kind) local n = 0 for _, f in firedLog do if f[1] == kind then n += 1 end end return n end
+local function lastFired(kind) for i = #firedLog, 1, -1 do if firedLog[i][1] == kind then return firedLog[i] end end end
+local KC, UT = Enum.KeyCode, Enum.UserInputType
+local function press(kc) fireAll("input", {KeyCode = kc, UserInputType = UT.Keyboard}, false) end
+local function release(kc) fireAll("inputEnd", {KeyCode = kc, UserInputType = UT.Keyboard}) end
+local function mouse(kind) fireAll("input", {KeyCode = nil, UserInputType = kind}, false) end
+local function mouseUp(kind) fireAll("inputEnd", {KeyCode = nil, UserInputType = kind}) end
+local DIG = {KC.Zero, KC.One, KC.Two, KC.Three, KC.Four, KC.Five, KC.Six, KC.Seven, KC.Eight, KC.Nine}
+local function type3(s) for ch in string.gmatch(s, "%d") do press(DIG[tonumber(ch) + 1]) end end
+
+-- the server's view of me before anything starts
+a.Seen = false; a.Wins = 0; a.Streak = 0; a.BestStreak = 0; a.Games = 0; a.TotalKills = 0; a.Style = "classic"
+a.Music = true; a.Sfx = true; a.Fx = true; a.Alive = false
+attrsWS.Phase = "lobby"; attrsWS.PhaseEnd = clock + 12; attrsWS.Alive = 0; attrsWS.Total = 0; attrsWS.Reveal = false
+
+local ok, err = pcall(sources[ClientN], ClientN)
+check(ok, "client starts " .. tostring(err))
+frames(3)
+check(X.seen("NEXT MATCH IN"), "lobby shows the countdown to the next match")
+check(X.seen("0:1"), "timer is shown")
+frames(20)
+check(X.seen("LET'S GO"), "first visit opens the how-to-play card")
+check(X.seen("Everybody has a secret number") and X.seen("No hiding in corners"), "how-to-play explains the game")
+check(X.click("LET'S GO"), "the card has a button")
+check(fired("Seen") == 1 and not X.seen("LET'S GO"), "Let's go closes the card and tells the server")
+
+-- ===== a match starts =====
+local function entity(id, name, icon, pos, look, alive)
+	local c = X.fakeChar(name, pos, look)
+	c:SetAttribute("EntityId", id); c:SetAttribute("Code", name); c:SetAttribute("Icon", icon); c:SetAttribute("Alive", alive ~= false)
+	return c
+end
+a.EntityId = 1; a.Code = "Red Fox"; a.Icon = "🦊"; a.Alive = true; a.Bullets = 5; a.Kills = 0
+for _, id in Config_ids or {} do end
+local Config = require(RS.children.Shared.children.Config)
+for _, id in Config.CarriedItems do a["It_" .. id] = 0 end
+a.It_flash = 2; a.It_smoke = 2
+local bot1 = entity(-1, "Blue Owl", "🦉", V3new(0, 3.5, 30), V3new(0, 0, -1))
+local bot2 = entity(-2, "Teal Cat", "🐱", V3new(60, 3.5, 30), V3new(0, 0, -1))
+local bot3 = entity(-3, "Pink Pig", "🐷", V3new(-30, 3.5, 90), V3new(0, 0, -1))
+table.insert(X.folders.Bots.kids, bot1); table.insert(X.folders.Bots.kids, bot2); table.insert(X.folders.Bots.kids, bot3)
+me.Character:PivotTo(CFrame.new(V3new(0, 3.5, 0), V3new(0, 3.5, 1)))
+X.camera.CFrame = {Position = V3new(0, 5.5, -2), LookVector = V3new(0, 0, 1), RightVector = V3new(1, 0, 0)}
+attrsWS.Phase = "countdown"; attrsWS.PhaseEnd = clock + 8; attrsWS.Alive = 4; attrsWS.Total = 4
+send("phase", "countdown", clock + 8)
+frames(3)
+check(X.seen("GET READY"), "get-ready banner")
+check(X.seen("Red Fox"), "my codename is shown")
+check(X.seen("YOUR CODENAME"), "codename box shown")
+check(X.seen("👥 4/4"), "alive count shown")
+frames(50)
+attrsWS.Phase = "play"; attrsWS.PhaseEnd = clock + 300
+send("phase", "play", clock + 300)
+frames(3)
+check(X.seen("GO!"), "go banner")
+
+-- ===== aiming and the keypad =====
+frames(3)
+local View = require(ModN.children.View)
+local aimed, dist = View.aimed()
+check(aimed ~= nil and aimed.id == -1, "crosshair finds the person straight ahead")
+check(aimed and math.abs(dist - 30) < 3, "distance to them is right (" .. tostring(dist) .. ")")
+frames(3)
+check(X.seen("Blue Owl") and X.seen("[G] to guess"), "aim label names the target")
+X.addWall(V3new(-10, 0, 10), V3new(10, 20, 12))
+frames(3)
+check(View.aimed() == nil, "a wall hides the target from aiming")
+X.clearWalls()
+frames(3)
+press(KC.G)
+check(X.seen("WHO IS 🦉 BLUE OWL?"), "G opens the keypad for that person")
+type3("47")
+check(fired("Guess") == 0, "nothing is sent until three digits are typed")
+press(KC.Backspace)
+type3("72")
+check(fired("Guess") == 1, "third digit fires the guess")
+local g = lastFired("Guess")
+check(g[2] == -1 and g[3] == "472", "guess carries the target id and digits (" .. tostring(g[2]) .. "," .. tostring(g[3]) .. ")")
+check(not X.seen("WHO IS"), "keypad closes after firing")
+-- keypad by clicking buttons and cancel with Escape
+press(KC.G)
+check(X.click("7") and X.click("0") and X.click("1"), "on-screen keypad buttons work")
+check(lastFired("Guess")[3] == "701", "...and fire too")
+press(KC.G); press(KC.Escape)
+check(not X.seen("WHO IS"), "Escape cancels the keypad")
+-- nobody in the crosshair
+X.camera.CFrame = {Position = V3new(0, 5.5, -2), LookVector = V3new(0, 0, -1), RightVector = V3new(-1, 0, 0)}
+frames(2)
+local before = fired("Guess")
+press(KC.G)
+check(not X.seen("WHO IS"), "no keypad without a target")
+X.camera.CFrame = {Position = V3new(0, 5.5, -2), LookVector = V3new(0, 0, 1), RightVector = V3new(1, 0, 0)}
+frames(2)
+
+-- ===== photos and the notebook =====
+local snaps = fired("Snap")
+mouse(UT.MouseButton1)
+check(fired("Snap") == snaps + 1 and typeof(lastFired("Snap")[2]) == "Vector3", "click takes a photo")
+mouse(UT.MouseButton1)
+check(fired("Snap") == snaps + 1, "photo cooldown on the client")
+frames(16)
+send("photo", {{-1, "Blue Owl", "🦉", "4??", 30}})
+check(X.seen("📷 PHOTO") and X.seen("4??"), "photo card pops up")
+frames(16)
+send("photo", {{-1, "Blue Owl", "🦉", "?7?", 28}, {-2, "Teal Cat", "🐱", "???", 60}})
+send("photo", {{-1, "Blue Owl", "🦉", "??2", 25}})
+press(KC.V)
+check(X.seen("NOTEBOOK") and X.seen("Blue Owl") and X.seen("2 photos") == false, "notebook opens")
+local Album = require(ModN.children.Album)
+check(Album.text(-1) == "472" and Album.complete(-1), "three blurry photos add up to 472")
+check(Album.text(-2) == "???" and not Album.complete(-2), "unknown stays unknown")
+check(X.seen("FIRE"), "complete number has a FIRE button")
+local gb = fired("Guess")
+check(X.click("FIRE") and fired("Guess") == gb + 1 and lastFired("Guess")[3] == "472", "FIRE sends the guess from the notebook")
+press(KC.V)
+check(not X.seen("NOTEBOOK"), "V closes the notebook")
+send("phase", "countdown")
+check(Album.text(-1) == nil, "notebook is wiped for the next match")
+
+-- ===== items =====
+frames(2)
+local used = fired("Use")
+press(KC.Three)
+check(fired("Use") == used + 1 and lastFired("Use")[2] == "flash" and typeof(lastFired("Use")[3]) == "Vector3", "key 3 throws a flashbang along the camera")
+press(KC.Five)
+check(fired("Use") == used + 1, "an item you don't have does nothing")
+press(KC.Four)
+check(lastFired("Use")[2] == "smoke", "key 4 throws smoke")
+local u2 = fired("Use"); frames(14)
+check(X.click("💥") and fired("Use") == u2 + 1 and lastFired("Use")[2] == "flash", "hotbar buttons can be tapped")
+
+-- ===== binoculars =====
+local sc = fired("Scope")
+mouse(UT.MouseButton2)
+frames(40)
+check(fired("Scope") == sc + 1 and lastFired("Scope")[2] == true, "holding right mouse raises the binoculars")
+check(X.camera.FieldOfView < 25, "view zooms in (" .. string.format("%.1f", X.camera.FieldOfView) .. ")")
+check(X.UIS.MouseDeltaSensitivity < 0.7, "mouse slows down while zoomed")
+check(X.seen("Blue Owl  •") and X.seen("ZOOM x"), "scope shows range and zoom")
+fireAll("inputChg", {UserInputType = UT.MouseWheel, Position = V3new(0, 0, 3)}, false)
+frames(30)
+check(X.camera.FieldOfView < 14, "scrolling zooms further (" .. string.format("%.1f", X.camera.FieldOfView) .. ")")
+mouseUp(UT.MouseButton2)
+frames(40)
+check(lastFired("Scope")[2] == false and X.camera.FieldOfView > 60, "letting go lowers the binoculars")
+check(X.UIS.MouseDeltaSensitivity == 1, "mouse speed restored")
+press(KC.Z); frames(2); check(lastFired("Scope")[2] == true, "Z also zooms"); release(KC.Z); frames(2)
+check(lastFired("Scope")[2] == false, "...and releasing Z stops")
+
+-- ===== alerts =====
+local Alerts = require(ModN.children.Alerts)
+send("flash", 4)
+check(Alerts.isBlind(), "flashbang blinds")
+local sc2 = fired("Scope"); mouse(UT.MouseButton2); frames(2)
+check(fired("Scope") == sc2, "no zooming while blind"); mouseUp(UT.MouseButton2)
+local sn = fired("Snap"); frames(20); mouse(UT.MouseButton1)
+check(fired("Snap") == sn, "no photos while blind")
+frames(45)
+check(not Alerts.isBlind(), "blindness ends")
+send("stun", 3)
+frames(2)
+check(X.seen("FROZEN"), "stun shows a FROZEN countdown")
+press(KC.G)
+check(not X.seen("WHO IS"), "can't open the keypad while frozen")
+attrsP.Stunned = true
+press(KC.G); check(not X.seen("WHO IS"), "...also by the server flag")
+attrsP.Stunned = false
+frames(32)
+check(not X.seen("FROZEN"), "freeze ends")
+send("cover", "warn", 4.2)
+check(X.seen("DON'T HIDE YOUR NUMBER") and X.seen("4.2s"), "cover warning with countdown")
+send("cover", "ok", 0)
+check(not X.seen("DON'T HIDE YOUR NUMBER"), "warning clears when you turn away")
+send("cover", "exposed", 20)
+check(X.seen("YOU'RE EXPOSED"), "exposed banner")
+send("exposed", "🦊 Red Fox")
+check(X.seen("Red Fox was EXPOSED"), "exposure shows in the feed")
+send("snitch", V3new(30, 3, 0), 4)
+frames(2)
+check(X.seen("SOMEONE JUST GUESSED YOU"), "snitch arrow appears")
+frames(45)
+check(not X.seen("SOMEONE JUST GUESSED YOU"), "snitch arrow goes away")
+table.insert(X.folders.Smoke.kids, {Position = V3new(0, 5.5, -2), Size = V3new(12, 12, 12), GetAttribute = function() return nil end})
+frames(30)
+local fog
+for _, o in X.texts do end
+check(true, "standing in smoke runs")
+X.folders.Smoke.kids = {}
+
+-- ===== kill feed, my kills, my elimination =====
+send("kill", "🐱 Teal Cat", "🦉 Blue Owl", "guess", "123")
+check(X.seen("Blue Owl  ➜  🐱 Teal Cat"), "kill feed line")
+send("kill", "🐷 Pink Pig", "", "left", "555")
+check(X.seen("Pink Pig left the game"), "leaving shows in the feed")
+send("gotKill", "Teal Cat", "🐱", "123")
+check(X.seen("ELIMINATED"), "my kill is announced")
+send("pickup", "smoke")
+check(X.seen("Smoke Grenade  +1"), "pickup toast")
+send("reveal")
+check(X.seen("THE REVEAL"), "reveal banner")
+send("guessResult", "miss"); send("guessResult", "decoy"); send("guessResult", "invalid"); send("guessResult", "hit")
+check(true, "every guess result is handled")
+send("toast", "Hello", "info")
+check(X.seen("Hello"), "server toasts show")
+send("totally-unknown-message", 1, 2, 3)
+send("photo", nil)
+send("results", nil, nil)
+check(true, "bad or unknown messages never crash")
+
+-- ===== spectating =====
+a.Alive = false
+send("eliminated", "🦉 Blue Owl", "guess", 3, 4)
+check(X.seen("YOU'RE OUT") and X.seen("you placed #4"), "elimination banner with placing")
+frames(5)
+local hum1 = bot1:FindFirstChildOfClass("Humanoid")
+check(X.camera.CameraSubject == hum1 or X.camera.CameraSubject == bot2:FindFirstChildOfClass("Humanoid") or X.camera.CameraSubject == bot3:FindFirstChildOfClass("Humanoid"), "camera follows a living player")
+check(X.seen("WATCHING"), "spectate bar shown")
+local first = X.camera.CameraSubject
+press(KC.Right); frames(2)
+check(X.camera.CameraSubject ~= first, "arrow key switches who you watch")
+for _, b in X.folders.Bots.kids do b:SetAttribute("Alive", false) end
+frames(5)
+check(X.camera.CameraSubject == me.Character:FindFirstChildOfClass("Humanoid"), "camera returns to me when nobody is left")
+for _, b in X.folders.Bots.kids do b:SetAttribute("Alive", true) end
+
+-- ===== results =====
+attrsWS.Phase = "results"; attrsWS.PhaseEnd = clock + 12
+send("results", {
+	{id = 1, rank = 1, label = "🦊 Red Fox", who = "Me", kills = 3, number = "472", alive = true},
+	{id = -1, rank = 2, label = "🦉 Blue Owl", who = "Bot", kills = 1, number = "315", alive = false},
+	{id = -2, rank = 3, label = "🐱 Teal Cat", who = "Bot", kills = 0, number = "908", alive = false},
+}, 1)
+frames(2)
+check(X.seen("YOU WIN!"), "winner screen for me")
+check(X.seen("You finished #1 of 3"), "my placing")
+check(X.seen("472") and X.seen("🥇") and X.seen("🥈"), "table shows ranks and numbers")
+attrsWS.Phase = "lobby"; frames(8)
+check(not X.seen("YOU WIN!"), "results close when the lobby returns")
+send("results", {{id = -1, rank = 1, label = "🦉 Blue Owl", who = "Bot", kills = 2, number = "315", alive = true}, {id = 1, rank = 2, label = "🦊 Red Fox", who = "Me", kills = 0, number = "472", alive = false}}, -1)
+attrsWS.Phase = "results"; attrsWS.PhaseEnd = clock + 12; frames(2)
+check(X.seen("Blue Owl WINS") or X.seen("🏆 🦉 Blue Owl WINS"), "someone else wins")
+send("results", {}, 0); frames(2)
+check(X.seen("NO WINNER"), "empty results are handled")
+attrsWS.Phase = "lobby"; frames(8)
+
+-- ===== menu =====
+local Menu = require(ModN.children.Menu)
+press(KC.M)
+check(Menu.isOpen(), "M opens the menu")
+check(X.click("Plates"), "Plates tab")
+check(X.seen("EQUIPPED") and X.seen("🔒 1 wins"), "plates show equipped and locked")
+local style = fired("Style")
+check(not X.seen("tap to equip"), "nothing unlocked yet to equip")
+a.Wins = 3; fireAll("attr_Wins"); frames(2)
+check(X.seen("tap to equip"), "unlocked plates can be equipped after winning")
+local cards = {}
+for _, b in X.buttons do if b.Text == "" and visible(b) then table.insert(cards, b) end end
+check(#cards == #Config.PlateStyles, "one card per plate (" .. #cards .. ")")
+local st = fired("Style")
+for _, f in cards[2].MouseButton1Click.fns do f() end
+check(fired("Style") == st + 1 and lastFired("Style")[2] == "gold", "tapping an unlocked plate equips it")
+for _, f in cards[5].MouseButton1Click.fns do f() end
+check(fired("Style") == st + 1 and X.seen("Win 10 matches to unlock Ice"), "a locked plate says how to unlock it")
+check(X.click("Stats") and X.seen("Matches won") and X.seen("Players eliminated"), "Stats tab")
+check(X.click("Settings") and X.seen("Music") and X.seen("Sound effects"), "Settings tab")
+local sf = fired("Setting")
+check(X.click("ON") and fired("Setting") == sf + 1 and lastFired("Setting")[2] == "Music" and lastFired("Setting")[3] == false, "music toggle sends the setting")
+check(a.Music == false and X.seen("OFF"), "setting shows OFF")
+X.click("OFF"); check(a.Music == true, "toggles back on")
+check(X.click("How to play") and X.seen("Everybody has a secret number"), "How to play tab")
+press(KC.M)
+check(not Menu.isOpen(), "M closes the menu")
+X.click("☰"); check(Menu.isOpen(), "menu button"); X.click("✕"); check(not Menu.isOpen(), "close button")
+X.click("?"); check(Menu.isOpen() and X.seen("LET'S GO"), "? button opens how to play"); Menu.close()
+X.click("📒"); check(Album.isOpen(), "notebook button"); Album.close()
+
+-- ===== own plate is hidden on my screen only =====
+local plate, gui2 = {Name = "NumberPlate", Transparency = 0}, {Name = "PlateGui", Enabled = true}
+me.Character:addPart(plate); me.Character:addPart(gui2)
+check(plate.Transparency == 1 and gui2.Enabled == false, "my own number plate is hidden for me")
+
+-- ===== keys do nothing outside a match =====
+a.Alive = false; attrsWS.Phase = "lobby"
+local n0 = #firedLog
+press(KC.G); press(KC.Three); mouse(UT.MouseButton1); mouse(UT.MouseButton2); mouseUp(UT.MouseButton2)
+check(#firedLog == n0, "no actions are sent in the lobby")
+frames(10)
+print("--- client done")

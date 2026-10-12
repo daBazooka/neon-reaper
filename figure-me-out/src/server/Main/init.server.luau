@@ -1,0 +1,116 @@
+-- FIGURE ME OUT: server entry point. Creates the remotes, builds the world and starts the match loop.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Modules = script:WaitForChild("Modules")
+local Data = require(Modules.Data)
+local World = require(Modules.World)
+local Match = require(Modules.Match)
+local Guess = require(Modules.Guess)
+local Photos = require(Modules.Photos)
+local Items = require(Modules.Items)
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+
+Players.CharacterAutoLoads = false
+
+-- The two remotes (created first so clients can wait for them): Action = client asks, Notify = server tells.
+local net = Instance.new("Folder")
+net.Name = "Net"
+net.Parent = ReplicatedStorage
+local action = Instance.new("RemoteEvent")
+action.Name = "Action"
+action.Parent = net
+local notify = Instance.new("RemoteEvent")
+notify.Name = "Notify"
+notify.Parent = net
+
+Data.init()
+World.build()
+
+-- Every request is checked and rate limited, and a bad one can never crash the server.
+local lastCall = {} -- userId -> { kind -> time of the last call }
+local function allowed(p, kind)
+	local now = os.clock()
+	local mine = lastCall[p.UserId]
+	if not mine then
+		mine = {}
+		lastCall[p.UserId] = mine
+	end
+	if now - (mine[kind] or 0) < 0.08 then
+		return false
+	end
+	mine[kind] = now
+	return true
+end
+
+local handlers = {}
+function handlers.Guess(p, targetId, text)
+	Guess.handle(p, targetId, text)
+end
+function handlers.Snap(p, origin, look)
+	Photos.snap(p, origin, look)
+end
+function handlers.Use(p, id, look)
+	local e = require(Modules.State).byPlayer(p)
+	if e and type(id) == "string" then
+		Items.use(e, id, look)
+	end
+end
+function handlers.Scope(p, on)
+	Match.setScope(p, on == true)
+end
+function handlers.Style(p, id)
+	if type(id) == "string" then
+		Match.setStyle(p, id)
+	end
+end
+function handlers.Seen(p)
+	local data = Data.get(p)
+	if data then
+		data.Seen = true
+		p:SetAttribute("Seen", true)
+	end
+end
+function handlers.Setting(p, key, value)
+	local data = Data.get(p)
+	if data and (key == "Music" or key == "Sfx" or key == "Fx") and type(value) == "boolean" then
+		data.Settings[key] = value
+		p:SetAttribute(key, value)
+	end
+end
+
+action.OnServerEvent:Connect(function(p, kind, ...)
+	local handler = type(kind) == "string" and handlers[kind]
+	if not handler or not allowed(p, kind) then
+		return
+	end
+	local ok, err = pcall(handler, p, ...)
+	if not ok then
+		warn("[FigureMeOut] " .. kind .. " failed:", err)
+	end
+end)
+
+Players.PlayerAdded:Connect(function(p)
+	task.spawn(Match.onJoin, p)
+end)
+for _, p in Players:GetPlayers() do
+	task.spawn(Match.onJoin, p)
+end
+Players.PlayerRemoving:Connect(function(p)
+	Match.onLeave(p)
+	lastCall[p.UserId] = nil
+end)
+
+-- The top winners board in the lobby refreshes every minute.
+task.spawn(function()
+	while true do
+		local lines = Data.topLines()
+		if lines and #lines > 0 then
+			World.setBoard(lines)
+		end
+		task.wait(60)
+	end
+end)
+
+task.spawn(Match.run)
+print("[" .. Config.GameName .. "] ready")

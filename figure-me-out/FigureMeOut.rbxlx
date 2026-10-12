@@ -1,0 +1,6451 @@
+<roblox version="4">
+  <Item class="Lighting" referent="0">
+    <Properties>
+      <string name="Name">Lighting</string>
+    </Properties>
+  </Item>
+  <Item class="ReplicatedStorage" referent="1">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="Folder" referent="2">
+      <Properties>
+        <string name="Name">Shared</string>
+      </Properties>
+      <Item class="ModuleScript" referent="3">
+        <Properties>
+          <string name="Name">Audio</string>
+          <string name="Source"><![CDATA[-- FIGURE ME OUT: client audio. Short effects and a tense generated spy-thriller loop, all built from a few sounds that
+-- ship with Roblox, so nothing has to be uploaded. If a sound can't be loaded it is skipped silently.
+local SoundService = game:GetService("SoundService")
+local ContentProvider = game:GetService("ContentProvider")
+local Debris = game:GetService("Debris")
+
+local Config = require(script.Parent:WaitForChild("Config"))
+
+local Audio = {}
+
+local MINOR = { 0, 3, 5, 7, 10 } -- minor pentatonic
+local templates = {} -- name -> loaded Sound, or false when it failed to load
+local sfxGroup, musicGroup
+local musicEnabled, sfxEnabled = true, true
+local customMusic
+local started = false
+
+local function makeGroup(name, volume)
+	local g = Instance.new("SoundGroup")
+	g.Name = name
+	g.Volume = volume
+	g.Parent = SoundService
+	return g
+end
+
+function Audio.Init()
+	if started then
+		return
+	end
+	started = true
+	sfxGroup = makeGroup("FmoSfx", Config.SfxVolume)
+	musicGroup = makeGroup("FmoMusic", Config.MusicVolume)
+	local reverb = Instance.new("ReverbSoundEffect")
+	reverb.DecayTime = 1.8
+	reverb.Density = 1
+	reverb.Diffusion = 1
+	reverb.DryLevel = -3
+	reverb.WetLevel = -9
+	reverb.Parent = musicGroup
+	local folder = Instance.new("Folder")
+	folder.Name = "FmoAudioTemplates"
+	folder.Parent = SoundService
+	for name, id in Config.Sounds do
+		if id ~= "" then
+			local s = Instance.new("Sound")
+			s.Name = name
+			s.SoundId = id
+			s.Parent = folder
+			task.spawn(function()
+				pcall(function()
+					ContentProvider:PreloadAsync({ s })
+				end)
+				if s.TimeLength > 0 then
+					templates[name] = s
+				else
+					templates[name] = false
+					warn("[FigureMeOut Audio] Could not load '" .. name .. "' (" .. id .. "). Paste a working sound id in Config.Sounds.")
+				end
+			end)
+		end
+	end
+end
+
+local function playOn(group, name, speed, volume)
+	local t = templates[name]
+	if not t or not group then
+		return
+	end
+	local s = t:Clone()
+	s.PlaybackSpeed = speed or 1
+	s.Volume = volume or 0.5
+	s.SoundGroup = group
+	s.Parent = SoundService
+	s:Play()
+	Debris:AddItem(s, math.max(0.6, t.TimeLength / s.PlaybackSpeed + 0.4))
+end
+
+function Audio.play(name, speed, volume)
+	playOn(sfxGroup, name, speed, volume)
+end
+
+-- Step n of a rising minor-pentatonic scale.
+local function noteSpeed(step)
+	local i = (step - 1) % 5 + 1
+	local octave = math.floor((step - 1) / 5) % 2
+	return 0.7 * 2 ^ ((MINOR[i] + octave * 12) / 12)
+end
+Audio.noteSpeed = noteSpeed
+
+local function run(steps, gap, volume, name)
+	task.spawn(function()
+		for _, step in steps do
+			Audio.play(name or "Tone", noteSpeed(step), volume or 0.6)
+			task.wait(gap)
+		end
+	end)
+end
+
+function Audio.click()
+	Audio.play("Click", 1.1, 0.5)
+end
+
+function Audio.snap()
+	Audio.play("Flash", 1.4, 0.55)
+	Audio.play("Click", 0.7, 0.6)
+end
+
+function Audio.hit() -- you guessed right
+	run({ 3, 5, 8, 10 }, 0.06, 0.65)
+	Audio.play("Bass", 0.9, 0.7)
+end
+
+function Audio.miss() -- you guessed wrong
+	Audio.play("Bass", 0.5, 0.9)
+	run({ 8, 5, 2 }, 0.1, 0.45)
+end
+
+function Audio.kill() -- somebody else went out
+	Audio.play("Tone", noteSpeed(2), 0.3)
+	Audio.play("Bass", 0.7, 0.35)
+end
+
+function Audio.lose() -- you went out
+	run({ 6, 4, 2, 1 }, 0.16, 0.6)
+	Audio.play("Bass", 0.4, 1)
+end
+
+function Audio.win()
+	run({ 1, 3, 5, 8, 10, 13, 15 }, 0.08, 0.7)
+	Audio.play("Bass", 0.9, 0.7)
+end
+
+function Audio.stun()
+	Audio.play("Bass", 0.6, 0.8)
+	Audio.play("Click", 0.5, 0.6)
+end
+
+-- the ringing in your ears after a flashbang
+function Audio.ring()
+	task.spawn(function()
+		for i = 1, 8 do
+			Audio.play("Tone", 3.2 - i * 0.12, 0.55 / (1 + i * 0.25))
+			task.wait(0.12)
+		end
+	end)
+end
+
+function Audio.warn() -- covering your number
+	Audio.play("Tone", 1.9, 0.5)
+	Audio.play("Bass", 1.2, 0.35)
+end
+
+function Audio.siren()
+	task.spawn(function()
+		for i = 1, 6 do
+			Audio.play("Tone", i % 2 == 0 and 2.2 or 1.5, 0.55)
+			task.wait(0.14)
+		end
+	end)
+end
+
+function Audio.snitch() -- someone tried to guess you
+	Audio.play("Tone", 2.4, 0.55)
+	Audio.play("Click", 1.6, 0.6)
+end
+
+function Audio.pickup()
+	run({ 5, 8, 10 }, 0.05, 0.55)
+end
+
+function Audio.use()
+	Audio.play("Click", 0.8, 0.6)
+end
+
+function Audio.reveal()
+	task.spawn(function()
+		for i = 1, 6 do
+			Audio.play("Bass", 0.5 + i * 0.1, 0.8)
+			task.wait(0.18)
+		end
+		Audio.play("Flash", 0.8, 0.8)
+	end)
+end
+
+function Audio.countdown(n, final)
+	Audio.play("Tone", final and 1.6 or 1.0, 0.7)
+end
+
+function Audio.tick()
+	Audio.play("Click", 1.8, 0.25)
+end
+
+function Audio.error()
+	Audio.play("Bass", 0.6, 0.6)
+end
+
+function Audio.setSfx(on)
+	sfxEnabled = on
+	if sfxGroup then
+		sfxGroup.Volume = on and Config.SfxVolume or 0
+	end
+end
+
+function Audio.setMusic(on)
+	musicEnabled = on
+	if musicGroup then
+		musicGroup.Volume = on and Config.MusicVolume or 0
+	end
+	if customMusic then
+		customMusic.Volume = on and 1 or 0
+	end
+end
+
+function Audio.musicOn()
+	return musicEnabled
+end
+
+function Audio.sfxOn()
+	return sfxEnabled
+end
+
+-- A looping song id from the Creator Store can be pasted into Config.MusicTrackId. Without one, a tense 118 BPM
+-- spy-thriller loop plays: a heartbeat kick, a creeping bass line and a sparse lead.
+function Audio.startMusic()
+	if Config.MusicTrackId ~= "" then
+		customMusic = Instance.new("Sound")
+		customMusic.Name = "FmoMusic"
+		customMusic.SoundId = Config.MusicTrackId
+		customMusic.Looped = true
+		customMusic.Volume = 1
+		customMusic.SoundGroup = musicGroup
+		customMusic.Parent = SoundService
+		customMusic:Play()
+		return
+	end
+	local STEP = 60 / 118 / 4
+	local KICK = { 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0 }
+	local TICK = { 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0 }
+	local BASS = { [1] = true, [4] = true, [8] = true, [11] = true, [14] = true }
+	local ROOTS = { 0, 0, -2, -5 }
+	local LEADS = {
+		{ [1] = 12, [7] = 10, [13] = 7 },
+		{ [1] = 12, [5] = 15, [9] = 12, [13] = 10 },
+		{ [1] = 10, [7] = 8, [13] = 7 },
+		{ [1] = 7, [5] = 8, [9] = 10, [15] = 12 },
+	}
+	task.spawn(function()
+		local step, bar = 0, 0
+		while true do
+			task.wait(STEP)
+			local s = step % 16 + 1
+			if s == 1 then
+				bar += 1
+			end
+			if musicEnabled and templates.Tone then
+				local pattern = (bar - 1) % 4 + 1
+				if KICK[s] == 1 then
+					playOn(musicGroup, templates.Bass and "Bass" or "Tone", 0.5, 0.9)
+				end
+				if TICK[s] == 1 and templates.Click then
+					playOn(musicGroup, "Click", 2.2, s % 8 == 3 and 0.2 or 0.12)
+				end
+				if BASS[s] then
+					playOn(musicGroup, templates.Bass and "Bass" or "Tone", 0.6 * 2 ^ (ROOTS[pattern] / 12), 0.5)
+				end
+				local lead = LEADS[pattern][s]
+				if lead then
+					playOn(musicGroup, "Tone", 0.5 * 2 ^ (lead / 12), 0.17)
+				end
+			end
+			step += 1
+		end
+	end)
+end
+
+return Audio
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="4">
+        <Properties>
+          <string name="Name">Config</string>
+          <string name="Source"><![CDATA[-- FIGURE ME OUT: every number and every piece of content in the game. Change a value here and the whole game follows.
+local Config = {}
+local C = Color3.fromRGB
+
+Config.GameName = "Figure Me Out"
+
+--------------------------------------------------------------------------------
+-- The idea: everybody wears a secret 3-digit number on their forehead that they cannot see.
+-- Type someone else's number correctly and they are out. Read numbers, hide yours, last one standing wins.
+--------------------------------------------------------------------------------
+Config.Match = {
+	MaxPlayers = 20,
+	MinTotal = 10, -- bots fill the match up to this many players, so there is always a game
+	Intermission = 14, -- lobby wait between matches (seconds)
+	Countdown = 8, -- before the start whistle
+	Length = 300, -- the match (seconds)
+	RevealAt = 30, -- seconds left when THE REVEAL begins and every number glows above every head
+	ResultsTime = 12,
+}
+
+Config.Number = { Digits = 3, Min = 100, Max = 999 }
+
+-- Guessing: aim at someone, press G, type their 3 digits. Wrong guesses cost a bullet and stun you.
+Config.Guess = {
+	Cooldown = 1.0,
+	MaxDistance = 170, -- you must be able to see them, and be this close
+	Stun = 3,
+	DecoyStun = 6,
+	Bullets = 5,
+	BulletRegen = 25, -- seconds to get one bullet back
+	KillBullets = 2, -- bullets back for an elimination
+	WarnTime = 4, -- how long the guessed player sees "someone guessed you" with an arrow
+}
+
+-- Covering your number: facing a wall or dead end for too long. You are warned, then exposed.
+Config.Cover = {
+	Distance = 5, -- a wall this close in front of your forehead covers it
+	Angles = { 0, 25, -25 }, -- degrees from straight ahead (2 of these 3 must be blocked)
+	NeedBlocked = 2,
+	WarnAfter = 1.0, -- seconds covered before the warning appears
+	Limit = 6.0, -- seconds covered before you are exposed
+	Expose = 20, -- seconds everybody can see your number above your head
+	Tick = 0.25,
+}
+
+Config.Movement = { Walk = 16, Jump = 50, Boots = 28, BootsTime = 6, ScopeWalk = 8 }
+
+--------------------------------------------------------------------------------
+-- Items. Binoculars and the camera are always with you; the rest are carried in limited numbers and
+-- found in glowing crates around the map. Hotbar keys 1 to 8.
+--------------------------------------------------------------------------------
+Config.Items = {
+	{ Id = "binos", Name = "Binoculars", Icon = "🔭", Key = 1, Permanent = true, Tip = "Hold to zoom in. Read digits from far away." },
+	{ Id = "camera", Name = "Camera", Icon = "📷", Key = 2, Permanent = true, Tip = "Click to take a photo of everyone you can see." },
+	{ Id = "flash", Name = "Flashbang", Icon = "💥", Key = 3, Start = 2, Max = 3, Weight = 22, Tip = "Throw it. Blinds everybody who sees it go off." },
+	{ Id = "smoke", Name = "Smoke Grenade", Icon = "💨", Key = 4, Start = 2, Max = 3, Weight = 22, Tip = "Throw it. A thick cloud nobody can see through." },
+	{ Id = "decoy", Name = "Decoy", Icon = "🎭", Key = 5, Start = 0, Max = 2, Weight = 14, Tip = "Drops a copy of you wearing a fake number." },
+	{ Id = "scramble", Name = "Scrambler", Icon = "📺", Key = 6, Start = 0, Max = 2, Weight = 14, Tip = "Your number flickers with fake digits for a while." },
+	{ Id = "switch", Name = "Switcheroo", Icon = "🔄", Key = 7, Start = 0, Max = 2, Weight = 10, Tip = "Swap numbers with someone close by." },
+	{ Id = "boots", Name = "Speed Boots", Icon = "👟", Key = 8, Start = 0, Max = 2, Weight = 18, Tip = "Run much faster for a few seconds." },
+}
+Config.ItemById = {}
+Config.ItemOrder = {}
+for _, item in Config.Items do
+	Config.ItemById[item.Id] = item
+	table.insert(Config.ItemOrder, item.Id)
+end
+Config.CarriedItems = { "flash", "smoke", "decoy", "scramble", "switch", "boots" }
+
+Config.Flash = { Radius = 80, Fuse = 1.6, MaxBlind = 6.5, MinBlind = 1.2, ThrowSpeed = 55, ThrowUp = 22 }
+Config.Smoke = { Radius = 9, Duration = 15, Fuse = 1.3, Fade = 3 }
+Config.Decoy = { Duration = 45 }
+Config.Scramble = { Duration = 9 }
+Config.Switch = { Range = 45 }
+
+-- Photos are worked out by the server from where the camera points.
+Config.Photo = {
+	MaxDistance = 95,
+	HalfAngle = 32, -- degrees either side of the middle of the picture
+	ClearDistance = 32, -- every digit is readable up to here (if they face you)
+	FuzzyDistance = 62, -- each digit is readable with some luck up to here
+	FuzzyChance = 0.45,
+	FaceAngle = 55, -- their forehead must be turned this close to the camera
+	Cooldown = 1.4,
+	Album = 12,
+}
+
+Config.Scope = { Fov = 14, MinFov = 6, MaxFov = 24, NormalFov = 70 }
+
+-- Crates that hand out items. Positions are on the map (see Config.Map).
+Config.Pickups = { Respawn = 30, Radius = 4.5 }
+
+--------------------------------------------------------------------------------
+-- Everyone gets a unique colour and animal (their codename) so you can tell people apart.
+--------------------------------------------------------------------------------
+Config.Colors = {
+	{ Name = "Red", Color = C(235, 60, 60) }, { Name = "Blue", Color = C(60, 110, 240) },
+	{ Name = "Green", Color = C(60, 190, 90) }, { Name = "Yellow", Color = C(250, 220, 50) },
+	{ Name = "Orange", Color = C(250, 140, 40) }, { Name = "Purple", Color = C(150, 80, 220) },
+	{ Name = "Pink", Color = C(255, 120, 190) }, { Name = "Teal", Color = C(40, 190, 190) },
+	{ Name = "Lime", Color = C(170, 230, 50) }, { Name = "Brown", Color = C(140, 90, 50) },
+	{ Name = "Navy", Color = C(30, 50, 130) }, { Name = "Gold", Color = C(210, 170, 40) },
+	{ Name = "Silver", Color = C(190, 195, 205) }, { Name = "Maroon", Color = C(130, 30, 50) },
+	{ Name = "Cyan", Color = C(80, 220, 250) }, { Name = "Coral", Color = C(255, 110, 100) },
+	{ Name = "Olive", Color = C(120, 130, 50) }, { Name = "Violet", Color = C(200, 120, 255) },
+	{ Name = "Mint", Color = C(130, 240, 190) }, { Name = "Peach", Color = C(255, 190, 150) },
+}
+Config.Animals = {
+	{ Name = "Fox", Icon = "🦊" }, { Name = "Owl", Icon = "🦉" }, { Name = "Wolf", Icon = "🐺" }, { Name = "Bear", Icon = "🐻" },
+	{ Name = "Cat", Icon = "🐱" }, { Name = "Dog", Icon = "🐶" }, { Name = "Frog", Icon = "🐸" }, { Name = "Tiger", Icon = "🐯" },
+	{ Name = "Panda", Icon = "🐼" }, { Name = "Koala", Icon = "🐨" }, { Name = "Eagle", Icon = "🦅" }, { Name = "Shark", Icon = "🦈" },
+	{ Name = "Lion", Icon = "🦁" }, { Name = "Pig", Icon = "🐷" }, { Name = "Horse", Icon = "🐴" }, { Name = "Bunny", Icon = "🐰" },
+	{ Name = "Duck", Icon = "🦆" }, { Name = "Snake", Icon = "🐍" }, { Name = "Crab", Icon = "🦀" }, { Name = "Whale", Icon = "🐳" },
+}
+
+-- Forehead plates you unlock by winning. Wins = how many wins unlock it.
+Config.PlateStyles = {
+	{ Id = "classic", Name = "Classic", Wins = 0, Back = C(20, 22, 30), Text = C(255, 255, 255), Rim = C(255, 255, 255) },
+	{ Id = "gold", Name = "Gold", Wins = 1, Back = C(40, 30, 6), Text = C(255, 214, 60), Rim = C(255, 214, 60) },
+	{ Id = "neon", Name = "Neon", Wins = 3, Back = C(8, 20, 28), Text = C(60, 255, 220), Rim = C(60, 255, 220) },
+	{ Id = "hot", Name = "Hot Pink", Wins = 6, Back = C(36, 8, 24), Text = C(255, 90, 190), Rim = C(255, 90, 190) },
+	{ Id = "ice", Name = "Ice", Wins = 10, Back = C(220, 240, 255), Text = C(20, 60, 120), Rim = C(100, 180, 255) },
+	{ Id = "royal", Name = "Royal", Wins = 20, Back = C(60, 10, 90), Text = C(255, 240, 150), Rim = C(255, 214, 60) },
+}
+Config.PlateStyleById = {}
+for _, s in Config.PlateStyles do
+	Config.PlateStyleById[s.Id] = s
+end
+
+--------------------------------------------------------------------------------
+-- The map: "Plaza Park", a 3x3 grid of city blocks with streets between them and a park in the middle.
+-- The centre block (0, 0) is the plaza; the 8 outer blocks hold a building each. Streets run at x or z = +-43.
+--------------------------------------------------------------------------------
+Config.Map = {
+	Half = 134, -- the arena is this big in each direction from the middle
+	Block = 60,
+	Street = 26,
+	BuildingHeight = 16,
+	BlockCenters = { -86, 0, 86 },
+	Lobby = Vector3.new(0, 0, 420), -- the lobby island is far away from the arena
+}
+-- The 8 outer blocks: { x, z } of the block's middle. Each holds a 44x44 building in the middle of the block.
+Config.Map.Buildings = {}
+for _, bx in Config.Map.BlockCenters do
+	for _, bz in Config.Map.BlockCenters do
+		if not (bx == 0 and bz == 0) then
+			table.insert(Config.Map.Buildings, { X = bx, Z = bz, Size = 44 })
+		end
+	end
+end
+-- 20 spawn points along the streets (never inside a building).
+Config.Map.Spawns = {}
+for _, z in { -100, -70, -20, 20, 70, 100 } do
+	table.insert(Config.Map.Spawns, Vector3.new(-43, 3.5, z))
+	table.insert(Config.Map.Spawns, Vector3.new(43, 3.5, z))
+end
+for _, x in { -70, -20, 20, 70 } do
+	table.insert(Config.Map.Spawns, Vector3.new(x, 3.5, -43))
+	table.insert(Config.Map.Spawns, Vector3.new(x, 3.5, 43))
+end
+-- 16 crate spots: the four crossroads, the plaza, and along the streets.
+Config.Map.Crates = {}
+for _, sx in { -1, 1 } do
+	for _, sz in { -1, 1 } do
+		table.insert(Config.Map.Crates, Vector3.new(43 * sx, 1.5, 43 * sz))
+		table.insert(Config.Map.Crates, Vector3.new(14 * sx, 1.5, 14 * sz))
+		table.insert(Config.Map.Crates, Vector3.new(43 * sx, 1.5, 88 * sz))
+		table.insert(Config.Map.Crates, Vector3.new(88 * sx, 1.5, 43 * sz))
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Audio (sounds that ship with Roblox; swap any for an asset id from the Creator Store)
+--------------------------------------------------------------------------------
+Config.Sounds = {
+	Tone = "rbxasset://sounds/electronicpingshort.wav",
+	Bass = "rbxasset://sounds/bass.wav",
+	Click = "rbxasset://sounds/button.wav",
+	Flash = "rbxasset://sounds/flashbulb.wav",
+}
+Config.MusicTrackId = "" -- optional looping song id; empty = generated music
+Config.MusicVolume = 0.2
+Config.SfxVolume = 0.85
+
+return Config
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="5">
+        <Properties>
+          <string name="Name">Rules</string>
+          <string name="Source"><![CDATA[-- FIGURE ME OUT: the game's rules as small pure functions, so the server, the clients and the tests all agree.
+local Config = require(script.Parent:WaitForChild("Config"))
+
+local Rules = {}
+
+--------------------------------------------------------------------------------
+-- Numbers and guesses
+--------------------------------------------------------------------------------
+function Rules.digitsOf(number)
+	return string.format("%0" .. Config.Number.Digits .. "d", number)
+end
+
+-- Checks what the player typed. Returns the cleaned digits, or nil and a reason.
+function Rules.parseGuess(text)
+	if type(text) ~= "string" then
+		return nil, "type 3 digits"
+	end
+	local digits = string.gsub(text, "%s", "")
+	if #digits ~= Config.Number.Digits or string.find(digits, "%D") then
+		return nil, "type 3 digits"
+	end
+	return digits
+end
+
+-- A random number nobody else has. `next` returns random numbers in [0, 1); `taken` is a set of digit strings.
+function Rules.newNumber(next, taken)
+	local span = Config.Number.Max - Config.Number.Min + 1
+	for _ = 1, 200 do
+		local digits = Rules.digitsOf(Config.Number.Min + math.floor(next() * span))
+		if not taken[digits] then
+			return digits
+		end
+	end
+	-- every random pick was taken (only possible in an absurdly full match): walk to the next free one
+	for n = Config.Number.Min, Config.Number.Max do
+		local digits = Rules.digitsOf(n)
+		if not taken[digits] then
+			return digits
+		end
+	end
+	return Rules.digitsOf(Config.Number.Min)
+end
+
+-- Bullets after waiting: you get one back every BulletRegen seconds, up to the maximum.
+-- Returns (bullets, time the next one started charging).
+function Rules.regenBullets(bullets, chargingSince, now)
+	local max = Config.Guess.Bullets
+	if bullets >= max then
+		return max, now
+	end
+	local gained = math.floor((now - chargingSince) / Config.Guess.BulletRegen)
+	if gained <= 0 then
+		return bullets, chargingSince
+	end
+	local total = math.min(max, bullets + gained)
+	if total >= max then
+		return max, now
+	end
+	return total, chargingSince + gained * Config.Guess.BulletRegen
+end
+
+--------------------------------------------------------------------------------
+-- Covering your number
+--------------------------------------------------------------------------------
+-- blocked = list of booleans, one per cover ray (true = a wall is in the way).
+function Rules.isCovered(blocked)
+	local n = 0
+	for _, b in blocked do
+		if b then
+			n += 1
+		end
+	end
+	return n >= Config.Cover.NeedBlocked
+end
+
+-- Moves the "covered for" timer: it climbs while you are covered and drains twice as fast when you are not.
+function Rules.coverStep(timer, covered, dt)
+	if covered then
+		return timer + dt
+	end
+	return math.max(0, timer - dt * 2)
+end
+
+-- "ok", "warn" (show the warning with a countdown) or "expose" (everybody sees your number).
+function Rules.coverStage(timer)
+	if timer >= Config.Cover.Limit then
+		return "expose"
+	elseif timer >= Config.Cover.WarnAfter then
+		return "warn"
+	end
+	return "ok"
+end
+
+--------------------------------------------------------------------------------
+-- Seeing numbers: photos and flashbangs
+--------------------------------------------------------------------------------
+-- Which digits a photo shows. distance in studs; facing = dot product of their forehead direction with the direction
+-- to the camera (1 = looking straight at you, -1 = back turned); rolls = three random numbers in [0, 1).
+function Rules.photoReadable(distance, facing, rolls)
+	local p = Config.Photo
+	if facing < math.cos(math.rad(p.FaceAngle)) or distance > p.FuzzyDistance then
+		return { false, false, false }
+	end
+	if distance <= p.ClearDistance then
+		return { true, true, true }
+	end
+	local out = {}
+	for i = 1, Config.Number.Digits do
+		out[i] = (rolls[i] or 1) < p.FuzzyChance
+	end
+	return out
+end
+
+-- "472" and { true, false, true } -> "4?2"
+function Rules.photoText(digits, readable)
+	local out = {}
+	for i = 1, #digits do
+		out[i] = readable[i] and string.sub(digits, i, i) or "?"
+	end
+	return table.concat(out)
+end
+
+-- How long a flashbang blinds someone: distance in studs, facing = dot of where they look with the direction to the
+-- flash (1 = looking right at it). Zero when they are out of range.
+function Rules.flashBlind(distance, facing)
+	local f = Config.Flash
+	if distance >= f.Radius then
+		return 0
+	end
+	local closeness = 1 - distance / f.Radius
+	local looking = 0.35 + 0.65 * math.max(0, facing)
+	return f.MinBlind + (f.MaxBlind - f.MinBlind) * closeness * looking
+end
+
+-- Does the straight line from a to b pass through a ball (smoke cloud) at c with radius r? Works on anything with X, Y, Z.
+function Rules.segmentHitsSphere(a, b, c, r)
+	local dx, dy, dz = b.X - a.X, b.Y - a.Y, b.Z - a.Z
+	local len2 = dx * dx + dy * dy + dz * dz
+	local t = 0
+	if len2 > 1e-9 then
+		t = ((c.X - a.X) * dx + (c.Y - a.Y) * dy + (c.Z - a.Z) * dz) / len2
+		t = math.max(0, math.min(1, t))
+	end
+	local px, py, pz = a.X + dx * t - c.X, a.Y + dy * t - c.Y, a.Z + dz * t - c.Z
+	return px * px + py * py + pz * pz <= r * r
+end
+
+-- Is `target` inside the camera's cone? Works on anything with X, Y, Z. Returns (inside, distance).
+function Rules.inCone(origin, look, target, halfAngleDeg, maxDistance)
+	local dx, dy, dz = target.X - origin.X, target.Y - origin.Y, target.Z - origin.Z
+	local distance = math.sqrt(dx * dx + dy * dy + dz * dz)
+	if distance < 0.01 or distance > maxDistance then
+		return false, distance
+	end
+	local dot = (dx * look.X + dy * look.Y + dz * look.Z) / distance
+	return dot >= math.cos(math.rad(halfAngleDeg)), distance
+end
+
+--------------------------------------------------------------------------------
+-- Walking the streets (used by bots)
+--------------------------------------------------------------------------------
+-- Waypoints from point `a` to point `b` (tables with X and Z) that stay on the streets, never cutting through a building.
+-- Streets run along x = +-L and z = +-L. `flip` picks which side street to use when a detour is needed.
+function Rules.streetRoute(a, b, flip)
+	local L = (Config.Map.Block + Config.Map.Street) / 2
+	local aV = math.abs(a.X) == L
+	local bV = math.abs(b.X) == L
+	local side = flip and L or -L
+	if aV and bV then
+		if a.X == b.X then
+			return { { X = b.X, Z = b.Z } }
+		end
+		return { { X = a.X, Z = side }, { X = b.X, Z = side }, { X = b.X, Z = b.Z } }
+	elseif not aV and not bV then
+		if a.Z == b.Z then
+			return { { X = b.X, Z = b.Z } }
+		end
+		return { { X = side, Z = a.Z }, { X = side, Z = b.Z }, { X = b.X, Z = b.Z } }
+	elseif aV then
+		return { { X = a.X, Z = b.Z }, { X = b.X, Z = b.Z } }
+	end
+	return { { X = b.X, Z = a.Z }, { X = b.X, Z = b.Z } }
+end
+
+-- Turns a direction (x, z) by `degrees` around the up axis. Returns the new x, z.
+function Rules.turn(x, z, degrees)
+	local r = math.rad(degrees)
+	local c, s = math.cos(r), math.sin(r)
+	return x * c - z * s, x * s + z * c
+end
+
+--------------------------------------------------------------------------------
+-- Codenames and items
+--------------------------------------------------------------------------------
+-- `count` unique { color, animal } index pairs.
+function Rules.codenames(next, count)
+	local colors, animals = {}, {}
+	for i = 1, #Config.Colors do
+		colors[i] = i
+	end
+	for i = 1, #Config.Animals do
+		animals[i] = i
+	end
+	local function shuffle(list)
+		for i = #list, 2, -1 do
+			local j = 1 + math.floor(next() * i)
+			list[i], list[j] = list[j], list[i]
+		end
+	end
+	shuffle(colors)
+	shuffle(animals)
+	local out = {}
+	for i = 1, count do
+		out[i] = { color = colors[(i - 1) % #colors + 1], animal = animals[(i - 1) % #animals + 1] }
+	end
+	return out
+end
+
+-- Weighted pick of a carried item for a roll in [0, 1).
+function Rules.pickItem(roll)
+	local total = 0
+	for _, id in Config.CarriedItems do
+		total += Config.ItemById[id].Weight
+	end
+	local x = roll * total
+	for _, id in Config.CarriedItems do
+		x -= Config.ItemById[id].Weight
+		if x < 0 then
+			return id
+		end
+	end
+	return Config.CarriedItems[#Config.CarriedItems]
+end
+
+--------------------------------------------------------------------------------
+-- Results
+--------------------------------------------------------------------------------
+-- entries: { { id, alive, kills, diedAt } }. Alive players rank first (most kills first); everyone else ranks by how
+-- late they were eliminated. Returns the ids best to worst.
+function Rules.standings(entries)
+	local list = table.clone(entries)
+	table.sort(list, function(a, b)
+		if a.alive ~= b.alive then
+			return a.alive
+		end
+		if a.alive then
+			if a.kills ~= b.kills then
+				return a.kills > b.kills
+			end
+		else
+			if (a.diedAt or 0) ~= (b.diedAt or 0) then
+				return (a.diedAt or 0) > (b.diedAt or 0)
+			end
+			if a.kills ~= b.kills then
+				return a.kills > b.kills
+			end
+		end
+		return a.id < b.id
+	end)
+	local ids = {}
+	for i, e in list do
+		ids[i] = e.id
+	end
+	return ids
+end
+
+function Rules.unlockedStyles(wins)
+	local list = {}
+	for _, s in Config.PlateStyles do
+		if wins >= s.Wins then
+			table.insert(list, s.Id)
+		end
+	end
+	return list
+end
+
+return Rules
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="6">
+        <Properties>
+          <string name="Name">UI</string>
+          <string name="Source"><![CDATA[-- FIGURE ME OUT: the client design system. One place for colours, fonts and reusable components
+-- so every screen looks like it belongs to the same game.
+local TweenService = game:GetService("TweenService")
+
+local Config = require(script.Parent:WaitForChild("Config"))
+local Util = require(script.Parent:WaitForChild("Util"))
+
+local UI = {}
+
+UI.Colors = {
+	Bg = Color3.fromRGB(14, 16, 26),
+	Panel = Color3.fromRGB(26, 30, 48),
+	Card = Color3.fromRGB(40, 46, 74),
+	CardHover = Color3.fromRGB(58, 66, 104),
+	Stroke = Color3.fromRGB(6, 8, 16),
+	Text = Color3.fromRGB(255, 255, 255),
+	Muted = Color3.fromRGB(170, 180, 215),
+	Accent = Color3.fromRGB(60, 220, 255),
+	Accent2 = Color3.fromRGB(255, 70, 160),
+	Good = Color3.fromRGB(70, 230, 140),
+	Gold = Color3.fromRGB(255, 214, 60),
+	Cyan = Color3.fromRGB(60, 220, 255),
+	Danger = Color3.fromRGB(255, 70, 80),
+	Disabled = Color3.fromRGB(80, 88, 120),
+	Pink = Color3.fromRGB(255, 70, 160),
+	Orange = Color3.fromRGB(255, 150, 50),
+	Mint = Color3.fromRGB(110, 240, 200),
+	Purple = Color3.fromRGB(170, 110, 255),
+	Sky = Color3.fromRGB(100, 190, 255),
+	Yellow = Color3.fromRGB(255, 226, 70),
+}
+
+UI.Fonts = {
+	Title = Enum.Font.GothamBlack,
+	Bold = Enum.Font.GothamBold,
+	Body = Enum.Font.GothamMedium,
+}
+
+UI.fmt = Util.fmt
+
+function UI.new(class, props, parent)
+	local inst = Instance.new(class)
+	for k, v in props do
+		inst[k] = v
+	end
+	inst.Parent = parent
+	return inst
+end
+
+function UI.corner(inst, radius)
+	return UI.new("UICorner", { CornerRadius = UDim.new(0, radius or 12) }, inst)
+end
+
+function UI.stroke(inst, color, thickness, transparency)
+	return UI.new("UIStroke", {
+		Color = color or UI.Colors.Stroke,
+		Thickness = thickness or 2.5,
+		Transparency = transparency or 0,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	}, inst)
+end
+
+function UI.gradient(inst, c1, c2, rotation)
+	return UI.new("UIGradient", {
+		Color = ColorSequence.new(c1, c2),
+		Rotation = rotation or 90,
+	}, inst)
+end
+
+function UI.padding(inst, all)
+	return UI.new("UIPadding", {
+		PaddingTop = UDim.new(0, all),
+		PaddingBottom = UDim.new(0, all),
+		PaddingLeft = UDim.new(0, all),
+		PaddingRight = UDim.new(0, all),
+	}, inst)
+end
+
+function UI.tween(inst, seconds, props, style, direction)
+	local t = TweenService:Create(
+		inst,
+		TweenInfo.new(seconds, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out),
+		props
+	)
+	t:Play()
+	return t
+end
+
+-- Squash-and-stretch on a UIScale.
+function UI.pop(scaleObj, amount)
+	scaleObj.Scale = amount or 1.12
+	UI.tween(scaleObj, 0.28, { Scale = 1 }, Enum.EasingStyle.Back)
+end
+
+function UI.label(parent, props)
+	local base = {
+		BackgroundTransparency = 1,
+		Font = UI.Fonts.Body,
+		TextSize = 16,
+		TextColor3 = UI.Colors.Text,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextWrapped = true,
+		RichText = false,
+		TextStrokeColor3 = Color3.new(0, 0, 0),
+		TextStrokeTransparency = 0.6,
+	}
+	for k, v in props do
+		base[k] = v
+	end
+	return UI.new("TextLabel", base, parent)
+end
+
+-- A rounded glass panel.
+function UI.panel(parent, props)
+	local base = {
+		BackgroundColor3 = UI.Colors.Panel,
+		BackgroundTransparency = 0,
+		BorderSizePixel = 0,
+	}
+	local radius = props.Radius or 14
+	for k, v in props do
+		if k ~= "Radius" then
+			base[k] = v
+		end
+	end
+	local frame = UI.new("Frame", base, parent)
+	UI.corner(frame, radius)
+	UI.stroke(frame)
+	UI.gradient(frame, Color3.new(1, 1, 1), Color3.fromRGB(196, 200, 214), 90)
+	return frame
+end
+
+-- Button with hover/press feedback. style: "primary" (gradient) | "card" | "ghost".
+function UI.button(parent, props, style)
+	style = style or "primary"
+	local base = {
+		AutoButtonColor = false,
+		BorderSizePixel = 0,
+		Font = UI.Fonts.Title,
+		TextSize = 16,
+		TextColor3 = UI.Colors.Text,
+		Text = "",
+		BackgroundColor3 = style == "card" and UI.Colors.Card or UI.Colors.Good,
+		TextStrokeColor3 = Color3.new(0, 0, 0),
+		TextStrokeTransparency = 0.3,
+	}
+	local radius = props.Radius or 12
+	for k, v in props do
+		if k ~= "Radius" then
+			base[k] = v
+		end
+	end
+	local btn = UI.new("TextButton", base, parent)
+	UI.corner(btn, radius)
+	local scale = UI.new("UIScale", {}, btn)
+	UI.stroke(btn, UI.Colors.Stroke, 2.5, 0)
+	local grad = UI.gradient(btn, Color3.new(1, 1, 1), Color3.fromRGB(190, 196, 210), 90)
+	local baseColor = base.BackgroundColor3
+	btn.MouseEnter:Connect(function()
+		UI.tween(scale, 0.12, { Scale = 1.04 })
+		if style == "card" then
+			UI.tween(btn, 0.12, { BackgroundColor3 = UI.Colors.CardHover })
+		end
+	end)
+	btn.MouseLeave:Connect(function()
+		UI.tween(scale, 0.12, { Scale = 1 })
+		if style == "card" then
+			UI.tween(btn, 0.12, { BackgroundColor3 = baseColor })
+		end
+	end)
+	btn.MouseButton1Down:Connect(function()
+		UI.tween(scale, 0.06, { Scale = 0.95 })
+	end)
+	btn.MouseButton1Up:Connect(function()
+		UI.tween(scale, 0.1, { Scale = 1.04 })
+	end)
+	return btn, scale, grad
+end
+
+-- Horizontal progress bar. Returns an object with :set(alpha) and .fill / .back.
+function UI.bar(parent, props, fillColor)
+	local back = UI.new("Frame", {
+		BackgroundColor3 = Color3.fromRGB(14, 11, 32),
+		BorderSizePixel = 0,
+		Size = props.Size or UDim2.new(1, 0, 0, 10),
+		Position = props.Position or UDim2.new(),
+		AnchorPoint = props.AnchorPoint or Vector2.zero,
+	}, parent)
+	UI.corner(back, 99)
+	UI.stroke(back, UI.Colors.Stroke, 2, 0)
+	local fill = UI.new("Frame", {
+		BackgroundColor3 = fillColor or UI.Colors.Accent,
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(0, 1),
+	}, back)
+	UI.corner(fill, 99)
+	UI.gradient(fill, Color3.new(1, 1, 1), Color3.fromRGB(170, 176, 190), 90)
+	local self = { back = back, fill = fill }
+	function self.set(alpha)
+		fill.Size = UDim2.fromScale(math.clamp(alpha, 0, 1), 1)
+	end
+	return self
+end
+
+
+return UI
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="7">
+        <Properties>
+          <string name="Name">Util</string>
+          <string name="Source"><![CDATA[-- FIGURE ME OUT: small shared helpers.
+local Util = {}
+
+-- 75 -> "1:15"
+function Util.clock(seconds)
+	seconds = math.max(0, math.floor(seconds))
+	return string.format("%d:%02d", seconds // 60, seconds % 60)
+end
+
+function Util.lerp(a, b, t)
+	return a + (b - a) * t
+end
+
+-- 1234 -> "1,234"
+function Util.fmt(n)
+	n = math.floor(n + 0.5)
+	if n >= 1e6 then
+		return string.format("%.1fM", n / 1e6)
+	elseif n >= 1000 then
+		local s = tostring(n)
+		return s:sub(1, #s - 3) .. "," .. s:sub(-3)
+	end
+	return tostring(n)
+end
+
+-- "a:1,b:2" <-> { a = 1, b = 2 } (how item counts travel to the client)
+function Util.encodeCounts(counts, order)
+	local parts = {}
+	for _, key in order do
+		table.insert(parts, key .. ":" .. (counts[key] or 0))
+	end
+	return table.concat(parts, ",")
+end
+
+function Util.decodeCounts(text)
+	local counts = {}
+	for key, n in string.gmatch(text or "", "(%a+):(%d+)") do
+		counts[key] = tonumber(n)
+	end
+	return counts
+end
+
+return Util
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="8">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Script" referent="9">
+      <Properties>
+        <string name="Name">Main</string>
+        <token name="RunContext">0</token>
+        <string name="Source"><![CDATA[-- FIGURE ME OUT: server entry point. Creates the remotes, builds the world and starts the match loop.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Modules = script:WaitForChild("Modules")
+local Data = require(Modules.Data)
+local World = require(Modules.World)
+local Match = require(Modules.Match)
+local Guess = require(Modules.Guess)
+local Photos = require(Modules.Photos)
+local Items = require(Modules.Items)
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+
+Players.CharacterAutoLoads = false
+
+-- The two remotes (created first so clients can wait for them): Action = client asks, Notify = server tells.
+local net = Instance.new("Folder")
+net.Name = "Net"
+net.Parent = ReplicatedStorage
+local action = Instance.new("RemoteEvent")
+action.Name = "Action"
+action.Parent = net
+local notify = Instance.new("RemoteEvent")
+notify.Name = "Notify"
+notify.Parent = net
+
+Data.init()
+World.build()
+
+-- Every request is checked and rate limited, and a bad one can never crash the server.
+local lastCall = {} -- userId -> { kind -> time of the last call }
+local function allowed(p, kind)
+	local now = os.clock()
+	local mine = lastCall[p.UserId]
+	if not mine then
+		mine = {}
+		lastCall[p.UserId] = mine
+	end
+	if now - (mine[kind] or 0) < 0.08 then
+		return false
+	end
+	mine[kind] = now
+	return true
+end
+
+local handlers = {}
+function handlers.Guess(p, targetId, text)
+	Guess.handle(p, targetId, text)
+end
+function handlers.Snap(p, origin, look)
+	Photos.snap(p, origin, look)
+end
+function handlers.Use(p, id, look)
+	local e = require(Modules.State).byPlayer(p)
+	if e and type(id) == "string" then
+		Items.use(e, id, look)
+	end
+end
+function handlers.Scope(p, on)
+	Match.setScope(p, on == true)
+end
+function handlers.Style(p, id)
+	if type(id) == "string" then
+		Match.setStyle(p, id)
+	end
+end
+function handlers.Seen(p)
+	local data = Data.get(p)
+	if data then
+		data.Seen = true
+		p:SetAttribute("Seen", true)
+	end
+end
+function handlers.Setting(p, key, value)
+	local data = Data.get(p)
+	if data and (key == "Music" or key == "Sfx" or key == "Fx") and type(value) == "boolean" then
+		data.Settings[key] = value
+		p:SetAttribute(key, value)
+	end
+end
+
+action.OnServerEvent:Connect(function(p, kind, ...)
+	local handler = type(kind) == "string" and handlers[kind]
+	if not handler or not allowed(p, kind) then
+		return
+	end
+	local ok, err = pcall(handler, p, ...)
+	if not ok then
+		warn("[FigureMeOut] " .. kind .. " failed:", err)
+	end
+end)
+
+Players.PlayerAdded:Connect(function(p)
+	task.spawn(Match.onJoin, p)
+end)
+for _, p in Players:GetPlayers() do
+	task.spawn(Match.onJoin, p)
+end
+Players.PlayerRemoving:Connect(function(p)
+	Match.onLeave(p)
+	lastCall[p.UserId] = nil
+end)
+
+-- The top winners board in the lobby refreshes every minute.
+task.spawn(function()
+	while true do
+		local lines = Data.topLines()
+		if lines and #lines > 0 then
+			World.setBoard(lines)
+		end
+		task.wait(60)
+	end
+end)
+
+task.spawn(Match.run)
+print("[" .. Config.GameName .. "] ready")
+]]></string>
+      </Properties>
+      <Item class="Folder" referent="10">
+        <Properties>
+          <string name="Name">Modules</string>
+        </Properties>
+        <Item class="ModuleScript" referent="11">
+          <Properties>
+            <string name="Name">Bots</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: simple computer players that walk the streets and sometimes guess. They keep a match lively when few
+-- people are online, and they make sure "someone is always watching". They are clumsy on purpose.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Rules = require(Shared:WaitForChild("Rules"))
+local State = require(script.Parent.State)
+local Vision = require(script.Parent.Vision)
+local Guess = require(script.Parent.Guess)
+
+local Bots = {}
+
+local rng = Random.new()
+local LEVEL = 3.5
+
+Bots.Accuracy = 0.3 -- chance that a bot's guess is right when it has a clear view
+Bots.SightRange = 70
+
+local function fallbackModel()
+	local model = Instance.new("Model")
+	local function part(name, size, pos)
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.Position = pos
+		p.Parent = model
+		return p
+	end
+	local root = part("HumanoidRootPart", Vector3.new(2, 2, 1), Vector3.new(0, 3, 0))
+	part("Head", Vector3.new(1.2, 1.2, 1.2), Vector3.new(0, 4.6, 0))
+	part("Torso", Vector3.new(2, 2, 1), Vector3.new(0, 3, 0))
+	model.PrimaryPart = root
+	local hum = Instance.new("Humanoid")
+	hum.Parent = model
+	return model
+end
+
+local WALK_ANIMATION = "rbxassetid://507777826" -- Roblox's own R15 walk and idle animations
+local IDLE_ANIMATION = "rbxassetid://507766666"
+
+-- Makes a bot swing its arms and legs while it walks. Skipped silently when animations can't load.
+function Bots.animate(model)
+	pcall(function()
+		local hum = model:FindFirstChildOfClass("Humanoid")
+		if not hum then
+			return
+		end
+		local animator = hum:FindFirstChildOfClass("Animator")
+		if not animator then
+			animator = Instance.new("Animator")
+			animator.Parent = hum
+		end
+		local walk = Instance.new("Animation")
+		walk.AnimationId = WALK_ANIMATION
+		local idle = Instance.new("Animation")
+		idle.AnimationId = IDLE_ANIMATION
+		local walkTrack = animator:LoadAnimation(walk)
+		local idleTrack = animator:LoadAnimation(idle)
+		walkTrack.Looped = true
+		idleTrack.Looped = true
+		idleTrack:Play()
+		hum.Running:Connect(function(speed)
+			if speed > 0.5 then
+				if not walkTrack.IsPlaying then
+					walkTrack:Play()
+				end
+				walkTrack:AdjustSpeed(math.clamp(speed / 14, 0.4, 2))
+			else
+				walkTrack:Stop()
+			end
+		end)
+	end)
+end
+
+-- A fresh blocky character with a Humanoid, parented under workspace.Bots.
+function Bots.makeModel(name)
+	local model
+	local ok = pcall(function()
+		model = Players:CreateHumanoidModelFromDescription(Instance.new("HumanoidDescription"), Enum.HumanoidRigType.R15)
+	end)
+	if not ok or not model then
+		model = fallbackModel()
+	end
+	model.Name = name
+	local folder = workspace:FindFirstChild("Bots")
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "Bots"
+		folder.Parent = workspace
+	end
+	model.Parent = folder
+	Bots.animate(model)
+	return model
+end
+
+function Bots.place(e, spawn)
+	local pos = Vector3.new(spawn.X, LEVEL + 2, spawn.Z)
+	e.char:PivotTo(CFrame.new(pos, Vector3.new(0, pos.Y, 0)))
+	e.node = { X = spawn.X, Z = spawn.Z }
+	e.route = {}
+	e.nextGuessAt = State.now() + rng:NextNumber(6, 12)
+end
+
+local function pickDestination(e)
+	local spawns = Config.Map.Spawns
+	local s = spawns[rng:NextInteger(1, #spawns)]
+	e.route = Rules.streetRoute(e.node, { X = s.X, Z = s.Z }, rng:NextNumber() < 0.5)
+	e.node = { X = s.X, Z = s.Z }
+	e.routeIndex = 1
+end
+
+local function walk(e, now)
+	local hum = e.char:FindFirstChildOfClass("Humanoid")
+	local root = e.char:FindFirstChild("HumanoidRootPart")
+	if not hum or not root then
+		return
+	end
+	if not e.route or #e.route == 0 or e.routeIndex > #e.route then
+		pickDestination(e)
+	end
+	local goal = e.route[e.routeIndex]
+	local target = Vector3.new(goal.X, root.Position.Y, goal.Z)
+	local dx, dz = target.X - root.Position.X, target.Z - root.Position.Z
+	if dx * dx + dz * dz < 16 then
+		e.routeIndex += 1
+		e.stuckSince = nil
+		return
+	end
+	hum:MoveTo(target)
+	-- stuck? hop, and after a while pick somewhere else
+	local last = e.lastPos
+	if last and (last - root.Position).Magnitude < 0.5 and hum.WalkSpeed > 0 then
+		e.stuckSince = e.stuckSince or now
+		if now - e.stuckSince > 1.5 then
+			hum.Jump = true
+		end
+		if now - e.stuckSince > 5 then
+			e.route = {}
+			e.stuckSince = nil
+		end
+	else
+		e.stuckSince = nil
+	end
+	e.lastPos = root.Position
+end
+
+-- The living entities this bot can see well enough to read.
+local function candidates(e)
+	local list = {}
+	local mine = Vision.head(e)
+	if not mine then
+		return list
+	end
+	for _, other in State.aliveList() do
+		local head = Vision.head(other)
+		if other ~= e and head then
+			local offset = mine.Position - head.Position
+			local d = offset.Magnitude
+			if d <= Bots.SightRange and d > 1 and head.CFrame.LookVector:Dot(offset.Unit) > 0.55 and not Vision.blocked(mine.Position, head.Position, true) then
+				table.insert(list, other)
+			end
+		end
+	end
+	return list
+end
+
+local function think(e, now)
+	if now < (e.nextGuessAt or 0) or (e.blindUntil or 0) > now or (e.stunUntil or 0) > now then
+		return
+	end
+	e.nextGuessAt = now + rng:NextNumber(9, 16)
+	local list = candidates(e)
+	if #list == 0 then
+		e.nextGuessAt = now + rng:NextNumber(2, 4)
+		return
+	end
+	local target = list[rng:NextInteger(1, #list)]
+	local text = target.number
+	if rng:NextNumber() > Bots.Accuracy then
+		text = Rules.digitsOf(rng:NextInteger(Config.Number.Min, Config.Number.Max))
+		if text == target.number then
+			text = Rules.digitsOf(Config.Number.Min + (tonumber(text) - Config.Number.Min + 1) % 900)
+		end
+	end
+	Guess.attempt(e, target.id, text)
+end
+
+function Bots.tick(now)
+	if State.phase ~= "play" then
+		return
+	end
+	for _, e in State.aliveList() do
+		if e.bot then
+			walk(e, now)
+			think(e, now)
+		end
+	end
+end
+
+-- Called when the start whistle blows: bots wait a while before their first guess so people can look around.
+function Bots.startPlay(now)
+	for _, e in State.list() do
+		if e.bot then
+			e.nextGuessAt = now + rng:NextNumber(10, 20)
+		end
+	end
+end
+
+function Bots.clear()
+	local folder = workspace:FindFirstChild("Bots")
+	if folder then
+		folder:ClearAllChildren()
+	end
+end
+
+return Bots
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="12">
+          <Properties>
+            <string name="Name">Combat</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: stunning, speed and eliminations. Everything that changes whether an entity can move or is still in
+-- the match goes through here, so the rules stay in one place.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local State = require(script.Parent.State)
+local Net = require(script.Parent.Net)
+local Plates = require(script.Parent.Plates)
+
+local Combat = {}
+
+Combat.onEliminated = nil -- set by Match: called after someone is out
+
+local function humanoid(e)
+	local char = e.char
+	return char and char:FindFirstChildOfClass("Humanoid") or nil
+end
+
+-- The speed this entity should have right now.
+function Combat.speedOf(e)
+	local now = State.now()
+	if State.phase ~= "play" or (e.stunUntil or 0) > now then
+		return 0
+	end
+	if e.scoped then
+		return Config.Movement.ScopeWalk
+	end
+	if (e.bootsUntil or 0) > now then
+		return Config.Movement.Boots
+	end
+	return Config.Movement.Walk
+end
+
+function Combat.applySpeed(e)
+	local hum = humanoid(e)
+	if not hum then
+		return
+	end
+	local speed = Combat.speedOf(e)
+	hum.WalkSpeed = speed
+	hum.JumpPower = speed > 0 and Config.Movement.Jump or 0
+	hum.UseJumpPower = true
+end
+
+function Combat.stun(e, seconds)
+	e.stunUntil = math.max(e.stunUntil or 0, State.now() + seconds)
+	Combat.applySpeed(e)
+	State.writeEntity(e)
+	if e.player then
+		Net.send(e.player, "stun", seconds)
+	end
+end
+
+function Combat.setNumber(e, digits)
+	e.number = digits
+	Plates.setText(e, digits)
+	if e.reveal and e.reveal.gui.Enabled then
+		e.reveal.label.Text = digits
+	end
+end
+
+local function burst(e)
+	local head = e.char and e.char:FindFirstChild("Head")
+	if not head then
+		return
+	end
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.Transparency = 1
+	p.Size = Vector3.new(1, 1, 1)
+	p.CFrame = head.CFrame
+	p.Parent = workspace
+	local em = Instance.new("ParticleEmitter")
+	em.Color = ColorSequence.new(e.color or Color3.new(1, 1, 1))
+	em.Size = NumberSequence.new(1.2, 0)
+	em.Lifetime = NumberRange.new(0.6, 1.1)
+	em.Speed = NumberRange.new(18, 34)
+	em.SpreadAngle = Vector2.new(180, 180)
+	em.Rate = 0
+	em.LightEmission = 1
+	em.Parent = p
+	em:Emit(40)
+	task.delay(2, function()
+		p:Destroy()
+	end)
+end
+
+-- Takes `victim` out of the match. `killer` is an entity or nil (fell off the map, left the game...).
+-- how: "guess" | "left" | "fell"
+function Combat.eliminate(victim, killer, how)
+	if not victim or not victim.alive then
+		return false
+	end
+	victim.alive = false
+	victim.diedAt = State.now()
+	victim.killer = killer and killer.id or nil
+	victim.scoped = false
+	if killer and killer ~= victim then
+		killer.kills = (killer.kills or 0) + 1
+		killer.bullets = math.min(Config.Guess.Bullets, (killer.bullets or 0) + Config.Guess.KillBullets)
+		State.writeEntity(killer)
+		if killer.player then
+			Net.send(killer.player, "gotKill", victim.code, victim.icon, victim.number)
+		end
+	end
+	if victim.reveal and victim.reveal.gui then
+		Plates.showReveal(victim, true)
+	end
+	burst(victim)
+	local hum = humanoid(victim)
+	if hum then
+		hum.WalkSpeed = 0
+		hum.Health = 0
+	end
+	State.writeEntity(victim)
+	State.writeWorld()
+	Net.sendAll(
+		"kill",
+		victim.icon .. " " .. victim.code,
+		killer and (killer.icon .. " " .. killer.code) or "",
+		how or "guess",
+		victim.number
+	)
+	if victim.player then
+		Net.send(
+			victim.player,
+			"eliminated",
+			killer and (killer.icon .. " " .. killer.code) or "",
+			how or "guess",
+			State.aliveCount(),
+			#State.order
+		)
+	end
+	if Combat.onEliminated then
+		Combat.onEliminated(victim, killer, how)
+	end
+	if State.onChange then
+		State.onChange()
+	end
+	return true
+end
+
+return Combat
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="13">
+          <Properties>
+            <string name="Name">Cover</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: the anti-camping rule. If a wall is right in front of your forehead for too long you get a warning,
+-- and if you ignore it your number is shown above your head to everybody for a while. Smoke does not count: that is
+-- the clever way to hide.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Rules = require(Shared:WaitForChild("Rules"))
+local State = require(script.Parent.State)
+local Net = require(script.Parent.Net)
+local Vision = require(script.Parent.Vision)
+local Plates = require(script.Parent.Plates)
+
+local Cover = {}
+
+function Cover.reset(e)
+	e.coverTimer = 0
+	e.coverStage = "ok"
+	e.exposedUntil = 0
+end
+
+-- Is something solid right in front of this entity's forehead?
+function Cover.isCovered(e)
+	local head = Vision.head(e)
+	if not head then
+		return false
+	end
+	local look = head.CFrame.LookVector
+	local origin = head.Position
+	local blocked = {}
+	for i, angle in Config.Cover.Angles do
+		local x, z = Rules.turn(look.X, look.Z, angle)
+		local dir = Vector3.new(x, look.Y, z)
+		blocked[i] = Vision.distanceAhead(origin, dir, Config.Cover.Distance) ~= nil
+	end
+	return Rules.isCovered(blocked)
+end
+
+function Cover.expose(e, seconds)
+	e.exposedUntil = State.now() + seconds
+	Plates.showReveal(e, true)
+	State.writeEntity(e)
+	Net.sendAll("exposed", e.icon .. " " .. e.code)
+end
+
+-- Called every Cover.Tick seconds for every living entity that is a real player.
+function Cover.step(e, dt)
+	local now = State.now()
+	if (e.exposedUntil or 0) > 0 and now >= e.exposedUntil then
+		e.exposedUntil = 0
+		if not State.revealing then
+			Plates.showReveal(e, false)
+		end
+		State.writeEntity(e)
+	end
+	if not e.alive or not e.player then
+		return
+	end
+	local covered = Cover.isCovered(e)
+	e.coverTimer = Rules.coverStep(e.coverTimer or 0, covered, dt)
+	local stage = Rules.coverStage(e.coverTimer)
+	if stage == "expose" then
+		e.coverTimer = 0
+		stage = "ok"
+		Cover.expose(e, Config.Cover.Expose)
+		Net.send(e.player, "cover", "exposed", Config.Cover.Expose)
+		e.coverStage = "ok"
+		return
+	end
+	if stage == "warn" then
+		Net.send(e.player, "cover", "warn", math.max(0, Config.Cover.Limit - e.coverTimer))
+	elseif e.coverStage == "warn" then
+		Net.send(e.player, "cover", "ok", 0)
+	end
+	e.coverStage = stage
+end
+
+return Cover
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="14">
+          <Properties>
+            <string name="Name">Data</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: player save data (wins, kills, plate style). Loads/saves with DataStores when available; the game
+-- also runs fine in unpublished places (progress just isn't kept).
+local Players = game:GetService("Players")
+local DataStoreService = game:GetService("DataStoreService")
+local RunService = game:GetService("RunService")
+
+local Data = {}
+
+local profiles = {}
+local savable = {}
+
+local storeOk, store = pcall(function()
+	return DataStoreService:GetDataStore("FigureMeOutV1")
+end)
+if not storeOk then
+	warn("[FigureMeOut] Saving disabled (publish the place to enable it).")
+	store = nil
+end
+
+local function defaults()
+	return {
+		Wins = 0,
+		Kills = 0,
+		Games = 0,
+		Streak = 0,
+		BestStreak = 0,
+		BestKills = 0,
+		Style = "classic",
+		Seen = false, -- the how-to-play card has been shown
+		Settings = { Music = true, Sfx = true, Fx = true },
+		LastSeen = nil,
+	}
+end
+Data.defaults = defaults
+
+local function reconcile(target, template)
+	for k, v in template do
+		if target[k] == nil then
+			target[k] = type(v) == "table" and table.clone(v) or v
+		elseif type(v) == "table" and type(target[k]) == "table" then
+			reconcile(target[k], v)
+		end
+	end
+end
+
+function Data.load(p)
+	local data
+	if store then
+		local ok, result = pcall(function()
+			return store:GetAsync("u" .. p.UserId)
+		end)
+		if ok then
+			savable[p] = true
+			data = result
+		else
+			warn("[FigureMeOut] load failed (saving off for this session):", result)
+		end
+	end
+	data = type(data) == "table" and data or {}
+	reconcile(data, defaults())
+	profiles[p] = data
+	return data
+end
+
+function Data.get(p)
+	return profiles[p]
+end
+
+function Data.save(p)
+	local profile = profiles[p]
+	if not store or not profile or not savable[p] then
+		return
+	end
+	profile.LastSeen = os.time()
+	local ok, err = pcall(function()
+		store:SetAsync("u" .. p.UserId, profile)
+	end)
+	if not ok then
+		warn("[FigureMeOut] save failed:", err)
+	end
+end
+
+function Data.release(p)
+	Data.save(p)
+	profiles[p] = nil
+	savable[p] = nil
+end
+
+function Data.init()
+	Players.PlayerRemoving:Connect(Data.release)
+	game:BindToClose(function()
+		if RunService:IsStudio() then
+			return
+		end
+		for _, p in Players:GetPlayers() do
+			task.spawn(Data.save, p)
+		end
+		task.wait(3)
+	end)
+	task.spawn(function()
+		while true do
+			task.wait(60)
+			for _, p in Players:GetPlayers() do
+				task.spawn(Data.save, p)
+			end
+		end
+	end)
+end
+
+--------------------------------------------------------------------------------
+-- All-time top winners (shared by every server; only works in a published place)
+--------------------------------------------------------------------------------
+local winsStore
+do
+	local ok, result = pcall(function()
+		return DataStoreService:GetOrderedDataStore("FigureMeOutWins")
+	end)
+	if ok then
+		winsStore = result
+	end
+end
+local names = {}
+
+function Data.recordWin(p)
+	local profile = profiles[p]
+	if not winsStore or not profile or not savable[p] then
+		return
+	end
+	pcall(function()
+		winsStore:SetAsync(tostring(p.UserId), profile.Wins)
+	end)
+end
+
+-- A list of text lines for the lobby board ("1. Name  -  12 wins"), or nil when unavailable.
+function Data.topLines()
+	if not winsStore then
+		return nil
+	end
+	local ok, pages = pcall(function()
+		return winsStore:GetSortedAsync(false, 8)
+	end)
+	if not ok or not pages then
+		return nil
+	end
+	local lines = {}
+	local okPage, entries = pcall(function()
+		return pages:GetCurrentPage()
+	end)
+	if not okPage then
+		return nil
+	end
+	for i, entry in entries do
+		local id = tonumber(entry.key)
+		if id and not names[id] then
+			local okName, name = pcall(function()
+				return Players:GetNameFromUserIdAsync(id)
+			end)
+			names[id] = okName and name or "Player"
+		end
+		lines[i] = string.format("%d. %s  -  %d", i, names[id] or "Player", entry.value)
+	end
+	return lines
+end
+
+return Data
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="15">
+          <Properties>
+            <string name="Name">Guess</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: typing someone's number. Right = they are out. Wrong = you lose a bullet and freeze for a moment, and
+-- the person you guessed gets an arrow pointing at you.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Rules = require(Shared:WaitForChild("Rules"))
+local State = require(script.Parent.State)
+local Net = require(script.Parent.Net)
+local Vision = require(script.Parent.Vision)
+local Combat = require(script.Parent.Combat)
+
+local Guess = {}
+
+local function fail(e, text)
+	if e.player then
+		Net.toast(e.player, text, "bad")
+		Net.send(e.player, "guessResult", "invalid")
+	end
+	return "invalid"
+end
+
+local function targetHead(target)
+	if target.model then -- decoy
+		return target.model:FindFirstChild("Head")
+	end
+	return Vision.head(target)
+end
+
+-- Core rule, used for players and bots. Returns "hit" | "miss" | "decoy" | or a reason it was refused.
+function Guess.attempt(e, targetId, text)
+	if State.phase ~= "play" or not e or not e.alive then
+		return "closed"
+	end
+	local now = State.now()
+	if (e.stunUntil or 0) > now then
+		return "stunned"
+	end
+	if now - (e.lastGuess or -100) < Config.Guess.Cooldown then
+		return "cooldown"
+	end
+	local digits = Rules.parseGuess(text)
+	if not digits then
+		return fail(e, "Type all 3 digits")
+	end
+	local target = State.entities[targetId] or State.decoys[targetId]
+	if not target or target == e or (not target.model and not target.alive) then
+		return fail(e, "Aim at someone first")
+	end
+	local from, to = Vision.head(e), targetHead(target)
+	if not from or not to then
+		return fail(e, "Can't see them")
+	end
+	if (from.Position - to.Position).Magnitude > Config.Guess.MaxDistance or Vision.blocked(from.Position, to.Position, true) then
+		return fail(e, "You can't see them")
+	end
+	if (e.bullets or 0) < 1 then
+		return fail(e, "Out of bullets")
+	end
+	e.lastGuess = now
+	if (e.bullets or 0) >= Config.Guess.Bullets then
+		e.chargeSince = now
+	end
+	if target.model then -- a decoy: the number is real on the decoy, but killing it just wastes your time
+		if digits == target.number then
+			target.expires = 0
+			State.decoys[target.id] = nil
+			target.model:Destroy()
+			e.bullets -= 1
+			Combat.stun(e, Config.Guess.DecoyStun)
+			State.writeEntity(e)
+			if e.player then
+				Net.toast(e.player, "That was a DECOY! Frozen for " .. Config.Guess.DecoyStun .. "s", "gold")
+				Net.send(e.player, "guessResult", "decoy")
+			end
+			return "decoy"
+		end
+		e.bullets -= 1
+		Combat.stun(e, Config.Guess.Stun)
+		State.writeEntity(e)
+		if e.player then
+			Net.send(e.player, "guessResult", "miss")
+		end
+		return "miss"
+	end
+	if digits == target.number then
+		if e.player then
+			Net.send(e.player, "guessResult", "hit")
+		end
+		Combat.eliminate(target, e, "guess")
+		return "hit"
+	end
+	e.bullets -= 1
+	Combat.stun(e, Config.Guess.Stun)
+	State.writeEntity(e)
+	if e.player then
+		Net.send(e.player, "guessResult", "miss")
+	end
+	if target.player then
+		Net.send(target.player, "snitch", from.Position, Config.Guess.WarnTime)
+	end
+	return "miss"
+end
+
+function Guess.handle(p, targetId, text)
+	local e = State.byPlayer(p)
+	if not e or type(targetId) ~= "number" then
+		return "bad"
+	end
+	return Guess.attempt(e, targetId, text)
+end
+
+return Guess
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="16">
+          <Properties>
+            <string name="Name">Items</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: the things you carry. Flashbangs, smoke grenades, decoys, scramblers, switcheroos and speed boots.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Debris = game:GetService("Debris")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Rules = require(Shared:WaitForChild("Rules"))
+local State = require(script.Parent.State)
+local Net = require(script.Parent.Net)
+local Vision = require(script.Parent.Vision)
+local Combat = require(script.Parent.Combat)
+local Plates = require(script.Parent.Plates)
+
+local Items = {}
+
+local rng = Random.new()
+local nextDecoy = 1000000
+local clouds = {} -- { parts = {...}, expires = number, cloud = vision cloud }
+
+local function folder(name)
+	local f = workspace:FindFirstChild(name)
+	if not f then
+		f = Instance.new("Folder")
+		f.Name = name
+		f.Parent = workspace
+	end
+	return f
+end
+
+--------------------------------------------------------------------------------
+-- Carrying
+--------------------------------------------------------------------------------
+function Items.reset(e)
+	e.items = {}
+	for _, id in Config.CarriedItems do
+		e.items[id] = Config.ItemById[id].Start or 0
+	end
+	e.scrambleUntil = 0
+	e.bootsUntil = 0
+	e.blindUntil = 0
+	State.writeEntity(e)
+end
+
+-- Returns how many were actually added (0 when already at the maximum).
+function Items.give(e, id, count)
+	local def = Config.ItemById[id]
+	if not def or def.Permanent then
+		return 0
+	end
+	local have = e.items[id] or 0
+	local added = math.max(0, math.min(count or 1, def.Max - have))
+	e.items[id] = have + added
+	State.writeEntity(e)
+	return added
+end
+
+--------------------------------------------------------------------------------
+-- Throwing
+--------------------------------------------------------------------------------
+local function ball(position, color)
+	local p = Instance.new("Part")
+	p.Shape = Enum.PartType.Ball
+	p.Size = Vector3.new(1.4, 1.4, 1.4)
+	p.Color = color
+	p.Material = Enum.Material.Neon
+	p.Position = position
+	p.CanCollide = true
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Parent = folder("Effects")
+	return p
+end
+
+local function throw(e, look, color, fuse, boom)
+	local head = Vision.head(e)
+	if not head then
+		return
+	end
+	local start = head.Position + look * 2.5
+	local p = ball(start, color)
+	p.AssemblyLinearVelocity = look * Config.Flash.ThrowSpeed + Vector3.new(0, Config.Flash.ThrowUp, 0)
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = 8
+	light.Parent = p
+	task.delay(fuse, function()
+		local at = p.Position
+		p:Destroy()
+		boom(at)
+	end)
+end
+
+local function flashBoom(position, thrower)
+	local now = State.now()
+	local fx = Instance.new("Part")
+	fx.Anchored = true
+	fx.CanCollide = false
+	fx.CanQuery = false
+	fx.Shape = Enum.PartType.Ball
+	fx.Material = Enum.Material.Neon
+	fx.Color = Color3.new(1, 1, 1)
+	fx.Size = Vector3.new(3, 3, 3)
+	fx.Position = position
+	fx.Parent = folder("Effects")
+	local light = Instance.new("PointLight")
+	light.Brightness = 12
+	light.Range = 60
+	light.Parent = fx
+	Debris:AddItem(fx, 0.5)
+	for _, e in State.aliveList() do
+		local head = Vision.head(e)
+		if head then
+			local offset = position - head.Position
+			local distance = offset.Magnitude
+			if distance < Config.Flash.Radius and not Vision.blocked(position, head.Position, true) then
+				local facing = distance > 0.1 and head.CFrame.LookVector:Dot(offset.Unit) or 1
+				local seconds = Rules.flashBlind(distance, facing)
+				if seconds > 0 then
+					e.blindUntil = math.max(e.blindUntil or 0, now + seconds)
+					if e.player then
+						Net.send(e.player, "flash", seconds)
+					end
+				end
+			end
+		end
+	end
+end
+
+local function smokeBoom(position)
+	local radius = Config.Smoke.Radius
+	local parts = {}
+	local f = folder("Smoke")
+	local offsets = {
+		Vector3.new(0, 0, 0), Vector3.new(radius * 0.35, 0, 0), Vector3.new(-radius * 0.35, 0, 0),
+		Vector3.new(0, 0, radius * 0.35), Vector3.new(0, 0, -radius * 0.35), Vector3.new(0, radius * 0.4, 0),
+	}
+	for _, o in offsets do
+		local s = Instance.new("Part")
+		s.Shape = Enum.PartType.Ball
+		s.Anchored = true
+		s.CanCollide = false
+		s.CanQuery = false
+		s.CastShadow = false
+		s.Material = Enum.Material.SmoothPlastic
+		s.Color = Color3.fromRGB(205, 208, 215)
+		s.Transparency = 0.1
+		s.Size = Vector3.new(radius * 1.3, radius * 1.3, radius * 1.3)
+		s.Position = position + o + Vector3.new(0, radius * 0.4, 0)
+		-- every puff knows the whole cloud, so clients agree with the server about where sight is blocked
+		s:SetAttribute("CloudCenter", position + Vector3.new(0, radius * 0.4, 0))
+		s:SetAttribute("CloudRadius", radius * 0.95)
+		s.Parent = f
+		table.insert(parts, s)
+	end
+	local expires = State.now() + Config.Smoke.Duration
+	local cloud = Vision.addCloud(position + Vector3.new(0, radius * 0.4, 0), radius * 0.95, expires)
+	table.insert(clouds, { parts = parts, expires = expires, cloud = cloud })
+end
+
+--------------------------------------------------------------------------------
+-- Decoy
+--------------------------------------------------------------------------------
+local function makeDecoy(e)
+	local char = e.char
+	if not char then
+		return false
+	end
+	char.Archivable = true
+	local model = char:Clone()
+	for _, d in model:GetDescendants() do
+		if d:IsA("Script") or d:IsA("LocalScript") then
+			d:Destroy()
+		elseif d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+		end
+	end
+	local reveal = model:FindFirstChild("RevealTag", true)
+	if reveal then
+		reveal:Destroy()
+	end
+	local number = Rules.newNumber(function()
+		return rng:NextNumber()
+	end, State.takenNumbers())
+	local label = model:FindFirstChild("Digits", true)
+	if label then
+		label.Text = number
+	end
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.WalkSpeed = 0
+	end
+	local root = model:FindFirstChild("HumanoidRootPart")
+	local from = char:GetPivot()
+	model.Name = "Decoy"
+	model:PivotTo(from * CFrame.new(0, 0, -5))
+	nextDecoy += 1
+	model:SetAttribute("EntityId", nextDecoy)
+	model:SetAttribute("Decoy", true)
+	model.Parent = folder("Decoys")
+	State.decoys[nextDecoy] = {
+		id = nextDecoy,
+		owner = e.id,
+		number = number,
+		model = model,
+		code = e.code,
+		icon = e.icon,
+		expires = State.now() + Config.Decoy.Duration,
+	}
+	return root ~= nil
+end
+
+--------------------------------------------------------------------------------
+-- Using an item
+--------------------------------------------------------------------------------
+local function nearestOther(e, range)
+	local mine = Vision.head(e)
+	if not mine then
+		return nil
+	end
+	local best, bestD
+	for _, other in State.aliveList() do
+		local head = Vision.head(other)
+		if other ~= e and head then
+			local d = (head.Position - mine.Position).Magnitude
+			if d <= range and (not bestD or d < bestD) and not Vision.blocked(mine.Position, head.Position, false) then
+				best, bestD = other, d
+			end
+		end
+	end
+	return best
+end
+
+-- Returns true when the item was used.
+function Items.use(e, id, look)
+	if State.phase ~= "play" or not e or not e.alive then
+		return false
+	end
+	local def = Config.ItemById[id]
+	if not def or def.Permanent or (e.items[id] or 0) < 1 then
+		return false
+	end
+	local now = State.now()
+	if (e.stunUntil or 0) > now or now - (e.lastUse or -100) < 0.6 then
+		return false
+	end
+	if typeof(look) ~= "Vector3" or look.Magnitude < 0.1 then
+		local head = Vision.head(e)
+		look = head and head.CFrame.LookVector or Vector3.new(0, 0, -1)
+	end
+	look = look.Unit
+	local used = false
+	if id == "flash" then
+		throw(e, look, Color3.fromRGB(255, 255, 255), Config.Flash.Fuse, function(at)
+			flashBoom(at, e)
+		end)
+		used = true
+	elseif id == "smoke" then
+		throw(e, look, Color3.fromRGB(150, 155, 165), Config.Smoke.Fuse, smokeBoom)
+		used = true
+	elseif id == "decoy" then
+		used = makeDecoy(e)
+	elseif id == "scramble" then
+		e.scrambleUntil = now + Config.Scramble.Duration
+		used = true
+	elseif id == "switch" then
+		local other = nearestOther(e, Config.Switch.Range)
+		if other then
+			local a, b = e.number, other.number
+			Combat.setNumber(e, b)
+			Combat.setNumber(other, a)
+			if other.player then
+				Net.toast(other.player, "Someone swapped your number!", "gold")
+			end
+			used = true
+		elseif e.player then
+			Net.toast(e.player, "Nobody close enough to swap with", "bad")
+		end
+	elseif id == "boots" then
+		e.bootsUntil = now + Config.Movement.BootsTime
+		Combat.applySpeed(e)
+		used = true
+	end
+	if used then
+		e.items[id] -= 1
+		e.lastUse = now
+		State.writeEntity(e)
+		if e.player then
+			Net.send(e.player, "used", id)
+		end
+	end
+	return used
+end
+
+--------------------------------------------------------------------------------
+-- Upkeep (called every quarter second while a match runs)
+--------------------------------------------------------------------------------
+function Items.tick(now)
+	for id, d in State.decoys do
+		if d.expires <= now then
+			State.decoys[id] = nil
+			if d.model then
+				d.model:Destroy()
+			end
+		end
+	end
+	for i = #clouds, 1, -1 do
+		local c = clouds[i]
+		local left = c.expires - now
+		if left <= 0 then
+			for _, part in c.parts do
+				part:Destroy()
+			end
+			table.remove(clouds, i)
+		elseif left < Config.Smoke.Fade then
+			for _, part in c.parts do
+				part.Transparency = 0.1 + 0.9 * (1 - left / Config.Smoke.Fade)
+			end
+		end
+	end
+	for i = #Vision.clouds, 1, -1 do
+		if Vision.clouds[i].expires <= now then
+			table.remove(Vision.clouds, i)
+		end
+	end
+	for _, e in State.list() do
+		if (e.scrambleUntil or 0) > now and e.alive then
+			local fake = Rules.digitsOf(rng:NextInteger(Config.Number.Min, Config.Number.Max))
+			if fake == e.number then
+				fake = Rules.digitsOf(Config.Number.Min)
+			end
+			Plates.setText(e, fake)
+		elseif e.scrambleUntil and e.scrambleUntil > 0 then
+			e.scrambleUntil = 0
+			Plates.setText(e, e.number)
+		end
+		if (e.bootsUntil or 0) > 0 and e.bootsUntil <= now then
+			e.bootsUntil = 0
+			Combat.applySpeed(e)
+		end
+	end
+end
+
+function Items.clearAll()
+	for _, c in clouds do
+		for _, part in c.parts do
+			part:Destroy()
+		end
+	end
+	clouds = {}
+	Vision.clearClouds()
+	for _, d in State.decoys do
+		if d.model then
+			d.model:Destroy()
+		end
+	end
+	State.decoys = {}
+	for _, name in { "Effects", "Smoke", "Decoys" } do
+		local f = workspace:FindFirstChild(name)
+		if f then
+			f:ClearAllChildren()
+		end
+	end
+end
+
+return Items
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="17">
+          <Properties>
+            <string name="Name">Match</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: the match from start to finish: lobby wait, countdown, play, THE REVEAL, results, back to the lobby.
+-- It also looks after players joining and leaving and keeps their wins and stats.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Rules = require(Shared:WaitForChild("Rules"))
+local State = require(script.Parent.State)
+local Net = require(script.Parent.Net)
+local Data = require(script.Parent.Data)
+local Plates = require(script.Parent.Plates)
+local Combat = require(script.Parent.Combat)
+local Items = require(script.Parent.Items)
+local Cover = require(script.Parent.Cover)
+local Pickups = require(script.Parent.Pickups)
+local Bots = require(script.Parent.Bots)
+local World = require(script.Parent.World)
+
+local Match = {}
+
+local rng = Random.new()
+local function roll()
+	return rng:NextNumber()
+end
+
+local function toLobby(p)
+	local char = p.Character
+	if char then
+		char:PivotTo(CFrame.new(World.lobbySpawn(p.UserId % Config.Match.MaxPlayers + 1)))
+	end
+end
+
+-- Gives the player a fresh character standing in the lobby.
+function Match.respawnLobby(p)
+	if not p.Parent then
+		return
+	end
+	p:LoadCharacter()
+	toLobby(p)
+end
+
+local function ensureCharacter(p)
+	local char = p.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if not char or not hum or hum.Health <= 0 or not char:FindFirstChild("Head") then
+		p:LoadCharacter()
+	end
+	return p.Character
+end
+
+--------------------------------------------------------------------------------
+-- Starting a match
+--------------------------------------------------------------------------------
+local function shuffled(n)
+	local list = {}
+	for i = 1, n do
+		list[i] = i
+	end
+	for i = n, 2, -1 do
+		local j = 1 + math.floor(roll() * i)
+		list[i], list[j] = list[j], list[i]
+	end
+	return list
+end
+
+local function styleFor(p)
+	local data = Data.get(p)
+	local id = data and data.Style or "classic"
+	local def = Config.PlateStyleById[id]
+	if not def or (data and data.Wins < def.Wins) then
+		return "classic"
+	end
+	return id
+end
+
+local function hookDeath(e)
+	local hum = e.char and e.char:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.Died:Connect(function()
+			if e.alive and State.entities[e.id] == e then
+				Combat.eliminate(e, nil, "fell")
+			end
+		end)
+	end
+end
+
+-- Builds the list of players and bots for a new match and puts everyone on the street. Returns the number of entities.
+function Match.setup()
+	Items.clearAll()
+	Bots.clear()
+	State.clear()
+	State.revealing = false
+	State.matchId += 1
+
+	local players = Players:GetPlayers()
+	local humans = {}
+	for _, p in players do
+		if #humans < Config.Match.MaxPlayers then
+			table.insert(humans, p)
+		end
+	end
+	local botCount = math.max(0, math.min(Config.Match.MinTotal, Config.Match.MaxPlayers) - #humans)
+	local total = #humans + botCount
+	local names = Rules.codenames(roll, total)
+	local spawnOrder = shuffled(#Config.Map.Spawns)
+	local now = State.now()
+
+	local function finish(e, index, spawnIndex)
+		local nameInfo = names[index]
+		local color = Config.Colors[nameInfo.color]
+		local animal = Config.Animals[nameInfo.animal]
+		e.code = color.Name .. " " .. animal.Name
+		e.icon = animal.Icon
+		e.color = color.Color
+		e.number = Rules.newNumber(roll, State.takenNumbers())
+		e.alive = true
+		e.kills = 0
+		e.bullets = Config.Guess.Bullets
+		e.chargeSince = now
+		e.stunUntil = 0
+		e.scoped = false
+		e.lastGuess = -100
+		State.add(e)
+		Items.reset(e)
+		Cover.reset(e)
+		Plates.setup(e)
+		State.writeEntity(e)
+		Combat.applySpeed(e)
+		hookDeath(e)
+	end
+
+	for i, p in humans do
+		local char = ensureCharacter(p)
+		local e = { id = p.UserId, player = p, char = char, style = styleFor(p) }
+		local spawn = Config.Map.Spawns[spawnOrder[(i - 1) % #spawnOrder + 1]]
+		if char then
+			char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
+		end
+		finish(e, i, spawnOrder[(i - 1) % #spawnOrder + 1])
+	end
+	for b = 1, botCount do
+		local index = #humans + b
+		local model = Bots.makeModel("Bot" .. b)
+		local e = { id = -b, bot = true, char = model, style = "classic" }
+		local spawn = Config.Map.Spawns[spawnOrder[(index - 1) % #spawnOrder + 1]]
+		Bots.place(e, spawn)
+		finish(e, index, spawnOrder[(index - 1) % #spawnOrder + 1])
+	end
+	Pickups.reset()
+	State.writeWorld()
+	return total
+end
+
+--------------------------------------------------------------------------------
+-- During a match
+--------------------------------------------------------------------------------
+function Match.reveal()
+	if State.revealing then
+		return
+	end
+	State.revealing = true
+	for _, e in State.aliveList() do
+		Plates.showReveal(e, true)
+	end
+	State.writeWorld()
+	Net.sendAll("reveal")
+end
+
+local function humansAlive()
+	for _, e in State.aliveList() do
+		if e.player then
+			return true
+		end
+	end
+	return false
+end
+
+-- One quarter-second of play. Returns true when the match is over.
+function Match.tick(dt)
+	local now = State.now()
+	for _, e in State.aliveList() do
+		e.bullets, e.chargeSince = Rules.regenBullets(e.bullets, e.chargeSince, now)
+		Combat.applySpeed(e)
+		if e.player then
+			Cover.step(e, dt)
+		end
+		State.writeEntity(e)
+	end
+	Items.tick(now)
+	Pickups.tick(now)
+	Bots.tick(now)
+	if not State.revealing and State.phaseEnd - now <= Config.Match.RevealAt then
+		Match.reveal()
+	end
+	State.writeWorld()
+	return State.aliveCount() <= 1 or now >= State.phaseEnd or not humansAlive()
+end
+
+--------------------------------------------------------------------------------
+-- Results
+--------------------------------------------------------------------------------
+local function award(e, winnerId, count)
+	local p = e.player
+	local data = p and Data.get(p)
+	if not data then
+		return
+	end
+	data.Games += 1
+	data.Kills += e.kills
+	data.BestKills = math.max(data.BestKills, e.kills)
+	if e.id == winnerId then
+		local before = data.Wins
+		data.Wins += 1
+		data.Streak += 1
+		data.BestStreak = math.max(data.BestStreak, data.Streak)
+		Data.recordWin(p)
+		for _, style in Config.PlateStyles do
+			if before < style.Wins and data.Wins >= style.Wins then
+				Net.toast(p, "New plate unlocked: " .. style.Name .. "!", "gold")
+			end
+		end
+	else
+		data.Streak = 0
+	end
+	p:SetAttribute("Wins", data.Wins)
+	p:SetAttribute("Streak", data.Streak)
+	p:SetAttribute("BestStreak", data.BestStreak)
+	p:SetAttribute("Games", data.Games)
+	p:SetAttribute("TotalKills", data.Kills)
+	local stats = p:FindFirstChild("leaderstats")
+	if stats and stats:FindFirstChild("Wins") then
+		stats.Wins.Value = data.Wins
+	end
+end
+
+-- Works out the winner, saves stats and tells everybody. Returns the winner's id (or nil).
+function Match.finish()
+	local entries = {}
+	for _, e in State.list() do
+		table.insert(entries, { id = e.id, alive = e.alive, kills = e.kills, diedAt = e.diedAt })
+	end
+	local order = Rules.standings(entries)
+	local winnerId = order[1]
+	local winner = winnerId and State.entities[winnerId]
+	if winner and not winner.alive then
+		winnerId = nil
+	end
+	local rows = {}
+	for rank, id in order do
+		local e = State.entities[id]
+		rows[rank] = {
+			id = e.id,
+			rank = rank,
+			label = e.icon .. " " .. e.code,
+			who = e.player and e.player.Name or "Bot",
+			kills = e.kills,
+			number = e.number,
+			alive = e.alive,
+		}
+	end
+	for _, e in State.list() do
+		award(e, winnerId, #order)
+	end
+	if not State.revealing then
+		State.revealing = true
+		for _, e in State.list() do
+			Plates.showReveal(e, true)
+		end
+	end
+	State.setPhase("results", State.now() + Config.Match.ResultsTime)
+	Net.sendAll("results", rows, winnerId or 0)
+	return winnerId
+end
+
+-- Clears the arena and brings everybody back to the lobby.
+function Match.cleanup()
+	Items.clearAll()
+	Bots.clear()
+	local list = Players:GetPlayers()
+	State.clear()
+	State.revealing = false
+	State.writeWorld()
+	for _, p in list do
+		task.spawn(Match.respawnLobby, p)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Players coming and going
+--------------------------------------------------------------------------------
+function Match.onJoin(p)
+	local data = Data.load(p)
+	local stats = Instance.new("Folder")
+	stats.Name = "leaderstats"
+	stats.Parent = p
+	for _, name in { "Wins", "Kills" } do
+		local v = Instance.new("IntValue")
+		v.Name = name
+		v.Value = name == "Wins" and data.Wins or 0
+		v.Parent = stats
+	end
+	p:SetAttribute("Wins", data.Wins)
+	p:SetAttribute("Streak", data.Streak)
+	p:SetAttribute("BestStreak", data.BestStreak)
+	p:SetAttribute("Games", data.Games)
+	p:SetAttribute("TotalKills", data.Kills)
+	p:SetAttribute("Style", data.Style)
+	p:SetAttribute("Seen", data.Seen)
+	p:SetAttribute("Music", data.Settings.Music)
+	p:SetAttribute("Sfx", data.Settings.Sfx)
+	p:SetAttribute("Fx", data.Settings.Fx)
+	p:SetAttribute("Alive", false)
+	p.CharacterAdded:Connect(function(char)
+		local e = State.byPlayer(p)
+		if not e or not e.alive then
+			task.defer(toLobby, p)
+		end
+		char:WaitForChild("Humanoid", 5)
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if hum and not (e and e.alive) then
+			hum.Died:Connect(function()
+				if not State.byPlayer(p) or not State.byPlayer(p).alive then
+					task.delay(2.5, function()
+						Match.respawnLobby(p)
+					end)
+				end
+			end)
+		end
+	end)
+	task.spawn(Match.respawnLobby, p)
+end
+
+function Match.onLeave(p)
+	local e = State.byPlayer(p)
+	if e then
+		e.player = nil
+		if e.alive and State.phase ~= "lobby" then
+			Combat.eliminate(e, nil, "left")
+		end
+	end
+end
+
+function Match.setStyle(p, id)
+	local data = Data.get(p)
+	local def = Config.PlateStyleById[id]
+	if not data or not def or data.Wins < def.Wins then
+		return false
+	end
+	data.Style = id
+	p:SetAttribute("Style", id)
+	return true
+end
+
+function Match.setScope(p, on)
+	local e = State.byPlayer(p)
+	if not e or not e.alive then
+		return
+	end
+	e.scoped = on == true
+	Combat.applySpeed(e)
+end
+
+--------------------------------------------------------------------------------
+-- The loop that runs forever
+--------------------------------------------------------------------------------
+local function waitUntil(deadlineFn)
+	while not deadlineFn() do
+		task.wait(0.25)
+	end
+end
+
+function Match.run()
+	Combat.onEliminated = function(victim)
+		local p = victim.player
+		if p then
+			task.delay(3, function()
+				if State.phase == "play" or State.phase == "countdown" then
+					Match.respawnLobby(p)
+				end
+			end)
+		end
+	end
+	while true do
+		State.setPhase("lobby", State.now() + Config.Match.Intermission)
+		Net.sendAll("phase", "lobby", State.phaseEnd)
+		waitUntil(function()
+			if #Players:GetPlayers() == 0 then
+				State.phaseEnd = State.now() + Config.Match.Intermission
+				return false
+			end
+			return State.now() >= State.phaseEnd
+		end)
+
+		Match.setup()
+		State.setPhase("countdown", State.now() + Config.Match.Countdown)
+		Net.sendAll("phase", "countdown", State.phaseEnd)
+		waitUntil(function()
+			return State.now() >= State.phaseEnd
+		end)
+
+		State.setPhase("play", State.now() + Config.Match.Length)
+		for _, e in State.list() do
+			Combat.applySpeed(e)
+		end
+		Bots.startPlay(State.now())
+		Net.sendAll("phase", "play", State.phaseEnd)
+		local over = false
+		while not over do
+			task.wait(Config.Cover.Tick)
+			over = Match.tick(Config.Cover.Tick)
+		end
+
+		Match.finish()
+		Net.sendAll("phase", "results", State.phaseEnd)
+		waitUntil(function()
+			return State.now() >= State.phaseEnd
+		end)
+		Match.cleanup()
+	end
+end
+
+return Match
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="18">
+          <Properties>
+            <string name="Name">Net</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: the server's way of talking to players.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Net = {}
+
+local function notify()
+	return ReplicatedStorage:WaitForChild("Net"):WaitForChild("Notify")
+end
+
+function Net.send(p, ...)
+	if p then
+		notify():FireClient(p, ...)
+	end
+end
+
+function Net.sendAll(...)
+	notify():FireAllClients(...)
+end
+
+-- kind: "info" | "good" | "bad" | "gold"
+function Net.toast(p, text, kind)
+	if p then
+		notify():FireClient(p, "toast", text, kind or "info")
+	end
+end
+
+return Net
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="19">
+          <Properties>
+            <string name="Name">Photos</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: the camera. The server works out who is in the picture and which digits you could actually read, so
+-- the album can't be cheated and smoke, walls and turned backs all matter.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Rules = require(Shared:WaitForChild("Rules"))
+local State = require(script.Parent.State)
+local Net = require(script.Parent.Net)
+local Vision = require(script.Parent.Vision)
+
+local Photos = {}
+
+local rng = Random.new()
+
+-- Everything the camera at `origin` pointing along `look` can see. Returns a list of
+-- { id, code, icon, text, distance, decoy } sorted nearest first.
+function Photos.shotsFrom(origin, look, exceptId)
+	local out = {}
+	local function consider(id, head, code, icon, shown, decoy)
+		local inside, distance = Rules.inCone(origin, look, head.Position, Config.Photo.HalfAngle, Config.Photo.MaxDistance)
+		if not inside or Vision.blocked(origin, head.Position, true) then
+			return
+		end
+		local toCamera = (origin - head.Position).Unit
+		local facing = head.CFrame.LookVector:Dot(toCamera)
+		local readable = Rules.photoReadable(distance, facing, { rng:NextNumber(), rng:NextNumber(), rng:NextNumber() })
+		table.insert(out, {
+			id = id,
+			code = code,
+			icon = icon,
+			text = Rules.photoText(shown, readable),
+			distance = distance,
+			decoy = decoy,
+		})
+	end
+	for _, other in State.aliveList() do
+		if other.id ~= exceptId then
+			local head = Vision.head(other)
+			if head then
+				consider(other.id, head, other.code, other.icon, other.shown or other.number, false)
+			end
+		end
+	end
+	for _, d in State.decoys do
+		local head = d.model and d.model:FindFirstChild("Head")
+		if head then
+			consider(d.id, head, d.code, d.icon, d.number, true)
+		end
+	end
+	table.sort(out, function(a, b)
+		return a.distance < b.distance
+	end)
+	return out
+end
+
+function Photos.snap(p, origin, look)
+	local e = State.byPlayer(p)
+	if not e or State.phase ~= "play" or not e.alive then
+		return
+	end
+	if typeof(origin) ~= "Vector3" or typeof(look) ~= "Vector3" or look.Magnitude < 0.1 then
+		return
+	end
+	local now = State.now()
+	if (e.blindUntil or 0) > now or now - (e.lastSnap or -100) < Config.Photo.Cooldown then
+		return
+	end
+	local head = Vision.head(e)
+	if not head or (origin - head.Position).Magnitude > 20 then
+		return
+	end
+	e.lastSnap = now
+	local shots = Photos.shotsFrom(origin, look.Unit, e.id)
+	local list = {}
+	for i, s in shots do
+		if i > 8 then
+			break
+		end
+		list[i] = { s.id, s.code, s.icon, s.text, math.floor(s.distance + 0.5) }
+	end
+	Net.send(p, "photo", list, now)
+	return list
+end
+
+return Photos
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="20">
+          <Properties>
+            <string name="Name">Pickups</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: glowing item crates around the map. Walk into one to get a random item (never more than you can carry).
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Rules = require(Shared:WaitForChild("Rules"))
+local State = require(script.Parent.State)
+local Net = require(script.Parent.Net)
+local Items = require(script.Parent.Items)
+
+local Pickups = {}
+
+local rng = Random.new()
+local crates = {} -- { part, home = Vector3, readyAt = number }
+
+local function setReady(c, on)
+	c.part.Transparency = on and 0.1 or 1
+	local gui = c.part:FindFirstChildOfClass("BillboardGui")
+	if gui then
+		gui.Enabled = on
+	end
+	local light = c.part:FindFirstChildOfClass("PointLight")
+	if light then
+		light.Enabled = on
+	end
+end
+
+function Pickups.build(parent)
+	crates = {}
+	for _, pos in Config.Map.Crates do
+		local part = Instance.new("Part")
+		part.Name = "ItemCrate"
+		part.Size = Vector3.new(2.6, 2.6, 2.6)
+		part.Position = pos + Vector3.new(0, 0.6, 0)
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanQuery = false
+		part.Material = Enum.Material.Neon
+		part.Color = Color3.fromRGB(60, 220, 255)
+		part.Parent = parent
+		local gui = Instance.new("BillboardGui")
+		gui.Size = UDim2.fromOffset(60, 60)
+		gui.StudsOffset = Vector3.new(0, 2.6, 0)
+		gui.MaxDistance = 90
+		gui.AlwaysOnTop = false
+		gui.Parent = part
+		local l = Instance.new("TextLabel")
+		l.Size = UDim2.fromScale(1, 1)
+		l.BackgroundTransparency = 1
+		l.Text = "🎁"
+		l.TextScaled = true
+		l.Parent = gui
+		local light = Instance.new("PointLight")
+		light.Color = part.Color
+		light.Range = 14
+		light.Brightness = 2
+		light.Parent = part
+		table.insert(crates, { part = part, readyAt = 0 })
+	end
+end
+
+function Pickups.reset()
+	for _, c in crates do
+		c.readyAt = 0
+		setReady(c, true)
+	end
+end
+
+-- Picks an item the entity can still carry, or nil when they are full of everything.
+local function rollFor(e)
+	for _ = 1, 12 do
+		local id = Rules.pickItem(rng:NextNumber())
+		if (e.items[id] or 0) < Config.ItemById[id].Max then
+			return id
+		end
+	end
+	for _, id in Config.CarriedItems do
+		if (e.items[id] or 0) < Config.ItemById[id].Max then
+			return id
+		end
+	end
+	return nil
+end
+
+function Pickups.tick(now)
+	if State.phase ~= "play" then
+		return
+	end
+	for _, c in crates do
+		if c.readyAt > 0 and now >= c.readyAt then
+			c.readyAt = 0
+			setReady(c, true)
+		end
+		if c.readyAt == 0 then
+			for _, e in State.aliveList() do
+				local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+				if root and e.player and (root.Position - c.part.Position).Magnitude <= Config.Pickups.Radius then
+					local id = rollFor(e)
+					if id then
+						Items.give(e, id, 1)
+						c.readyAt = now + Config.Pickups.Respawn
+						setReady(c, false)
+						Net.send(e.player, "pickup", id)
+						break
+					end
+				end
+			end
+		end
+	end
+end
+
+return Pickups
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="21">
+          <Properties>
+            <string name="Name">Plates</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: everything on a player's body for the game. The number plate on the forehead (only visible from the
+-- front), the codename tag above the head, the plain coloured outfit, and the "exposed" number that floats above the
+-- head of someone who covered their number or when THE REVEAL begins.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+
+local Plates = {}
+
+local PLATE_NAME = "NumberPlate"
+
+local function weld(a, b)
+	local w = Instance.new("WeldConstraint")
+	w.Part0 = a
+	w.Part1 = b
+	w.Parent = b
+end
+
+local function label(parent, props)
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Size = UDim2.fromScale(1, 1)
+	l.Font = Enum.Font.GothamBlack
+	l.TextScaled = true
+	for k, v in props do
+		l[k] = v
+	end
+	l.Parent = parent
+	return l
+end
+
+-- Puts the plate on the forehead and returns { part, label }. The plate is flat and faces forward, so you can only
+-- read it when you can see the front of the head.
+function Plates.attachPlate(char, style, text)
+	local head = char:FindFirstChild("Head")
+	if not head then
+		return nil
+	end
+	local old = head:FindFirstChild(PLATE_NAME)
+	if old then
+		old:Destroy()
+	end
+	local size = head.Size
+	local w = size.X * 1.25 -- a bold headband: wider than the head so the digits can be read from a distance
+	local h = w * 0.5
+	local y = size.Y * 0.2
+	local z = -(size.Z / 2) - 0.05
+	local plate = Instance.new("Part")
+	plate.Name = PLATE_NAME
+	plate.Size = Vector3.new(w, h, 0.1)
+	plate.Color = style.Back
+	plate.Material = Enum.Material.SmoothPlastic
+	plate.CanCollide = false
+	plate.CanQuery = false
+	plate.CanTouch = false
+	plate.Massless = true
+	plate.CFrame = head.CFrame * CFrame.new(0, y, z)
+	plate.Parent = head
+	weld(head, plate)
+	local rim = Instance.new("Part")
+	rim.Name = "PlateRim"
+	rim.Size = Vector3.new(w + 0.12, h + 0.12, 0.08)
+	rim.Color = style.Rim
+	rim.Material = Enum.Material.Neon
+	rim.CanCollide = false
+	rim.CanQuery = false
+	rim.CanTouch = false
+	rim.Massless = true
+	rim.CFrame = head.CFrame * CFrame.new(0, y, z + 0.03)
+	rim.Parent = head
+	weld(head, rim)
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "PlateGui"
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
+	gui.CanvasSize = Vector2.new(330, 175)
+	gui.LightInfluence = 0
+	gui.Brightness = 1.4
+	gui.MaxDistance = 500
+	gui.Parent = plate
+	local text3 = label(gui, { Text = text, TextColor3 = style.Text, Name = "Digits" })
+	return { part = plate, label = text3, gui = gui }
+end
+
+function Plates.setText(e, text)
+	e.shown = text
+	local plate = e.plate
+	if plate and plate.label then
+		plate.label.Text = text
+	end
+end
+
+-- The codename tag that floats above the head ("🦊 Red Fox").
+function Plates.attachTag(char, text, color)
+	local head = char:FindFirstChild("Head")
+	if not head then
+		return nil
+	end
+	local old = head:FindFirstChild("CodeTag")
+	if old then
+		old:Destroy()
+	end
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "CodeTag"
+	gui.Size = UDim2.fromOffset(190, 30)
+	gui.StudsOffset = Vector3.new(0, 2.4, 0)
+	gui.MaxDistance = 130
+	gui.AlwaysOnTop = false
+	gui.LightInfluence = 0
+	gui.Adornee = head
+	gui.Parent = head
+	label(gui, { Text = text, TextColor3 = color, TextStrokeTransparency = 0.3, TextScaled = false, TextSize = 18 })
+	return gui
+end
+
+-- The big number above the head that everybody can see through walls (exposed players and THE REVEAL).
+function Plates.attachReveal(char)
+	local head = char:FindFirstChild("Head")
+	if not head then
+		return nil
+	end
+	local old = head:FindFirstChild("RevealTag")
+	if old then
+		old:Destroy()
+	end
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "RevealTag"
+	gui.Size = UDim2.fromOffset(150, 66)
+	gui.StudsOffset = Vector3.new(0, 4.4, 0)
+	gui.AlwaysOnTop = true
+	gui.LightInfluence = 0
+	gui.Enabled = false
+	gui.Adornee = head
+	gui.Parent = head
+	local text = label(gui, { Text = "", TextColor3 = Color3.fromRGB(255, 80, 90), TextStrokeTransparency = 0 })
+	return { gui = gui, label = text }
+end
+
+function Plates.showReveal(e, on)
+	local reveal = e.reveal
+	if reveal and reveal.gui then
+		reveal.gui.Enabled = on
+		if on then
+			reveal.label.Text = e.number
+		end
+	end
+	if e.plate and e.plate.part then
+		e.plate.part.Color = on and Color3.fromRGB(200, 30, 40) or e.styleDef.Back
+	end
+end
+
+-- Plain coloured clothes and no accessories, so nobody can hide their forehead under a hat.
+function Plates.dress(char, color)
+	for _, name in { "Shirt", "Pants", "ShirtGraphic" } do
+		local item = char:FindFirstChildOfClass(name)
+		if item then
+			item:Destroy()
+		end
+	end
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		pcall(function()
+			humanoid:RemoveAccessories()
+		end)
+		-- the codename is the only name: no username or health bar over anybody's head
+		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+	end
+	local colors = char:FindFirstChildOfClass("BodyColors")
+	if not colors then
+		colors = Instance.new("BodyColors")
+		colors.Parent = char
+	end
+	colors.TorsoColor3 = color
+	colors.LeftArmColor3 = color
+	colors.RightArmColor3 = color
+	colors.LeftLegColor3 = color:Lerp(Color3.new(0, 0, 0), 0.25)
+	colors.RightLegColor3 = color:Lerp(Color3.new(0, 0, 0), 0.25)
+end
+
+-- Everything for one entity. e needs char, code, icon, color, number and style.
+function Plates.setup(e)
+	local char = e.char
+	if not char then
+		return false
+	end
+	e.styleDef = Config.PlateStyleById[e.style or "classic"] or Config.PlateStyles[1]
+	Plates.dress(char, e.color)
+	e.plate = Plates.attachPlate(char, e.styleDef, e.number)
+	e.tag = Plates.attachTag(char, e.icon .. " " .. e.code, e.color)
+	e.reveal = Plates.attachReveal(char)
+	e.shown = e.number
+	return e.plate ~= nil
+end
+
+return Plates
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="22">
+          <Properties>
+            <string name="Name">State</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: who is in the match right now. Every player and bot in a match is an "entity" with an id (a player's
+-- user id; bots count down from -1; decoys count up from 1,000,000). This module only keeps the list and writes the
+-- few attributes the screens read; the other modules do the playing.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+
+local State = {}
+
+State.phase = "lobby" -- lobby | countdown | play | results
+State.phaseEnd = 0
+State.entities = {} -- id -> entity
+State.order = {} -- ids in the order they were added
+State.decoys = {} -- id -> { id, owner, number, model, expires }
+State.revealing = false
+State.matchId = 0
+State.onChange = nil -- set by Match: called when the alive list changes
+
+function State.now()
+	return workspace:GetServerTimeNow()
+end
+
+function State.add(e)
+	State.entities[e.id] = e
+	table.insert(State.order, e.id)
+end
+
+function State.clear()
+	State.entities = {}
+	State.order = {}
+	State.decoys = {}
+end
+
+function State.get(id)
+	return State.entities[id]
+end
+
+function State.byPlayer(p)
+	return p and State.entities[p.UserId] or nil
+end
+
+function State.list()
+	local list = {}
+	for _, id in State.order do
+		local e = State.entities[id]
+		if e then
+			table.insert(list, e)
+		end
+	end
+	return list
+end
+
+function State.aliveList()
+	local list = {}
+	for _, id in State.order do
+		local e = State.entities[id]
+		if e and e.alive then
+			table.insert(list, e)
+		end
+	end
+	return list
+end
+
+function State.aliveCount()
+	return #State.aliveList()
+end
+
+-- The digits of every number in use (so nobody gets a duplicate).
+function State.takenNumbers()
+	local taken = {}
+	for _, e in State.entities do
+		taken[e.number or ""] = true
+	end
+	for _, d in State.decoys do
+		taken[d.number] = true
+	end
+	return taken
+end
+
+function State.setPhase(phase, endsAt)
+	State.phase = phase
+	State.phaseEnd = endsAt or 0
+	State.writeWorld()
+end
+
+-- What every screen needs to know about the match.
+function State.writeWorld()
+	workspace:SetAttribute("Phase", State.phase)
+	workspace:SetAttribute("PhaseEnd", State.phaseEnd)
+	workspace:SetAttribute("Alive", State.aliveCount())
+	workspace:SetAttribute("Total", #State.order)
+	workspace:SetAttribute("Reveal", State.revealing)
+	workspace:SetAttribute("MatchId", State.matchId)
+end
+
+-- Per-entity attributes: shown to spectators and used by the HUD. Humans get them on the Player, bots on their model.
+function State.writeEntity(e)
+	local targets = {}
+	if e.player then
+		table.insert(targets, e.player)
+	end
+	if e.char then
+		table.insert(targets, e.char)
+	end
+	for _, t in targets do
+		t:SetAttribute("Alive", e.alive == true)
+		t:SetAttribute("Code", e.code or "")
+		t:SetAttribute("Icon", e.icon or "")
+		t:SetAttribute("EntityId", e.id)
+	end
+	local p = e.player
+	if p then
+		p:SetAttribute("Kills", e.kills or 0)
+		p:SetAttribute("Bullets", e.bullets or 0)
+		p:SetAttribute("Stunned", (e.stunUntil or 0) > State.now())
+		p:SetAttribute("Exposed", (e.exposedUntil or 0) > State.now())
+		for _, id in Config.CarriedItems do
+			p:SetAttribute("It_" .. id, (e.items and e.items[id]) or 0)
+		end
+		local stats = p:FindFirstChild("leaderstats")
+		if stats and stats:FindFirstChild("Kills") then
+			stats.Kills.Value = e.kills or 0
+		end
+	end
+end
+
+return State
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="23">
+          <Properties>
+            <string name="Name">Vision</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: what can see what. A number can only be read, photographed or guessed when nothing solid is in the
+-- way. The arena's walls and props and the smoke clouds block sight; people never do.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Rules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Rules"))
+
+local Vision = {}
+
+Vision.clouds = {} -- { { pos = Vector3, radius = number, expires = number } } kept up to date by Items
+
+local params = RaycastParams.new()
+params.FilterType = Enum.RaycastFilterType.Include
+
+local function arenaList()
+	local arena = workspace:FindFirstChild("Arena")
+	return arena and { arena } or {}
+end
+
+local function inSmoke(from, to)
+	local now = workspace:GetServerTimeNow()
+	for _, c in Vision.clouds do
+		if c.expires > now and Rules.segmentHitsSphere(from, to, c.pos, c.radius) then
+			return true
+		end
+	end
+	return false
+end
+
+-- True when a wall, prop or (with includeSmoke) a smoke cloud is between the two points.
+function Vision.blocked(from, to, includeSmoke)
+	if includeSmoke ~= false and inSmoke(from, to) then
+		return true
+	end
+	local list = arenaList()
+	if #list == 0 then
+		return false
+	end
+	params.FilterDescendantsInstances = list
+	return workspace:Raycast(from, to - from, params) ~= nil
+end
+
+-- Distance to the first wall along a direction (arena only), or nil when nothing is that close.
+function Vision.distanceAhead(from, direction, length)
+	local list = arenaList()
+	if #list == 0 then
+		return nil
+	end
+	params.FilterDescendantsInstances = list
+	local hit = workspace:Raycast(from, direction * length, params)
+	if hit then
+		return (hit.Position - from).Magnitude
+	end
+	return nil
+end
+
+function Vision.addCloud(pos, radius, expires)
+	local c = { pos = pos, radius = radius, expires = expires }
+	table.insert(Vision.clouds, c)
+	return c
+end
+
+function Vision.clearClouds()
+	Vision.clouds = {}
+end
+
+-- The head of an entity, or nil.
+function Vision.head(e)
+	local char = e.char
+	return char and char:FindFirstChild("Head") or nil
+end
+
+return Vision
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="24">
+          <Properties>
+            <string name="Name">World</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: builds the world from plain parts: "Plaza Park" (the arena, a city of 8 buildings around a park, with
+-- streets between them) and the lobby island where everybody waits for the next match.
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Pickups = require(script.Parent.Pickups)
+
+local World = {}
+
+local C = Color3.fromRGB
+local NEON_BLUE, NEON_PINK = C(60, 220, 255), C(255, 70, 160)
+
+local function part(parent, name, size, position, color, material)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = size
+	p.Position = position
+	p.Anchored = true
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Parent = parent
+	return p
+end
+
+local function folder(name)
+	local old = workspace:FindFirstChild(name)
+	if old then
+		old:Destroy()
+	end
+	local f = Instance.new("Folder")
+	f.Name = name
+	f.Parent = workspace
+	return f
+end
+
+local function neon(parent, name, size, position, color)
+	local p = part(parent, name, size, position, color, Enum.Material.Neon)
+	p.CanCollide = false
+	p.CanQuery = false
+	return p
+end
+
+local function tree(parent, x, z)
+	local trunk = part(parent, "Trunk", Vector3.new(2, 9, 2), Vector3.new(x, 4.5, z), C(110, 78, 48), Enum.Material.Wood)
+	trunk.Shape = Enum.PartType.Cylinder
+	trunk.Size = Vector3.new(9, 2, 2)
+	trunk.CFrame = CFrame.new(x, 4.5, z) * CFrame.Angles(0, 0, math.pi / 2)
+	local leaves = part(parent, "Leaves", Vector3.new(12, 10, 12), Vector3.new(x, 12, z), C(50, 140, 70), Enum.Material.Grass)
+	leaves.Shape = Enum.PartType.Ball
+end
+
+local function lamp(parent, x, z)
+	local pole = part(parent, "Lamp", Vector3.new(0.6, 9, 0.6), Vector3.new(x, 4.5, z), C(35, 38, 52), Enum.Material.Metal)
+	local bulb = neon(parent, "Bulb", Vector3.new(1.6, 0.8, 1.6), Vector3.new(x, 9.4, z), C(255, 240, 190))
+	local light = Instance.new("PointLight")
+	light.Color = C(255, 235, 190)
+	light.Range = 34
+	light.Brightness = 1.6
+	light.Parent = bulb
+	pole.CanQuery = false
+	bulb.CanQuery = false
+end
+
+local function building(parent, b, index)
+	local h = Config.Map.BuildingHeight
+	local s = b.Size
+	local palette = { C(70, 80, 110), C(110, 70, 90), C(70, 100, 100), C(100, 90, 70), C(80, 70, 120), C(120, 80, 70), C(70, 110, 80), C(90, 90, 100) }
+	local color = palette[(index - 1) % #palette + 1]
+	part(parent, "Building", Vector3.new(s, h, s), Vector3.new(b.X, h / 2, b.Z), color, Enum.Material.Concrete)
+	-- glowing roof edge and window bands (they are decoration, so they can't be hit by guesses or block sight)
+	local trim = index % 2 == 0 and NEON_BLUE or NEON_PINK
+	neon(parent, "RoofGlowN", Vector3.new(s + 0.6, 0.5, 0.5), Vector3.new(b.X, h + 0.25, b.Z - s / 2), trim)
+	neon(parent, "RoofGlowS", Vector3.new(s + 0.6, 0.5, 0.5), Vector3.new(b.X, h + 0.25, b.Z + s / 2), trim)
+	neon(parent, "RoofGlowE", Vector3.new(0.5, 0.5, s + 0.6), Vector3.new(b.X + s / 2, h + 0.25, b.Z), trim)
+	neon(parent, "RoofGlowW", Vector3.new(0.5, 0.5, s + 0.6), Vector3.new(b.X - s / 2, h + 0.25, b.Z), trim)
+	for _, y in { 5, 10 } do
+		neon(parent, "Windows", Vector3.new(s + 0.2, 1.6, s + 0.2), Vector3.new(b.X, y, b.Z), C(255, 226, 150)).Transparency = 0.55
+	end
+	-- sniper roof: low walls on three sides, and a ladder up the fourth (the side facing the middle of the map)
+	local lip = 2.6
+	part(parent, "Parapet", Vector3.new(s, lip, 1), Vector3.new(b.X, h + lip / 2, b.Z - s / 2 + 0.5), color:Lerp(C(255, 255, 255), 0.15))
+	part(parent, "Parapet", Vector3.new(s, lip, 1), Vector3.new(b.X, h + lip / 2, b.Z + s / 2 - 0.5), color:Lerp(C(255, 255, 255), 0.15))
+	local towardX = b.X == 0 and 0 or (b.X > 0 and -1 or 1)
+	if towardX ~= 0 then
+		part(parent, "Parapet", Vector3.new(1, lip, s), Vector3.new(b.X - towardX * (s / 2 - 0.5), h + lip / 2, b.Z), color:Lerp(C(255, 255, 255), 0.15))
+		local truss = Instance.new("TrussPart")
+		truss.Name = "Ladder"
+		truss.Size = Vector3.new(2, h + 1, 2)
+		truss.Position = Vector3.new(b.X + towardX * (s / 2 + 1), (h + 1) / 2, b.Z)
+		truss.Anchored = true
+		truss.Color = C(255, 214, 60)
+		truss.Parent = parent
+	else
+		part(parent, "Parapet", Vector3.new(1, lip, s), Vector3.new(b.X - (s / 2 - 0.5), h + lip / 2, b.Z), color:Lerp(C(255, 255, 255), 0.15))
+		local truss = Instance.new("TrussPart")
+		truss.Name = "Ladder"
+		truss.Size = Vector3.new(2, h + 1, 2)
+		truss.Position = Vector3.new(b.X + (s / 2 + 1), (h + 1) / 2, b.Z)
+		truss.Anchored = true
+		truss.Color = C(255, 214, 60)
+		truss.Parent = parent
+	end
+end
+
+local function buildArena()
+	local arena = folder("Arena")
+	local ground = folder("Ground")
+	local m = Config.Map
+	local full = (m.Half + 4) * 2
+	part(ground, "Floor", Vector3.new(full, 2, full), Vector3.new(0, -1, 0), C(48, 52, 66), Enum.Material.Asphalt)
+	-- sidewalk slabs, one per city block (the middle one is the park)
+	for _, bx in m.BlockCenters do
+		for _, bz in m.BlockCenters do
+			local park = bx == 0 and bz == 0
+			part(ground, park and "Park" or "Block", Vector3.new(m.Block, 0.4, m.Block), Vector3.new(bx, 0.2, bz), park and C(70, 160, 90) or C(120, 124, 138), park and Enum.Material.Grass or Enum.Material.Concrete)
+		end
+	end
+	-- dashed lane lines down every street
+	local L = (m.Block + m.Street) / 2
+	for _, line in { -L, L } do
+		for t = -m.Half + 6, m.Half - 6, 12 do
+			neon(ground, "Lane", Vector3.new(0.5, 0.05, 5), Vector3.new(line, 0.03, t), C(250, 220, 90)).CanQuery = false
+			neon(ground, "Lane", Vector3.new(5, 0.05, 0.5), Vector3.new(t, 0.03, line), C(250, 220, 90)).CanQuery = false
+		end
+	end
+	for i, b in m.Buildings do
+		building(arena, b, i)
+	end
+	-- boundary walls
+	local wall = m.Half + 2
+	local height = 40
+	part(arena, "WallN", Vector3.new(wall * 2 + 4, height, 4), Vector3.new(0, height / 2, -wall), C(30, 34, 52))
+	part(arena, "WallS", Vector3.new(wall * 2 + 4, height, 4), Vector3.new(0, height / 2, wall), C(30, 34, 52))
+	part(arena, "WallE", Vector3.new(4, height, wall * 2), Vector3.new(wall, height / 2, 0), C(30, 34, 52))
+	part(arena, "WallW", Vector3.new(4, height, wall * 2), Vector3.new(-wall, height / 2, 0), C(30, 34, 52))
+	neon(arena, "WallGlow", Vector3.new(wall * 2, 0.6, 0.6), Vector3.new(0, 1, -wall + 2.3), NEON_PINK)
+	neon(arena, "WallGlow", Vector3.new(wall * 2, 0.6, 0.6), Vector3.new(0, 1, wall - 2.3), NEON_PINK)
+	-- the park: fountain, trees, benches, hedges
+	local pool = part(arena, "Fountain", Vector3.new(1.4, 12, 12), Vector3.new(0, 0.7, 0), C(150, 156, 172), Enum.Material.Marble)
+	pool.Shape = Enum.PartType.Cylinder
+	pool.CFrame = CFrame.new(0, 0.7, 0) * CFrame.Angles(0, 0, math.pi / 2)
+	local water = neon(arena, "Water", Vector3.new(0.4, 10, 10), Vector3.new(0, 1.5, 0), C(90, 200, 255))
+	water.Shape = Enum.PartType.Cylinder
+	water.CFrame = CFrame.new(0, 1.5, 0) * CFrame.Angles(0, 0, math.pi / 2)
+	water.CanCollide = false
+	for _, t in { { -20, -18 }, { 20, -18 }, { -20, 18 }, { 20, 18 }, { 0, -24 }, { 0, 24 }, { -26, 0 }, { 26, 0 } } do
+		tree(arena, t[1], t[2])
+	end
+	for _, h in { { -12, 0, 10, 2 }, { 12, 0, 10, 2 }, { 0, -12, 2, 10 }, { 0, 12, 2, 10 } } do
+		part(arena, "Hedge", Vector3.new(h[3], 3.5, h[4]), Vector3.new(h[1], 1.75, h[2]), C(40, 120, 60), Enum.Material.Grass)
+	end
+	for _, bn in { { -9, -9 }, { 9, 9 }, { -9, 9 }, { 9, -9 } } do
+		part(arena, "Bench", Vector3.new(6, 1.2, 2), Vector3.new(bn[1], 0.8, bn[2]), C(120, 85, 55), Enum.Material.Wood)
+	end
+	-- crates and bus-stop style cover scattered on the streets
+	for i, p in { { 43, 0 }, { -43, 0 }, { 0, 43 }, { 0, -43 }, { 43, 60 }, { -43, -60 }, { 60, -43 }, { -60, 43 } } do
+		part(arena, "Crate" .. i, Vector3.new(5, 4, 5), Vector3.new(p[1], 2, p[2]), C(150, 105, 60), Enum.Material.Wood)
+	end
+	-- street lamps
+	local lamps = folder("Lamps")
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			lamp(lamps, 31 * sx, 31 * sz)
+			lamp(lamps, 55 * sx, 55 * sz)
+			lamp(lamps, 31 * sx, 112 * sz)
+			lamp(lamps, 112 * sx, 31 * sz)
+		end
+	end
+	local crates = folder("Crates")
+	Pickups.build(crates)
+end
+
+local board
+
+local function buildLobby()
+	local lobby = folder("Lobby")
+	local c = Config.Map.Lobby
+	local base = part(lobby, "Island", Vector3.new(2, 130, 130), c + Vector3.new(0, -1, 0), C(30, 34, 54), Enum.Material.SmoothPlastic)
+	base.Shape = Enum.PartType.Cylinder
+	base.CFrame = CFrame.new(c.X, c.Y - 1, c.Z) * CFrame.Angles(0, 0, math.pi / 2)
+	local ring = neon(lobby, "Ring", Vector3.new(0.6, 126, 126), c + Vector3.new(0, 0.05, 0), NEON_BLUE)
+	ring.Shape = Enum.PartType.Cylinder
+	ring.CFrame = CFrame.new(c.X, c.Y + 0.05, c.Z) * CFrame.Angles(0, 0, math.pi / 2)
+	ring.CanCollide = false
+	local inner = part(lobby, "Floor", Vector3.new(0.4, 118, 118), c + Vector3.new(0, 0.2, 0), C(22, 26, 42))
+	inner.Shape = Enum.PartType.Cylinder
+	inner.CFrame = CFrame.new(c.X, c.Y + 0.2, c.Z) * CFrame.Angles(0, 0, math.pi / 2)
+
+	-- big title sign
+	local sign = part(lobby, "Sign", Vector3.new(60, 16, 1), c + Vector3.new(0, 14, 50), C(14, 16, 26))
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Back
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
+	gui.CanvasSize = Vector2.new(960, 256)
+	gui.LightInfluence = 0
+	gui.Parent = sign
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.fromScale(1, 0.62)
+	title.BackgroundTransparency = 1
+	title.Font = Enum.Font.GothamBlack
+	title.TextScaled = true
+	title.Text = "FIGURE ME OUT"
+	title.TextColor3 = NEON_BLUE
+	title.Parent = gui
+	local subtitle = Instance.new("TextLabel")
+	subtitle.Position = UDim2.fromScale(0, 0.64)
+	subtitle.Size = UDim2.fromScale(1, 0.3)
+	subtitle.BackgroundTransparency = 1
+	subtitle.Font = Enum.Font.GothamBold
+	subtitle.TextScaled = true
+	subtitle.Text = "Read their number. Hide yours."
+	subtitle.TextColor3 = NEON_PINK
+	subtitle.Parent = gui
+
+	-- leaderboard board (text is set by World.setBoard)
+	local bpart = part(lobby, "Board", Vector3.new(26, 22, 1), c + Vector3.new(-42, 12, 28), C(14, 16, 26))
+	bpart.CFrame = CFrame.new(bpart.Position, Vector3.new(c.X, bpart.Position.Y, c.Z))
+	local bgui = Instance.new("SurfaceGui")
+	bgui.Face = Enum.NormalId.Front
+	bgui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
+	bgui.CanvasSize = Vector2.new(520, 440)
+	bgui.LightInfluence = 0
+	bgui.Parent = bpart
+	local head = Instance.new("TextLabel")
+	head.Size = UDim2.new(1, 0, 0, 70)
+	head.BackgroundTransparency = 1
+	head.Font = Enum.Font.GothamBlack
+	head.TextScaled = true
+	head.Text = "🏆 TOP WINNERS"
+	head.TextColor3 = C(255, 214, 60)
+	head.Parent = bgui
+	board = Instance.new("TextLabel")
+	board.Name = "Lines"
+	board.Position = UDim2.fromOffset(20, 80)
+	board.Size = UDim2.new(1, -40, 1, -90)
+	board.BackgroundTransparency = 1
+	board.Font = Enum.Font.GothamBold
+	board.TextSize = 30
+	board.TextXAlignment = Enum.TextXAlignment.Left
+	board.TextYAlignment = Enum.TextYAlignment.Top
+	board.TextColor3 = C(255, 255, 255)
+	board.Text = "Win a match to get on the board!"
+	board.Parent = bgui
+
+	-- how to play board
+	local hpart = part(lobby, "HowTo", Vector3.new(26, 22, 1), c + Vector3.new(42, 12, 28), C(14, 16, 26))
+	hpart.CFrame = CFrame.new(hpart.Position, Vector3.new(c.X, hpart.Position.Y, c.Z))
+	local hgui = Instance.new("SurfaceGui")
+	hgui.Face = Enum.NormalId.Front
+	hgui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
+	hgui.CanvasSize = Vector2.new(520, 440)
+	hgui.LightInfluence = 0
+	hgui.Parent = hpart
+	local htitle = head:Clone()
+	htitle.Text = "HOW TO PLAY"
+	htitle.TextColor3 = NEON_BLUE
+	htitle.Parent = hgui
+	local how = board:Clone()
+	how.Name = "Lines"
+	how.TextSize = 25
+	how.Text = "• Everyone has a secret 3-digit number on their forehead.\n• Aim at someone, press G and type THEIR number: they are out!\n• Hide yours, but don't stare at walls: you'll be exposed.\n• 🔭 zoom  📷 photo  💥 flash  💨 smoke\n• Last one standing wins."
+	how.Parent = hgui
+
+	for i = 1, Config.Match.MaxPlayers do
+		local angle = (i / Config.Match.MaxPlayers) * math.pi * 2
+		local pad = part(lobby, "Pad", Vector3.new(4, 0.3, 4), c + Vector3.new(math.cos(angle) * 30, 0.35, math.sin(angle) * 30), C(40, 48, 78))
+		pad.CanQuery = false
+	end
+end
+
+function World.lobbySpawn(i)
+	local c = Config.Map.Lobby
+	local angle = (((i - 1) % Config.Match.MaxPlayers + 1) / Config.Match.MaxPlayers) * math.pi * 2
+	return c + Vector3.new(math.cos(angle) * 30, 4, math.sin(angle) * 30)
+end
+
+function World.arenaSpawn(i)
+	local list = Config.Map.Spawns
+	return list[(i - 1) % #list + 1]
+end
+
+function World.setBoard(lines)
+	if board then
+		board.Text = table.concat(lines, "\n")
+	end
+end
+
+local function lighting()
+	Lighting.ClockTime = 19.2
+	Lighting.Brightness = 2.2
+	Lighting.Ambient = C(90, 96, 130)
+	Lighting.OutdoorAmbient = C(110, 116, 150)
+	Lighting.ColorShift_Top = C(150, 120, 255)
+	Lighting.EnvironmentDiffuseScale = 0.6
+	Lighting.GlobalShadows = true
+	Lighting.FogColor = C(24, 26, 48)
+	Lighting.FogEnd = 1400
+	local sky = Lighting:FindFirstChildOfClass("Sky") or Instance.new("Sky")
+	sky.StarCount = 3000
+	sky.Parent = Lighting
+	local atmo = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere")
+	atmo.Density = 0.22
+	atmo.Color = C(120, 110, 190)
+	atmo.Decay = C(40, 36, 80)
+	atmo.Haze = 1.2
+	atmo.Parent = Lighting
+end
+
+function World.build()
+	lighting()
+	buildArena()
+	buildLobby()
+	for _, name in { "Smoke", "Decoys", "Bots", "Effects" } do
+		folder(name)
+	end
+end
+
+return World
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="StarterPlayer" referent="25">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="26">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="LocalScript" referent="27">
+        <Properties>
+          <string name="Name">Client</string>
+          <string name="Source"><![CDATA[-- FIGURE ME OUT: client entry point. Builds the screen, wires every module together and routes the server's messages.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(Shared:WaitForChild("UI"))
+local Audio = require(Shared:WaitForChild("Audio"))
+
+local Net = ReplicatedStorage:WaitForChild("Net")
+local Action = Net:WaitForChild("Action")
+local Notify = Net:WaitForChild("Notify")
+
+local Modules = script:WaitForChild("Modules")
+local Fx = require(Modules.Fx)
+local Toasts = require(Modules.Toasts)
+local Hud = require(Modules.Hud)
+local Keypad = require(Modules.Keypad)
+local Scope = require(Modules.Scope)
+local Album = require(Modules.Album)
+local Alerts = require(Modules.Alerts)
+local Spectate = require(Modules.Spectate)
+local Results = require(Modules.Results)
+local Menu = require(Modules.Menu)
+local Controls = require(Modules.Controls)
+local OwnPlate = require(Modules.OwnPlate)
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "FigureMeOut"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local deps = {
+	send = function(kind, ...)
+		Action:FireServer(kind, ...)
+	end,
+	Fx = Fx,
+	Toasts = Toasts,
+	Hud = Hud,
+	Keypad = Keypad,
+	Scope = Scope,
+	Album = Album,
+	Alerts = Alerts,
+	Spectate = Spectate,
+	Menu = Menu,
+	Controls = Controls,
+}
+
+pcall(function()
+	player.CameraMaxZoomDistance = 14
+end)
+
+Audio.Init()
+Fx.init(gui)
+Toasts.init(gui)
+Alerts.init(gui, deps)
+Scope.init(gui, deps)
+Keypad.init(gui, deps)
+Album.init(gui, deps)
+Spectate.init(gui)
+Results.init(gui, deps)
+Menu.init(gui, deps)
+Hud.init(gui, deps)
+Controls.init(deps)
+OwnPlate.init()
+Audio.startMusic()
+
+local C = UI.Colors
+
+--------------------------------------------------------------------------------
+-- Messages from the server
+--------------------------------------------------------------------------------
+local handlers = {}
+
+function handlers.toast(text, kind)
+	Toasts.push(text, kind)
+end
+
+function handlers.phase(phase)
+	if phase == "countdown" then
+		Album.reset()
+		Fx.announce("GET READY", "Hide your number. Find theirs.", C.Accent, 0.22)
+		Audio.reveal()
+	elseif phase == "play" then
+		Fx.announce("GO!", "Someone is always watching", C.Good, 0.22)
+		Audio.countdown(0, true)
+		Fx.flash(Color3.new(1, 1, 1), 0.3, 0.4)
+	elseif phase == "lobby" then
+		Album.reset()
+		Keypad.close()
+		Scope.set(false)
+	end
+end
+
+function handlers.kill(victim, killer, how, number)
+	if how == "left" then
+		Hud.feed(victim .. " left the game", C.Muted)
+	elseif how == "fell" or killer == "" then
+		Hud.feed(victim .. " is out", C.Muted)
+	else
+		Hud.feed(killer .. "  ➜  " .. victim, C.Text)
+	end
+	Audio.kill()
+end
+
+function handlers.gotKill(code, icon, number)
+	Fx.announce("ELIMINATED", icon .. " " .. code, C.Good, 0.24)
+	Audio.hit()
+	Fx.punch(6)
+end
+
+function handlers.eliminated(killer, how, alive, total)
+	Scope.set(false)
+	Keypad.close()
+	Fx.announce("YOU'RE OUT", (killer ~= "" and ("guessed by " .. killer .. "  •  ") or "") .. "you placed #" .. (alive + 1), C.Danger, 0.24)
+	Audio.lose()
+	Fx.shake(1, 0.4)
+	Fx.flash(C.Danger, 0.45, 0.6)
+end
+
+function handlers.guessResult(result)
+	if result == "miss" then
+		Audio.miss()
+		Fx.flash(C.Danger, 0.35, 0.4)
+		Toasts.push("Wrong number! -1 bullet, frozen", "bad")
+	elseif result == "decoy" then
+		Audio.miss()
+		Fx.flash(C.Orange, 0.4, 0.5)
+	elseif result == "invalid" then
+		Audio.error()
+	end
+end
+
+function handlers.snitch(pos, seconds)
+	Alerts.snitch(pos, seconds)
+end
+
+function handlers.flash(seconds)
+	Alerts.flash(seconds)
+end
+
+function handlers.stun(seconds)
+	Alerts.stun(seconds)
+end
+
+function handlers.cover(stage, value)
+	Alerts.cover(stage, value)
+end
+
+function handlers.exposed(label)
+	Hud.feed(label .. " was EXPOSED!", C.Danger)
+end
+
+function handlers.photo(entries)
+	Album.add(entries)
+end
+
+function handlers.used(id)
+	Audio.use()
+end
+
+function handlers.pickup(id)
+	local item = Config.ItemById[id]
+	if item then
+		Toasts.push(item.Icon .. " " .. item.Name .. "  +1", "good")
+	end
+	Audio.pickup()
+end
+
+function handlers.reveal()
+	Fx.announce("THE REVEAL", "Every number is showing!", C.Gold, 0.2)
+	Audio.reveal()
+	Fx.flash(C.Gold, 0.35, 0.5)
+end
+
+function handlers.results(rows, winnerId)
+	Results.show(rows, winnerId)
+end
+
+Notify.OnClientEvent:Connect(function(kind, ...)
+	local handler = handlers[kind]
+	if handler then
+		local ok, err = pcall(handler, ...)
+		if not ok then
+			warn("[FigureMeOut] message '" .. tostring(kind) .. "' failed:", err)
+		end
+	end
+end)
+
+-- First visit: show the how-to-play card once the server has told us we have not seen it.
+task.spawn(function()
+	for _ = 1, 40 do
+		if player:GetAttribute("Seen") ~= nil then
+			break
+		end
+		task.wait(0.25)
+	end
+	if player:GetAttribute("Seen") == false then
+		task.wait(1.5)
+		Menu.open("How to play")
+	end
+end)
+]]></string>
+        </Properties>
+        <Item class="Folder" referent="28">
+          <Properties>
+            <string name="Name">Modules</string>
+          </Properties>
+          <Item class="ModuleScript" referent="29">
+            <Properties>
+              <string name="Name">Album</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: the photo notebook. Every photo fills in the digits you could read; several blurry photos of the same
+-- person add up to a full number. When a number is complete you can fire straight from the notebook.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(Shared:WaitForChild("UI"))
+local Audio = require(Shared:WaitForChild("Audio"))
+local View = require(script.Parent:WaitForChild("View"))
+
+local Album = {}
+
+local C = UI.Colors
+local deps
+local gui
+local panel, list, empty
+local popup
+local notebook = {} -- id -> { id, code, icon, digits, seen, count }
+
+function Album.reset()
+	notebook = {}
+	if panel and panel.Visible then
+		Album.refresh()
+	end
+end
+
+function Album.isOpen()
+	return panel ~= nil and panel.Visible
+end
+
+function Album.entry(id)
+	return notebook[id]
+end
+
+-- The notebook entry as a 3-character string like "4?2".
+function Album.text(id)
+	local n = notebook[id]
+	return n and table.concat(n.digits) or nil
+end
+
+function Album.complete(id)
+	local n = notebook[id]
+	return n ~= nil and not table.find(n.digits, "?")
+end
+
+function Album.init(screen, d)
+	deps = d
+	gui = screen
+	panel = UI.panel(gui, {
+		Name = "Notebook",
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -14, 0.5, 0),
+		Size = UDim2.fromOffset(340, 430),
+		Visible = false,
+		ZIndex = 25,
+	})
+	UI.label(panel, {
+		Position = UDim2.fromOffset(14, 8),
+		Size = UDim2.new(1, -60, 0, 28),
+		Font = UI.Fonts.Title,
+		TextSize = 20,
+		Text = "📒 NOTEBOOK",
+		ZIndex = 26,
+	})
+	local close = UI.button(panel, {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 8),
+		Size = UDim2.fromOffset(34, 28),
+		Text = "✕",
+		TextSize = 16,
+		BackgroundColor3 = C.Danger,
+		ZIndex = 26,
+	})
+	close.MouseButton1Click:Connect(Album.close)
+	UI.label(panel, {
+		Position = UDim2.fromOffset(14, 38),
+		Size = UDim2.new(1, -28, 0, 30),
+		Font = UI.Fonts.Body,
+		TextSize = 12,
+		TextColor3 = C.Muted,
+		Text = "Photos fill in digits. Take several photos of the same person to read the whole number.",
+		ZIndex = 26,
+	})
+	list = UI.new("ScrollingFrame", {
+		Position = UDim2.fromOffset(10, 74),
+		Size = UDim2.new(1, -20, 1, -84),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 5,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ZIndex = 26,
+	}, panel)
+	UI.new("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6) }, list)
+	empty = UI.label(panel, {
+		Position = UDim2.fromOffset(20, 150),
+		Size = UDim2.new(1, -40, 0, 80),
+		Font = UI.Fonts.Bold,
+		TextSize = 15,
+		TextColor3 = C.Muted,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Text = "No photos yet.\nClick (or press F) to take one!",
+		ZIndex = 26,
+	})
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			if panel.Visible then
+				Album.refresh()
+			end
+		end
+	end)
+end
+
+function Album.refresh()
+	if not list then
+		return
+	end
+	for _, child in list:GetChildren() do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+	local rows = {}
+	for _, n in notebook do
+		table.insert(rows, n)
+	end
+	table.sort(rows, function(a, b)
+		return a.seen > b.seen
+	end)
+	empty.Visible = #rows == 0
+	local now = View.now()
+	for i, n in rows do
+		if i > Config.Photo.Album then
+			break
+		end
+		local e = View.byId(n.id)
+		local out = e == nil or not e.alive
+		local card = UI.new("Frame", {
+			LayoutOrder = out and 1000 + i or i,
+			Size = UDim2.new(1, -6, 0, 58),
+			BackgroundColor3 = C.Card,
+			BorderSizePixel = 0,
+			ZIndex = 27,
+		}, list)
+		UI.corner(card, 10)
+		UI.stroke(card, C.Stroke, 2)
+		UI.label(card, {
+			Position = UDim2.fromOffset(10, 6),
+			Size = UDim2.new(0.55, 0, 0, 20),
+			Font = UI.Fonts.Bold,
+			TextSize = 14,
+			TextWrapped = false,
+			Text = n.icon .. " " .. n.code,
+			ZIndex = 28,
+		})
+		UI.label(card, {
+			Position = UDim2.fromOffset(10, 32),
+			Size = UDim2.new(0.55, 0, 0, 18),
+			Font = UI.Fonts.Body,
+			TextSize = 11,
+			TextColor3 = C.Muted,
+			Text = (out and "OUT / gone" or "seen " .. math.max(0, math.floor(now - n.seen)) .. "s ago") .. (n.count > 1 and ("  •  " .. n.count .. " photos") or ""),
+			ZIndex = 28,
+		})
+		for k = 1, Config.Number.Digits do
+			local ch = n.digits[k]
+			local box = UI.new("Frame", {
+				Position = UDim2.new(0.55, (k - 1) * 30, 0, 12),
+				Size = UDim2.fromOffset(26, 34),
+				BackgroundColor3 = C.Bg,
+				BorderSizePixel = 0,
+				ZIndex = 28,
+			}, card)
+			UI.corner(box, 6)
+			UI.label(box, {
+				Size = UDim2.fromScale(1, 1),
+				Font = UI.Fonts.Title,
+				TextSize = 22,
+				TextXAlignment = Enum.TextXAlignment.Center,
+				TextColor3 = ch == "?" and C.Muted or C.Gold,
+				Text = ch,
+				ZIndex = 29,
+			})
+		end
+		if not out and not table.find(n.digits, "?") then
+			local fire = UI.button(card, {
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.new(1, -8, 0.5, 0),
+				Size = UDim2.fromOffset(52, 34),
+				Text = "FIRE",
+				TextSize = 14,
+				BackgroundColor3 = C.Accent2,
+				ZIndex = 29,
+			})
+			fire.MouseButton1Click:Connect(function()
+				deps.Controls.fireFromNotebook(n.id, table.concat(n.digits), n)
+			end)
+		end
+		if out then
+			card.BackgroundTransparency = 0.5
+		end
+	end
+end
+
+function Album.open()
+	if panel then
+		panel.Visible = true
+		Album.refresh()
+		Audio.click()
+	end
+end
+
+function Album.close()
+	if panel then
+		panel.Visible = false
+	end
+end
+
+function Album.toggle()
+	if Album.isOpen() then
+		Album.close()
+	else
+		Album.open()
+	end
+end
+
+-- A little photo card slides in after every shot.
+local function showPopup(entries)
+	if popup then
+		popup:Destroy()
+	end
+	local height = 34 + math.max(1, #entries) * 22
+	popup = UI.panel(gui, {
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -14, 1, -90),
+		Size = UDim2.fromOffset(250, height),
+		ZIndex = 24,
+	})
+	UI.label(popup, {
+		Position = UDim2.fromOffset(10, 4),
+		Size = UDim2.new(1, -20, 0, 22),
+		Font = UI.Fonts.Title,
+		TextSize = 15,
+		TextColor3 = C.Accent,
+		Text = "📷 PHOTO",
+		ZIndex = 25,
+	})
+	if #entries == 0 then
+		UI.label(popup, {
+			Position = UDim2.fromOffset(10, 28),
+			Size = UDim2.new(1, -20, 0, 20),
+			Font = UI.Fonts.Body,
+			TextSize = 13,
+			TextColor3 = C.Muted,
+			Text = "Nobody in frame",
+			ZIndex = 25,
+		})
+	end
+	for i, e in entries do
+		UI.label(popup, {
+			Position = UDim2.fromOffset(10, 6 + i * 22),
+			Size = UDim2.new(1, -20, 0, 20),
+			Font = UI.Fonts.Bold,
+			TextSize = 13,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextWrapped = false,
+			Text = e[3] .. " " .. e[2] .. "   " .. e[4] .. "   " .. e[5] .. "m",
+			ZIndex = 25,
+		})
+	end
+	local mine = popup
+	task.delay(4.5, function()
+		if popup == mine then
+			popup:Destroy()
+			popup = nil
+		end
+	end)
+end
+
+-- entries: { { id, code, icon, text, distance } }
+function Album.add(entries)
+	if type(entries) ~= "table" then
+		return
+	end
+	local now = View.now()
+	for _, e in entries do
+		local id, code, icon, text = e[1], e[2], e[3], e[4]
+		local n = notebook[id]
+		if not n then
+			n = { id = id, code = code, icon = icon, digits = { "?", "?", "?" }, seen = now, count = 0 }
+			notebook[id] = n
+		end
+		n.count += 1
+		n.seen = now
+		for i = 1, Config.Number.Digits do
+			local ch = string.sub(text, i, i)
+			if ch ~= "?" and ch ~= "" then
+				n.digits[i] = ch
+			end
+		end
+	end
+	showPopup(entries)
+	if panel and panel.Visible then
+		Album.refresh()
+	end
+end
+
+return Album
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="30">
+            <Properties>
+              <string name="Name">Alerts</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: everything the game shouts at you: flashbang blindness, stun, the "don't hide your number" warning,
+-- the arrow that points at someone who just guessed you, thick smoke when you stand inside it, and getting eliminated.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local UI = require(Shared:WaitForChild("UI"))
+local Audio = require(Shared:WaitForChild("Audio"))
+local View = require(script.Parent:WaitForChild("View"))
+
+local Alerts = {}
+
+local C = UI.Colors
+local deps
+local refs = {}
+local blindUntil, stunUntil = 0, 0
+local snitch -- { pos, until }
+
+function Alerts.isBlind()
+	return View.now() < blindUntil
+end
+
+function Alerts.isStunned()
+	return View.now() < stunUntil
+end
+
+function Alerts.init(gui, d)
+	deps = d
+	refs.white = UI.new("Frame", { Name = "Blind", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 80 }, gui)
+	refs.smoke = UI.new("Frame", { Name = "SmokeFog", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(190, 194, 205), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 70 }, gui)
+	refs.stunTint = UI.new("Frame", { Name = "StunTint", Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.Sky, BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 40 }, gui)
+	refs.stunLabel = UI.label(gui, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.62),
+		Size = UDim2.fromOffset(360, 60),
+		Font = UI.Fonts.Title,
+		TextSize = 34,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextColor3 = C.Sky,
+		Text = "",
+		Visible = false,
+		ZIndex = 41,
+	})
+	refs.cover = UI.panel(gui, {
+		Name = "CoverWarning",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 86),
+		Size = UDim2.fromOffset(420, 58),
+		BackgroundColor3 = Color3.fromRGB(70, 14, 22),
+		Visible = false,
+		ZIndex = 45,
+	})
+	refs.coverTitle = UI.label(refs.cover, {
+		Position = UDim2.fromOffset(0, 5),
+		Size = UDim2.new(1, 0, 0, 26),
+		Font = UI.Fonts.Title,
+		TextSize = 20,
+		TextColor3 = C.Danger,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Text = "",
+		ZIndex = 46,
+	})
+	refs.coverSub = UI.label(refs.cover, {
+		Position = UDim2.fromOffset(0, 32),
+		Size = UDim2.new(1, 0, 0, 20),
+		Font = UI.Fonts.Bold,
+		TextSize = 13,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Text = "",
+		ZIndex = 46,
+	})
+	refs.arrowHolder = UI.new("Frame", { Name = "Snitch", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false, ZIndex = 50 }, gui)
+	refs.arrow = UI.label(refs.arrowHolder, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Size = UDim2.fromOffset(70, 70),
+		Font = UI.Fonts.Title,
+		TextSize = 60,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextColor3 = C.Danger,
+		Text = "▲",
+		ZIndex = 51,
+	})
+	refs.arrowText = UI.label(refs.arrowHolder, {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0.5, 120),
+		Size = UDim2.fromOffset(360, 24),
+		Font = UI.Fonts.Title,
+		TextSize = 16,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextColor3 = C.Danger,
+		Text = "SOMEONE JUST GUESSED YOU",
+		ZIndex = 51,
+	})
+	RunService.RenderStepped:Connect(function()
+		Alerts.update()
+	end)
+end
+
+function Alerts.flash(seconds)
+	local now = View.now()
+	blindUntil = math.max(blindUntil, now + seconds)
+	refs.white.BackgroundTransparency = 0
+	local hold = math.min(1.2, seconds * 0.35)
+	task.delay(hold, function()
+		UI.tween(refs.white, math.max(0.2, seconds - hold), { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	end)
+	Audio.ring()
+	deps.Scope.set(false)
+	deps.Fx.shake(0.4, 0.3)
+end
+
+function Alerts.stun(seconds)
+	stunUntil = math.max(stunUntil, View.now() + seconds)
+	refs.stunTint.BackgroundTransparency = 0.82
+	refs.stunLabel.Visible = true
+	Audio.stun()
+	deps.Fx.shake(0.5, 0.25)
+	deps.Scope.set(false)
+	deps.Keypad.close()
+end
+
+-- stage: "warn" | "ok" | "exposed"
+function Alerts.cover(stage, value)
+	if stage == "warn" then
+		refs.cover.Visible = true
+		refs.coverTitle.Text = "⚠ DON'T HIDE YOUR NUMBER"
+		refs.coverSub.Text = "Turn away from the wall or be exposed in " .. string.format("%.1f", value) .. "s"
+		if (refs.lastWarnBeep or 0) + 0.8 < os.clock() then
+			refs.lastWarnBeep = os.clock()
+			Audio.warn()
+		end
+	elseif stage == "ok" then
+		refs.cover.Visible = false
+	else
+		refs.cover.Visible = false
+		Audio.siren()
+		deps.Fx.flash(C.Danger, 0.5, 0.6)
+		deps.Fx.announce("YOU'RE EXPOSED!", "Everyone can see your number for " .. value .. "s", C.Danger, 0.28)
+	end
+end
+
+function Alerts.snitch(pos, seconds)
+	snitch = { pos = pos, untilT = View.now() + seconds }
+	refs.arrowHolder.Visible = true
+	Audio.snitch()
+	deps.Fx.shake(0.6, 0.3)
+	deps.Toasts.push("Someone just guessed your number!", "bad")
+end
+
+function Alerts.update()
+	local now = View.now()
+	-- stun countdown
+	if now < stunUntil then
+		refs.stunLabel.Text = "FROZEN  " .. string.format("%.1f", stunUntil - now)
+	elseif refs.stunLabel.Visible then
+		refs.stunLabel.Visible = false
+		UI.tween(refs.stunTint, 0.3, { BackgroundTransparency = 1 })
+	end
+	-- arrow towards whoever guessed me
+	if snitch then
+		local camera = View.camera()
+		if now > snitch.untilT or not camera then
+			snitch = nil
+			refs.arrowHolder.Visible = false
+		else
+			local cf = camera.CFrame
+			local look = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+			local right = Vector3.new(cf.RightVector.X, 0, cf.RightVector.Z)
+			local dir = Vector3.new(snitch.pos.X - cf.Position.X, 0, snitch.pos.Z - cf.Position.Z)
+			if dir.Magnitude > 0.1 and look.Magnitude > 0.01 then
+				local angle = math.atan2(dir.Unit:Dot(right.Unit), dir.Unit:Dot(look.Unit))
+				refs.arrow.Rotation = math.deg(angle)
+				refs.arrow.Position = UDim2.new(0.5, math.sin(angle) * 150, 0.5, -math.cos(angle) * 150)
+			end
+		end
+	end
+	-- standing inside a smoke cloud
+	local camera = View.camera()
+	local smoke = workspace:FindFirstChild("Smoke")
+	local inside = false
+	if smoke and camera then
+		for _, s in smoke:GetChildren() do
+			local center, radius = View.cloudOf(s)
+			if (center - camera.CFrame.Position).Magnitude < radius * 0.9 then
+				inside = true
+				break
+			end
+		end
+	end
+	local want = inside and 0.12 or 1
+	refs.smoke.BackgroundTransparency += (want - refs.smoke.BackgroundTransparency) * 0.2
+	-- the cover warning goes away when the game is not running
+	if View.phase() ~= "play" and refs.cover.Visible then
+		refs.cover.Visible = false
+	end
+end
+
+return Alerts
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="31">
+            <Properties>
+              <string name="Name">Controls</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: keyboard and mouse. G guess, hold right mouse (or Z) for binoculars, click or F for a photo, V for
+-- the notebook, 1 to 8 for items, M for the menu, arrow keys to change who you watch.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Audio = require(Shared:WaitForChild("Audio"))
+local View = require(script.Parent:WaitForChild("View"))
+
+local Controls = {}
+
+local player = Players.LocalPlayer
+local deps
+local lastSnap = -100
+
+local HOTKEYS = {}
+for i, name in { "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight" } do
+	HOTKEYS[Enum.KeyCode[name]] = Config.Items[i].Id
+end
+
+local function canAct()
+	return View.phase() == "play" and View.amAlive() and player:GetAttribute("Stunned") ~= true and not deps.Alerts.isStunned()
+end
+
+function Controls.guess()
+	if deps.Keypad.isOpen() then
+		deps.Keypad.close()
+		return
+	end
+	if not canAct() then
+		return
+	end
+	deps.Keypad.open()
+end
+
+function Controls.guessSent(target)
+	deps.Fx.punch(2)
+end
+
+function Controls.snap()
+	if not canAct() or deps.Alerts.isBlind() then
+		return
+	end
+	local now = View.now()
+	if now - lastSnap < Config.Photo.Cooldown then
+		return
+	end
+	local camera = View.camera()
+	if not camera then
+		return
+	end
+	lastSnap = now
+	deps.send("Snap", camera.CFrame.Position, camera.CFrame.LookVector)
+	deps.Hud.snapCooldown(Config.Photo.Cooldown)
+	deps.Fx.flash(Color3.new(1, 1, 1), 0.55, 0.25)
+	Audio.snap()
+end
+
+function Controls.use(id)
+	if not canAct() then
+		return
+	end
+	if (player:GetAttribute("It_" .. id) or 0) < 1 then
+		Audio.error()
+		return
+	end
+	local camera = View.camera()
+	deps.send("Use", id, camera and camera.CFrame.LookVector or nil)
+end
+
+function Controls.fireFromNotebook(id, digits, entry)
+	if not canAct() then
+		return
+	end
+	deps.send("Guess", id, digits)
+	Controls.guessSent(entry)
+end
+
+function Controls.init(d)
+	deps = d
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if deps.Keypad.key(input) then
+			return
+		end
+		if processed then
+			return
+		end
+		local kc = input.KeyCode
+		local kind = input.UserInputType
+		if kc == Enum.KeyCode.G then
+			Controls.guess()
+		elseif kc == Enum.KeyCode.F then
+			Controls.snap()
+		elseif kc == Enum.KeyCode.V then
+			deps.Album.toggle()
+		elseif kc == Enum.KeyCode.M then
+			deps.Menu.toggle()
+		elseif kc == Enum.KeyCode.Z or kind == Enum.UserInputType.MouseButton2 then
+			deps.Scope.set(true)
+		elseif kc == Enum.KeyCode.Left then
+			deps.Spectate.cycle(-1)
+		elseif kc == Enum.KeyCode.Right then
+			deps.Spectate.cycle(1)
+		elseif HOTKEYS[kc] then
+			deps.Hud.activate(HOTKEYS[kc])
+		elseif kind == Enum.UserInputType.MouseButton1 and not deps.Menu.isOpen() and not deps.Album.isOpen() then
+			Controls.snap()
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.KeyCode == Enum.KeyCode.Z or input.UserInputType == Enum.UserInputType.MouseButton2 then
+			deps.Scope.set(false)
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input, processed)
+		if input.UserInputType == Enum.UserInputType.MouseWheel and deps.Scope.isOn() then
+			deps.Scope.zoom(input.Position.Z)
+		end
+	end)
+end
+
+return Controls
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="32">
+            <Properties>
+              <string name="Name">Fx</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
+-- centred callouts. Everything respects the "Effects" setting so players can tone it down.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Debris = game:GetService("Debris")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local UI = require(Shared:WaitForChild("UI"))
+
+local Fx = {}
+
+local player = Players.LocalPlayer
+local camera = workspace:WaitForChild("Camera")
+local gui
+local baseFov, targetFov = 70, 70
+local fovKick = 0
+local shakeMag, shakeTime = 0, 0
+local flashFrame
+
+local function effectsOn()
+	return player:GetAttribute("Fx") ~= false
+end
+
+function Fx.init(screenGui)
+	gui = screenGui
+	flashFrame = UI.new("Frame", {
+		Name = "Flash",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ZIndex = 90,
+		Active = false,
+	}, gui)
+
+	RunService.RenderStepped:Connect(function(dt)
+		fovKick = fovKick * (1 - math.min(1, dt * 12))
+		baseFov += (targetFov - baseFov) * math.min(1, dt * 4)
+		camera.FieldOfView = baseFov + fovKick
+		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if hum then
+			if shakeTime > 0 and effectsOn() then
+				shakeTime -= dt
+				local m = shakeMag * math.clamp(shakeTime / 0.3, 0, 1)
+				hum.CameraOffset = Vector3.new((math.random() - 0.5) * m, (math.random() - 0.5) * m, 0)
+			else
+				shakeMag = 0
+				shakeTime = 0
+				hum.CameraOffset = Vector3.zero
+			end
+		end
+	end)
+end
+
+-- The zone cameras change the resting field of view through this.
+function Fx.setBaseFov(fov)
+	targetFov = fov or 70
+end
+
+function Fx.punch(amount)
+	if effectsOn() then
+		fovKick = math.max(fovKick, amount)
+	end
+end
+
+function Fx.shake(mag, dur)
+	if effectsOn() then
+		shakeMag = math.max(shakeMag, mag)
+		shakeTime = math.max(shakeTime, dur)
+	end
+end
+
+function Fx.flash(color, strength, dur)
+	if not effectsOn() or not flashFrame then
+		return
+	end
+	flashFrame.BackgroundColor3 = color
+	flashFrame.BackgroundTransparency = 1 - strength
+	UI.tween(flashFrame, dur or 0.5, { BackgroundTransparency = 1 })
+end
+
+local function anchorAt(pos, lifetime)
+	local anchor = UI.new("Part", {
+		Anchored = true,
+		CanCollide = false,
+		CanTouch = false,
+		CanQuery = false,
+		Transparency = 1,
+		Size = Vector3.one * 0.1,
+		Position = pos,
+	}, workspace)
+	Debris:AddItem(anchor, lifetime)
+	return anchor
+end
+
+-- Rising number in the world. Only used for notable pickups so the screen stays calm.
+function Fx.floatText(pos, text, color, size)
+	if not effectsOn() then
+		return
+	end
+	local anchor = anchorAt(pos + Vector3.new((math.random() - 0.5) * 2, 0, (math.random() - 0.5) * 2), 1.3)
+	local bb = UI.new("BillboardGui", {
+		Adornee = anchor,
+		AlwaysOnTop = true,
+		Size = UDim2.fromOffset(240, size + 10),
+	}, anchor)
+	local label = UI.label(bb, {
+		Size = UDim2.fromScale(1, 1),
+		Font = UI.Fonts.Title,
+		TextSize = size,
+		TextColor3 = color,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextStrokeTransparency = 0.25,
+		TextStrokeColor3 = Color3.fromRGB(18, 10, 44),
+		Text = text,
+		TextWrapped = false,
+	})
+	local grow = UI.new("UIScale", { Scale = 0.4 }, label)
+	UI.tween(grow, 0.18, { Scale = 1 }, Enum.EasingStyle.Back)
+	UI.tween(bb, 1.1, { StudsOffset = Vector3.new(0, 6, 0) })
+	UI.tween(label, 1.1, { TextTransparency = 1, TextStrokeTransparency = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+end
+
+function Fx.burst(pos, color, count)
+	if not effectsOn() then
+		return
+	end
+	local anchor = anchorAt(pos, 1.5)
+	local e = UI.new("ParticleEmitter", {
+		Color = ColorSequence.new(color),
+		LightEmission = 1,
+		Rate = 0,
+		Lifetime = NumberRange.new(0.4, 0.8),
+		Speed = NumberRange.new(10, 22),
+		SpreadAngle = Vector2.new(180, 180),
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.7), NumberSequenceKeypoint.new(1, 0) }),
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1) }),
+	}, anchor)
+	e:Emit(count)
+end
+
+-- Expanding shockwave ring on the ground.
+function Fx.ring(pos, color, radius)
+	if not effectsOn() then
+		return
+	end
+	local part = UI.new("Part", {
+		Name = "FxRing",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.4, 2, 2),
+		CFrame = CFrame.new(pos.X, pos.Y - 2.5, pos.Z) * CFrame.Angles(0, 0, math.pi / 2),
+		Color = color,
+		Material = Enum.Material.SmoothPlastic,
+		Transparency = 0.2,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+	}, workspace)
+	local d = (radius or 24) * 2
+	UI.tween(part, 0.55, { Size = Vector3.new(0.4, d, d), Transparency = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	Debris:AddItem(part, 0.7)
+end
+
+-- A tall beam of light that shoots up and fades (level-ups, big hatches).
+function Fx.pillar(pos, color, height)
+	if not effectsOn() then
+		return
+	end
+	local h = height or 70
+	local part = UI.new("Part", {
+		Name = "FxPillar",
+		Size = Vector3.new(5, h, 5),
+		Position = Vector3.new(pos.X, pos.Y - 2.5 + h / 2, pos.Z),
+		Color = color,
+		Material = Enum.Material.SmoothPlastic,
+		Transparency = 0.45,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+	}, workspace)
+	UI.tween(part, 0.9, { Size = Vector3.new(0.4, h, 0.4), Transparency = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	Debris:AddItem(part, 1)
+end
+
+-- Big centred callout. Reserved for moments that deserve it (rank ups, rebirths, combos).
+function Fx.announce(title, sub, color, y)
+	if not gui then
+		return
+	end
+	local holder = UI.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, y or 0.2, 0),
+		Size = UDim2.fromOffset(520, 80),
+		BackgroundTransparency = 1,
+		ZIndex = 60,
+	}, gui)
+	local scale = UI.new("UIScale", { Scale = 0.3 }, holder)
+	local t = UI.label(holder, {
+		Size = UDim2.new(1, 0, 0, 44),
+		Font = UI.Fonts.Title,
+		TextSize = 38,
+		TextColor3 = color,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextStrokeTransparency = 0.1,
+		TextStrokeColor3 = Color3.fromRGB(18, 10, 44),
+		Text = title,
+		ZIndex = 60,
+	})
+	local s = UI.label(holder, {
+		Position = UDim2.fromOffset(0, 46),
+		Size = UDim2.new(1, 0, 0, 26),
+		Font = UI.Fonts.Bold,
+		TextSize = 17,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextStrokeTransparency = 0.3,
+		TextStrokeColor3 = Color3.fromRGB(18, 10, 44),
+		Text = sub or "",
+		ZIndex = 60,
+	})
+	UI.tween(scale, 0.32, { Scale = 1 }, Enum.EasingStyle.Back)
+	task.delay(1.9, function()
+		UI.tween(t, 0.5, { TextTransparency = 1, TextStrokeTransparency = 1 })
+		UI.tween(s, 0.5, { TextTransparency = 1, TextStrokeTransparency = 1 })
+		task.wait(0.6)
+		holder:Destroy()
+	end)
+end
+
+return Fx
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="33">
+            <Properties>
+              <string name="Name">Hud</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: the always-on screen: timer and alive count, your codename and bullets, the kill feed, the item
+-- hotbar, the crosshair with the name of whoever you are aiming at, and the small buttons in the corners.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(Shared:WaitForChild("UI"))
+local Util = require(Shared:WaitForChild("Util"))
+local Audio = require(Shared:WaitForChild("Audio"))
+local View = require(script.Parent:WaitForChild("View"))
+
+local Hud = {}
+
+local player = Players.LocalPlayer
+local C = UI.Colors
+local deps
+local gui
+local refs = {}
+local feed = {}
+local slots = {}
+local lastSecond = -1
+local snapReadyAt = 0
+local aimAt, aimTarget, aimDistance = 0, nil, 0
+
+local function chip(parent, props)
+	local f = UI.panel(parent, props)
+	return f
+end
+
+function Hud.init(screen, d)
+	gui = screen
+	deps = d
+	local root = UI.new("Frame", { Name = "Hud", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, gui)
+	refs.root = root
+
+	-- top centre: phase + timer + alive
+	local top = chip(root, {
+		Name = "Top",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 12),
+		Size = UDim2.fromOffset(280, 64),
+	})
+	refs.phase = UI.label(top, {
+		Position = UDim2.fromOffset(0, 5),
+		Size = UDim2.new(1, 0, 0, 16),
+		Font = UI.Fonts.Bold,
+		TextSize = 13,
+		TextColor3 = C.Muted,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Text = "LOBBY",
+	})
+	refs.timer = UI.label(top, {
+		Position = UDim2.fromOffset(0, 18),
+		Size = UDim2.new(0.55, 0, 0, 40),
+		Font = UI.Fonts.Title,
+		TextSize = 34,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Text = "0:00",
+	})
+	refs.alive = UI.label(top, {
+		Position = UDim2.new(0.55, 0, 0, 18),
+		Size = UDim2.new(0.45, -8, 0, 40),
+		Font = UI.Fonts.Title,
+		TextSize = 22,
+		TextColor3 = C.Good,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Text = "",
+	})
+
+	-- top left: who you are + bullets
+	local me = chip(root, {
+		Name = "Me",
+		Position = UDim2.fromOffset(12, 12),
+		Size = UDim2.fromOffset(250, 78),
+	})
+	refs.meBox = me
+	refs.meTitle = UI.label(me, {
+		Position = UDim2.fromOffset(12, 6),
+		Size = UDim2.new(1, -24, 0, 14),
+		Font = UI.Fonts.Bold,
+		TextSize = 12,
+		TextColor3 = C.Muted,
+		Text = "YOUR CODENAME",
+	})
+	refs.meName = UI.label(me, {
+		Position = UDim2.fromOffset(12, 20),
+		Size = UDim2.new(1, -24, 0, 26),
+		Font = UI.Fonts.Title,
+		TextSize = 20,
+		Text = "-",
+	})
+	refs.pips = {}
+	for i = 1, Config.Guess.Bullets do
+		local pip = UI.new("Frame", {
+			Position = UDim2.fromOffset(12 + (i - 1) * 26, 52),
+			Size = UDim2.fromOffset(20, 16),
+			BackgroundColor3 = C.Gold,
+			BorderSizePixel = 0,
+		}, me)
+		UI.corner(pip, 5)
+		UI.stroke(pip, C.Stroke, 2)
+		refs.pips[i] = pip
+	end
+	refs.meHint = UI.label(me, {
+		Position = UDim2.fromOffset(140, 50),
+		Size = UDim2.new(1, -150, 0, 20),
+		Font = UI.Fonts.Bold,
+		TextSize = 11,
+		TextColor3 = C.Muted,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		Text = "bullets",
+	})
+
+	-- top right: small buttons
+	local function cornerButton(text, x, onClick)
+		local b = UI.button(root, {
+			AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.new(1, -12 - x, 0, 12),
+			Size = UDim2.fromOffset(44, 44),
+			Text = text,
+			TextSize = 22,
+			BackgroundColor3 = C.Card,
+		}, "card")
+		b.MouseButton1Click:Connect(function()
+			Audio.click()
+			onClick()
+		end)
+		return b
+	end
+	cornerButton("☰", 0, function()
+		deps.Menu.toggle()
+	end)
+	cornerButton("📒", 52, function()
+		deps.Album.toggle()
+	end)
+	cornerButton("?", 104, function()
+		deps.Menu.open("How to play")
+	end)
+
+	-- kill feed (right side)
+	refs.feed = UI.new("Frame", {
+		Name = "Feed",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0, 70),
+		Size = UDim2.fromOffset(330, 160),
+		BackgroundTransparency = 1,
+	}, root)
+	UI.new("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 4), HorizontalAlignment = Enum.HorizontalAlignment.Right }, refs.feed)
+
+	-- crosshair + aimed name
+	refs.cross = UI.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(18, 18),
+		BackgroundTransparency = 1,
+	}, root)
+	refs.crossStroke = UI.stroke(refs.cross, Color3.new(1, 1, 1), 2, 0.25)
+	UI.corner(refs.cross, 9)
+	refs.aimLabel = UI.label(root, {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0.5, 20),
+		Size = UDim2.fromOffset(300, 44),
+		Font = UI.Fonts.Title,
+		TextSize = 18,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextColor3 = C.Accent,
+		Text = "",
+	})
+
+	-- hotbar
+	local bar = UI.new("Frame", {
+		Name = "Hotbar",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -12),
+		Size = UDim2.fromOffset(#Config.Items * 62, 62),
+		BackgroundTransparency = 1,
+	}, root)
+	UI.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, bar)
+	for i, item in Config.Items do
+		local b = UI.button(bar, {
+			LayoutOrder = i,
+			Size = UDim2.fromOffset(58, 58),
+			Text = item.Icon,
+			TextSize = 28,
+			BackgroundColor3 = C.Card,
+		}, "card")
+		UI.label(b, {
+			Position = UDim2.fromOffset(5, 2),
+			Size = UDim2.fromOffset(16, 14),
+			Font = UI.Fonts.Title,
+			TextSize = 12,
+			TextColor3 = C.Gold,
+			Text = tostring(item.Key),
+		})
+		local count = UI.label(b, {
+			AnchorPoint = Vector2.new(1, 1),
+			Position = UDim2.new(1, -4, 1, -2),
+			Size = UDim2.fromOffset(30, 16),
+			Font = UI.Fonts.Title,
+			TextSize = 15,
+			TextXAlignment = Enum.TextXAlignment.Right,
+			Text = "",
+		})
+		local shade = UI.new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 5 }, b)
+		UI.corner(shade, 12)
+		b.MouseButton1Click:Connect(function()
+			Hud.activate(item.Id)
+		end)
+		slots[item.Id] = { button = b, count = count, shade = shade, item = item }
+	end
+
+	-- guess button (also G)
+	local guess = UI.button(root, {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, #Config.Items * 31 + 70, 1, -16),
+		Size = UDim2.fromOffset(92, 50),
+		Text = "GUESS  G",
+		TextSize = 15,
+		BackgroundColor3 = C.Accent2,
+	})
+	guess.MouseButton1Click:Connect(function()
+		deps.Controls.guess()
+	end)
+	refs.tips = UI.label(root, {
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 14, 1, -14),
+		Size = UDim2.fromOffset(270, 60),
+		Font = UI.Fonts.Bold,
+		TextSize = 12,
+		TextColor3 = C.Muted,
+		Text = "G guess   RMB hold: binoculars   click / F: photo   V notebook   1-8 items",
+	})
+
+	RunService.RenderStepped:Connect(function()
+		Hud.update()
+	end)
+	player:GetAttributeChangedSignal("Alive"):Connect(function()
+		Hud.update()
+	end)
+end
+
+-- What a hotbar press does.
+function Hud.activate(id)
+	local c = deps.Controls
+	if id == "binos" then
+		deps.Scope.toggle()
+	elseif id == "camera" then
+		c.snap()
+	else
+		c.use(id)
+	end
+end
+
+function Hud.feed(text, color)
+	if not refs.feed then
+		return
+	end
+	local line = UI.panel(refs.feed, { Size = UDim2.fromOffset(330, 26), Radius = 8, BackgroundColor3 = C.Panel, LayoutOrder = -math.floor(os.clock() * 100) })
+	UI.label(line, {
+		Position = UDim2.fromOffset(8, 0),
+		Size = UDim2.new(1, -16, 1, 0),
+		Font = UI.Fonts.Bold,
+		TextSize = 13,
+		TextColor3 = color or C.Text,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		TextWrapped = false,
+		Text = text,
+	})
+	table.insert(feed, line)
+	while #feed > 6 do
+		table.remove(feed, 1):Destroy()
+	end
+	task.delay(9, function()
+		local i = table.find(feed, line)
+		if i then
+			table.remove(feed, i)
+		end
+		line:Destroy()
+	end)
+end
+
+function Hud.snapCooldown(seconds)
+	snapReadyAt = View.now() + seconds
+end
+
+local PHASE_TEXT = { lobby = "NEXT MATCH IN", countdown = "GET READY", play = "TIME LEFT", results = "RESULTS" }
+
+function Hud.update()
+	if not refs.root then
+		return
+	end
+	local phase = View.phase()
+	local left = View.timeLeft()
+	refs.phase.Text = PHASE_TEXT[phase] or ""
+	refs.timer.Text = Util.clock(left)
+	refs.timer.TextColor3 = (phase == "play" and left <= Config.Match.RevealAt) and C.Danger or C.Text
+	if phase == "play" or phase == "countdown" or phase == "results" then
+		refs.alive.Text = "👥 " .. View.aliveCount() .. "/" .. View.total()
+	else
+		refs.alive.Text = Players.NumPlayers .. " in lobby"
+	end
+	-- countdown beeps for the last 3 seconds before the start
+	local second = math.ceil(left)
+	if phase == "countdown" and second ~= lastSecond and second >= 1 and second <= 3 then
+		Audio.countdown(second, false)
+		deps.Fx.announce(tostring(second), "", C.Gold, 0.3)
+	end
+	if phase == "play" and second ~= lastSecond and second <= 10 and second >= 1 and left <= 10 then
+		Audio.tick()
+	end
+	lastSecond = second
+
+	-- you
+	local playing = player:GetAttribute("Alive") == true and (phase == "play" or phase == "countdown")
+	refs.meBox.Visible = playing
+	if playing then
+		refs.meName.Text = (player:GetAttribute("Icon") or "") .. " " .. (player:GetAttribute("Code") or "")
+		local bullets = player:GetAttribute("Bullets") or 0
+		for i, pip in refs.pips do
+			pip.BackgroundColor3 = i <= bullets and C.Gold or Color3.fromRGB(60, 62, 80)
+		end
+		refs.meHint.Text = (player:GetAttribute("Kills") or 0) .. " out"
+	end
+
+	-- hotbar
+	local now = View.now()
+	for id, slot in slots do
+		local item = slot.item
+		local have = item.Permanent and 1 or (player:GetAttribute("It_" .. id) or 0)
+		slot.count.Text = item.Permanent and "" or ("x" .. have)
+		local usable = playing and have > 0 and phase == "play"
+		if id == "camera" and now < snapReadyAt then
+			usable = false
+		end
+		slot.shade.BackgroundTransparency = usable and 1 or 0.55
+	end
+
+	-- crosshair + the name of whoever you are aiming at
+	refs.cross.Visible = playing and not deps.Scope.isOn()
+	if playing and phase == "play" then
+		if os.clock() - aimAt > 0.1 then
+			aimAt = os.clock()
+			aimTarget, aimDistance = View.aimed()
+		end
+		local target, distance = aimTarget, aimDistance
+		if target then
+			refs.aimLabel.Text = target.icon .. " " .. target.code .. "   " .. math.floor(distance + 0.5) .. " m\n[G] to guess"
+			refs.crossStroke.Color = C.Accent
+		else
+			refs.aimLabel.Text = ""
+			refs.crossStroke.Color = Color3.new(1, 1, 1)
+		end
+	else
+		refs.aimLabel.Text = ""
+	end
+	refs.tips.Visible = playing
+end
+
+return Hud
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="34">
+            <Properties>
+              <string name="Name">Keypad</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: the guess keypad. Press G while aiming at someone, type their three digits and it fires by itself.
+-- Works with the keyboard and with the on-screen buttons (for phones and tablets).
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(Shared:WaitForChild("UI"))
+local Audio = require(Shared:WaitForChild("Audio"))
+local Rules = require(Shared:WaitForChild("Rules"))
+local View = require(script.Parent:WaitForChild("View"))
+
+local Keypad = {}
+
+local C = UI.Colors
+local deps
+local panel, slotLabels, title, sub
+local typed = ""
+local target = nil
+
+local DIGIT_KEYS = {}
+for i = 0, 9 do
+	DIGIT_KEYS[Enum.KeyCode[({ "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine" })[i + 1]]] = tostring(i)
+	DIGIT_KEYS[Enum.KeyCode[({ "KeypadZero", "KeypadOne", "KeypadTwo", "KeypadThree", "KeypadFour", "KeypadFive", "KeypadSix", "KeypadSeven", "KeypadEight", "KeypadNine" })[i + 1]]] = tostring(i)
+end
+
+function Keypad.isOpen()
+	return panel ~= nil and panel.Visible
+end
+
+local function redraw()
+	for i, l in slotLabels do
+		local ch = string.sub(typed, i, i)
+		l.Text = ch ~= "" and ch or "_"
+		l.TextColor3 = ch ~= "" and C.Text or C.Muted
+	end
+end
+
+function Keypad.init(gui, d)
+	deps = d
+	panel = UI.panel(gui, {
+		Name = "Keypad",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -90),
+		Size = UDim2.fromOffset(300, 292),
+		Visible = false,
+		ZIndex = 30,
+	})
+	title = UI.label(panel, {
+		Position = UDim2.fromOffset(0, 8),
+		Size = UDim2.new(1, 0, 0, 24),
+		Font = UI.Fonts.Title,
+		TextSize = 18,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextColor3 = C.Accent,
+		Text = "WHO IS IT?",
+		ZIndex = 31,
+	})
+	sub = UI.label(panel, {
+		Position = UDim2.fromOffset(0, 30),
+		Size = UDim2.new(1, 0, 0, 16),
+		Font = UI.Fonts.Bold,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextColor3 = C.Muted,
+		Text = "type their 3 digits",
+		ZIndex = 31,
+	})
+	slotLabels = {}
+	for i = 1, Config.Number.Digits do
+		local box = UI.new("Frame", {
+			Position = UDim2.fromOffset(50 + (i - 1) * 68, 52),
+			Size = UDim2.fromOffset(60, 52),
+			BackgroundColor3 = C.Bg,
+			BorderSizePixel = 0,
+			ZIndex = 31,
+		}, panel)
+		UI.corner(box, 10)
+		UI.stroke(box, C.Accent, 2)
+		slotLabels[i] = UI.label(box, {
+			Size = UDim2.fromScale(1, 1),
+			Font = UI.Fonts.Title,
+			TextSize = 34,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Text = "_",
+			ZIndex = 32,
+		})
+	end
+	for n = 1, 10 do
+		local digit = n == 10 and 0 or n
+		local row, col = math.floor((n - 1) / 3), (n - 1) % 3
+		if n == 10 then
+			row, col = 3, 1
+		end
+		local b = UI.button(panel, {
+			Position = UDim2.fromOffset(40 + col * 78, 114 + row * 42),
+			Size = UDim2.fromOffset(70, 36),
+			Text = tostring(digit),
+			TextSize = 20,
+			BackgroundColor3 = C.Card,
+			ZIndex = 31,
+		}, "card")
+		b.MouseButton1Click:Connect(function()
+			Keypad.press(tostring(digit))
+		end)
+	end
+	local back = UI.button(panel, {
+		Position = UDim2.fromOffset(40, 114 + 3 * 42),
+		Size = UDim2.fromOffset(70, 36),
+		Text = "⌫",
+		TextSize = 20,
+		BackgroundColor3 = C.Card,
+		ZIndex = 31,
+	}, "card")
+	back.MouseButton1Click:Connect(function()
+		Keypad.back()
+	end)
+	local cancel = UI.button(panel, {
+		Position = UDim2.fromOffset(196, 114 + 3 * 42),
+		Size = UDim2.fromOffset(70, 36),
+		Text = "✕",
+		TextSize = 20,
+		BackgroundColor3 = C.Danger,
+		ZIndex = 31,
+	})
+	cancel.MouseButton1Click:Connect(function()
+		Keypad.close()
+	end)
+end
+
+-- Opens the keypad for whoever is under the crosshair (or for `entity` when given). Returns true when it opened.
+function Keypad.open(entity)
+	if not panel then
+		return false
+	end
+	if View.phase() ~= "play" or not View.amAlive() then
+		return false
+	end
+	entity = entity or View.aimed()
+	if not entity then
+		deps.Toasts.push("Aim at someone first", "bad")
+		Audio.error()
+		return false
+	end
+	target = entity
+	typed = ""
+	title.Text = "WHO IS " .. entity.icon .. " " .. string.upper(entity.code) .. "?"
+	sub.Text = "type their 3 digits"
+	redraw()
+	panel.Visible = true
+	Audio.click()
+	return true
+end
+
+function Keypad.close()
+	if panel then
+		panel.Visible = false
+	end
+	typed = ""
+	target = nil
+end
+
+function Keypad.back()
+	if #typed > 0 then
+		typed = string.sub(typed, 1, #typed - 1)
+		redraw()
+	end
+end
+
+function Keypad.press(ch)
+	if not Keypad.isOpen() or #typed >= Config.Number.Digits then
+		return
+	end
+	typed ..= ch
+	Audio.play("Click", 1 + #typed * 0.12, 0.5)
+	redraw()
+	if #typed == Config.Number.Digits then
+		Keypad.submit()
+	end
+end
+
+function Keypad.submit()
+	local digits = Rules.parseGuess(typed)
+	if not digits or not target then
+		return
+	end
+	local id = target.id
+	deps.send("Guess", id, digits)
+	deps.Controls.guessSent(target)
+	Keypad.close()
+end
+
+-- Called with every key press while the keypad is open. Returns true when the key was used.
+function Keypad.key(input)
+	if not Keypad.isOpen() then
+		return false
+	end
+	local digit = DIGIT_KEYS[input.KeyCode]
+	if digit then
+		Keypad.press(digit)
+		return true
+	end
+	if input.KeyCode == Enum.KeyCode.Backspace then
+		Keypad.back()
+		return true
+	elseif input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.G then
+		Keypad.close()
+		return true
+	end
+	return false
+end
+
+return Keypad
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="35">
+            <Properties>
+              <string name="Name">Menu</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: the menu window: how to play, forehead plates you unlock by winning, your stats and the settings.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(Shared:WaitForChild("UI"))
+local Audio = require(Shared:WaitForChild("Audio"))
+
+local Menu = {}
+
+local player = Players.LocalPlayer
+local C = UI.Colors
+local deps
+local window, body
+local tabs = {} -- name -> { button, page }
+local current
+local plateCards = {}
+local statLabels = {}
+local toggles = {}
+
+local TABS = { "How to play", "Plates", "Stats", "Settings" }
+
+local STEPS = {
+	{ "🪪", "Everybody has a secret number", "A 3-digit number is printed on every forehead. You can't see yours, but everybody else can." },
+	{ "🎯", "Guess to knock people out", "Aim at someone, press G and type THEIR number. Right = they're out. Wrong = you freeze for 3 seconds and lose a bullet." },
+	{ "🔭", "Find the numbers", "Hold the right mouse button for binoculars and read digits from across the map. Click to snap a photo: the notebook (V) joins up digits from several photos." },
+	{ "💥", "Mess with their eyes", "Flashbangs blind everyone who sees them go off. Smoke grenades make a cloud nobody can see through. Grab 🎁 crates for decoys, scramblers, switcheroos and boots." },
+	{ "🚫", "No hiding in corners", "Staring at a wall hides your number, so the game warns you. Ignore it and your number floats above your head for everyone!" },
+	{ "👁", "Someone is always watching", "A wrong guess points an arrow at the guesser. In the last 30 seconds THE REVEAL shows every number. Last one standing wins!" },
+}
+
+local function page(name)
+	local p = UI.new("ScrollingFrame", {
+		Name = name,
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 5,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(),
+		Visible = false,
+		ZIndex = 62,
+	}, body)
+	return p
+end
+
+local function buildHowTo(p)
+	UI.new("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8) }, p)
+	for i, s in STEPS do
+		local card = UI.new("Frame", { LayoutOrder = i, Size = UDim2.new(1, -8, 0, 74), BackgroundColor3 = C.Card, BorderSizePixel = 0, ZIndex = 63 }, p)
+		UI.corner(card, 12)
+		UI.label(card, { Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(52, 52), Font = UI.Fonts.Title, TextSize = 36, TextXAlignment = Enum.TextXAlignment.Center, Text = s[1], ZIndex = 64 })
+		UI.label(card, { Position = UDim2.fromOffset(66, 6), Size = UDim2.new(1, -74, 0, 20), Font = UI.Fonts.Title, TextSize = 15, TextColor3 = C.Accent, Text = s[2], ZIndex = 64 })
+		UI.label(card, { Position = UDim2.fromOffset(66, 26), Size = UDim2.new(1, -74, 0, 44), Font = UI.Fonts.Body, TextSize = 12, TextColor3 = C.Muted, TextYAlignment = Enum.TextYAlignment.Top, Text = s[3], ZIndex = 64 })
+	end
+	local go = UI.button(p, { LayoutOrder = 100, Size = UDim2.new(1, -8, 0, 46), Text = "LET'S GO!", TextSize = 20, BackgroundColor3 = C.Good, ZIndex = 63 })
+	go.MouseButton1Click:Connect(function()
+		Audio.click()
+		deps.send("Seen")
+		Menu.close()
+	end)
+end
+
+local function buildPlates(p)
+	UI.new("UIGridLayout", { CellSize = UDim2.fromOffset(190, 118), CellPadding = UDim2.fromOffset(10, 10), SortOrder = Enum.SortOrder.LayoutOrder }, p)
+	for i, style in Config.PlateStyles do
+		local card = UI.new("TextButton", { LayoutOrder = i, Text = "", AutoButtonColor = false, BackgroundColor3 = C.Card, BorderSizePixel = 0, ZIndex = 63 }, p)
+		UI.corner(card, 12)
+		local stroke = UI.stroke(card, C.Stroke, 2)
+		local preview = UI.new("Frame", { Position = UDim2.fromOffset(34, 12), Size = UDim2.fromOffset(122, 50), BackgroundColor3 = style.Back, BorderSizePixel = 0, ZIndex = 64 }, card)
+		UI.corner(preview, 6)
+		UI.stroke(preview, style.Rim, 3)
+		UI.label(preview, { Size = UDim2.fromScale(1, 1), Font = UI.Fonts.Title, TextSize = 36, TextColor3 = style.Text, TextXAlignment = Enum.TextXAlignment.Center, Text = "472", ZIndex = 65 })
+		UI.label(card, { Position = UDim2.fromOffset(0, 68), Size = UDim2.new(1, 0, 0, 20), Font = UI.Fonts.Title, TextSize = 15, TextXAlignment = Enum.TextXAlignment.Center, Text = style.Name, ZIndex = 64 })
+		local status = UI.label(card, { Position = UDim2.fromOffset(0, 90), Size = UDim2.new(1, 0, 0, 20), Font = UI.Fonts.Bold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Muted, Text = "", ZIndex = 64 })
+		card.MouseButton1Click:Connect(function()
+			if (player:GetAttribute("Wins") or 0) >= style.Wins then
+				Audio.click()
+				deps.send("Style", style.Id)
+			else
+				Audio.error()
+				deps.Toasts.push("Win " .. style.Wins .. " match" .. (style.Wins == 1 and "" or "es") .. " to unlock " .. style.Name, "bad")
+			end
+		end)
+		plateCards[style.Id] = { card = card, stroke = stroke, status = status, style = style }
+	end
+end
+
+local function buildStats(p)
+	UI.new("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8) }, p)
+	local rows = {
+		{ "Wins", "🏆 Matches won" },
+		{ "Streak", "🔥 Win streak" },
+		{ "BestStreak", "⭐ Best win streak" },
+		{ "Games", "🎮 Matches played" },
+		{ "TotalKills", "🎯 Players eliminated" },
+	}
+	for i, r in rows do
+		local row = UI.new("Frame", { LayoutOrder = i, Size = UDim2.new(1, -8, 0, 52), BackgroundColor3 = C.Card, BorderSizePixel = 0, ZIndex = 63 }, p)
+		UI.corner(row, 12)
+		UI.label(row, { Position = UDim2.fromOffset(14, 0), Size = UDim2.new(0.7, 0, 1, 0), Font = UI.Fonts.Bold, TextSize = 17, Text = r[2], ZIndex = 64 })
+		statLabels[r[1]] = UI.label(row, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 0), Size = UDim2.fromOffset(110, 52), Font = UI.Fonts.Title, TextSize = 26, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Right, Text = "0", ZIndex = 64 })
+	end
+end
+
+local function buildSettings(p)
+	UI.new("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8) }, p)
+	local rows = {
+		{ "Music", "🎵 Music" },
+		{ "Sfx", "🔊 Sound effects" },
+		{ "Fx", "✨ Screen shake and flashes" },
+	}
+	for i, r in rows do
+		local row = UI.new("Frame", { LayoutOrder = i, Size = UDim2.new(1, -8, 0, 52), BackgroundColor3 = C.Card, BorderSizePixel = 0, ZIndex = 63 }, p)
+		UI.corner(row, 12)
+		UI.label(row, { Position = UDim2.fromOffset(14, 0), Size = UDim2.new(0.6, 0, 1, 0), Font = UI.Fonts.Bold, TextSize = 17, Text = r[2], ZIndex = 64 })
+		local btn = UI.button(row, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(84, 34), Text = "ON", TextSize = 16, BackgroundColor3 = C.Good, ZIndex = 64 })
+		btn.MouseButton1Click:Connect(function()
+			local value = not (player:GetAttribute(r[1]) ~= false)
+			player:SetAttribute(r[1], value)
+			deps.send("Setting", r[1], value)
+			Audio.click()
+			Menu.applySettings()
+			Menu.refresh()
+		end)
+		toggles[r[1]] = btn
+	end
+end
+
+function Menu.applySettings()
+	Audio.setMusic(player:GetAttribute("Music") ~= false)
+	Audio.setSfx(player:GetAttribute("Sfx") ~= false)
+end
+
+function Menu.init(gui, d)
+	deps = d
+	window = UI.panel(gui, {
+		Name = "Menu",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(470, 480),
+		Visible = false,
+		ZIndex = 60,
+	})
+	UI.label(window, { Position = UDim2.fromOffset(16, 10), Size = UDim2.new(1, -70, 0, 30), Font = UI.Fonts.Title, TextSize = 24, TextColor3 = C.Accent, Text = "FIGURE ME OUT", ZIndex = 61 })
+	local close = UI.button(window, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10), Size = UDim2.fromOffset(40, 32), Text = "✕", TextSize = 18, BackgroundColor3 = C.Danger, ZIndex = 61 })
+	close.MouseButton1Click:Connect(function()
+		Audio.click()
+		Menu.close()
+	end)
+	local tabBar = UI.new("Frame", { Position = UDim2.fromOffset(12, 48), Size = UDim2.new(1, -24, 0, 36), BackgroundTransparency = 1, ZIndex = 61 }, window)
+	UI.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6) }, tabBar)
+	body = UI.new("Frame", { Position = UDim2.fromOffset(12, 92), Size = UDim2.new(1, -24, 1, -104), BackgroundTransparency = 1, ZIndex = 61 }, window)
+	local builders = { ["How to play"] = buildHowTo, Plates = buildPlates, Stats = buildStats, Settings = buildSettings }
+	for _, name in TABS do
+		local b = UI.button(tabBar, { Size = UDim2.fromOffset(104, 34), Text = name, TextSize = 13, BackgroundColor3 = C.Card, ZIndex = 62 }, "card")
+		local p = page(name)
+		builders[name](p)
+		tabs[name] = { button = b, page = p }
+		b.MouseButton1Click:Connect(function()
+			Audio.click()
+			Menu.open(name)
+		end)
+	end
+	for _, key in { "Wins", "Streak", "BestStreak", "Games", "TotalKills", "Style", "Music", "Sfx", "Fx" } do
+		player:GetAttributeChangedSignal(key):Connect(function()
+			Menu.refresh()
+			if key == "Music" or key == "Sfx" then
+				Menu.applySettings()
+			end
+		end)
+	end
+	Menu.applySettings()
+end
+
+function Menu.isOpen()
+	return window ~= nil and window.Visible
+end
+
+function Menu.open(name)
+	name = tabs[name] and name or current or "How to play"
+	current = name
+	window.Visible = true
+	for n, t in tabs do
+		t.page.Visible = n == name
+		t.button.BackgroundColor3 = n == name and C.Accent or C.Card
+	end
+	Menu.refresh()
+end
+
+function Menu.close()
+	if window then
+		window.Visible = false
+	end
+end
+
+function Menu.toggle()
+	if Menu.isOpen() then
+		Menu.close()
+	else
+		Menu.open(current)
+	end
+end
+
+function Menu.refresh()
+	if not window then
+		return
+	end
+	local wins = player:GetAttribute("Wins") or 0
+	local equipped = player:GetAttribute("Style") or "classic"
+	for id, c in plateCards do
+		local unlocked = wins >= c.style.Wins
+		c.card.BackgroundColor3 = unlocked and C.Card or Color3.fromRGB(28, 30, 44)
+		c.stroke.Color = id == equipped and C.Good or C.Stroke
+		c.stroke.Thickness = id == equipped and 4 or 2
+		c.status.Text = id == equipped and "✓ EQUIPPED" or (unlocked and "tap to equip" or ("🔒 " .. c.style.Wins .. " wins"))
+		c.status.TextColor3 = id == equipped and C.Good or C.Muted
+	end
+	for key, label in statLabels do
+		label.Text = tostring(player:GetAttribute(key) or 0)
+	end
+	for key, btn in toggles do
+		local on = player:GetAttribute(key) ~= false
+		btn.Text = on and "ON" or "OFF"
+		btn.BackgroundColor3 = on and C.Good or C.Disabled
+	end
+end
+
+return Menu
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="36">
+            <Properties>
+              <string name="Name">OwnPlate</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: you must never see your own forehead number. The plate is hidden on your screen only; everybody else
+-- still sees it.
+local Players = game:GetService("Players")
+
+local OwnPlate = {}
+
+local player = Players.LocalPlayer
+local conn
+
+local function hide(inst)
+	if inst.Name == "NumberPlate" or inst.Name == "PlateRim" then
+		inst.Transparency = 1
+	elseif inst.Name == "PlateGui" then
+		inst.Enabled = false
+	end
+end
+
+local function watch(char)
+	if conn then
+		conn:Disconnect()
+	end
+	for _, d in char:GetDescendants() do
+		hide(d)
+	end
+	conn = char.DescendantAdded:Connect(hide)
+end
+
+function OwnPlate.init()
+	if player.Character then
+		watch(player.Character)
+	end
+	player.CharacterAdded:Connect(watch)
+end
+
+return OwnPlate
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="37">
+            <Properties>
+              <string name="Name">Results</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: the scoreboard at the end of every match.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(Shared:WaitForChild("UI"))
+local Audio = require(Shared:WaitForChild("Audio"))
+local View = require(script.Parent:WaitForChild("View"))
+
+local Results = {}
+
+local player = Players.LocalPlayer
+local C = UI.Colors
+local deps
+local panel, heading, sub, rowsFrame, footer
+
+local MEDALS = { "🥇", "🥈", "🥉" }
+
+function Results.init(gui, d)
+	deps = d
+	panel = UI.panel(gui, {
+		Name = "Results",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(460, 470),
+		Visible = false,
+		ZIndex = 55,
+	})
+	heading = UI.label(panel, {
+		Position = UDim2.fromOffset(0, 12),
+		Size = UDim2.new(1, 0, 0, 40),
+		Font = UI.Fonts.Title,
+		TextSize = 30,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextColor3 = C.Gold,
+		Text = "",
+		ZIndex = 56,
+	})
+	sub = UI.label(panel, {
+		Position = UDim2.fromOffset(0, 54),
+		Size = UDim2.new(1, 0, 0, 22),
+		Font = UI.Fonts.Bold,
+		TextSize = 15,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextColor3 = C.Muted,
+		Text = "",
+		ZIndex = 56,
+	})
+	rowsFrame = UI.new("ScrollingFrame", {
+		Position = UDim2.fromOffset(14, 86),
+		Size = UDim2.new(1, -28, 1, -128),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 5,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(),
+		ZIndex = 56,
+	}, panel)
+	UI.new("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 4) }, rowsFrame)
+	footer = UI.label(panel, {
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 0, 1, -10),
+		Size = UDim2.new(1, 0, 0, 24),
+		Font = UI.Fonts.Bold,
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextColor3 = C.Muted,
+		Text = "",
+		ZIndex = 56,
+	})
+	task.spawn(function()
+		while true do
+			task.wait(0.25)
+			if panel.Visible then
+				if View.phase() ~= "results" then
+					panel.Visible = false
+				else
+					footer.Text = "Next match in " .. math.ceil(View.timeLeft() + Config.Match.Intermission) .. "s"
+				end
+			end
+		end
+	end)
+end
+
+function Results.isOpen()
+	return panel ~= nil and panel.Visible
+end
+
+-- rows: { { id, rank, label, who, kills, number, alive } }
+function Results.show(rows, winnerId)
+	if type(rows) ~= "table" then
+		return
+	end
+	for _, c in rowsFrame:GetChildren() do
+		if c:IsA("Frame") then
+			c:Destroy()
+		end
+	end
+	local myId = player:GetAttribute("EntityId") or player.UserId
+	local mine
+	for _, r in rows do
+		if r.id == myId then
+			mine = r
+		end
+	end
+	local winner = rows[1]
+	if winnerId == 0 or not winner then
+		heading.Text = "NO WINNER"
+	elseif winner.id == myId then
+		heading.Text = "🏆 YOU WIN!"
+	else
+		heading.Text = "🏆 " .. winner.label .. " WINS"
+	end
+	if mine then
+		sub.Text = "You finished #" .. mine.rank .. " of " .. #rows .. "  •  " .. mine.kills .. " eliminated"
+	else
+		sub.Text = "Spectating"
+	end
+	for _, r in rows do
+		local isMe = r.id == myId
+		local row = UI.new("Frame", {
+			LayoutOrder = r.rank,
+			Size = UDim2.new(1, -6, 0, 34),
+			BackgroundColor3 = isMe and Color3.fromRGB(34, 84, 100) or C.Card,
+			BorderSizePixel = 0,
+			ZIndex = 57,
+		}, rowsFrame)
+		UI.corner(row, 8)
+		UI.label(row, {
+			Position = UDim2.fromOffset(8, 0),
+			Size = UDim2.fromOffset(40, 34),
+			Font = UI.Fonts.Title,
+			TextSize = 18,
+			Text = MEDALS[r.rank] or ("#" .. r.rank),
+			ZIndex = 58,
+		})
+		UI.label(row, {
+			Position = UDim2.fromOffset(52, 0),
+			Size = UDim2.new(0.5, -50, 1, 0),
+			Font = UI.Fonts.Bold,
+			TextSize = 14,
+			TextWrapped = false,
+			Text = r.label .. (r.who ~= "Bot" and ("  (" .. r.who .. ")") or ""),
+			ZIndex = 58,
+		})
+		UI.label(row, {
+			AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.new(1, -78, 0, 0),
+			Size = UDim2.fromOffset(70, 34),
+			Font = UI.Fonts.Bold,
+			TextSize = 13,
+			TextColor3 = C.Muted,
+			TextXAlignment = Enum.TextXAlignment.Right,
+			Text = r.kills .. " out",
+			ZIndex = 58,
+		})
+		UI.label(row, {
+			AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.new(1, -8, 0, 0),
+			Size = UDim2.fromOffset(60, 34),
+			Font = UI.Fonts.Title,
+			TextSize = 18,
+			TextColor3 = C.Gold,
+			TextXAlignment = Enum.TextXAlignment.Right,
+			Text = r.number,
+			ZIndex = 58,
+		})
+	end
+	panel.Visible = true
+	if winner and winner.id == myId and winnerId ~= 0 then
+		Audio.win()
+		deps.Fx.announce("VICTORY!", "Last one standing", C.Gold, 0.18)
+	end
+end
+
+return Results
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="38">
+            <Properties>
+              <string name="Name">Scope</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: the binoculars. Hold the right mouse button (or Z, or tap the 🔭 slot) to zoom far across the map and
+-- read digits off a forehead. You walk slowly while looking through them, and a flashbang knocks them down.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(Shared:WaitForChild("UI"))
+local Audio = require(Shared:WaitForChild("Audio"))
+local View = require(script.Parent:WaitForChild("View"))
+
+local Scope = {}
+
+local deps
+local overlay, range, zoomText
+local on = false
+local fov = Config.Scope.Fov
+local normalSensitivity = 1
+
+function Scope.isOn()
+	return on
+end
+
+function Scope.init(gui, d)
+	deps = d
+	overlay = UI.new("Frame", { Name = "Scope", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false, ZIndex = 20 }, gui)
+	-- a big circle whose very thick black outline covers everything outside it
+	local ring = UI.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(620, 620),
+		BackgroundTransparency = 1,
+		ZIndex = 20,
+	}, overlay)
+	UI.corner(ring, 310)
+	UI.new("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1400, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, ring)
+	UI.new("UIStroke", { Color = UI.Colors.Accent, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Transparency = 0.2 }, ring)
+	local function line(size, pos)
+		UI.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = pos, Size = size, BackgroundColor3 = UI.Colors.Accent, BackgroundTransparency = 0.25, BorderSizePixel = 0, ZIndex = 21 }, overlay)
+	end
+	line(UDim2.fromOffset(2, 150), UDim2.fromScale(0.5, 0.5))
+	line(UDim2.fromOffset(150, 2), UDim2.fromScale(0.5, 0.5))
+	range = UI.label(overlay, {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0.5, 90),
+		Size = UDim2.fromOffset(300, 30),
+		Font = UI.Fonts.Title,
+		TextSize = 22,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextColor3 = UI.Colors.Accent,
+		Text = "",
+		ZIndex = 22,
+	})
+	zoomText = UI.label(overlay, {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 0.5, -90),
+		Size = UDim2.fromOffset(300, 24),
+		Font = UI.Fonts.Bold,
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextColor3 = UI.Colors.Muted,
+		Text = "",
+		ZIndex = 22,
+	})
+	task.spawn(function()
+		while true do
+			task.wait(0.1)
+			if on then
+				Scope.update()
+			end
+		end
+	end)
+end
+
+function Scope.update()
+	if not View.amAlive() or View.phase() ~= "play" or (Players.LocalPlayer:GetAttribute("Stunned") == true) then
+		Scope.set(false)
+		return
+	end
+	local target, distance = View.aimed()
+	if target then
+		range.Text = target.icon .. " " .. target.code .. "  •  " .. math.floor(distance + 0.5) .. " m"
+	else
+		range.Text = ""
+	end
+	zoomText.Text = "ZOOM x" .. string.format("%.1f", Config.Scope.NormalFov / fov) .. "   (scroll to change)"
+end
+
+function Scope.set(value)
+	value = value == true
+	if value and (not View.amAlive() or View.phase() ~= "play" or deps.Alerts.isBlind()) then
+		return
+	end
+	if value == on then
+		return
+	end
+	on = value
+	overlay.Visible = on
+	pcall(function()
+		Players.LocalPlayer.CameraMode = on and Enum.CameraMode.LockFirstPerson or Enum.CameraMode.Classic
+	end)
+	deps.Fx.setBaseFov(on and fov or Config.Scope.NormalFov)
+	pcall(function()
+		if on then
+			normalSensitivity = UserInputService.MouseDeltaSensitivity
+			UserInputService.MouseDeltaSensitivity = normalSensitivity * math.clamp(fov / Config.Scope.NormalFov * 1.6, 0.2, 1)
+		else
+			UserInputService.MouseDeltaSensitivity = normalSensitivity
+		end
+	end)
+	deps.send("Scope", on)
+	if on then
+		Audio.play("Click", 0.8, 0.5)
+		Scope.update()
+	end
+end
+
+function Scope.toggle()
+	Scope.set(not on)
+end
+
+-- Mouse wheel: positive = zoom in.
+function Scope.zoom(direction)
+	if not on then
+		return
+	end
+	fov = math.clamp(fov - direction * 2, Config.Scope.MinFov, Config.Scope.MaxFov)
+	deps.Fx.setBaseFov(fov)
+	Scope.update()
+end
+
+return Scope
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="39">
+            <Properties>
+              <string name="Name">Spectate</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: once you are out, you watch the others. The camera follows a living player; press ◀ ▶ (or the arrow
+-- keys) to switch to somebody else.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local UI = require(Shared:WaitForChild("UI"))
+local Audio = require(Shared:WaitForChild("Audio"))
+local View = require(script.Parent:WaitForChild("View"))
+
+local Spectate = {}
+
+local player = Players.LocalPlayer
+local C = UI.Colors
+local bar, nameLabel
+local watching = nil -- entity id
+local active = false
+
+function Spectate.isActive()
+	return active
+end
+
+function Spectate.init(gui)
+	bar = UI.panel(gui, {
+		Name = "Spectate",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -16),
+		Size = UDim2.fromOffset(400, 56),
+		Visible = false,
+		ZIndex = 35,
+	})
+	local function arrow(text, x, step)
+		local b = UI.button(bar, {
+			Position = UDim2.fromOffset(x, 8),
+			Size = UDim2.fromOffset(44, 40),
+			Text = text,
+			TextSize = 20,
+			BackgroundColor3 = C.Card,
+			ZIndex = 36,
+		}, "card")
+		b.MouseButton1Click:Connect(function()
+			Audio.click()
+			Spectate.cycle(step)
+		end)
+	end
+	arrow("◀", 8, -1)
+	arrow("▶", 348, 1)
+	nameLabel = UI.label(bar, {
+		Position = UDim2.fromOffset(56, 4),
+		Size = UDim2.new(1, -112, 1, -8),
+		Font = UI.Fonts.Title,
+		TextSize = 18,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Text = "",
+		ZIndex = 36,
+	})
+	task.spawn(function()
+		while true do
+			task.wait(0.2)
+			Spectate.update()
+		end
+	end)
+end
+
+local function living()
+	local list = View.aliveOthers()
+	table.sort(list, function(a, b)
+		return a.id < b.id
+	end)
+	return list
+end
+
+function Spectate.cycle(step)
+	local list = living()
+	if #list == 0 then
+		return
+	end
+	local index = 0
+	for i, e in list do
+		if e.id == watching then
+			index = i
+		end
+	end
+	index = (index - 1 + step) % #list + 1
+	watching = list[index].id
+	Spectate.update()
+end
+
+local function restoreCamera()
+	local camera = View.camera()
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if camera and hum then
+		camera.CameraSubject = hum
+	end
+end
+
+function Spectate.update()
+	local phase = View.phase()
+	local out = player:GetAttribute("Alive") ~= true and (phase == "play" or phase == "countdown")
+	local list = out and living() or {}
+	if #list == 0 then
+		if active then
+			active = false
+			watching = nil
+			bar.Visible = false
+			restoreCamera()
+		end
+		return
+	end
+	local target
+	for _, e in list do
+		if e.id == watching then
+			target = e
+		end
+	end
+	if not target then
+		target = list[1]
+		watching = target.id
+	end
+	active = true
+	bar.Visible = true
+	nameLabel.Text = "👁 WATCHING  " .. target.icon .. " " .. target.code
+	local camera = View.camera()
+	local hum = target.model:FindFirstChildOfClass("Humanoid")
+	if camera and hum and camera.CameraSubject ~= hum then
+		camera.CameraSubject = hum
+	end
+end
+
+return Spectate
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="40">
+            <Properties>
+              <string name="Name">Toasts</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: small, calm notifications. Max three at once, identical messages merge into "x2",
+-- and they sit above the dock so they never cover the action.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local UI = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UI"))
+
+local Toasts = {}
+
+local holder
+local active = {} -- list of { frame, text, count, label, token }
+
+local KIND_COLOR = {
+	info = UI.Colors.Cyan,
+	good = UI.Colors.Good,
+	gold = UI.Colors.Gold,
+	bad = UI.Colors.Danger,
+}
+
+function Toasts.init(gui)
+	holder = UI.new("Frame", {
+		Name = "Toasts",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -70),
+		Size = UDim2.fromOffset(420, 110),
+		BackgroundTransparency = 1,
+	}, gui)
+	UI.new("UIListLayout", {
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		VerticalAlignment = Enum.VerticalAlignment.Bottom,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		Padding = UDim.new(0, 6),
+	}, holder)
+end
+
+local order = 0
+
+local function remove(entry)
+	local i = table.find(active, entry)
+	if i then
+		table.remove(active, i)
+	end
+	UI.tween(entry.frame, 0.25, { BackgroundTransparency = 1 })
+	UI.tween(entry.label, 0.25, { TextTransparency = 1 })
+	task.delay(0.3, function()
+		entry.frame:Destroy()
+	end)
+end
+
+function Toasts.push(text, kind)
+	if not holder then
+		return
+	end
+	local color = KIND_COLOR[kind or "info"] or UI.Colors.Cyan
+
+	for _, entry in active do
+		if entry.text == text then
+			entry.count += 1
+			entry.label.Text = text .. "  x" .. entry.count
+			entry.token += 1
+			local token = entry.token
+			task.delay(2.8, function()
+				if entry.token == token and table.find(active, entry) then
+					remove(entry)
+				end
+			end)
+			return
+		end
+	end
+
+	if #active >= 2 then
+		remove(active[1])
+	end
+
+	order += 1
+	local frame = UI.new("Frame", {
+		LayoutOrder = order,
+		Size = UDim2.fromOffset(10, 26),
+		AutomaticSize = Enum.AutomaticSize.X,
+		BackgroundColor3 = UI.Colors.Panel,
+		BackgroundTransparency = 0.05,
+		BorderSizePixel = 0,
+	}, holder)
+	UI.corner(frame, 13)
+	UI.stroke(frame, color, 2, 0)
+	UI.new("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12) }, frame)
+	local label = UI.label(frame, {
+		Size = UDim2.fromOffset(10, 26),
+		AutomaticSize = Enum.AutomaticSize.X,
+		Font = UI.Fonts.Bold,
+		TextSize = 12,
+		TextWrapped = false,
+		TextColor3 = UI.Colors.Text,
+		Text = text,
+	})
+	local entry = { frame = frame, text = text, count = 1, label = label, token = 0 }
+	table.insert(active, entry)
+	task.delay(2.8, function()
+		if entry.token == 0 and table.find(active, entry) then
+			remove(entry)
+		end
+	end)
+end
+
+return Toasts
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="41">
+            <Properties>
+              <string name="Name">View</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: the client's picture of the match. Reads the attributes the server writes and finds the people in the
+-- world, so every screen asks one place "who is there, is it my turn, what am I aiming at".
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Rules = require(Shared:WaitForChild("Rules"))
+
+local View = {}
+
+local player = Players.LocalPlayer
+local cache, cacheAt = {}, -1
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Include
+
+function View.now()
+	return workspace:GetServerTimeNow()
+end
+
+function View.phase()
+	return workspace:GetAttribute("Phase") or "lobby"
+end
+
+function View.timeLeft()
+	return math.max(0, (workspace:GetAttribute("PhaseEnd") or 0) - View.now())
+end
+
+function View.aliveCount()
+	return workspace:GetAttribute("Alive") or 0
+end
+
+function View.total()
+	return workspace:GetAttribute("Total") or 0
+end
+
+function View.revealing()
+	return workspace:GetAttribute("Reveal") == true
+end
+
+function View.camera()
+	return workspace.CurrentCamera
+end
+
+function View.myHead()
+	local char = player.Character
+	return char and char:FindFirstChild("Head") or nil
+end
+
+function View.myId()
+	return player:GetAttribute("EntityId") or player.UserId
+end
+
+-- True while I am a living player in the current match.
+function View.amAlive()
+	return player:GetAttribute("Alive") == true and (View.phase() == "play" or View.phase() == "countdown")
+end
+
+local function describe(model, source, alive, decoy)
+	local id = source:GetAttribute("EntityId")
+	if not id or not model then
+		return nil
+	end
+	local head = model:FindFirstChild("Head")
+	if not head then
+		return nil
+	end
+	return {
+		id = id,
+		model = model,
+		head = head,
+		code = source:GetAttribute("Code") or "?",
+		icon = source:GetAttribute("Icon") or "",
+		alive = alive,
+		decoy = decoy,
+	}
+end
+
+-- Everyone in the match (and decoys). Cached for a moment because several screens ask each frame.
+function View.entities()
+	local now = os.clock()
+	if now - cacheAt < 0.12 then
+		return cache
+	end
+	cacheAt = now
+	local list = {}
+	for _, p in Players:GetPlayers() do
+		local e = describe(p.Character, p, p:GetAttribute("Alive") == true, false)
+		if e then
+			e.player = p
+			e.me = p == player
+			table.insert(list, e)
+		end
+	end
+	local bots = workspace:FindFirstChild("Bots")
+	if bots then
+		for _, model in bots:GetChildren() do
+			local e = describe(model, model, model:GetAttribute("Alive") == true, false)
+			if e then
+				table.insert(list, e)
+			end
+		end
+	end
+	local decoys = workspace:FindFirstChild("Decoys")
+	if decoys then
+		for _, model in decoys:GetChildren() do
+			local e = describe(model, model, true, true)
+			if e then
+				table.insert(list, e)
+			end
+		end
+	end
+	cache = list
+	return list
+end
+
+function View.byId(id)
+	for _, e in View.entities() do
+		if e.id == id then
+			return e
+		end
+	end
+	return nil
+end
+
+function View.aliveOthers()
+	local list = {}
+	for _, e in View.entities() do
+		if e.alive and not e.me and not e.decoy then
+			table.insert(list, e)
+		end
+	end
+	return list
+end
+
+-- The centre and radius of the smoke cloud a puff belongs to.
+function View.cloudOf(puff)
+	local center = puff:GetAttribute("CloudCenter")
+	local radius = puff:GetAttribute("CloudRadius")
+	if center and radius then
+		return center, radius
+	end
+	return puff.Position, puff.Size.X / 2
+end
+
+-- Is a wall or a smoke cloud in the way between two points?
+function View.blocked(from, to)
+	local arena = workspace:FindFirstChild("Arena")
+	if arena then
+		rayParams.FilterDescendantsInstances = { arena }
+		if workspace:Raycast(from, to - from, rayParams) then
+			return true
+		end
+	end
+	local smoke = workspace:FindFirstChild("Smoke")
+	if smoke then
+		for _, s in smoke:GetChildren() do
+			local center, radius = View.cloudOf(s)
+			if Rules.segmentHitsSphere(from, to, center, radius) then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+-- Who is under the crosshair? Returns (entity, distance) for the closest-to-centre person I could shoot at, or nil.
+function View.aimed()
+	local head = View.myHead()
+	local camera = View.camera()
+	if not head or not camera then
+		return nil
+	end
+	local origin, look = camera.CFrame.Position, camera.CFrame.LookVector
+	local fov = camera.FieldOfView
+	local limit = math.max(1.4, 5 * fov / 70) -- degrees; tighter when zoomed in
+	local best, bestAngle, bestDistance
+	for _, e in View.entities() do
+		if not e.me and (e.alive or e.decoy) then
+			local to = e.head.Position - origin
+			local distance = to.Magnitude
+			if distance > 1 and distance <= Config.Guess.MaxDistance then
+				local angle = math.deg(math.acos(math.clamp(to.Unit:Dot(look), -1, 1)))
+				if angle <= limit and (not bestAngle or angle < bestAngle) and not View.blocked(origin, e.head.Position) then
+					best, bestAngle, bestDistance = e, angle, distance
+				end
+			end
+		end
+	end
+	return best, bestDistance
+end
+
+return View
+]]></string>
+            </Properties>
+          </Item>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="Workspace" referent="42">
+    <Properties>
+      <string name="Name">Workspace</string>
+      <bool name="NeedsPivotMigration">false</bool>
+    </Properties>
+  </Item>
+</roblox>
