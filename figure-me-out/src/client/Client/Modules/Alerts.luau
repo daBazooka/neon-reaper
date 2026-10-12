@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
 local UI = require(Shared:WaitForChild("UI"))
 local Audio = require(Shared:WaitForChild("Audio"))
 local View = require(script.Parent:WaitForChild("View"))
@@ -15,6 +16,8 @@ local deps
 local refs = {}
 local blindUntil, stunUntil = 0, 0
 local snitch -- { pos, until }
+local glitchUntil = 0
+local eventState = nil -- { name, icon, text, untilT, stage }
 
 function Alerts.isBlind()
 	return View.now() < blindUntil
@@ -29,6 +32,21 @@ function Alerts.init(gui, d)
 	refs.white = UI.new("Frame", { Name = "Blind", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 80 }, gui)
 	refs.smoke = UI.new("Frame", { Name = "SmokeFog", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(190, 194, 205), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 70 }, gui)
 	refs.stunTint = UI.new("Frame", { Name = "StunTint", Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.Sky, BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 40 }, gui)
+	refs.glitch = UI.new("Frame", { Name = "Glitch", Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.Accent, BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 75 }, gui)
+	refs.blackout = UI.new("Frame", { Name = "Blackout", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 0, Active = false }, gui)
+	refs.event = UI.panel(gui, { Name = "EventBanner", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 150), Size = UDim2.fromOffset(380, 56), BackgroundColor3 = Color3.fromRGB(110, 60, 170), Visible = false, ZIndex = 44 })
+	refs.eventTitle = UI.label(refs.event, { Position = UDim2.fromOffset(0, 4), Size = UDim2.new(1, 0, 0, 24), Font = UI.Fonts.Title, TextSize = 18, TextXAlignment = Enum.TextXAlignment.Center, Text = "", ZIndex = 45 })
+	refs.eventSub = UI.label(refs.event, { Position = UDim2.fromOffset(0, 29), Size = UDim2.new(1, 0, 0, 20), Font = UI.Fonts.Bold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Center, Text = "", ZIndex = 45 })
+	refs.offer = UI.panel(gui, { Name = "AllyOffer", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0.7, 0), Size = UDim2.fromOffset(270, 96), BackgroundColor3 = Color3.fromRGB(30, 130, 70), Visible = false, ZIndex = 46 })
+	refs.offerText = UI.label(refs.offer, { Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 36), Font = UI.Fonts.Bold, TextSize = 14, Text = "", ZIndex = 47 })
+	local yes = UI.button(refs.offer, { Position = UDim2.fromOffset(12, 50), Size = UDim2.fromOffset(120, 34), Text = "ACCEPT", TextSize = 15, BackgroundColor3 = C.Good, ZIndex = 47 })
+	local no = UI.button(refs.offer, { Position = UDim2.fromOffset(140, 50), Size = UDim2.fromOffset(120, 34), Text = "NO THANKS", TextSize = 13, BackgroundColor3 = C.Danger, ZIndex = 47 })
+	yes.MouseButton1Click:Connect(function()
+		Alerts.answerOffer(true)
+	end)
+	no.MouseButton1Click:Connect(function()
+		Alerts.answerOffer(false)
+	end)
 	refs.stunLabel = UI.label(gui, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.62),
@@ -120,11 +138,11 @@ function Alerts.stun(seconds)
 end
 
 -- stage: "warn" | "ok" | "exposed"
-function Alerts.cover(stage, value)
+function Alerts.cover(stage, value, violations)
 	if stage == "warn" then
 		refs.cover.Visible = true
-		refs.coverTitle.Text = "⚠ DON'T HIDE YOUR NUMBER"
-		refs.coverSub.Text = "Turn away from the wall or be exposed in " .. string.format("%.1f", value) .. "s"
+		refs.coverTitle.Text = "⚠️ NUMBER OBSTRUCTED!"
+		refs.coverSub.Text = "STOP HIDING YOUR NUMBER! Your position is revealed in " .. string.format("%.1f", value) .. "s"
 		if (refs.lastWarnBeep or 0) + 0.8 < os.clock() then
 			refs.lastWarnBeep = os.clock()
 			Audio.warn()
@@ -135,16 +153,64 @@ function Alerts.cover(stage, value)
 		refs.cover.Visible = false
 		Audio.siren()
 		deps.Fx.flash(C.Danger, 0.5, 0.6)
-		deps.Fx.announce("YOU'RE EXPOSED!", "Your plate glows red for " .. value .. "s", C.Danger, 0.28)
+		deps.Fx.announce("YOUR POSITION HAS BEEN REVEALED!", "Your plate glows red for " .. value .. "s" .. ((violations or 1) > 1 and ("  •  violation #" .. violations) or ""), C.Danger, 0.28)
 	end
 end
 
-function Alerts.snitch(pos, seconds)
+function Alerts.snitch(pos, seconds, text)
 	snitch = { pos = pos, untilT = View.now() + seconds }
+	refs.arrowText.Text = text or "SOMEONE JUST GUESSED YOU"
 	refs.arrowHolder.Visible = true
 	Audio.snitch()
 	deps.Fx.shake(0.6, 0.3)
-	deps.Toasts.push("Someone just guessed your number!", "bad")
+	if not text then
+		deps.Toasts.push("Someone just guessed your number!", "bad")
+	end
+end
+
+-- Somebody photographed you from close up and you saw the flash.
+function Alerts.noticed(pos)
+	Alerts.snitch(pos, 3, "📷 SOMEONE PHOTOGRAPHED YOU")
+end
+
+-- You lost a life: the screen glitches while you are away, then you come back.
+function Alerts.lifeLost(killer, lives, delay)
+	glitchUntil = View.now() + delay
+	Audio.lifeLost()
+	deps.Scope.set(false)
+	deps.Keypad.close()
+	deps.Fx.shake(1, 0.5)
+	deps.Fx.announce("LIFE LOST  " .. string.rep("❤", lives) .. string.rep("🖤", math.max(0, Config.Lives.Start - lives)), "guessed by " .. killer .. "  •  you'll be back protected", C.Danger, 0.24)
+end
+
+-- Bonus events: warn (coming up), start, end.
+function Alerts.event(stage, id, name, icon, text, seconds)
+	if stage == "warn" then
+		eventState = { name = name, icon = icon, text = text, untilT = View.now() + seconds, stage = "warn", id = id }
+		Audio.event()
+		deps.Fx.announce(icon .. " " .. name, "starts in " .. seconds .. "s: " .. text, C.Gold, 0.3)
+	elseif stage == "start" then
+		eventState = { name = name, icon = icon, text = text, untilT = View.now() + seconds, stage = "start", id = id }
+		Audio.event()
+	else
+		eventState = nil
+	end
+end
+
+function Alerts.offer(label, fromId)
+	refs.offerFrom = fromId
+	refs.offerUntil = View.now() + 15
+	refs.offerText.Text = "🤝 " .. label .. " wants to team up for " .. Config.Alliance.Duration .. "s"
+	refs.offer.Visible = true
+	Audio.snitch()
+end
+
+function Alerts.answerOffer(yes)
+	if refs.offerFrom then
+		deps.send("AllyReply", refs.offerFrom, yes)
+	end
+	refs.offerFrom = nil
+	refs.offer.Visible = false
 end
 
 function Alerts.update()
@@ -189,6 +255,35 @@ function Alerts.update()
 	end
 	local want = inside and 0.12 or 1
 	refs.smoke.BackgroundTransparency += (want - refs.smoke.BackgroundTransparency) * 0.2
+	-- glitch overlay while you are down
+	if now < glitchUntil then
+		refs.glitch.Visible = true
+		refs.glitch.BackgroundColor3 = ({ C.Accent, C.Pink, C.Good, Color3.new(1, 1, 1) })[math.random(1, 4)]
+		refs.glitch.BackgroundTransparency = 0.7 + math.random() * 0.2
+	elseif refs.glitch.Visible then
+		refs.glitch.Visible = false
+	end
+	-- event banner and blackout
+	if eventState and now < eventState.untilT then
+		local left = math.ceil(eventState.untilT - now)
+		refs.event.Visible = true
+		refs.eventTitle.Text = eventState.icon .. " " .. eventState.name .. (eventState.stage == "warn" and ("  in " .. left .. "s") or ("  " .. left .. "s"))
+		refs.eventSub.Text = eventState.text
+		refs.event.BackgroundColor3 = eventState.stage == "warn" and Color3.fromRGB(150, 110, 20) or Color3.fromRGB(110, 60, 170)
+		refs.blackout.BackgroundTransparency = (eventState.id == "blackout" and eventState.stage == "start") and 0.45 or 1
+	else
+		if eventState and eventState.stage == "warn" then
+			eventState.stage = "start"
+			eventState.untilT = now + 20 -- the server's "start" message sets the real time right after
+		else
+			eventState = nil
+		end
+		refs.event.Visible = eventState ~= nil
+		refs.blackout.BackgroundTransparency = 1
+	end
+	if refs.offerFrom and now > (refs.offerUntil or 0) then
+		Alerts.answerOffer(false)
+	end
 	-- the cover warning goes away when the game is not running
 	if View.phase() ~= "play" and refs.cover.Visible then
 		refs.cover.Visible = false

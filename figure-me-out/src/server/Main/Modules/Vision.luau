@@ -16,7 +16,7 @@ local function arenaList()
 	return arena and { arena } or {}
 end
 
-local function inSmoke(from, to)
+function Vision.inSmoke(from, to)
 	local now = workspace:GetServerTimeNow()
 	for _, c in Vision.clouds do
 		if c.expires > now and Rules.segmentHitsSphere(from, to, c.pos, c.radius) then
@@ -28,7 +28,7 @@ end
 
 -- True when a wall, prop or (with includeSmoke) a smoke cloud is between the two points.
 function Vision.blocked(from, to, includeSmoke)
-	if includeSmoke ~= false and inSmoke(from, to) then
+	if includeSmoke ~= false and Vision.inSmoke(from, to) then
 		return true
 	end
 	local list = arenaList()

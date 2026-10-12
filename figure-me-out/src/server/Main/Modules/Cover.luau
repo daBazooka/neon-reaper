@@ -17,6 +17,7 @@ function Cover.reset(e)
 	e.coverTimer = 0
 	e.coverStage = "ok"
 	e.exposedUntil = 0
+	e.violations = 0
 end
 
 -- Is something solid right in front of this entity's forehead?
@@ -36,8 +37,9 @@ function Cover.isCovered(e)
 	return Rules.isCovered(blocked)
 end
 
+-- Shows the eye marker and red plate for a while. Also used by the information terminals.
 function Cover.expose(e, seconds)
-	e.exposedUntil = State.now() + seconds
+	e.exposedUntil = math.max(e.exposedUntil or 0, State.now() + seconds)
 	Plates.showReveal(e, true, true)
 	State.writeEntity(e)
 	Net.sendAll("exposed", e.icon .. " " .. e.code)
@@ -60,8 +62,11 @@ function Cover.step(e, dt)
 	if stage == "expose" then
 		e.coverTimer = 0
 		stage = "ok"
-		Cover.expose(e, Config.Cover.Expose)
-		Net.send(e.player, "cover", "exposed", Config.Cover.Expose)
+		-- every earlier violation makes the exposure longer, so permanent hiding never pays
+		local seconds = Config.Cover.Expose * (1 + Config.Cover.RepeatBonus * (e.violations or 0))
+		e.violations = (e.violations or 0) + 1
+		Cover.expose(e, seconds)
+		Net.send(e.player, "cover", "exposed", math.floor(seconds), e.violations)
 		e.coverStage = "ok"
 		return
 	end

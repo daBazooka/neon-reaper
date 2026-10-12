@@ -1,10 +1,11 @@
 # Figure Me Out
 
 A Roblox game for up to 20 players. Everybody wears a secret 3-digit number on their forehead that they cannot see.
-Type someone else's number to knock them out. Read numbers with binoculars and photos, hide yours with smoke and
-flashbangs, and don't get caught staring at a wall: the game exposes campers. Last one standing wins.
+Type someone else's number to take one of their three lives. Read numbers with binoculars and photos, hide yours with smoke,
+flashbangs, a decoy mask and a scrambler, scan for enemies, hack terminals for clues, ally and betray, collect bounties, and don't
+get caught staring at a wall: the game exposes campers. Last one standing wins.
 
-See [docs/GAME_CONCEPT.md](docs/GAME_CONCEPT.md) for the full design.
+See [docs/GAME_CONCEPT.md](docs/GAME_CONCEPT.md) for the full design and [docs/SETUP_AND_TESTING.md](docs/SETUP_AND_TESTING.md) for setup, a testing checklist and troubleshooting.
 
 ## Open it in Roblox Studio
 
@@ -26,11 +27,14 @@ Or run `rojo serve` and click Connect in the Rojo plugin to live-edit.
 | **Hold right mouse** or **Z** | Binoculars (scroll to zoom) |
 | **Click** or **F** | Take a photo |
 | **V** | Notebook (your photos, joined up) |
-| **3 to 8** | Throw / use an item |
+| **3 to 8** | Use a gadget (flashbang, smoke, decoy mask, scanner, distraction, scrambler) |
+| **T** | Offer an alliance to the player you aim at (or end yours) |
+| **I** | Gadget inventory and your clues |
+| **B** | Quick emotes |
 | **M** | Menu (how to play, plates, stats, settings) |
 | **◀ ▶** | Change who you watch after you are out |
 
-On a phone or tablet: tap the buttons in the item bar, the GUESS button and the on-screen keypad.
+On a phone or tablet: tap the buttons in the gadget bar, the GUESS button and the on-screen keypad. On a controller: X guess, R2 photo, hold L2 for binoculars, Y notebook, L1/R1 choose a gadget and A to use it, Start for the menu.
 
 ## Folder map
 
@@ -56,16 +60,21 @@ sh tests/run_all.sh        # needs the luau tools in /tmp/claude-0/lu
 
 It runs four suites and a static check:
 
-* **rules**: the pure game rules (guess parsing, unique numbers, bullets, cover timing, photo readability, flash
-  blindness, smoke geometry, street routes that never cut through a building...).
-* **server**: whole matches with a fake lobby: joining, bots filling, countdown, guessing right and wrong, walls and smoke blocking
-  guesses, flashbangs, photos, decoys, scramblers, switcheroos, boots, binoculars, cover warnings and exposure,
-  crates, THE REVEAL, results, unlocking plates, second match, leaving, and garbage sent to the remotes.
-* **full house**: 20 real players and a 21st spectator, a whole match played out by 50+ random guesses with the books
-  checked after every one (alive count, kills, bullets), results and ranks for all 20, the next match, half the lobby leaving
-  mid-countdown, everyone leaving, and a new player arriving.
-* **client**: every screen: lobby, how-to-play, HUD, aiming, keypad, photos and notebook, items, binoculars, flash/stun
-  /cover/snitch alerts, spectating, results, menu.
+* **rules**: the pure game rules (guess parsing, unique numbers 1-999, bullets, cover timing, photo readability, flash
+  blindness, smoke geometry, street routes that never cut through a building, ranking by lives and points, levels,
+  rewards, the shop, and that every terminal clue is true for every number from 1 to 999...).
+* **server**: whole matches with a fake lobby: joining, bots filling, countdown, lives and respawn protection, the
+  anti-farm pause, wrong and right guesses, walls and smoke blocking guesses, flashbangs, photos (intel points, assists,
+  the flash notice), decoy mask, scanner, distraction device, scrambler, binoculars and gadget cooldowns, cover warnings and
+  repeat exposure, terminals and their clues, bounties, alliances and betrayals, all five bonus events, crates, THE REVEAL,
+  the lives-then-points tiebreak, results, coins/XP paid once, buying and equipping cosmetics, emotes, second match,
+  leaving, and garbage sent to the remotes.
+* **full house**: 20 real players and a 21st spectator, a whole match (57+ hits to take 19 players x 3 lives) played out
+  by random guesses with the books checked after every one (alive count, hits = lives lost, bullets, protection never
+  broken), results and ranks for all 20, all 20 paid exactly once, the next match, half the lobby leaving, everyone leaving.
+* **client**: every screen: loading screen, lobby profile, how-to-play, HUD (lives, points, cooldowns, bounty, ally),
+  aiming, the guess panel, photos and notebook, gadgets, binoculars, flash/stun/cover/snitch/glitch alerts, scanner,
+  alliances, clues and inventory, events, emotes, cosmetics shop, spectating, results, menu, controller.
 * **static**: the analyzer, every server message has a client handler (and the other way round), every
   attribute the client reads is written by the server, and more.
 

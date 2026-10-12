@@ -16,6 +16,11 @@ local Cover = require(script.Parent.Cover)
 local Pickups = require(script.Parent.Pickups)
 local Bots = require(script.Parent.Bots)
 local World = require(script.Parent.World)
+local Progress = require(script.Parent.Progress)
+local Alliance = require(script.Parent.Alliance)
+local Bounty = require(script.Parent.Bounty)
+local Terminals = require(script.Parent.Terminals)
+local Events = require(script.Parent.Events)
 
 local Match = {}
 
@@ -121,9 +126,18 @@ function Match.setup()
 		e.stunUntil = 0
 		e.scoped = false
 		e.lastGuess = -100
+		e.lives = Config.Lives.Start
+		e.score = 0
+		e.hitTimes = {}
+		e.seenBy = {}
+		e.bonusCoins = 0
+		e.startedAt = now
+		e.protectedUntil = 0
+		e.ally = nil
 		State.add(e)
 		Items.reset(e)
 		Cover.reset(e)
+		Terminals.reset(e)
 		Plates.setup(e)
 		State.writeEntity(e)
 		Combat.applySpeed(e)
@@ -133,6 +147,15 @@ function Match.setup()
 	for i, p in humans do
 		local char = ensureCharacter(p)
 		local e = { id = p.UserId, player = p, char = char, style = styleFor(p) }
+		local data = Data.get(p)
+		if data then
+			if Progress.owns(p, "trail", data.Trail) then
+				e.trailDef = Config.TrailById[data.Trail]
+			end
+			if Progress.owns(p, "effect", data.Effect) then
+				e.effectDef = Config.EffectById[data.Effect]
+			end
+		end
 		local spawn = Config.Map.Spawns[spawnOrder[(i - 1) % #spawnOrder + 1]]
 		if char then
 			char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
@@ -148,6 +171,7 @@ function Match.setup()
 		finish(e, index, spawnOrder[(index - 1) % #spawnOrder + 1])
 	end
 	Pickups.reset()
+	Alliance.reset()
 	State.writeWorld()
 	return total
 end
@@ -155,6 +179,25 @@ end
 --------------------------------------------------------------------------------
 -- During a match
 --------------------------------------------------------------------------------
+-- A spawn point with nobody close, for somebody who lost a life and is coming back.
+function Match.safeSpawn()
+	local best, bestScore = nil, -1
+	for _, spawn in Config.Map.Spawns do
+		local nearest = math.huge
+		for _, other in State.aliveList() do
+			local root = other.char and other.char:FindFirstChild("HumanoidRootPart")
+			if root then
+				nearest = math.min(nearest, (root.Position - spawn).Magnitude)
+			end
+		end
+		local score = nearest + roll() * 15
+		if score > bestScore then
+			best, bestScore = spawn, score
+		end
+	end
+	return best or Config.Map.Spawns[1]
+end
+
 function Match.reveal()
 	if State.revealing then
 		return
@@ -181,6 +224,11 @@ function Match.tick(dt)
 	local now = State.now()
 	for _, e in State.aliveList() do
 		e.bullets, e.chargeSince = Rules.regenBullets(e.bullets, e.chargeSince, now)
+		-- a few points for every stretch you stay alive
+		if now - (e.surviveAt or e.startedAt or now) >= Config.Score.SurviveEvery then
+			e.surviveAt = now
+			e.score = (e.score or 0) + Config.Score.Survive
+		end
 		Combat.applySpeed(e)
 		if e.player then
 			Cover.step(e, dt)
@@ -190,6 +238,9 @@ function Match.tick(dt)
 	Items.tick(now)
 	Pickups.tick(now)
 	Bots.tick(now)
+	Alliance.tick(now)
+	Bounty.tick(now)
+	Events.tick(now)
 	if not State.revealing and State.phaseEnd - now <= Config.Match.RevealAt then
 		Match.reveal()
 	end
@@ -238,7 +289,7 @@ end
 function Match.finish()
 	local entries = {}
 	for _, e in State.list() do
-		table.insert(entries, { id = e.id, alive = e.alive, kills = e.kills, diedAt = e.diedAt })
+		table.insert(entries, { id = e.id, alive = e.alive, lives = e.lives, score = e.score, kills = e.kills, diedAt = e.diedAt })
 	end
 	local order = Rules.standings(entries)
 	local winnerId = order[1]
@@ -246,25 +297,36 @@ function Match.finish()
 	if winner and not winner.alive then
 		winnerId = nil
 	end
+	if winner and winner.alive then
+		winner.score = (winner.score or 0) + Config.Score.Win
+	end
+	local now = State.now()
 	local rows = {}
 	for rank, id in order do
 		local e = State.entities[id]
 		rows[rank] = {
+			lives = e.lives,
+			score = e.score,
+			survived = math.floor((e.diedAt or now) - (e.startedAt or now)),
 			id = e.id,
 			rank = rank,
 			label = e.icon .. " " .. e.code,
 			who = e.player and e.player.Name or "Bot",
 			kills = e.kills,
-			number = e.number,
 			alive = e.alive,
 		}
 	end
 	for _, e in State.list() do
 		award(e, winnerId, #order)
+		if e.player then
+			Progress.award(e.player, e.score or 0, e.id == winnerId, State.matchId, e.bonusCoins)
+		end
 	end
+	Events.stop()
+	Bounty.clear()
 	if not State.revealing then
 		State.revealing = true
-		for _, e in State.list() do
+		for _, e in State.aliveList() do
 			Plates.showReveal(e, true, false)
 		end
 	end
@@ -277,6 +339,9 @@ end
 function Match.cleanup()
 	Items.clearAll()
 	Bots.clear()
+	Events.stop()
+	Bounty.clear()
+	Alliance.reset()
 	local list = Players:GetPlayers()
 	State.clear()
 	State.revealing = false
@@ -306,6 +371,7 @@ function Match.onJoin(p)
 	p:SetAttribute("Games", data.Games)
 	p:SetAttribute("TotalKills", data.Kills)
 	p:SetAttribute("Style", data.Style)
+	Progress.publish(p)
 	p:SetAttribute("Seen", data.Seen)
 	p:SetAttribute("Music", data.Settings.Music)
 	p:SetAttribute("Sfx", data.Settings.Sfx)
@@ -332,8 +398,10 @@ function Match.onJoin(p)
 end
 
 function Match.onLeave(p)
+	Progress.release(p)
 	local e = State.byPlayer(p)
 	if e then
+		Alliance.leave(e)
 		e.player = nil
 		if e.alive and State.phase ~= "lobby" then
 			Combat.eliminate(e, nil, "left")
@@ -352,12 +420,20 @@ function Match.setStyle(p, id)
 	return true
 end
 
+-- Binoculars: raising them is refused during their short cooldown, and lowering them starts it.
 function Match.setScope(p, on)
 	local e = State.byPlayer(p)
 	if not e or not e.alive then
 		return
 	end
-	e.scoped = on == true
+	on = on == true
+	if on and (Items.cooldownLeft(e, "binos") > 0 or State.phase ~= "play" or (e.blindUntil or 0) > State.now()) then
+		return
+	end
+	if e.scoped and not on then
+		Items.startCooldown(e, "binos", Config.ItemById.binos.Cooldown)
+	end
+	e.scoped = on
 	Combat.applySpeed(e)
 end
 
@@ -371,6 +447,27 @@ local function waitUntil(deadlineFn)
 end
 
 function Match.run()
+	Combat.onRespawn = function(victim)
+		local spawn = Match.safeSpawn()
+		if victim.char then
+			victim.char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
+		end
+	end
+	Combat.onCredit = function(killer, victim)
+		local now = State.now()
+		-- assists: anybody who photographed the victim's whole number in the last minute (and isn't the killer)
+		for id, at in victim.seenBy or {} do
+			local helper = State.entities[id]
+			if helper and helper ~= killer and helper.alive and now - at <= Config.Score.AssistWindow then
+				helper.score = (helper.score or 0) + Config.Score.Assist
+				victim.seenBy[id] = nil
+				if helper.player then
+					Net.send(helper.player, "assist", Config.Score.Assist)
+				end
+			end
+		end
+		Bounty.claim(killer, victim)
+	end
 	Combat.onEliminated = function(victim)
 		local p = victim.player
 		if p then
@@ -404,6 +501,8 @@ function Match.run()
 			Combat.applySpeed(e)
 		end
 		Bots.startPlay(State.now())
+		Bounty.reset()
+		Events.reset(State.now())
 		Net.sendAll("phase", "play", State.phaseEnd)
 		local over = false
 		while not over do

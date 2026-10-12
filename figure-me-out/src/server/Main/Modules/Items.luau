@@ -1,4 +1,6 @@
--- FIGURE ME OUT: the things you carry. Flashbangs, smoke grenades, decoys, scramblers, switcheroos and speed boots.
+-- FIGURE ME OUT: the gadgets you carry. Flashbang, smoke grenade, decoy mask, scanner, distraction device and number
+-- scrambler (binoculars and the camera live in Match.setScope and Photos). Every gadget has a charge count and a cooldown,
+-- and everything is checked here on the server.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 
@@ -14,8 +16,8 @@ local Plates = require(script.Parent.Plates)
 local Items = {}
 
 local rng = Random.new()
-local nextDecoy = 1000000
 local clouds = {} -- { parts = {...}, expires = number, cloud = vision cloud }
+Items.distractions = {} -- { pos = Vector3, expires = number, part = Part }
 
 local function folder(name)
 	local f = workspace:FindFirstChild(name)
@@ -28,15 +30,16 @@ local function folder(name)
 end
 
 --------------------------------------------------------------------------------
--- Carrying
+-- Carrying and cooldowns
 --------------------------------------------------------------------------------
 function Items.reset(e)
 	e.items = {}
 	for _, id in Config.CarriedItems do
 		e.items[id] = Config.ItemById[id].Start or 0
 	end
+	e.cooldowns = {}
 	e.scrambleUntil = 0
-	e.bootsUntil = 0
+	e.maskUntil = 0
 	e.blindUntil = 0
 	State.writeEntity(e)
 end
@@ -52,6 +55,19 @@ function Items.give(e, id, count)
 	e.items[id] = have + added
 	State.writeEntity(e)
 	return added
+end
+
+-- Seconds left on a gadget's cooldown (0 when it is ready).
+function Items.cooldownLeft(e, id)
+	return math.max(0, ((e.cooldowns or {})[id] or 0) - State.now())
+end
+
+function Items.startCooldown(e, id, seconds)
+	e.cooldowns = e.cooldowns or {}
+	e.cooldowns[id] = State.now() + seconds
+	if e.player then
+		Net.send(e.player, "cooldown", id, seconds)
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -74,7 +90,7 @@ end
 local function throw(e, look, color, fuse, boom)
 	local head = Vision.head(e)
 	if not head then
-		return
+		return false
 	end
 	local start = head.Position + look * 2.5
 	local p = ball(start, color)
@@ -88,10 +104,32 @@ local function throw(e, look, color, fuse, boom)
 		p:Destroy()
 		boom(at)
 	end)
+	return true
 end
 
-local function flashBoom(position, thrower)
+-- A short sound at a point in the world (the sounds ship with Roblox; swap them in Config.Sounds).
+local function bang(position, soundId, volume, speed)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.Transparency = 1
+	p.Size = Vector3.new(1, 1, 1)
+	p.Position = position
+	p.Parent = folder("Effects")
+	local sound = Instance.new("Sound")
+	sound.SoundId = soundId
+	sound.Volume = volume
+	sound.PlaybackSpeed = speed
+	sound.RollOffMaxDistance = 160
+	sound.Parent = p
+	sound:Play()
+	Debris:AddItem(p, 3)
+end
+
+local function flashBoom(position)
 	local now = State.now()
+	bang(position, Config.Sounds.Flash, 2, 1)
 	local fx = Instance.new("Part")
 	fx.Anchored = true
 	fx.CanCollide = false
@@ -127,6 +165,7 @@ local function flashBoom(position, thrower)
 end
 
 local function smokeBoom(position)
+	bang(position, Config.Sounds.Bass, 1.5, 0.6)
 	local radius = Config.Smoke.Radius
 	local parts = {}
 	local f = folder("Smoke")
@@ -157,81 +196,88 @@ local function smokeBoom(position)
 	table.insert(clouds, { parts = parts, expires = expires, cloud = cloud })
 end
 
---------------------------------------------------------------------------------
--- Decoy
---------------------------------------------------------------------------------
-local function makeDecoy(e)
-	local char = e.char
-	if not char then
-		return false
-	end
-	char.Archivable = true
-	local model = char:Clone()
-	for _, d in model:GetDescendants() do
-		if d:IsA("Script") or d:IsA("LocalScript") then
-			d:Destroy()
-		elseif d:IsA("BasePart") then
-			d.Anchored = true
-			d.CanCollide = false
-		end
-	end
-	local reveal = model:FindFirstChild("RevealTag", true)
-	if reveal then
-		reveal:Destroy()
-	end
-	local number = Rules.newNumber(function()
-		return rng:NextNumber()
-	end, State.takenNumbers())
-	local label = model:FindFirstChild("Digits", true)
-	if label then
-		label.Text = number
-	end
-	local hum = model:FindFirstChildOfClass("Humanoid")
-	if hum then
-		hum.WalkSpeed = 0
-	end
-	local root = model:FindFirstChild("HumanoidRootPart")
-	local from = char:GetPivot()
-	model.Name = "Decoy"
-	model:PivotTo(from * CFrame.new(0, 0, -5))
-	nextDecoy += 1
-	model:SetAttribute("EntityId", nextDecoy)
-	model:SetAttribute("Decoy", true)
-	model.Parent = folder("Decoys")
-	State.decoys[nextDecoy] = {
-		id = nextDecoy,
-		owner = e.id,
-		number = number,
-		model = model,
-		code = e.code,
-		icon = e.icon,
-		expires = State.now() + Config.Decoy.Duration,
-	}
-	return root ~= nil
+-- Fake footsteps for a few seconds: a quiet looping sound that people (and bots) go to check out.
+local function distractionBoom(position)
+	local part = Instance.new("Part")
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.Transparency = 1
+	part.Size = Vector3.new(1, 1, 1)
+	part.Position = position
+	part.Parent = folder("Effects")
+	local sound = Instance.new("Sound")
+	sound.SoundId = Config.Sounds.Footsteps
+	sound.Looped = true
+	sound.Volume = 1.2
+	sound.RollOffMaxDistance = 90
+	sound.PlaybackSpeed = 1.2
+	sound.Parent = part
+	sound:Play()
+	local tag = Instance.new("BillboardGui")
+	tag.Size = UDim2.fromOffset(40, 40)
+	tag.StudsOffset = Vector3.new(0, 3, 0)
+	tag.MaxDistance = 60
+	tag.Adornee = part
+	tag.Parent = part
+	local icon = Instance.new("TextLabel")
+	icon.Size = UDim2.fromScale(1, 1)
+	icon.BackgroundTransparency = 1
+	icon.TextScaled = true
+	icon.Text = "👣"
+	icon.Parent = tag
+	table.insert(Items.distractions, { pos = position, expires = State.now() + Config.Distraction.Duration, part = part })
 end
 
---------------------------------------------------------------------------------
--- Using an item
---------------------------------------------------------------------------------
-local function nearestOther(e, range)
-	local mine = Vision.head(e)
-	if not mine then
-		return nil
-	end
+-- The nearest active distraction to a point, or nil.
+function Items.nearestDistraction(pos, within)
+	local now = State.now()
 	local best, bestD
-	for _, other in State.aliveList() do
-		local head = Vision.head(other)
-		if other ~= e and head then
-			local d = (head.Position - mine.Position).Magnitude
-			if d <= range and (not bestD or d < bestD) and not Vision.blocked(mine.Position, head.Position, false) then
-				best, bestD = other, d
+	for _, d in Items.distractions do
+		if d.expires > now then
+			local dist = (d.pos - pos).Magnitude
+			if dist <= within and (not bestD or dist < bestD) then
+				best, bestD = d, dist
 			end
 		end
 	end
 	return best
 end
 
--- Returns true when the item was used.
+--------------------------------------------------------------------------------
+-- Using a gadget
+--------------------------------------------------------------------------------
+-- What is shown on the plate when nothing odd is going on: the decoy mask's fake number, or the real one.
+function Items.restingText(e)
+	if (e.maskUntil or 0) > State.now() and e.maskNumber then
+		return e.maskNumber
+	end
+	return e.number
+end
+
+local function scan(e)
+	local mine = Vision.head(e)
+	if not mine then
+		return false
+	end
+	local found = {}
+	for _, other in State.aliveList() do
+		local head = Vision.head(other)
+		if other ~= e and head then
+			local distance = (head.Position - mine.Position).Magnitude
+			-- the ping goes through walls but not through smoke
+			if distance <= Config.Scanner.Radius and not Vision.inSmoke(mine.Position, head.Position) then
+				table.insert(found, { other.id, other.code, other.icon, head.Position, math.floor(distance + 0.5) })
+			end
+		end
+	end
+	if e.player then
+		Net.send(e.player, "scan", found, Config.Scanner.Show)
+	end
+	return true
+end
+
+-- Returns true when the gadget was used.
 function Items.use(e, id, look)
 	if State.phase ~= "play" or not e or not e.alive then
 		return false
@@ -241,7 +287,7 @@ function Items.use(e, id, look)
 		return false
 	end
 	local now = State.now()
-	if (e.stunUntil or 0) > now or now - (e.lastUse or -100) < 0.6 then
+	if (e.stunUntil or 0) > now or Items.cooldownLeft(e, id) > 0 or now - (e.lastUse or -100) < 0.4 then
 		return false
 	end
 	if typeof(look) ~= "Vector3" or look.Magnitude < 0.1 then
@@ -251,39 +297,36 @@ function Items.use(e, id, look)
 	look = look.Unit
 	local used = false
 	if id == "flash" then
-		throw(e, look, Color3.fromRGB(255, 255, 255), Config.Flash.Fuse, function(at)
-			flashBoom(at, e)
-		end)
-		used = true
+		used = throw(e, look, Color3.fromRGB(255, 255, 255), Config.Flash.Fuse, flashBoom)
 	elseif id == "smoke" then
-		throw(e, look, Color3.fromRGB(150, 155, 165), Config.Smoke.Fuse, smokeBoom)
+		used = throw(e, look, Color3.fromRGB(150, 155, 165), Config.Smoke.Fuse, smokeBoom)
+	elseif id == "distraction" then
+		used = throw(e, look, Color3.fromRGB(255, 200, 90), Config.Distraction.Fuse, distractionBoom)
+	elseif id == "mask" then
+		local fake
+		for _ = 1, 10 do
+			fake = Rules.newNumber(function()
+				return rng:NextNumber()
+			end, State.takenNumbers())
+			if fake ~= e.number then
+				break
+			end
+		end
+		e.maskNumber = fake
+		e.maskUntil = now + Config.Mask.Duration
+		Plates.setText(e, fake)
+		Plates.refreshRim(e)
 		used = true
-	elseif id == "decoy" then
-		used = makeDecoy(e)
 	elseif id == "scramble" then
 		e.scrambleUntil = now + Config.Scramble.Duration
 		used = true
-	elseif id == "switch" then
-		local other = nearestOther(e, Config.Switch.Range)
-		if other then
-			local a, b = e.number, other.number
-			Combat.setNumber(e, b)
-			Combat.setNumber(other, a)
-			if other.player then
-				Net.toast(other.player, "Someone swapped your number!", "gold")
-			end
-			used = true
-		elseif e.player then
-			Net.toast(e.player, "Nobody close enough to swap with", "bad")
-		end
-	elseif id == "boots" then
-		e.bootsUntil = now + Config.Movement.BootsTime
-		Combat.applySpeed(e)
-		used = true
+	elseif id == "scanner" then
+		used = scan(e)
 	end
 	if used then
 		e.items[id] -= 1
 		e.lastUse = now
+		Items.startCooldown(e, id, def.Cooldown)
 		State.writeEntity(e)
 		if e.player then
 			Net.send(e.player, "used", id)
@@ -296,12 +339,11 @@ end
 -- Upkeep (called every quarter second while a match runs)
 --------------------------------------------------------------------------------
 function Items.tick(now)
-	for id, d in State.decoys do
+	for i = #Items.distractions, 1, -1 do
+		local d = Items.distractions[i]
 		if d.expires <= now then
-			State.decoys[id] = nil
-			if d.model then
-				d.model:Destroy()
-			end
+			d.part:Destroy()
+			table.remove(Items.distractions, i)
 		end
 	end
 	for i = #clouds, 1, -1 do
@@ -327,16 +369,20 @@ function Items.tick(now)
 		if (e.scrambleUntil or 0) > now and e.alive then
 			local fake = Rules.digitsOf(rng:NextInteger(Config.Number.Min, Config.Number.Max))
 			if fake == e.number then
-				fake = Rules.digitsOf(Config.Number.Min)
+				fake = Rules.digitsOf(Config.Number.Max)
 			end
 			Plates.setText(e, fake)
 		elseif e.scrambleUntil and e.scrambleUntil > 0 then
 			e.scrambleUntil = 0
-			Plates.setText(e, e.number)
+			Plates.setText(e, Items.restingText(e))
 		end
-		if (e.bootsUntil or 0) > 0 and e.bootsUntil <= now then
-			e.bootsUntil = 0
-			Combat.applySpeed(e)
+		if (e.maskUntil or 0) > 0 and e.maskUntil <= now then
+			e.maskUntil = 0
+			e.maskNumber = nil
+			if (e.scrambleUntil or 0) <= now then
+				Plates.setText(e, e.number)
+			end
+			Plates.refreshRim(e)
 		end
 	end
 end
@@ -348,14 +394,9 @@ function Items.clearAll()
 		end
 	end
 	clouds = {}
+	Items.distractions = {}
 	Vision.clearClouds()
-	for _, d in State.decoys do
-		if d.model then
-			d.model:Destroy()
-		end
-	end
-	State.decoys = {}
-	for _, name in { "Effects", "Smoke", "Decoys" } do
+	for _, name in { "Effects", "Smoke" } do
 		local f = workspace:FindFirstChild(name)
 		if f then
 			f:ClearAllChildren()

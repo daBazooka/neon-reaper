@@ -10,29 +10,50 @@ Config.GameName = "Figure Me Out"
 --------------------------------------------------------------------------------
 Config.Match = {
 	MaxPlayers = 20,
-	MinTotal = 10, -- bots fill the match up to this many players, so there is always a game
+	MinTotal = 10, -- bots fill the match up to this many players, so there is always a game (and 2 "players" is the minimum)
 	Intermission = 14, -- lobby wait between matches (seconds)
 	Countdown = 8, -- before the start whistle
-	Length = 300, -- the match (seconds)
-	RevealAt = 30, -- seconds left when THE REVEAL begins and every plate glows
+	Length = 240, -- the match: four minutes
+	RevealAt = 30, -- the final stretch: every plate glows, the timer turns red, the music speeds up
 	ResultsTime = 12,
 }
 
-Config.Number = { Digits = 3, Min = 100, Max = 999 }
+Config.Number = { Digits = 3, Min = 1, Max = 999 } -- shown with leading zeros: 007, 042, 512
 
--- Guessing: aim at someone, press G, type their 3 digits. Wrong guesses cost a bullet and stun you.
+-- Lives: a correct guess takes one life. You come back after a moment, protected, until your lives run out.
+Config.Lives = {
+	Start = 3,
+	RespawnDelay = 2.0, -- you are frozen and glitching for this long, then you pop up somewhere else
+	Protect = 5, -- seconds nobody can guess you after coming back
+	AntiFarm = 25, -- you can't score on the same person again for this long
+}
+
+-- Points: used for the tiebreak and shown on the results screen.
+Config.Score = {
+	Hit = 100,
+	Bounty = 150,
+	Assist = 40, -- you photographed their whole number in the last minute and somebody else got them
+	AssistWindow = 60,
+	Intel = 10, -- a photo that captured a complete number
+	SurviveEvery = 20, -- seconds
+	Survive = 5,
+	Win = 200,
+}
+
+-- Guessing: aim at someone, press G, type their 3 digits, press Confirm. Wrong guesses cost a bullet and freeze you.
 Config.Guess = {
 	Cooldown = 1.0,
 	MaxDistance = 170, -- you must be able to see them, and be this close
 	Stun = 3,
-	DecoyStun = 6,
 	Bullets = 5,
 	BulletRegen = 25, -- seconds to get one bullet back
-	KillBullets = 2, -- bullets back for an elimination
+	KillBullets = 2, -- bullets back for a successful guess
 	WarnTime = 4, -- how long the guessed player sees "someone guessed you" with an arrow
+	AutoSubmit = false, -- true = fires on the third digit; false = you press CONFIRM (or Enter)
 }
 
--- Covering your number: facing a wall or dead end for too long. You are warned, then exposed.
+-- Covering your number: facing a wall or dead end for too long. You are warned, then exposed. Repeat offenders are
+-- exposed for longer. Smoke and flashbangs never count.
 Config.Cover = {
 	Distance = 5, -- a wall this close in front of your forehead covers it
 	Angles = { 0, 25, -25 }, -- degrees from straight ahead (2 of these 3 must be blocked)
@@ -40,24 +61,25 @@ Config.Cover = {
 	WarnAfter = 1.0, -- seconds covered before the warning appears
 	Limit = 6.0, -- seconds covered before you are exposed
 	Expose = 20, -- seconds your plate glows red and a marker shows over your head
+	RepeatBonus = 0.5, -- each earlier violation makes the exposure this much longer (x1.5, x2, ...)
 	Tick = 0.25,
 }
 
-Config.Movement = { Walk = 16, Jump = 50, Boots = 28, BootsTime = 6, ScopeWalk = 8 }
+Config.Movement = { Walk = 16, Jump = 50, ScopeWalk = 8 }
 
 --------------------------------------------------------------------------------
--- Items. Binoculars and the camera are always with you; the rest are carried in limited numbers and
--- found in glowing crates around the map. Hotbar keys 1 to 8.
+-- Gadgets (hotbar keys 1 to 8). Binoculars and the camera never run out (they have cooldowns); the others
+-- are carried in limited numbers and found in glowing crates and supply drops.
 --------------------------------------------------------------------------------
 Config.Items = {
-	{ Id = "binos", Name = "Binoculars", Icon = "🔭", Key = 1, Permanent = true, Tip = "Hold to zoom in. Read digits from far away." },
-	{ Id = "camera", Name = "Camera", Icon = "📷", Key = 2, Permanent = true, Tip = "Click to take a photo of everyone you can see." },
-	{ Id = "flash", Name = "Flashbang", Icon = "💥", Key = 3, Start = 2, Max = 3, Weight = 22, Tip = "Throw it. Blinds everybody who sees it go off." },
-	{ Id = "smoke", Name = "Smoke Grenade", Icon = "💨", Key = 4, Start = 2, Max = 3, Weight = 22, Tip = "Throw it. A thick cloud nobody can see through." },
-	{ Id = "decoy", Name = "Decoy", Icon = "🎭", Key = 5, Start = 0, Max = 2, Weight = 14, Tip = "Drops a copy of you wearing a fake number." },
-	{ Id = "scramble", Name = "Scrambler", Icon = "📺", Key = 6, Start = 0, Max = 2, Weight = 14, Tip = "Your number flickers with fake digits for a while." },
-	{ Id = "switch", Name = "Switcheroo", Icon = "🔄", Key = 7, Start = 0, Max = 2, Weight = 10, Tip = "Swap numbers with someone close by." },
-	{ Id = "boots", Name = "Speed Boots", Icon = "👟", Key = 8, Start = 0, Max = 2, Weight = 18, Tip = "Run much faster for a few seconds." },
+	{ Id = "binos", Name = "Binoculars", Icon = "🔭", Key = 1, Permanent = true, Cooldown = 0.6, Tip = "Hold to zoom in and read far-away plates. Can't see through walls." },
+	{ Id = "camera", Name = "Snapshot Camera", Icon = "📷", Key = 2, Permanent = true, Cooldown = 1.4, Tip = "Photograph everyone in frame. Clear numbers go into your notebook." },
+	{ Id = "flash", Name = "Flashbang", Icon = "💥", Key = 3, Start = 2, Max = 3, Weight = 22, Cooldown = 4, Tip = "Throw it: blinds whoever sees it go off. Turn away to blink less." },
+	{ Id = "smoke", Name = "Smoke Grenade", Icon = "💨", Key = 4, Start = 2, Max = 3, Weight = 22, Cooldown = 4, Tip = "Throw it: a thick cloud nobody can see through for 15s." },
+	{ Id = "mask", Name = "Decoy Mask", Icon = "🎭", Key = 5, Start = 1, Max = 2, Weight = 14, Cooldown = 10, Tip = "Others see a fake number for 12s (your plate turns purple)." },
+	{ Id = "scanner", Name = "Scanner", Icon = "📡", Key = 6, Start = 1, Max = 3, Weight = 16, Cooldown = 8, Tip = "Pings people nearby: you see where they are, never their number." },
+	{ Id = "distraction", Name = "Distraction Device", Icon = "🔔", Key = 7, Start = 1, Max = 2, Weight = 14, Cooldown = 6, Tip = "Throw it: fake footsteps for 8s. Bots (and people) go to check." },
+	{ Id = "scramble", Name = "Number Scrambler", Icon = "📺", Key = 8, Start = 1, Max = 2, Weight = 14, Cooldown = 10, Tip = "Your plate flickers with random digits for 9s." },
 }
 Config.ItemById = {}
 Config.ItemOrder = {}
@@ -65,13 +87,14 @@ for _, item in Config.Items do
 	Config.ItemById[item.Id] = item
 	table.insert(Config.ItemOrder, item.Id)
 end
-Config.CarriedItems = { "flash", "smoke", "decoy", "scramble", "switch", "boots" }
+Config.CarriedItems = { "flash", "smoke", "mask", "scanner", "distraction", "scramble" }
 
 Config.Flash = { Radius = 80, Fuse = 1.6, MaxBlind = 6.5, MinBlind = 1.2, ThrowSpeed = 55, ThrowUp = 22 }
 Config.Smoke = { Radius = 9, Duration = 15, Fuse = 1.3, Fade = 3 }
-Config.Decoy = { Duration = 45 }
+Config.Mask = { Duration = 12 }
 Config.Scramble = { Duration = 9 }
-Config.Switch = { Range = 45 }
+Config.Scanner = { Radius = 45, Show = 4 }
+Config.Distraction = { Duration = 8, Fuse = 1.2, Radius = 70 }
 
 -- Photos are worked out by the server from where the camera points.
 Config.Photo = {
@@ -83,12 +106,74 @@ Config.Photo = {
 	FaceAngle = 55, -- their forehead must be turned this close to the camera
 	Cooldown = 1.4,
 	Album = 12,
+	NoticeDistance = 24, -- closer than this, the person photographed may notice the flash
+	NoticeChance = 0.6,
 }
 
 Config.Scope = { Fov = 14, MinFov = 6, MaxFov = 24, NormalFov = 70 }
 
--- Crates that hand out items. Positions are on the map (see Config.Map).
+-- Crates that hand out gadgets. Positions are on the map (see Config.Map).
 Config.Pickups = { Respawn = 30, Radius = 4.5 }
+
+--------------------------------------------------------------------------------
+-- Bounty, alliances, information terminals and bonus events
+--------------------------------------------------------------------------------
+Config.Bounty = { Reward = 150, Coins = 25, Every = 70, Lasts = 90 } -- a new target every so many seconds
+
+Config.Alliance = { Duration = 90, Range = 60, Cooldown = 40, MaxShare = 12, ReAllyAfterBetrayal = 60 }
+
+Config.Terminal = { Uses = 3, Cooldown = 20, Range = 10, Reveal = 5 } -- uses per player per match; seconds between uses; using one shows your position for Reveal seconds
+
+Config.Events = {
+	First = 50, -- no event before this many seconds into the match
+	Gap = { 55, 90 }, -- random seconds between events
+	Warn = 5, -- announced this many seconds before it starts
+	List = {
+		{ Id = "double", Name = "DOUBLE POINTS", Icon = "✨", Seconds = 25, Text = "Every successful guess is worth double!" },
+		{ Id = "gravity", Name = "LOW GRAVITY", Icon = "🌙", Seconds = 20, Text = "Jump higher! Everybody floats." },
+		{ Id = "blackout", Name = "BLACKOUT", Icon = "🌑", Seconds = 12, Text = "The lights go out. Plates still glow faintly." },
+		{ Id = "bounty", Name = "BOUNTY BONUS", Icon = "🎯", Seconds = 30, Text = "Bounties pay triple!" },
+		{ Id = "drop", Name = "SUPPLY DROP", Icon = "📦", Seconds = 1, Text = "A supply drop lands in the plaza. First come, first served!" },
+	},
+	LowGravity = 70,
+}
+
+--------------------------------------------------------------------------------
+-- Progression: coins and XP after every match, levels, and cosmetics. Nothing here changes how strong you are.
+--------------------------------------------------------------------------------
+Config.Rewards = { Coins = { Play = 15, PerPoint = 0.1, Win = 60 }, XP = { Play = 20, PerPoint = 0.15, Win = 50 } }
+Config.Levels = { First = 100, Step = 40, Max = 99 } -- XP needed for level n = First + Step * (n - 1)
+
+-- Trail left behind you, elimination effect (the cartoon burst when you lose a life) and quick emotes.
+-- Cost = coins. Level = needed level. Both 0 = you own it from the start.
+Config.Trails = {
+	{ Id = "none", Name = "No trail", Icon = "⚪", Cost = 0, Level = 0, Color = C(255, 255, 255) },
+	{ Id = "sparkle", Name = "Sparkle", Icon = "✨", Cost = 150, Level = 2, Color = C(255, 236, 140) },
+	{ Id = "aqua", Name = "Aqua Wave", Icon = "🌊", Cost = 300, Level = 4, Color = C(90, 215, 255) },
+	{ Id = "bubble", Name = "Bubblegum", Icon = "🫧", Cost = 450, Level = 6, Color = C(255, 150, 205) },
+	{ Id = "flame", Name = "Flame", Icon = "🔥", Cost = 700, Level = 8, Color = C(255, 140, 50) },
+}
+Config.Effects = {
+	{ Id = "pixels", Name = "Pixel Pop", Icon = "🟦", Cost = 0, Level = 0, Colors = { C(90, 215, 255), C(255, 255, 255) } },
+	{ Id = "confetti", Name = "Confetti", Icon = "🎉", Cost = 120, Level = 2, Colors = { C(255, 90, 140), C(255, 226, 90), C(90, 214, 96) } },
+	{ Id = "hearts", Name = "Hearts", Icon = "💖", Cost = 300, Level = 5, Colors = { C(255, 110, 170), C(255, 190, 220) } },
+	{ Id = "glitch", Name = "Glitch", Icon = "👾", Cost = 500, Level = 7, Colors = { C(60, 255, 120), C(255, 60, 200), C(60, 200, 255) } },
+}
+Config.Emotes = {
+	{ Id = "wave", Name = "Wave", Icon = "👋", Cost = 0, Level = 0 },
+	{ Id = "laugh", Name = "Laugh", Icon = "😂", Cost = 0, Level = 0 },
+	{ Id = "cool", Name = "Cool", Icon = "😎", Cost = 0, Level = 0 },
+	{ Id = "think", Name = "Thinking", Icon = "🤔", Cost = 0, Level = 0 },
+	{ Id = "eyes", Name = "Watching", Icon = "👀", Cost = 0, Level = 0 },
+	{ Id = "scared", Name = "Scared", Icon = "😱", Cost = 120, Level = 2 },
+	{ Id = "party", Name = "Party", Icon = "🎉", Cost = 200, Level = 3 },
+	{ Id = "skull", Name = "Oops", Icon = "💀", Cost = 250, Level = 5 },
+}
+Config.TrailById, Config.EffectById, Config.EmoteById = {}, {}, {}
+for _, t in Config.Trails do Config.TrailById[t.Id] = t end
+for _, t in Config.Effects do Config.EffectById[t.Id] = t end
+for _, t in Config.Emotes do Config.EmoteById[t.Id] = t end
+Config.EmoteCooldown = 2.5
 
 --------------------------------------------------------------------------------
 -- Everyone gets a unique colour and animal (their codename) so you can tell people apart.
@@ -158,6 +243,10 @@ for _, x in { -70, -20, 20, 70 } do
 	table.insert(Config.Map.Spawns, Vector3.new(x, 3.5, -43))
 	table.insert(Config.Map.Spawns, Vector3.new(x, 3.5, 43))
 end
+-- 4 information terminals in the corners of the plaza
+Config.Map.Terminals = { Vector3.new(-24, 2, -24), Vector3.new(24, 2, -24), Vector3.new(-24, 2, 24), Vector3.new(24, 2, 24) }
+-- where supply drops land: open ground in the plaza
+Config.Map.DropSpots = { Vector3.new(18, 0, 6), Vector3.new(-18, 0, -6), Vector3.new(6, 0, -18), Vector3.new(-6, 0, 18) }
 -- 16 crate spots: the four crossroads, the plaza, and along the streets.
 Config.Map.Crates = {}
 for _, sx in { -1, 1 } do
@@ -177,6 +266,7 @@ Config.Sounds = {
 	Bass = "rbxasset://sounds/bass.wav",
 	Click = "rbxasset://sounds/button.wav",
 	Flash = "rbxasset://sounds/flashbulb.wav",
+	Footsteps = "rbxasset://sounds/action_footsteps_plastic.mp3",
 }
 Config.MusicTrackId = "" -- optional looping song id; empty = generated music
 Config.MusicVolume = 0.2

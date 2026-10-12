@@ -235,8 +235,8 @@ end
 --------------------------------------------------------------------------------
 -- Results
 --------------------------------------------------------------------------------
--- entries: { { id, alive, kills, diedAt } }. Alive players rank first (most kills first); everyone else ranks by how
--- late they were eliminated. Returns the ids best to worst.
+-- entries: { { id, alive, lives, score, kills, diedAt } }. Players still in the game rank first: most lives, then most points,
+-- then most eliminations. Everyone else ranks by how late they were out, then points. Returns the ids best to worst.
 function Rules.standings(entries)
 	local list = table.clone(entries)
 	table.sort(list, function(a, b)
@@ -244,15 +244,21 @@ function Rules.standings(entries)
 			return a.alive
 		end
 		if a.alive then
-			if a.kills ~= b.kills then
-				return a.kills > b.kills
+			if (a.lives or 0) ~= (b.lives or 0) then
+				return (a.lives or 0) > (b.lives or 0)
+			end
+			if (a.score or 0) ~= (b.score or 0) then
+				return (a.score or 0) > (b.score or 0)
+			end
+			if (a.kills or 0) ~= (b.kills or 0) then
+				return (a.kills or 0) > (b.kills or 0)
 			end
 		else
 			if (a.diedAt or 0) ~= (b.diedAt or 0) then
 				return (a.diedAt or 0) > (b.diedAt or 0)
 			end
-			if a.kills ~= b.kills then
-				return a.kills > b.kills
+			if (a.score or 0) ~= (b.score or 0) then
+				return (a.score or 0) > (b.score or 0)
 			end
 		end
 		return a.id < b.id
@@ -262,6 +268,91 @@ function Rules.standings(entries)
 		ids[i] = e.id
 	end
 	return ids
+end
+
+--------------------------------------------------------------------------------
+-- Progression
+--------------------------------------------------------------------------------
+-- XP needed to go from `level` to the next one.
+function Rules.xpNeeded(level)
+	return Config.Levels.First + Config.Levels.Step * (level - 1)
+end
+
+-- Returns (level, xp into this level, xp needed for the next level) for a total amount of XP.
+function Rules.levelFor(xp)
+	local level, left = 1, math.max(0, xp)
+	while level < Config.Levels.Max and left >= Rules.xpNeeded(level) do
+		left -= Rules.xpNeeded(level)
+		level += 1
+	end
+	return level, left, Rules.xpNeeded(level)
+end
+
+-- Coins and XP for one match. score = the player's points, won = true for the winner.
+function Rules.matchRewards(score, won)
+	local r = Config.Rewards
+	local coins = r.Coins.Play + math.floor(score * r.Coins.PerPoint) + (won and r.Coins.Win or 0)
+	local xp = r.XP.Play + math.floor(score * r.XP.PerPoint) + (won and r.XP.Win or 0)
+	return coins, xp
+end
+
+-- Can this player have this cosmetic yet? Returns (true) or (false, reason).
+function Rules.canBuy(item, level, coins)
+	if level < item.Level then
+		return false, "Reach level " .. item.Level
+	end
+	if coins < item.Cost then
+		return false, "Need " .. item.Cost .. " coins"
+	end
+	return true
+end
+
+--------------------------------------------------------------------------------
+-- Terminal clues. Every clue is true for the player's number, so they can never contradict each other.
+--------------------------------------------------------------------------------
+-- Returns up to `count` clues { kind, text, ok = function(n) } for the number n, in random order.
+function Rules.clues(n, count, next)
+	local function between(lo, hi)
+		return lo + math.floor(next() * (hi - lo + 1))
+	end
+	local pool = {}
+	local function add(kind, text, ok)
+		table.insert(pool, { kind = kind, text = text, ok = ok })
+	end
+	local floor = math.max(0, n - between(8, 260))
+	add("greater", "Your number is greater than " .. floor, function(x) return x > floor end)
+	local ceil = math.min(1000, n + between(8, 260))
+	add("less", "Your number is less than " .. ceil, function(x) return x < ceil end)
+	local lo, hi = math.max(1, n - between(20, 220)), math.min(999, n + between(20, 220))
+	add("between", "Your number is between " .. lo .. " and " .. hi, function(x) return x >= lo and x <= hi end)
+	if n % 2 == 0 then
+		add("parity", "Your number is even", function(x) return x % 2 == 0 end)
+	else
+		add("parity", "Your number is odd", function(x) return x % 2 == 1 end)
+	end
+	local sum = (n // 100) + (n // 10 % 10) + (n % 10)
+	if sum % 2 == 0 then
+		add("digits", "Your digits add up to an even number", function(x) return ((x // 100) + (x // 10 % 10) + (x % 10)) % 2 == 0 end)
+	else
+		add("digits", "Your digits add up to an odd number", function(x) return ((x // 100) + (x // 10 % 10) + (x % 10)) % 2 == 1 end)
+	end
+	if n % 3 == 0 then
+		add("three", "Your number is a multiple of 3", function(x) return x % 3 == 0 end)
+	end
+	if n % 5 == 0 then
+		add("five", "Your number is a multiple of 5", function(x) return x % 5 == 0 end)
+	end
+	local first = n // 100
+	add("hundreds", first == 0 and "Your number is under 100" or ("Your number starts with a " .. first), function(x) return x // 100 == first end)
+	for i = #pool, 2, -1 do
+		local j = 1 + math.floor(next() * i)
+		pool[i], pool[j] = pool[j], pool[i]
+	end
+	local out = {}
+	for i = 1, math.min(count, #pool) do
+		out[i] = pool[i]
+	end
+	return out
 end
 
 function Rules.unlockedStyles(wins)

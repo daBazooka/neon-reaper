@@ -1692,7 +1692,7 @@ local function require(n)
 end
 
 local notifyLog = {}
-local Notify = {FireClient = function(_, p, ...) table.insert(notifyLog, {...}) end, OnClientEvent = signal("notify")}
+local Notify = {FireClient = function(_, p, ...) local t = {...}; t.to = p; table.insert(notifyLog, t) end, OnClientEvent = signal("notify")}
 firedLog = {}
 local Action = {OnServerEvent = signal("Action"), FireServer = function(_, ...) table.insert(firedLog, {...}) end}
 

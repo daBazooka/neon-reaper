@@ -9,6 +9,9 @@ local Match = require(Modules.Match)
 local Guess = require(Modules.Guess)
 local Photos = require(Modules.Photos)
 local Items = require(Modules.Items)
+local Progress = require(Modules.Progress)
+local Alliance = require(Modules.Alliance)
+local State = require(Modules.State)
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
 Players.CharacterAutoLoads = false
@@ -28,6 +31,8 @@ Data.init()
 World.build()
 
 -- Every request is checked and rate limited, and a bad one can never crash the server.
+-- the shortest time allowed between two requests of the same kind from one player
+local MIN_GAP = { Guess = 0.25, Use = 0.3, Snap = 0.5, Emote = 1, Buy = 0.5, Equip = 0.3, AllyAsk = 1, AllyReply = 0.3, Share = 1 }
 local lastCall = {} -- userId -> { kind -> time of the last call }
 local function allowed(p, kind)
 	local now = os.clock()
@@ -36,7 +41,7 @@ local function allowed(p, kind)
 		mine = {}
 		lastCall[p.UserId] = mine
 	end
-	if now - (mine[kind] or 0) < 0.08 then
+	if now - (mine[kind] or 0) < (MIN_GAP[kind] or 0.08) then
 		return false
 	end
 	mine[kind] = now
@@ -51,7 +56,7 @@ function handlers.Snap(p, origin, look)
 	Photos.snap(p, origin, look)
 end
 function handlers.Use(p, id, look)
-	local e = require(Modules.State).byPlayer(p)
+	local e = State.byPlayer(p)
 	if e and type(id) == "string" then
 		Items.use(e, id, look)
 	end
@@ -62,6 +67,46 @@ end
 function handlers.Style(p, id)
 	if type(id) == "string" then
 		Match.setStyle(p, id)
+	end
+end
+function handlers.Emote(p, id)
+	if type(id) == "string" then
+		Progress.emote(p, id)
+	end
+end
+local KINDS = { trail = true, effect = true, emote = true }
+function handlers.Buy(p, kind, id)
+	if KINDS[kind] and type(id) == "string" then
+		Progress.buy(p, kind, id)
+	end
+end
+function handlers.Equip(p, kind, id)
+	if type(id) == "string" then
+		Progress.equip(p, kind, id)
+	end
+end
+function handlers.AllyAsk(p, targetId)
+	local e = State.byPlayer(p)
+	if e and type(targetId) == "number" then
+		Alliance.propose(e, targetId)
+	end
+end
+function handlers.AllyReply(p, fromId, yes)
+	local e = State.byPlayer(p)
+	if e and type(fromId) == "number" then
+		Alliance.respond(e, fromId, yes == true)
+	end
+end
+function handlers.AllyEnd(p)
+	local e = State.byPlayer(p)
+	if e then
+		Alliance.leave(e)
+	end
+end
+function handlers.Share(p, entries)
+	local e = State.byPlayer(p)
+	if e then
+		Alliance.share(e, entries)
 	end
 end
 function handlers.Seen(p)

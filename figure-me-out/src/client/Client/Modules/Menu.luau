@@ -19,15 +19,17 @@ local plateCards = {}
 local statLabels = {}
 local toggles = {}
 
-local TABS = { "How to play", "Plates", "Stats", "Settings" }
+local TABS = { "How to play", "Cosmetics", "Plates", "Stats", "Settings" }
+local cosmeticCards = {}
+local profileLabel
 
 local STEPS = {
-	{ "🪪", "Everybody has a secret number", "A 3-digit number is printed on every forehead. You can't see yours, but everybody else can." },
-	{ "🎯", "Guess to knock people out", "Aim at someone, press G and type THEIR number. Right = they're out. Wrong = you freeze for 3 seconds and lose a bullet." },
+	{ "🪪", "Everybody has a secret number", "A 3-digit number is on every forehead. You can't see yours, but everybody else can. Each player has 3 lives." },
+	{ "🎯", "Guess to take lives", "Aim at someone, press G, type THEIR number and press CONFIRM. Right = they lose a life. Wrong = you lose a bullet, freeze for 3 seconds and they see an arrow pointing at you." },
 	{ "🔭", "Find the numbers", "Hold the right mouse button for binoculars and read digits from across the map. Click to snap a photo: the notebook (V) joins up digits from several photos." },
-	{ "💥", "Mess with their eyes", "Flashbangs blind everyone who sees them go off. Smoke grenades make a cloud nobody can see through. Grab 🎁 crates for decoys, scramblers, switcheroos and boots." },
-	{ "🚫", "No hiding in corners", "Staring at a wall hides your number, so the game warns you. Ignore it and your plate glows red with a 👁 marker above your head, so everyone knows where to look!" },
-	{ "👁", "Someone is always watching", "A wrong guess points an arrow at the guesser. In the last 30 seconds THE REVEAL makes every plate glow so numbers are easy to spot. Last one standing wins!" },
+	{ "💥", "Mess with their eyes", "Flashbangs blind, smoke blocks sight, the decoy mask shows a fake number, the scanner finds people, the distraction device lures them and the scrambler flickers your plate. Grab 🎁 crates for more." },
+	{ "🔐", "Clues, bounties and friends", "Hack a terminal in the plaza for a true clue about YOUR number (it shows where you are!). Hit the 🎯 bounty target for bonus points. Press T to offer an alliance, and watch your back." },
+	{ "🚫", "No hiding in corners", "Staring at a wall hides your number, so the game warns you. Ignore it and your plate glows red with a 👁 marker above your head for everyone. Last one standing wins!" },
 }
 
 local function page(name)
@@ -88,9 +90,57 @@ local function buildPlates(p)
 	end
 end
 
+local function ownedSet()
+	local set = {}
+	for entry in string.gmatch(player:GetAttribute("Owned") or "", "[^,]+") do
+		set[entry] = true
+	end
+	return set
+end
+
+local function buildCosmetics(p)
+	UI.new("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8) }, p)
+	profileLabel = UI.label(p, { LayoutOrder = 0, Size = UDim2.new(1, -8, 0, 26), Font = UI.Fonts.Title, TextSize = 16, TextColor3 = C.Gold, Text = "" })
+	local sections = {
+		{ "trail", "✨ TRAILS", Config.Trails },
+		{ "effect", "💥 ELIMINATION EFFECTS (when you lose a life)", Config.Effects },
+		{ "emote", "💬 EMOTES (tap an owned one to try it)", Config.Emotes },
+	}
+	for si, section in sections do
+		UI.label(p, { LayoutOrder = si * 2 - 1, Size = UDim2.new(1, -8, 0, 22), Font = UI.Fonts.Title, TextSize = 14, TextColor3 = C.Accent, Text = section[2] })
+		local grid = UI.new("Frame", { LayoutOrder = si * 2, Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, ZIndex = 63 }, p)
+		UI.new("UIGridLayout", { CellSize = UDim2.fromOffset(124, 86), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder }, grid)
+		for i, def in section[3] do
+			local card = UI.new("TextButton", { LayoutOrder = i, Text = "", AutoButtonColor = false, BackgroundColor3 = C.Card, BorderSizePixel = 0, ZIndex = 64 }, grid)
+			UI.corner(card, 10)
+			local stroke = UI.stroke(card, C.Stroke, 2)
+			UI.label(card, { Position = UDim2.fromOffset(0, 4), Size = UDim2.new(1, 0, 0, 34), Font = UI.Fonts.Title, TextSize = 26, TextXAlignment = Enum.TextXAlignment.Center, Text = def.Icon, ZIndex = 65 })
+			UI.label(card, { Position = UDim2.fromOffset(0, 40), Size = UDim2.new(1, 0, 0, 16), Font = UI.Fonts.Title, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = def.Name, ZIndex = 65 })
+			local status = UI.label(card, { Position = UDim2.fromOffset(0, 60), Size = UDim2.new(1, 0, 0, 18), Font = UI.Fonts.Bold, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Muted, Text = "", ZIndex = 65 })
+			card.MouseButton1Click:Connect(function()
+				local key = section[1] .. ":" .. def.Id
+				local free = def.Cost == 0 and def.Level == 0
+				if free or ownedSet()[key] then
+					Audio.click()
+					if section[1] == "emote" then
+						deps.Emotes.play(def.Id)
+					else
+						deps.send("Equip", section[1], def.Id)
+					end
+				else
+					deps.send("Buy", section[1], def.Id)
+				end
+			end)
+			table.insert(cosmeticCards, { kind = section[1], def = def, card = card, stroke = stroke, status = status })
+		end
+	end
+end
+
 local function buildStats(p)
 	UI.new("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8) }, p)
 	local rows = {
+		{ "Level", "⭐ Level" },
+		{ "Coins", "🪙 Coins" },
 		{ "Wins", "🏆 Matches won" },
 		{ "Streak", "🔥 Win streak" },
 		{ "BestStreak", "⭐ Best win streak" },
@@ -140,7 +190,7 @@ function Menu.init(gui, d)
 		Name = "Menu",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(470, 480),
+		Size = UDim2.fromOffset(560, 500),
 		Visible = false,
 		ZIndex = 60,
 	})
@@ -153,9 +203,9 @@ function Menu.init(gui, d)
 	local tabBar = UI.new("Frame", { Position = UDim2.fromOffset(12, 48), Size = UDim2.new(1, -24, 0, 36), BackgroundTransparency = 1, ZIndex = 61 }, window)
 	UI.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6) }, tabBar)
 	body = UI.new("Frame", { Position = UDim2.fromOffset(12, 92), Size = UDim2.new(1, -24, 1, -104), BackgroundTransparency = 1, ZIndex = 61 }, window)
-	local builders = { ["How to play"] = buildHowTo, Plates = buildPlates, Stats = buildStats, Settings = buildSettings }
+	local builders = { ["How to play"] = buildHowTo, Cosmetics = buildCosmetics, Plates = buildPlates, Stats = buildStats, Settings = buildSettings }
 	for _, name in TABS do
-		local b = UI.button(tabBar, { Size = UDim2.fromOffset(104, 34), Text = name, TextSize = 13, BackgroundColor3 = C.Card, ZIndex = 62 }, "card")
+		local b = UI.button(tabBar, { Size = UDim2.fromOffset(100, 34), Text = name, TextSize = 13, BackgroundColor3 = C.Card, ZIndex = 62 }, "card")
 		local p = page(name)
 		builders[name](p)
 		tabs[name] = { button = b, page = p }
@@ -164,7 +214,7 @@ function Menu.init(gui, d)
 			Menu.open(name)
 		end)
 	end
-	for _, key in { "Wins", "Streak", "BestStreak", "Games", "TotalKills", "Style", "Music", "Sfx", "Fx" } do
+	for _, key in { "Wins", "Streak", "BestStreak", "Games", "TotalKills", "Style", "Music", "Sfx", "Fx", "Level", "Coins", "Owned", "Trail", "Effect" } do
 		player:GetAttributeChangedSignal(key):Connect(function()
 			Menu.refresh()
 			if key == "Music" or key == "Sfx" then
@@ -217,6 +267,31 @@ function Menu.refresh()
 		c.stroke.Thickness = id == equipped and 4 or 2
 		c.status.Text = id == equipped and "✓ EQUIPPED" or (unlocked and "tap to equip" or ("🔒 " .. c.style.Wins .. " wins"))
 		c.status.TextColor3 = id == equipped and C.Good or C.Muted
+	end
+	local owned = ownedSet()
+	local level = player:GetAttribute("Level") or 1
+	local coins = player:GetAttribute("Coins") or 0
+	if profileLabel then
+		profileLabel.Text = "LEVEL " .. level .. "   •   🪙 " .. coins
+	end
+	for _, c in cosmeticCards do
+		local def = c.def
+		local free = def.Cost == 0 and def.Level == 0
+		local isOwned = free or owned[c.kind .. ":" .. def.Id]
+		local equipped = (c.kind == "trail" and (player:GetAttribute("Trail") or "none") == def.Id) or (c.kind == "effect" and (player:GetAttribute("Effect") or "pixels") == def.Id)
+		c.stroke.Color = equipped and C.Good or C.Stroke
+		c.stroke.Thickness = equipped and 4 or 2
+		if equipped then
+			c.status.Text = "✓ EQUIPPED"
+			c.status.TextColor3 = C.Good
+		elseif isOwned then
+			c.status.Text = c.kind == "emote" and "tap to try" or "tap to equip"
+			c.status.TextColor3 = C.Muted
+		else
+			c.status.Text = level >= def.Level and ("🪙 " .. def.Cost) or ("🔒 Level " .. def.Level)
+			c.status.TextColor3 = (level >= def.Level and coins >= def.Cost) and C.Gold or C.Danger
+		end
+		c.card.BackgroundColor3 = isOwned and C.Card or Color3.fromRGB(28, 80, 120)
 	end
 	for key, label in statLabels do
 		label.Text = tostring(player:GetAttribute(key) or 0)

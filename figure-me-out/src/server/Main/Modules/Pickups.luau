@@ -12,6 +12,8 @@ local Pickups = {}
 
 local rng = Random.new()
 local crates = {} -- { part, home = Vector3, readyAt = number }
+local drops = {} -- supply drops: { part, expires }
+local dropParent
 
 local function setReady(c, on)
 	c.part.Transparency = on and 0.1 or 1
@@ -27,6 +29,8 @@ end
 
 function Pickups.build(parent)
 	crates = {}
+	drops = {}
+	dropParent = parent
 	for _, pos in Config.Map.Crates do
 		local part = Instance.new("Part")
 		part.Name = "ItemCrate"
@@ -64,6 +68,50 @@ function Pickups.reset()
 		c.readyAt = 0
 		setReady(c, true)
 	end
+	for _, d in drops do
+		d.part:Destroy()
+	end
+	drops = {}
+end
+
+-- A supply drop lands at `position`: a big golden crate with a beam of light. First player to reach it takes two gadgets.
+function Pickups.drop(position)
+	local part = Instance.new("Part")
+	part.Name = "SupplyDrop"
+	part.Size = Vector3.new(4, 4, 4)
+	part.Position = position + Vector3.new(0, 2.2, 0)
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.Material = Enum.Material.Neon
+	part.Color = Color3.fromRGB(255, 214, 60)
+	part.Parent = dropParent or workspace
+	local beam = Instance.new("Part")
+	beam.Size = Vector3.new(2, 120, 2)
+	beam.Position = position + Vector3.new(0, 60, 0)
+	beam.Anchored = true
+	beam.CanCollide = false
+	beam.CanQuery = false
+	beam.Material = Enum.Material.Neon
+	beam.Color = Color3.fromRGB(255, 226, 90)
+	beam.Transparency = 0.6
+	beam.Parent = part
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(110, 40)
+	gui.StudsOffset = Vector3.new(0, 4, 0)
+	gui.AlwaysOnTop = true
+	gui.Adornee = part
+	gui.Parent = part
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundTransparency = 1
+	text.Font = Enum.Font.GothamBlack
+	text.TextSize = 18
+	text.TextColor3 = Color3.fromRGB(255, 226, 90)
+	text.Text = "📦 SUPPLY"
+	text.Parent = gui
+	table.insert(drops, { part = part, expires = State.now() + 60 })
+	return part
 end
 
 -- Picks an item the entity can still carry, or nil when they are full of everything.
@@ -82,10 +130,49 @@ local function rollFor(e)
 	return nil
 end
 
+local function tickDrops(now)
+	for i = #drops, 1, -1 do
+		local d = drops[i]
+		local taken = false
+		if d.expires <= now then
+			taken = true
+		else
+			for _, e in State.aliveList() do
+				local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+				if root and e.player and (root.Position - d.part.Position).Magnitude <= Config.Pickups.Radius + 2 then
+					local got = {}
+					for _ = 1, 2 do
+						local id = rollFor(e)
+						if id then
+							Items.give(e, id, 1)
+							table.insert(got, id)
+						end
+					end
+					if #got > 0 then
+						Net.send(e.player, "pickup", got[1])
+						Net.toast(e.player, "Supply drop: " .. table.concat(got, " + "), "gold")
+						taken = true
+						break
+					end
+				end
+			end
+		end
+		if taken then
+			d.part:Destroy()
+			table.remove(drops, i)
+		end
+	end
+end
+
+function Pickups.activeDrops()
+	return drops
+end
+
 function Pickups.tick(now)
 	if State.phase ~= "play" then
 		return
 	end
+	tickDrops(now)
 	for _, c in crates do
 		if c.readyAt > 0 and now >= c.readyAt then
 			c.readyAt = 0

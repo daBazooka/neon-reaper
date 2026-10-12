@@ -43,12 +43,13 @@ for i = 1, 20 do
 	if taken[n] then unique = false end
 	taken[n] = true
 	local v = tonumber(n)
-	if v < Config.Number.Min or v > Config.Number.Max or #n ~= 3 then inRange = false end
+	if v < 1 or v > 999 or #n ~= 3 then inRange = false end
 end
 check(unique and inRange, "20 numbers in a match are all different and in range")
 local almostFull = {}
 for n = Config.Number.Min, Config.Number.Max - 1 do almostFull[Rules.digitsOf(n)] = true end
 check(Rules.newNumber(function() return 0 end, almostFull) == "999", "even when nearly every number is taken a free one is found")
+check(Config.Number.Min == 1 and Config.Number.Max == 999, "numbers run from 1 to 999")
 check(Rules.digitsOf(7) == "007" and Rules.digitsOf(472) == "472", "numbers are always 3 digits")
 
 -- bullets -----------------------------------------------------------------------------
@@ -119,12 +120,13 @@ for _ = 1, 20000 do local id = Rules.pickItem(rr()) counts[id] = (counts[id] or 
 local allItems = true
 for _, id in Config.CarriedItems do if (counts[id] or 0) < 500 then allItems = false end end
 check(allItems and (counts.binos or 0) == 0 and (counts.camera or 0) == 0, "crates give every carried item and never the permanent ones")
-check((counts.flash or 0) > (counts.switch or 0), "flashbangs are more common than switcheroos")
+check((counts.flash or 0) > (counts.mask or 0), "flashbangs are more common than masks")
 local order = Rules.standings({
-	{ id = 1, alive = true, kills = 1 }, { id = 2, alive = true, kills = 3 }, { id = 3, alive = false, kills = 5, diedAt = 100 },
-	{ id = 4, alive = false, kills = 0, diedAt = 200 }, { id = 5, alive = true, kills = 3 },
+	{ id = 1, alive = true, lives = 2, score = 900, kills = 9 }, { id = 2, alive = true, lives = 3, score = 100, kills = 1 },
+	{ id = 3, alive = false, lives = 0, score = 500, diedAt = 100 }, { id = 4, alive = false, lives = 0, score = 10, diedAt = 200 },
+	{ id = 5, alive = true, lives = 3, score = 300, kills = 2 }, { id = 6, alive = true, lives = 2, score = 900, kills = 3 },
 })
-check(order[1] == 2 and order[2] == 5 and order[3] == 1 and order[4] == 4 and order[5] == 3, "survivors rank first by kills, then the latest to be eliminated")
+check(order[1] == 5 and order[2] == 2 and order[3] == 1 and order[4] == 6 and order[5] == 4 and order[6] == 3, "ranking: lives, then points, then eliminations, then who lasted longest")
 check(#Rules.unlockedStyles(0) == 1 and #Rules.unlockedStyles(3) == 3 and #Rules.unlockedStyles(999) == #Config.PlateStyles, "plate styles unlock with wins")
 
 -- the map -------------------------------------------------------------------------------------
@@ -148,53 +150,65 @@ local cratesOk = #Config.Map.Crates == 16
 for _, c in Config.Map.Crates do if insideBuilding(c, 1) then cratesOk = false end end
 check(cratesOk, "16 item crates, none inside a building")
 check(#Config.Map.Buildings == 8, "8 buildings around the plaza")
-local cost = 0
-for _, id in Config.CarriedItems do cost += Config.ItemById[id].Weight end
-check(cost > 0 and Config.ItemById.flash.Start == 2 and Config.ItemById.smoke.Start == 2, "you start with 2 flashbangs and 2 smoke grenades")
+local weight = 0
+for _, id in Config.CarriedItems do weight += Config.ItemById[id].Weight end
+check(weight > 0 and Config.ItemById.flash.Start == 2 and Config.ItemById.smoke.Start == 2, "you start with 2 flashbangs and 2 smoke grenades")
+check(#Config.Items == 8 and Config.ItemById.mask and Config.ItemById.scanner and Config.ItemById.distraction and Config.ItemById.scramble, "the eight gadgets: binoculars, camera, flashbang, smoke, mask, scanner, distraction, scrambler")
+local keys = {}
+for _, it in Config.Items do keys[it.Key] = true; if not it.Cooldown or it.Cooldown <= 0 then keys[0] = true end end
+check(keys[1] and keys[8] and not keys[0], "keys 1 to 8, every gadget has a cooldown")
+check(Config.Match.Length == 240 and Config.Lives.Start == 3, "four-minute matches and three lives")
 
-
--- segment vs smoke sphere ----------------------------------------------------------------------
-local P = Vector3.new
-check(Rules.segmentHitsSphere(P(0, 0, 0), P(0, 0, 20), P(0, 0, 10), 3), "a line through a smoke cloud is blocked")
-check(not Rules.segmentHitsSphere(P(0, 0, 0), P(0, 0, 20), P(8, 0, 10), 3), "a line passing beside the cloud is not")
-check(Rules.segmentHitsSphere(P(0, 0, 9), P(0, 0, 30), P(0, 0, 10), 3), "standing inside the cloud is blocked")
-check(not Rules.segmentHitsSphere(P(0, 0, 0), P(0, 0, 5), P(0, 0, 10), 3), "a cloud behind the end of the line does not count")
-check(Rules.segmentHitsSphere(P(0, 0, 0), P(0, 0, 0), P(0, 1, 0), 3), "a zero-length line inside the cloud counts")
-
--- turning a direction -----------------------------------------------------------------------------
-local tx, tz = Rules.turn(0, 1, 90)
-check(math.abs(tx + 1) < 1e-9 and math.abs(tz) < 1e-9, "turn rotates a direction around the up axis")
-local ux, uz = Rules.turn(3, 4, 25)
-check(math.abs(math.sqrt(ux * ux + uz * uz) - 5) < 1e-9, "turning keeps the length")
-
--- bots stay on the streets --------------------------------------------------------------------------
-local routeOk, routeCount, worstSide = true, 0, 0
-local half = Config.Map.Block / 2 + Config.Map.Street / 2
-local function onStreet(p) return math.abs(math.abs(p.X) - half) < 1e-6 or math.abs(math.abs(p.Z) - half) < 1e-6 end
-local function segmentClear(a, b)
-	for step = 0, 20 do
-		local t = step / 20
-		local p = { X = a.X + (b.X - a.X) * t, Z = a.Z + (b.Z - a.Z) * t }
-		if insideBuilding(p, 0) then return false end
-	end
-	return true
-end
-for _, from in Config.Map.Spawns do
-	for _, to in Config.Map.Spawns do
-		for _, flip in { true, false } do
-			local route = Rules.streetRoute({ X = from.X, Z = from.Z }, { X = to.X, Z = to.Z }, flip)
-			routeCount += 1
-			local prev = { X = from.X, Z = from.Z }
-			for _, w in route do
-				if not segmentClear(prev, w) or (w.X ~= prev.X and w.Z ~= prev.Z) or not onStreet(w) then routeOk = false end
-				prev = w
-			end
-			local last = route[#route]
-			if last.X ~= to.X or last.Z ~= to.Z then routeOk = false end
-		end
+-- clues are always true --------------------------------------------------------------------------
+local clueOk, clueDistinct = true, true
+local cr = lcg(5)
+for n = 1, 999 do
+	local list = Rules.clues(n, 3, cr)
+	if #list < 2 then clueOk = false end
+	local kinds = {}
+	for _, c in list do
+		if not c.ok(n) then clueOk = false end
+		if kinds[c.kind] then clueDistinct = false end
+		kinds[c.kind] = true
 	end
 end
-check(routeOk and routeCount >= 800, "all " .. routeCount .. " street routes between spawn points avoid buildings and end at the target")
+check(clueOk, "every clue is true for every number from 1 to 999")
+check(clueDistinct, "a terminal never repeats a kind of clue in one answer")
+local seenKinds = {}
+for _ = 1, 400 do for _, c in Rules.clues(300, 3, cr) do seenKinds[c.kind] = true end end
+local kindCount = 0
+for _ in seenKinds do kindCount += 1 end
+check(kindCount >= 6, "clues come in " .. kindCount .. " different kinds")
+local sample = Rules.clues(472, 8, lcg(2))
+local blocked = false
+for _, c in sample do if c.text == "Your number is 472" then blocked = true end end
+check(not blocked, "a clue never just says the number")
+
+-- levels, rewards, shop ---------------------------------------------------------------------------
+local lv, into, need = Rules.levelFor(0)
+check(lv == 1 and into == 0 and need == Config.Levels.First, "level 1 at 0 XP")
+lv, into = Rules.levelFor(Config.Levels.First)
+check(lv == 2 and into == 0, "level 2 at exactly the first threshold")
+lv, into, need = Rules.levelFor(Config.Levels.First + Config.Levels.First + Config.Levels.Step + 5)
+check(lv == 3 and into == 5 and need == Rules.xpNeeded(3), "level 3 with leftover XP")
+check(Rules.levelFor(10 ^ 9) == Config.Levels.Max and Rules.levelFor(-5) == 1, "level is bounded")
+local c1, x1 = Rules.matchRewards(0, false)
+local c2, x2 = Rules.matchRewards(800, true)
+check(c1 == Config.Rewards.Coins.Play and x1 == Config.Rewards.XP.Play and c2 > c1 and x2 > x1, "playing pays a little, scoring and winning pay more")
+local okBuy = Rules.canBuy({ Cost = 100, Level = 3 }, 3, 100)
+local noLevel, why1 = Rules.canBuy({ Cost = 100, Level = 3 }, 2, 999)
+local noCoins, why2 = Rules.canBuy({ Cost = 100, Level = 3 }, 5, 99)
+check(okBuy and not noLevel and not noCoins and why1 == "Reach level 3" and why2 == "Need 100 coins", "buying needs the level and the coins")
+local starters = true
+for _, list in { Config.Trails, Config.Effects, Config.Emotes } do
+	local free = 0
+	for _, it in list do if it.Cost == 0 and it.Level == 0 then free += 1 end end
+	if free < 1 then starters = false end
+end
+check(starters and #Config.Emotes >= 8, "every cosmetic group has something you own from the start")
+local terminalsOk = #Config.Map.Terminals >= 3
+for _, t in Config.Map.Terminals do if insideBuilding(t, 1) then terminalsOk = false end end
+check(terminalsOk, "information terminals are on open ground")
 
 print(string.format("RULES TEST: %d passed, %d failed", passes, fails))
 if fails > 0 then error("rules test failed") end

@@ -107,7 +107,7 @@ keys = re.findall(r'Key = (\d)', cfg)
 if sorted(keys) != [str(i) for i in range(1, 9)]:
     problems.append("item hotkeys must be 1 to 8, each used once")
 items = read("server/Main/Modules/Items.luau")
-for item_id in re.findall(r'Id = "(\w+)", Name = "[^"]+", Icon', cfg):
+for item_id in re.findall(r'Id = "(\w+)", Name = "[^"]+", Icon = "[^"]+", Key', cfg):
     if item_id in ("binos", "camera"):
         continue
     if f'id == "{item_id}"' not in items:
@@ -127,10 +127,19 @@ if "CharacterAutoLoads = false" not in s:
 for d in ("README.md", "docs/GAME_CONCEPT.md"):
     if not os.path.exists(os.path.join(ROOT, d)):
         problems.append(f"{d} is missing")
-# numbers are never sent to a client that doesn't need them: only these messages carry a digit string
-for m in re.finditer(r"Net\.send\(\s*(\w+)\.player,\s*\"(\w+)\"[^)]*number", server):
-    if m.group(2) not in ("gotKill",):
-        problems.append(f"message '{m.group(2)}' sends a number to a player")
+# no remote message ever carries a player's number (it must be read off a forehead): look inside every Net.send(...) call
+for m in re.finditer(r"Net\.(?:send|sendAll|toast)\(", server):
+    depth, i = 1, m.end()
+    while i < len(server) and depth:
+        depth += {"(": 1, ")": -1}.get(server[i], 0)
+        i += 1
+    call = server[m.start():i]
+    if re.search(r"\.number\b|maskNumber|\.shown\b", call):
+        problems.append("a message sends a number to a client: " + call.replace("\n", " ")[:90])
+# the results screen and the feed never show numbers either
+for name in ("Results.luau", "Hud.luau"):
+    if "number" in read("client/Client/Modules/" + name).replace("Number.Digits", ""):
+        problems.append(name + " mentions 'number' (numbers must never be shown there)")
 
 if "--verbose" in sys.argv:
     print("server sends:", sorted(sent), "\nclient handles:", sorted(handled), "\nclient asks:", sorted(asked), "\nserver serves:", sorted(serving))

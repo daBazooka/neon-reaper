@@ -1,5 +1,5 @@
--- FIGURE ME OUT: stunning, speed and eliminations. Everything that changes whether an entity can move or is still in
--- the match goes through here, so the rules stay in one place.
+-- FIGURE ME OUT: lives, stuns, speed and eliminations. Everything that changes whether an entity can move, how many
+-- lives it has or whether it is still in the match goes through here, so the rules stay in one place.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -10,11 +10,20 @@ local Plates = require(script.Parent.Plates)
 
 local Combat = {}
 
-Combat.onEliminated = nil -- set by Match: called after someone is out
+Combat.onEliminated = nil -- Match: called after somebody is out of the match for good
+Combat.onCredit = nil -- Match: called after somebody scored a hit (bounty, assists)
+Combat.onRespawn = nil -- Match: puts a player who lost a life somewhere else on the map
+Combat.multiplier = function() -- Events: double points
+	return 1
+end
 
 local function humanoid(e)
 	local char = e.char
 	return char and char:FindFirstChildOfClass("Humanoid") or nil
+end
+
+local function label(e)
+	return e.icon .. " " .. e.code
 end
 
 -- The speed this entity should have right now.
@@ -25,9 +34,6 @@ function Combat.speedOf(e)
 	end
 	if e.scoped then
 		return Config.Movement.ScopeWalk
-	end
-	if (e.bootsUntil or 0) > now then
-		return Config.Movement.Boots
 	end
 	return Config.Movement.Walk
 end
@@ -57,11 +63,13 @@ function Combat.setNumber(e, digits)
 	Plates.setText(e, digits)
 end
 
+-- The cartoon pixel burst (its colours come from the elimination effect the player picked).
 local function burst(e)
 	local head = e.char and e.char:FindFirstChild("Head")
 	if not head then
 		return
 	end
+	local effect = e.effectDef or Config.EffectById.pixels
 	local p = Instance.new("Part")
 	p.Anchored = true
 	p.CanCollide = false
@@ -71,7 +79,11 @@ local function burst(e)
 	p.CFrame = head.CFrame
 	p.Parent = workspace
 	local em = Instance.new("ParticleEmitter")
-	em.Color = ColorSequence.new(e.color or Color3.new(1, 1, 1))
+	local keys = {}
+	for i, color in effect.Colors do
+		keys[i] = ColorSequenceKeypoint.new((i - 1) / math.max(1, #effect.Colors - 1), color)
+	end
+	em.Color = #keys >= 2 and ColorSequence.new(keys) or ColorSequence.new(effect.Colors[1])
 	em.Size = NumberSequence.new(1.2, 0)
 	em.Lifetime = NumberRange.new(0.6, 1.1)
 	em.Speed = NumberRange.new(18, 34)
@@ -85,25 +97,58 @@ local function burst(e)
 	end)
 end
 
--- Takes `victim` out of the match. `killer` is an entity or nil (fell off the map, left the game...).
+-- Nobody can guess you for a while: after coming back, and while you are down. A glowing shield shows it.
+function Combat.protect(e, seconds)
+	e.protectedUntil = math.max(e.protectedUntil or 0, State.now() + seconds)
+	local char = e.char
+	if char then
+		pcall(function()
+			local old = char:FindFirstChildOfClass("ForceField")
+			if old then
+				old:Destroy()
+			end
+			local ff = Instance.new("ForceField")
+			ff.Visible = true
+			ff.Parent = char
+			task.delay(seconds, function()
+				ff:Destroy()
+			end)
+		end)
+	end
+	State.writeEntity(e)
+end
+
+-- Points and credit for a successful guess.
+function Combat.credit(killer, victim)
+	local now = State.now()
+	killer.kills = (killer.kills or 0) + 1
+	killer.bullets = math.min(Config.Guess.Bullets, (killer.bullets or 0) + Config.Guess.KillBullets)
+	local points = Config.Score.Hit * Combat.multiplier()
+	killer.score = (killer.score or 0) + points
+	killer.hitTimes = killer.hitTimes or {}
+	killer.hitTimes[victim.id] = now
+	State.writeEntity(killer)
+	if killer.player then
+		Net.send(killer.player, "gotKill", victim.code, victim.icon, victim.lives or 0, points)
+	end
+	if Combat.onCredit then
+		Combat.onCredit(killer, victim)
+	end
+	return points
+end
+
+-- Takes `victim` out of the match for good. `killer` is an entity or nil (left the game, fell off the map...).
 -- how: "guess" | "left" | "fell"
 function Combat.eliminate(victim, killer, how)
 	if not victim or not victim.alive then
 		return false
 	end
 	victim.alive = false
+	victim.lives = 0
 	victim.diedAt = State.now()
 	victim.killer = killer and killer.id or nil
 	victim.scoped = false
-	if killer and killer ~= victim then
-		killer.kills = (killer.kills or 0) + 1
-		killer.bullets = math.min(Config.Guess.Bullets, (killer.bullets or 0) + Config.Guess.KillBullets)
-		State.writeEntity(killer)
-		if killer.player then
-			Net.send(killer.player, "gotKill", victim.code, victim.icon, victim.number)
-		end
-	end
-	Plates.showReveal(victim, true, false) -- the fallen player's plate stays glowing red
+	Plates.hide(victim)
 	burst(victim)
 	local hum = humanoid(victim)
 	if hum then
@@ -112,22 +157,9 @@ function Combat.eliminate(victim, killer, how)
 	end
 	State.writeEntity(victim)
 	State.writeWorld()
-	Net.sendAll(
-		"kill",
-		victim.icon .. " " .. victim.code,
-		killer and (killer.icon .. " " .. killer.code) or "",
-		how or "guess",
-		victim.number
-	)
+	Net.sendAll("kill", label(victim), killer and label(killer) or "", how or "guess")
 	if victim.player then
-		Net.send(
-			victim.player,
-			"eliminated",
-			killer and (killer.icon .. " " .. killer.code) or "",
-			how or "guess",
-			State.aliveCount(),
-			#State.order
-		)
+		Net.send(victim.player, "eliminated", killer and label(killer) or "", how or "guess", State.aliveCount(), #State.order)
 	end
 	if Combat.onEliminated then
 		Combat.onEliminated(victim, killer, how)
@@ -135,6 +167,40 @@ function Combat.eliminate(victim, killer, how)
 	if State.onChange then
 		State.onChange()
 	end
+	return true
+end
+
+-- A correct guess: the victim loses a life. With lives left they glitch away and come back, protected, somewhere else.
+function Combat.strike(victim, killer, how)
+	if not victim or not victim.alive then
+		return false
+	end
+	Combat.credit(killer, victim)
+	if (victim.lives or 1) <= 1 then
+		return Combat.eliminate(victim, killer, how)
+	end
+	victim.lives -= 1
+	local delay = Config.Lives.RespawnDelay
+	victim.stunUntil = State.now() + delay
+	victim.scoped = false
+	Combat.protect(victim, delay + Config.Lives.Protect)
+	Combat.applySpeed(victim)
+	burst(victim)
+	State.writeEntity(victim)
+	Net.sendAll("kill", label(victim), label(killer), "life")
+	if victim.player then
+		Net.send(victim.player, "lifeLost", label(killer), victim.lives, delay)
+	end
+	task.delay(delay, function()
+		if victim.alive and State.entities[victim.id] == victim then
+			if Combat.onRespawn then
+				Combat.onRespawn(victim)
+			end
+			victim.stunUntil = 0
+			Combat.applySpeed(victim)
+			State.writeEntity(victim)
+		end
+	end)
 	return true
 end
 

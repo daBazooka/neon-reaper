@@ -142,6 +142,25 @@ function Plates.attachReveal(char)
 	return { gui = gui, label = text }
 end
 
+-- The rim colour tells a story: red = exposed / reveal, purple = wearing a decoy mask, otherwise the plate's own colour.
+function Plates.refreshRim(e)
+	local plate = e.plate
+	if not plate or not plate.rim then
+		return
+	end
+	local now = workspace:GetServerTimeNow()
+	local color = e.styleDef.Rim
+	local lit = false
+	if e.revealed then
+		color, lit = Color3.fromRGB(255, 60, 60), true
+	elseif (e.maskUntil or 0) > now then
+		color, lit = Color3.fromRGB(190, 90, 255), false
+	end
+	plate.rim.Color = color
+	plate.light.Color = color
+	plate.light.Enabled = lit
+end
+
 -- Makes the forehead plate glow (red rim and light) and, with `marker`, shows the eye marker above the head.
 function Plates.showReveal(e, on, marker)
 	e.revealed = on
@@ -149,11 +168,103 @@ function Plates.showReveal(e, on, marker)
 	if reveal and reveal.gui then
 		reveal.gui.Enabled = on and marker == true
 	end
+	Plates.refreshRim(e)
+end
+
+-- Takes the number off a player who is out of the match.
+function Plates.hide(e)
 	local plate = e.plate
-	if plate and plate.rim then
-		plate.rim.Color = on and Color3.fromRGB(255, 60, 60) or e.styleDef.Rim
-		plate.light.Enabled = on
+	if plate and plate.part then
+		plate.part.Transparency = 1
+		plate.rim.Transparency = 1
+		plate.gui.Enabled = false
+		plate.light.Enabled = false
 	end
+	if e.reveal and e.reveal.gui then
+		e.reveal.gui.Enabled = false
+	end
+	if e.bountyTag and e.bountyTag.gui then
+		e.bountyTag.gui.Enabled = false
+	end
+end
+
+-- A small tag over the head of the bounty target: it names the prize, never the number.
+function Plates.attachBounty(char)
+	local head = char:FindFirstChild("Head")
+	if not head then
+		return nil
+	end
+	local old = head:FindFirstChild("BountyTag")
+	if old then
+		old:Destroy()
+	end
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "BountyTag"
+	gui.Size = UDim2.fromOffset(120, 28)
+	gui.StudsOffset = Vector3.new(0, 5.4, 0)
+	gui.AlwaysOnTop = true
+	gui.LightInfluence = 0
+	gui.Enabled = false
+	gui.Adornee = head
+	gui.Parent = head
+	local text = label(gui, { Text = "", TextColor3 = Color3.fromRGB(255, 226, 90), TextStrokeTransparency = 0.2, TextScaled = false, TextSize = 16 })
+	return { gui = gui, label = text }
+end
+
+function Plates.showBounty(e, on, reward)
+	local tag = e.bountyTag
+	if tag and tag.gui then
+		tag.gui.Enabled = on
+		tag.label.Text = on and ("🎯 BOUNTY +" .. reward) or ""
+	end
+end
+
+-- A short emoji bubble above the head (emotes).
+function Plates.bubble(char, icon, seconds)
+	local head = char and char:FindFirstChild("Head")
+	if not head then
+		return
+	end
+	local old = head:FindFirstChild("EmoteBubble")
+	if old then
+		old:Destroy()
+	end
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "EmoteBubble"
+	gui.Size = UDim2.fromOffset(60, 60)
+	gui.StudsOffset = Vector3.new(0, 3.2, 0)
+	gui.LightInfluence = 0
+	gui.Adornee = head
+	gui.Parent = head
+	label(gui, { Text = icon, TextColor3 = Color3.new(1, 1, 1), TextStrokeTransparency = 1 })
+	task.delay(seconds, function()
+		gui:Destroy()
+	end)
+end
+
+-- A coloured trail behind the character (cosmetic).
+function Plates.attachTrail(char, trailDef)
+	local root = char:FindFirstChild("HumanoidRootPart")
+	local old = root and root:FindFirstChild("CosmeticTrail")
+	if old then
+		old:Destroy()
+	end
+	if not root or not trailDef or trailDef.Id == "none" then
+		return nil
+	end
+	local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment")
+	a0.Position = Vector3.new(0, 0.9, 0)
+	a1.Position = Vector3.new(0, -0.9, 0)
+	a0.Parent, a1.Parent = root, root
+	local trail = Instance.new("Trail")
+	trail.Name = "CosmeticTrail"
+	trail.Attachment0, trail.Attachment1 = a0, a1
+	trail.Color = ColorSequence.new(trailDef.Color)
+	trail.Lifetime = 0.7
+	trail.LightEmission = 0.6
+	trail.Transparency = NumberSequence.new(0.2, 1)
+	trail.Parent = root
+	return trail
 end
 
 -- Plain coloured clothes and no accessories, so nobody can hide their forehead under a hat.
@@ -196,6 +307,8 @@ function Plates.setup(e)
 	e.plate = Plates.attachPlate(char, e.styleDef, e.number)
 	e.tag = Plates.attachTag(char, e.icon .. " " .. e.code, e.color)
 	e.reveal = Plates.attachReveal(char)
+	e.bountyTag = Plates.attachBounty(char)
+	e.trail = Plates.attachTrail(char, e.trailDef)
 	e.shown = e.number
 	return e.plate ~= nil
 end

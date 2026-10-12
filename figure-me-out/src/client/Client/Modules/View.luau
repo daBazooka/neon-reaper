@@ -56,7 +56,7 @@ function View.amAlive()
 	return player:GetAttribute("Alive") == true and (View.phase() == "play" or View.phase() == "countdown")
 end
 
-local function describe(model, source, alive, decoy)
+local function describe(model, source, alive)
 	local id = source:GetAttribute("EntityId")
 	if not id or not model then
 		return nil
@@ -72,11 +72,10 @@ local function describe(model, source, alive, decoy)
 		code = source:GetAttribute("Code") or "?",
 		icon = source:GetAttribute("Icon") or "",
 		alive = alive,
-		decoy = decoy,
 	}
 end
 
--- Everyone in the match (and decoys). Cached for a moment because several screens ask each frame.
+-- Everyone in the match. Cached for a moment because several screens ask each frame.
 function View.entities()
 	local now = os.clock()
 	if now - cacheAt < 0.12 then
@@ -85,7 +84,7 @@ function View.entities()
 	cacheAt = now
 	local list = {}
 	for _, p in Players:GetPlayers() do
-		local e = describe(p.Character, p, p:GetAttribute("Alive") == true, false)
+		local e = describe(p.Character, p, p:GetAttribute("Alive") == true)
 		if e then
 			e.player = p
 			e.me = p == player
@@ -95,16 +94,7 @@ function View.entities()
 	local bots = workspace:FindFirstChild("Bots")
 	if bots then
 		for _, model in bots:GetChildren() do
-			local e = describe(model, model, model:GetAttribute("Alive") == true, false)
-			if e then
-				table.insert(list, e)
-			end
-		end
-	end
-	local decoys = workspace:FindFirstChild("Decoys")
-	if decoys then
-		for _, model in decoys:GetChildren() do
-			local e = describe(model, model, true, true)
+			local e = describe(model, model, model:GetAttribute("Alive") == true)
 			if e then
 				table.insert(list, e)
 			end
@@ -126,7 +116,7 @@ end
 function View.aliveOthers()
 	local list = {}
 	for _, e in View.entities() do
-		if e.alive and not e.me and not e.decoy then
+		if e.alive and not e.me then
 			table.insert(list, e)
 		end
 	end
@@ -176,7 +166,7 @@ function View.aimed()
 	local limit = math.max(1.4, 5 * fov / 70) -- degrees; tighter when zoomed in
 	local best, bestAngle, bestDistance
 	for _, e in View.entities() do
-		if not e.me and (e.alive or e.decoy) then
+		if not e.me and e.alive then
 			local to = e.head.Position - origin
 			local distance = to.Magnitude
 			if distance > 1 and distance <= Config.Guess.MaxDistance then

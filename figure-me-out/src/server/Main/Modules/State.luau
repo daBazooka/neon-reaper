@@ -1,5 +1,5 @@
 -- FIGURE ME OUT: who is in the match right now. Every player and bot in a match is an "entity" with an id (a player's
--- user id; bots count down from -1; decoys count up from 1,000,000). This module only keeps the list and writes the
+-- user id; bots count down from -1). This module only keeps the list and writes the
 -- few attributes the screens read; the other modules do the playing.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -11,7 +11,6 @@ State.phase = "lobby" -- lobby | countdown | play | results
 State.phaseEnd = 0
 State.entities = {} -- id -> entity
 State.order = {} -- ids in the order they were added
-State.decoys = {} -- id -> { id, owner, number, model, expires }
 State.revealing = false
 State.matchId = 0
 State.onChange = nil -- set by Match: called when the alive list changes
@@ -28,7 +27,6 @@ end
 function State.clear()
 	State.entities = {}
 	State.order = {}
-	State.decoys = {}
 end
 
 function State.get(id)
@@ -71,9 +69,6 @@ function State.takenNumbers()
 	for _, e in State.entities do
 		taken[e.number or ""] = true
 	end
-	for _, d in State.decoys do
-		taken[d.number] = true
-	end
 	return taken
 end
 
@@ -104,6 +99,11 @@ function State.writeEntity(e)
 	end
 	for _, t in targets do
 		t:SetAttribute("Alive", e.alive == true)
+		t:SetAttribute("Lives", e.lives or 0)
+		t:SetAttribute("Score", e.score or 0)
+		t:SetAttribute("Protected", (e.protectedUntil or 0) > State.now())
+		t:SetAttribute("Bounty", e.bounty == true)
+		t:SetAttribute("Ally", e.ally or 0)
 		t:SetAttribute("Code", e.code or "")
 		t:SetAttribute("Icon", e.icon or "")
 		t:SetAttribute("EntityId", e.id)

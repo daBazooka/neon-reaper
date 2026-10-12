@@ -26,6 +26,12 @@ local function defaults()
 		BestStreak = 0,
 		BestKills = 0,
 		Style = "classic",
+		Coins = 0,
+		XP = 0,
+		Trail = "none",
+		Effect = "pixels",
+		Owned = { Trails = { none = true }, Effects = { pixels = true }, Emotes = {} },
+		LastRewardMatch = 0, -- the last match that paid out (so one match never pays twice)
 		Seen = false, -- the how-to-play card has been shown
 		Settings = { Music = true, Sfx = true, Fx = true },
 		LastSeen = nil,

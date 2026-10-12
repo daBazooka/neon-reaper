@@ -9,6 +9,7 @@ local Rules = require(Shared:WaitForChild("Rules"))
 local State = require(script.Parent.State)
 local Vision = require(script.Parent.Vision)
 local Guess = require(script.Parent.Guess)
+local Items = require(script.Parent.Items)
 
 local Bots = {}
 
@@ -115,6 +116,14 @@ local function walk(e, now)
 	local hum = e.char:FindFirstChildOfClass("Humanoid")
 	local root = e.char:FindFirstChild("HumanoidRootPart")
 	if not hum or not root then
+		return
+	end
+	-- fake footsteps nearby? go and check them out (this is what makes the distraction device a good bait)
+	local lure = Items.nearestDistraction(root.Position, Config.Distraction.Radius)
+	if lure and not Vision.blocked(root.Position + Vector3.new(0, 2, 0), lure.pos + Vector3.new(0, 2, 0), false) then
+		hum:MoveTo(Vector3.new(lure.pos.X, root.Position.Y, lure.pos.Z))
+		e.lastPos = root.Position
+		e.route = {}
 		return
 	end
 	if not e.route or #e.route == 0 or e.routeIndex > #e.route then

@@ -1,5 +1,6 @@
 -- FIGURE ME OUT: the photo notebook. Every photo fills in the digits you could read; several blurry photos of the same
 -- person add up to a full number. When a number is complete you can fire straight from the notebook.
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -72,6 +73,18 @@ function Album.init(screen, d)
 		ZIndex = 26,
 	})
 	close.MouseButton1Click:Connect(Album.close)
+	local share = UI.button(panel, {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -52, 0, 8),
+		Size = UDim2.fromOffset(110, 28),
+		Text = "🤝 SHARE",
+		TextSize = 13,
+		BackgroundColor3 = C.Accent2,
+		ZIndex = 26,
+	})
+	share.MouseButton1Click:Connect(function()
+		Album.share()
+	end)
 	UI.label(panel, {
 		Position = UDim2.fromOffset(14, 38),
 		Size = UDim2.new(1, -28, 0, 30),
@@ -110,6 +123,33 @@ function Album.init(screen, d)
 			end
 		end
 	end)
+end
+
+-- What your notebook says about each person (only entries with at least one known digit): { { id, "4?7" } }.
+function Album.rows()
+	local rows = {}
+	for id, n in notebook do
+		local text = table.concat(n.digits)
+		if text ~= "???" then
+			table.insert(rows, { id, text })
+		end
+	end
+	return rows
+end
+
+-- Sends your notes to your ally. They get them as photos; you may of course lie.
+function Album.share()
+	if (Players.LocalPlayer:GetAttribute("Ally") or 0) == 0 then
+		deps.Toasts.push("You have no ally. Aim at a player and press T", "bad")
+		return
+	end
+	local rows = Album.rows()
+	if #rows == 0 then
+		deps.Toasts.push("Nothing to share yet: take some photos", "bad")
+		return
+	end
+	deps.send("Share", rows)
+	deps.Toasts.push("Shared " .. #rows .. " notes with your ally", "good")
 end
 
 function Album.refresh()

@@ -14,6 +14,7 @@ local Controls = {}
 local player = Players.LocalPlayer
 local deps
 local lastSnap = -100
+local padSelected = 3 -- the gadget a controller player has selected (hotbar slot)
 
 local HOTKEYS = {}
 for i, name in { "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight" } do
@@ -33,6 +34,24 @@ function Controls.guess()
 		return
 	end
 	deps.Keypad.open()
+end
+
+-- Ask the player you are aiming at to team up, or end your alliance if you have one.
+function Controls.ally()
+	if not canAct() then
+		return
+	end
+	if (player:GetAttribute("Ally") or 0) ~= 0 then
+		deps.send("AllyEnd")
+		return
+	end
+	local target = View.aimed()
+	if not target or not target.player then
+		deps.Toasts.push("Aim at another player to offer an alliance", "bad")
+		Audio.error()
+		return
+	end
+	deps.send("AllyAsk", target.id)
 end
 
 function Controls.guessSent(target)
@@ -95,6 +114,29 @@ function Controls.init(d)
 			Controls.snap()
 		elseif kc == Enum.KeyCode.V then
 			deps.Album.toggle()
+		elseif kc == Enum.KeyCode.T then
+			Controls.ally()
+		elseif kc == Enum.KeyCode.I then
+			deps.Inventory.toggle()
+		elseif kc == Enum.KeyCode.B then
+			deps.Emotes.toggle()
+		-- game controller: X guess, R2 photo, L2 hold for binoculars, Y notebook, L1/R1 choose a gadget, A use it
+		elseif kc == Enum.KeyCode.ButtonX then
+			Controls.guess()
+		elseif kc == Enum.KeyCode.ButtonR2 then
+			Controls.snap()
+		elseif kc == Enum.KeyCode.ButtonL2 then
+			deps.Scope.set(true)
+		elseif kc == Enum.KeyCode.ButtonY then
+			deps.Album.toggle()
+		elseif kc == Enum.KeyCode.ButtonL1 or kc == Enum.KeyCode.ButtonR1 then
+			local step = kc == Enum.KeyCode.ButtonR1 and 1 or -1
+			padSelected = (padSelected - 3 + step) % #Config.CarriedItems + 3
+			deps.Toasts.push(Config.Items[padSelected].Icon .. " " .. Config.Items[padSelected].Name .. " ready (press A)", "info")
+		elseif kc == Enum.KeyCode.ButtonA and View.phase() == "play" and not deps.Keypad.isOpen() then
+			deps.Hud.activate(Config.Items[padSelected].Id)
+		elseif kc == Enum.KeyCode.ButtonStart then
+			deps.Menu.toggle()
 		elseif kc == Enum.KeyCode.M then
 			deps.Menu.toggle()
 		elseif kc == Enum.KeyCode.Z or kind == Enum.UserInputType.MouseButton2 then
@@ -110,7 +152,7 @@ function Controls.init(d)
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input)
-		if input.KeyCode == Enum.KeyCode.Z or input.UserInputType == Enum.UserInputType.MouseButton2 then
+		if input.KeyCode == Enum.KeyCode.Z or input.KeyCode == Enum.KeyCode.ButtonL2 or input.UserInputType == Enum.UserInputType.MouseButton2 then
 			deps.Scope.set(false)
 		end
 	end)

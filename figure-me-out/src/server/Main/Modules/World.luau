@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Pickups = require(script.Parent.Pickups)
+local Terminals = require(script.Parent.Terminals)
 
 local World = {}
 
@@ -176,8 +177,18 @@ local function buildArena()
 			lamp(lamps, 112 * sx, 31 * sz)
 		end
 	end
+	-- clearly marked spawn points: glowing pads on the street
+	local pads = folder("SpawnPads")
+	for i, spawn in m.Spawns do
+		local pad = neon(pads, "SpawnPad" .. i, Vector3.new(6, 0.15, 6), Vector3.new(spawn.X, 0.5, spawn.Z), C(120, 230, 255))
+		pad.Shape = Enum.PartType.Cylinder
+		pad.Size = Vector3.new(0.15, 6, 6)
+		pad.CFrame = CFrame.new(spawn.X, 0.5, spawn.Z) * CFrame.Angles(0, 0, math.pi / 2)
+		pad.Transparency = 0.35
+	end
 	local crates = folder("Crates")
 	Pickups.build(crates)
+	Terminals.build(folder("Terminals"))
 end
 
 local board

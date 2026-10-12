@@ -1,78 +1,84 @@
 # FIGURE ME OUT: game concept
 
-> **One line:** everybody has a secret 3-digit number on their forehead. Type someone else's number and they are out.
-> Hide yours, read theirs, be the last one standing.
+> **One line:** everybody wears a secret 3-digit number on their forehead. You can't see yours. Read theirs, take their lives,
+> hide yours, and be the last one standing.
 
-## Why it works
+## A match (about 5 minutes)
 
-| Need | What it means | What the game has |
-|---|---|---|
-| **A rule you get in 5 seconds** | no tutorial needed | "read the number on their head, type it" |
-| **Tension every second** | you are hunter and prey at once | you can't see your own number, and someone is always watching |
-| **Skill, not just luck** | better players win | aiming, binoculars, timing a flashbang, reading the crowd |
-| **Stories to tell** | funny moments to share | "I swapped numbers with the guy who was about to shoot me" |
-| **One more match** | short rounds | 5 minutes at most, ends the moment one player is left |
+1. **Lobby (14 s).** Everybody waits on a bright glass island and can practise with the binoculars, camera and emotes. Bots fill the match up to 10 so there is always a game (a match needs at least 2 "players"; real players can be up to 20).
+2. **Countdown (8 s).** Everyone is placed on a street, frozen. Each player gets a unique colour + animal codename ("🦊 Red Fox"), a unique number from 001 to 999, 3 lives and the starting gadgets. 3, 2, 1, GO!
+3. **Play (4 min).** Walk, hide, read, guess, scheme.
+4. **The final 30 seconds.** The timer turns red and pulses, the music speeds up, a warning shows, and every plate glows so numbers are easier to read. No events start in this stretch.
+5. **Results (12 s).** Winner, ranking, points, lives, survival time and your coins/XP. Then back to the lobby for the next match.
 
-## A match
+The match ends the moment one player is left. If time runs out, the tiebreak is **most lives, then most points, then most hits**.
 
-1. **Lobby (14 s).** Everybody waits on the island. Bots fill the match up to 10 players, so there is always a game. Up to 20 real players.
-2. **Countdown (8 s).** Everybody is placed on the streets of Plaza Park, frozen. Each player gets a unique colour + animal codename ("🦊 Red Fox") and a unique 3-digit number (100 to 999).
-3. **Play (up to 5 min).** Walk, hide, read, guess. Last one standing wins.
-4. **THE REVEAL (last 30 s).** Every plate glows. Chaos.
-5. **Results (12 s).** Ranking, numbers, kills. Wins unlock new forehead plates.
+## Lives, points and protection
+
+* **3 lives.** A correct guess takes one. You glitch away (frozen 2 s, cartoon pixel burst), then pop up somewhere safe on the map.
+* **Protected for 5 s** after coming back (a shield bubble). Nobody can guess you while it lasts.
+* **Anti-farm:** you can't score on the same person again for 25 s.
+* At 0 lives you are out: your number disappears and you spectate.
+* **Points:** hit +100 (x2 in a Double Points event), bounty +150 (x3 in a Bounty Bonus), assist +40, a clear photo of a whole number +10 (once per person every 30 s), staying alive +5 every 20 s, winning +200.
+* **Assist:** you photographed someone's whole number in the last minute and somebody else then gets them.
 
 ## Guessing
 
-Aim at someone, press **G**, type their three digits. It fires on the third digit.
+Press **G**. A panel opens with the people you can see (the one under the crosshair is chosen for you), a digit box, the cost of a wrong guess and your cooldown. Type three digits and press **CONFIRM** (or Enter). The panel never shows any number.
 
-* **Right:** they are out, you get 2 bullets back.
-* **Wrong:** you lose a bullet and freeze for 3 seconds. The person you guessed gets a red arrow pointing at you.
-* You start with 5 bullets and earn one back every 25 seconds. Out of bullets = you can only hide and watch.
-* You need a clear line of sight (walls and smoke block it) and a distance of at most 170 studs.
+* **Right:** they lose a life, you get 2 bullets back.
+* **Wrong:** you lose a bullet, freeze for 3 s, and the person you guessed gets an arrow pointing at you.
+* Bullets: 5, one comes back every 25 s. You need a clear line of sight and at most 170 studs.
+* The server decides everything: the client only asks.
 
-## Finding numbers
+## Gadgets (keys 1 to 8, or tap the slots; controller: L1/R1 to choose, A to use)
 
-* **🔭 Binoculars (hold right mouse / Z / tap the slot).** Zoom far across the map (scroll to change zoom). You walk slowly while using them.
-* **📷 Camera (click / F).** Takes a photo of everyone in the picture. The server decides which digits are readable: all three if they are close and facing you, some of them at medium range, none if their back is turned or they are too far. A photo of a flickering number shows the fake digits.
-* **📒 Notebook (V).** Keeps what you learned. Several blurry photos of the same person add up to the full number, then press FIRE.
+| # | Gadget | What it does |
+|---|---|---|
+| 1 | 🔭 Binoculars | Hold right mouse (or Z / L2). Zoom far (scroll for more). Slow walk while zoomed. Short cooldown. Can't see through walls. |
+| 2 | 📷 Snapshot Camera | Click or F. The server works out who is in frame and which digits were readable (close + facing you = all three, medium = some, back turned or far = none). Clear numbers go in your 📒 notebook, joined up across photos. Close up, the person may notice the flash. |
+| 3 | 💥 Flashbang | Thrown. Blinds whoever sees it go off, more if they look at it. A wall protects you. Turn away to blink less. |
+| 4 | 💨 Smoke Grenade | A cloud nobody can see through for 15 s: no photos, no guesses, no reading. Never counts as "covering". |
+| 5 | 🎭 Decoy Mask | Others see a fake number for 12 s (your real one is unchanged). Your plate rim turns purple, so careful players can spot it. |
+| 6 | 📡 Scanner | Pings people within 45 studs, even through walls: you see where they are and their codename, never their number. Smoke blocks it. |
+| 7 | 🔔 Distraction Device | Thrown. Fake footsteps for 8 s. Bots (and people) go to check. |
+| 8 | 📺 Number Scrambler | Your plate flickers with random digits for 9 s. |
 
-## Hiding (without camping)
+Every gadget has a cooldown and (except 1 and 2) a limited number of charges. You start with 2 flashbangs, 2 smokes and 1 of everything else. Find more in glowing 🎁 crates (they refill after 30 s) and supply drops.
 
-You can't see your own number but you can turn your forehead away, break line of sight, or use items. What you can't do is stare into a wall:
+## Hiding without camping
 
-* A wall right in front of your forehead for **1 second** = a red warning with a countdown.
-* **6 seconds** = **EXPOSED**: your plate glows red and a 👁 marker shows over your head (visible through walls) for 20 seconds. Numbers are only ever shown on the forehead.
-* The timer drains twice as fast when you turn away, so a quick look at a wall is fine.
+* A wall right in front of your forehead for **1 s**: ⚠️ **NUMBER OBSTRUCTED!** with a countdown.
+* **6 s**: **YOUR POSITION HAS BEEN REVEALED!** Your plate glows red and a 👁 marker shows over your head (visible through walls) for 20 s.
+* Every earlier violation makes it longer (x1.5, x2, ...). The timer drains twice as fast when you turn away, so a quick look at a wall is fine. Smoke and flashbangs never count.
 
-## Items
+## Bounty, alliances, terminals, events
 
-Always with you: 🔭 binoculars and 📷 camera. The rest are carried in limited numbers and found in glowing 🎁 crates around the map (they refill after 30 s). Hotkeys 3 to 8.
+* **🎯 Bounty:** one player at a time wears a gold tag with the prize (never the number). Whoever hits them gets +150 points and 25 coins, then a new target is picked.
+* **🤝 Alliances:** aim at another player and press **T**. If they accept you are allies for 90 s: a green marker on each other and a **SHARE** button in the notebook that sends your notes (you may lie!). Shooting your ally is allowed: it ends the alliance, they are told it was a betrayal, and you can't ally again for 60 s. Alliances give no extra points.
+* **🔐 Information terminals** (four, in the plaza): hack one for a clue about **your own** number ("greater than 400", "even", "between 200 and 500"...). Every clue is true, you get 3 per match, with a pause between uses, and it shows your position to everybody for 5 s. That is the risk.
+* **Bonus events** (announced 5 s ahead): ✨ Double Points, 🌙 Low Gravity, 🌑 Blackout, 🎯 Bounty Bonus (x3), 📦 Supply Drop.
 
-| Item | What it does |
-|---|---|
-| 💥 Flashbang (start with 2) | Thrown. After 1.6 s it blinds everyone who can see it: longer if they look at it and the closer they are. A wall protects you. Blinded players can't zoom or take photos. You can blind yourself. |
-| 💨 Smoke grenade (start with 2) | Thrown. A thick cloud for 15 s that nobody can see through: no photos, no guesses, no reading. |
-| 🎭 Decoy | Drops a copy of you wearing a *different* number for 45 s. Guessing it right freezes the guesser for 6 s. Two copies of the same codename in your notebook means one of them is fake. |
-| 📺 Scrambler | For 9 s your plate flickers through fake digits. Photos taken now are worthless. |
-| 🔄 Switcheroo | Swaps numbers with the nearest person you can see (within 45 studs). Everything others learned about both of you is wrong now. |
-| 👟 Speed boots | Run much faster for 6 s. |
+## Progression (never pay-to-win)
 
-## Everything else
+* After every match: coins and XP (more for points and wins). Levels from XP.
+* Spend coins in the menu on **trails**, **elimination effects** and **emotes**; **number plates** unlock with wins. Saved with DataStores. Nothing changes how strong you are.
+* A match pays out once, even if something goes wrong.
 
-* **Plates:** Classic, Gold (1 win), Neon (3), Hot Pink (6), Ice (10), Royal (20). Pick one in the menu (☰).
-* **Stats:** wins, win streak, best streak, matches played, players eliminated. Saved between visits.
-* **Top winners board** in the lobby (all-time, across servers once the game is published).
-* **Spectating:** after you are out you watch the others (◀ ▶ to switch).
-* **Bots** walk the streets, stand in view, and sometimes guess. They are clumsy on purpose.
-* **Look:** a sunny early-2000s "Windows XP hills" afternoon with a Frutiger Aero feel: glossy aqua glass screens, pastel glass buildings, bubbles, a glass boundary wall and rolling green hills. Numbers appear only on the forehead plate.
-* **Map:** "Plaza Park": a park in the middle, 8 buildings around it with ladders to sniper roofs, streets between, lamps and hedges for cover.
+## Screens
 
-## What is built and what is next
+Loading screen, lobby (level, coins, waiting players), HUD (timer, alive count, bounty/alliance chips, lives, points, bullets, kill feed, hotbar with cooldowns), guess panel, notebook, gadget inventory (with your clues), emote panel, menu (how to play, cosmetics, plates, stats, settings), spectator bar, results.
 
-**Built:** everything above, tested offline (see the README).
+## Look
 
-**Next (in the order I would do them):**
+A sunny early-2000s "Windows XP hills" afternoon with a Frutiger Aero feel: glossy aqua glass screens, pastel glass buildings, bubbles, a glass boundary wall and rolling green hills. Numbers appear only on the forehead plate.
+
+## Map: "Plaza Park"
+
+A park with a fountain in the middle (4 information terminals in its corners), 8 pastel buildings with ladders to sniper roofs, streets between them, lamps, hedges, benches and crates for cover, 20 glowing spawn pads, 16 gadget crates. A separate floating lobby island with a how-to-play board and a top-winners board.
+
+## What is next
+
 1. Custom animated characters, a real song and sound effects from the Creator Store (the game makes its own sounds and music until then).
-2. Ranked mode with a rating and seasons.
-3. A second map and a "team" mode (two teams, each wearing one number).
-4. Daily quests and a season pass.
+2. A second map and a 2-team mode.
+3. Ranked mode with seasons, daily quests, a season pass.

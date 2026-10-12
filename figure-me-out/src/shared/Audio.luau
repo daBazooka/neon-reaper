@@ -14,6 +14,7 @@ local sfxGroup, musicGroup
 local musicEnabled, sfxEnabled = true, true
 local customMusic
 local started = false
+local intense = false -- the last 30 seconds: faster, louder
 
 local function makeGroup(name, volume)
 	local g = Instance.new("SoundGroup")
@@ -194,6 +195,28 @@ function Audio.error()
 	Audio.play("Bass", 0.6, 0.6)
 end
 
+function Audio.lifeLost()
+	run({ 8, 5, 3, 1 }, 0.09, 0.6)
+	Audio.play("Bass", 0.55, 0.9)
+end
+
+function Audio.scan()
+	run({ 1, 3, 5, 8 }, 0.07, 0.4)
+end
+
+function Audio.bounty()
+	run({ 5, 5, 8 }, 0.1, 0.55)
+	Audio.play("Bass", 0.8, 0.6)
+end
+
+function Audio.event()
+	run({ 8, 6, 8, 10 }, 0.12, 0.55)
+end
+
+function Audio.assist()
+	run({ 3, 6 }, 0.07, 0.45)
+end
+
 function Audio.setSfx(on)
 	sfxEnabled = on
 	if sfxGroup then
@@ -209,6 +232,11 @@ function Audio.setMusic(on)
 	if customMusic then
 		customMusic.Volume = on and 1 or 0
 	end
+end
+
+-- The final stretch of a match: the music speeds up.
+function Audio.setIntensity(on)
+	intense = on == true
 end
 
 function Audio.musicOn()
@@ -247,14 +275,14 @@ function Audio.startMusic()
 	task.spawn(function()
 		local step, bar = 0, 0
 		while true do
-			task.wait(STEP)
+			task.wait(intense and STEP * 0.78 or STEP)
 			local s = step % 16 + 1
 			if s == 1 then
 				bar += 1
 			end
 			if musicEnabled and templates.Tone then
 				local pattern = (bar - 1) % 4 + 1
-				if KICK[s] == 1 then
+				if KICK[s] == 1 or (intense and s % 4 == 1) then
 					playOn(musicGroup, templates.Bass and "Bass" or "Tone", 0.5, 0.9)
 				end
 				if TICK[s] == 1 and templates.Click then

@@ -31,6 +31,7 @@ local sfxGroup, musicGroup
 local musicEnabled, sfxEnabled = true, true
 local customMusic
 local started = false
+local intense = false -- the last 30 seconds: faster, louder
 
 local function makeGroup(name, volume)
 	local g = Instance.new("SoundGroup")
@@ -211,6 +212,28 @@ function Audio.error()
 	Audio.play("Bass", 0.6, 0.6)
 end
 
+function Audio.lifeLost()
+	run({ 8, 5, 3, 1 }, 0.09, 0.6)
+	Audio.play("Bass", 0.55, 0.9)
+end
+
+function Audio.scan()
+	run({ 1, 3, 5, 8 }, 0.07, 0.4)
+end
+
+function Audio.bounty()
+	run({ 5, 5, 8 }, 0.1, 0.55)
+	Audio.play("Bass", 0.8, 0.6)
+end
+
+function Audio.event()
+	run({ 8, 6, 8, 10 }, 0.12, 0.55)
+end
+
+function Audio.assist()
+	run({ 3, 6 }, 0.07, 0.45)
+end
+
 function Audio.setSfx(on)
 	sfxEnabled = on
 	if sfxGroup then
@@ -226,6 +249,11 @@ function Audio.setMusic(on)
 	if customMusic then
 		customMusic.Volume = on and 1 or 0
 	end
+end
+
+-- The final stretch of a match: the music speeds up.
+function Audio.setIntensity(on)
+	intense = on == true
 end
 
 function Audio.musicOn()
@@ -264,14 +292,14 @@ function Audio.startMusic()
 	task.spawn(function()
 		local step, bar = 0, 0
 		while true do
-			task.wait(STEP)
+			task.wait(intense and STEP * 0.78 or STEP)
 			local s = step % 16 + 1
 			if s == 1 then
 				bar += 1
 			end
 			if musicEnabled and templates.Tone then
 				local pattern = (bar - 1) % 4 + 1
-				if KICK[s] == 1 then
+				if KICK[s] == 1 or (intense and s % 4 == 1) then
 					playOn(musicGroup, templates.Bass and "Bass" or "Tone", 0.5, 0.9)
 				end
 				if TICK[s] == 1 and templates.Click then
@@ -309,29 +337,50 @@ Config.GameName = "Figure Me Out"
 --------------------------------------------------------------------------------
 Config.Match = {
 	MaxPlayers = 20,
-	MinTotal = 10, -- bots fill the match up to this many players, so there is always a game
+	MinTotal = 10, -- bots fill the match up to this many players, so there is always a game (and 2 "players" is the minimum)
 	Intermission = 14, -- lobby wait between matches (seconds)
 	Countdown = 8, -- before the start whistle
-	Length = 300, -- the match (seconds)
-	RevealAt = 30, -- seconds left when THE REVEAL begins and every plate glows
+	Length = 240, -- the match: four minutes
+	RevealAt = 30, -- the final stretch: every plate glows, the timer turns red, the music speeds up
 	ResultsTime = 12,
 }
 
-Config.Number = { Digits = 3, Min = 100, Max = 999 }
+Config.Number = { Digits = 3, Min = 1, Max = 999 } -- shown with leading zeros: 007, 042, 512
 
--- Guessing: aim at someone, press G, type their 3 digits. Wrong guesses cost a bullet and stun you.
+-- Lives: a correct guess takes one life. You come back after a moment, protected, until your lives run out.
+Config.Lives = {
+	Start = 3,
+	RespawnDelay = 2.0, -- you are frozen and glitching for this long, then you pop up somewhere else
+	Protect = 5, -- seconds nobody can guess you after coming back
+	AntiFarm = 25, -- you can't score on the same person again for this long
+}
+
+-- Points: used for the tiebreak and shown on the results screen.
+Config.Score = {
+	Hit = 100,
+	Bounty = 150,
+	Assist = 40, -- you photographed their whole number in the last minute and somebody else got them
+	AssistWindow = 60,
+	Intel = 10, -- a photo that captured a complete number
+	SurviveEvery = 20, -- seconds
+	Survive = 5,
+	Win = 200,
+}
+
+-- Guessing: aim at someone, press G, type their 3 digits, press Confirm. Wrong guesses cost a bullet and freeze you.
 Config.Guess = {
 	Cooldown = 1.0,
 	MaxDistance = 170, -- you must be able to see them, and be this close
 	Stun = 3,
-	DecoyStun = 6,
 	Bullets = 5,
 	BulletRegen = 25, -- seconds to get one bullet back
-	KillBullets = 2, -- bullets back for an elimination
+	KillBullets = 2, -- bullets back for a successful guess
 	WarnTime = 4, -- how long the guessed player sees "someone guessed you" with an arrow
+	AutoSubmit = false, -- true = fires on the third digit; false = you press CONFIRM (or Enter)
 }
 
--- Covering your number: facing a wall or dead end for too long. You are warned, then exposed.
+-- Covering your number: facing a wall or dead end for too long. You are warned, then exposed. Repeat offenders are
+-- exposed for longer. Smoke and flashbangs never count.
 Config.Cover = {
 	Distance = 5, -- a wall this close in front of your forehead covers it
 	Angles = { 0, 25, -25 }, -- degrees from straight ahead (2 of these 3 must be blocked)
@@ -339,24 +388,25 @@ Config.Cover = {
 	WarnAfter = 1.0, -- seconds covered before the warning appears
 	Limit = 6.0, -- seconds covered before you are exposed
 	Expose = 20, -- seconds your plate glows red and a marker shows over your head
+	RepeatBonus = 0.5, -- each earlier violation makes the exposure this much longer (x1.5, x2, ...)
 	Tick = 0.25,
 }
 
-Config.Movement = { Walk = 16, Jump = 50, Boots = 28, BootsTime = 6, ScopeWalk = 8 }
+Config.Movement = { Walk = 16, Jump = 50, ScopeWalk = 8 }
 
 --------------------------------------------------------------------------------
--- Items. Binoculars and the camera are always with you; the rest are carried in limited numbers and
--- found in glowing crates around the map. Hotbar keys 1 to 8.
+-- Gadgets (hotbar keys 1 to 8). Binoculars and the camera never run out (they have cooldowns); the others
+-- are carried in limited numbers and found in glowing crates and supply drops.
 --------------------------------------------------------------------------------
 Config.Items = {
-	{ Id = "binos", Name = "Binoculars", Icon = "🔭", Key = 1, Permanent = true, Tip = "Hold to zoom in. Read digits from far away." },
-	{ Id = "camera", Name = "Camera", Icon = "📷", Key = 2, Permanent = true, Tip = "Click to take a photo of everyone you can see." },
-	{ Id = "flash", Name = "Flashbang", Icon = "💥", Key = 3, Start = 2, Max = 3, Weight = 22, Tip = "Throw it. Blinds everybody who sees it go off." },
-	{ Id = "smoke", Name = "Smoke Grenade", Icon = "💨", Key = 4, Start = 2, Max = 3, Weight = 22, Tip = "Throw it. A thick cloud nobody can see through." },
-	{ Id = "decoy", Name = "Decoy", Icon = "🎭", Key = 5, Start = 0, Max = 2, Weight = 14, Tip = "Drops a copy of you wearing a fake number." },
-	{ Id = "scramble", Name = "Scrambler", Icon = "📺", Key = 6, Start = 0, Max = 2, Weight = 14, Tip = "Your number flickers with fake digits for a while." },
-	{ Id = "switch", Name = "Switcheroo", Icon = "🔄", Key = 7, Start = 0, Max = 2, Weight = 10, Tip = "Swap numbers with someone close by." },
-	{ Id = "boots", Name = "Speed Boots", Icon = "👟", Key = 8, Start = 0, Max = 2, Weight = 18, Tip = "Run much faster for a few seconds." },
+	{ Id = "binos", Name = "Binoculars", Icon = "🔭", Key = 1, Permanent = true, Cooldown = 0.6, Tip = "Hold to zoom in and read far-away plates. Can't see through walls." },
+	{ Id = "camera", Name = "Snapshot Camera", Icon = "📷", Key = 2, Permanent = true, Cooldown = 1.4, Tip = "Photograph everyone in frame. Clear numbers go into your notebook." },
+	{ Id = "flash", Name = "Flashbang", Icon = "💥", Key = 3, Start = 2, Max = 3, Weight = 22, Cooldown = 4, Tip = "Throw it: blinds whoever sees it go off. Turn away to blink less." },
+	{ Id = "smoke", Name = "Smoke Grenade", Icon = "💨", Key = 4, Start = 2, Max = 3, Weight = 22, Cooldown = 4, Tip = "Throw it: a thick cloud nobody can see through for 15s." },
+	{ Id = "mask", Name = "Decoy Mask", Icon = "🎭", Key = 5, Start = 1, Max = 2, Weight = 14, Cooldown = 10, Tip = "Others see a fake number for 12s (your plate turns purple)." },
+	{ Id = "scanner", Name = "Scanner", Icon = "📡", Key = 6, Start = 1, Max = 3, Weight = 16, Cooldown = 8, Tip = "Pings people nearby: you see where they are, never their number." },
+	{ Id = "distraction", Name = "Distraction Device", Icon = "🔔", Key = 7, Start = 1, Max = 2, Weight = 14, Cooldown = 6, Tip = "Throw it: fake footsteps for 8s. Bots (and people) go to check." },
+	{ Id = "scramble", Name = "Number Scrambler", Icon = "📺", Key = 8, Start = 1, Max = 2, Weight = 14, Cooldown = 10, Tip = "Your plate flickers with random digits for 9s." },
 }
 Config.ItemById = {}
 Config.ItemOrder = {}
@@ -364,13 +414,14 @@ for _, item in Config.Items do
 	Config.ItemById[item.Id] = item
 	table.insert(Config.ItemOrder, item.Id)
 end
-Config.CarriedItems = { "flash", "smoke", "decoy", "scramble", "switch", "boots" }
+Config.CarriedItems = { "flash", "smoke", "mask", "scanner", "distraction", "scramble" }
 
 Config.Flash = { Radius = 80, Fuse = 1.6, MaxBlind = 6.5, MinBlind = 1.2, ThrowSpeed = 55, ThrowUp = 22 }
 Config.Smoke = { Radius = 9, Duration = 15, Fuse = 1.3, Fade = 3 }
-Config.Decoy = { Duration = 45 }
+Config.Mask = { Duration = 12 }
 Config.Scramble = { Duration = 9 }
-Config.Switch = { Range = 45 }
+Config.Scanner = { Radius = 45, Show = 4 }
+Config.Distraction = { Duration = 8, Fuse = 1.2, Radius = 70 }
 
 -- Photos are worked out by the server from where the camera points.
 Config.Photo = {
@@ -382,12 +433,74 @@ Config.Photo = {
 	FaceAngle = 55, -- their forehead must be turned this close to the camera
 	Cooldown = 1.4,
 	Album = 12,
+	NoticeDistance = 24, -- closer than this, the person photographed may notice the flash
+	NoticeChance = 0.6,
 }
 
 Config.Scope = { Fov = 14, MinFov = 6, MaxFov = 24, NormalFov = 70 }
 
--- Crates that hand out items. Positions are on the map (see Config.Map).
+-- Crates that hand out gadgets. Positions are on the map (see Config.Map).
 Config.Pickups = { Respawn = 30, Radius = 4.5 }
+
+--------------------------------------------------------------------------------
+-- Bounty, alliances, information terminals and bonus events
+--------------------------------------------------------------------------------
+Config.Bounty = { Reward = 150, Coins = 25, Every = 70, Lasts = 90 } -- a new target every so many seconds
+
+Config.Alliance = { Duration = 90, Range = 60, Cooldown = 40, MaxShare = 12, ReAllyAfterBetrayal = 60 }
+
+Config.Terminal = { Uses = 3, Cooldown = 20, Range = 10, Reveal = 5 } -- uses per player per match; seconds between uses; using one shows your position for Reveal seconds
+
+Config.Events = {
+	First = 50, -- no event before this many seconds into the match
+	Gap = { 55, 90 }, -- random seconds between events
+	Warn = 5, -- announced this many seconds before it starts
+	List = {
+		{ Id = "double", Name = "DOUBLE POINTS", Icon = "✨", Seconds = 25, Text = "Every successful guess is worth double!" },
+		{ Id = "gravity", Name = "LOW GRAVITY", Icon = "🌙", Seconds = 20, Text = "Jump higher! Everybody floats." },
+		{ Id = "blackout", Name = "BLACKOUT", Icon = "🌑", Seconds = 12, Text = "The lights go out. Plates still glow faintly." },
+		{ Id = "bounty", Name = "BOUNTY BONUS", Icon = "🎯", Seconds = 30, Text = "Bounties pay triple!" },
+		{ Id = "drop", Name = "SUPPLY DROP", Icon = "📦", Seconds = 1, Text = "A supply drop lands in the plaza. First come, first served!" },
+	},
+	LowGravity = 70,
+}
+
+--------------------------------------------------------------------------------
+-- Progression: coins and XP after every match, levels, and cosmetics. Nothing here changes how strong you are.
+--------------------------------------------------------------------------------
+Config.Rewards = { Coins = { Play = 15, PerPoint = 0.1, Win = 60 }, XP = { Play = 20, PerPoint = 0.15, Win = 50 } }
+Config.Levels = { First = 100, Step = 40, Max = 99 } -- XP needed for level n = First + Step * (n - 1)
+
+-- Trail left behind you, elimination effect (the cartoon burst when you lose a life) and quick emotes.
+-- Cost = coins. Level = needed level. Both 0 = you own it from the start.
+Config.Trails = {
+	{ Id = "none", Name = "No trail", Icon = "⚪", Cost = 0, Level = 0, Color = C(255, 255, 255) },
+	{ Id = "sparkle", Name = "Sparkle", Icon = "✨", Cost = 150, Level = 2, Color = C(255, 236, 140) },
+	{ Id = "aqua", Name = "Aqua Wave", Icon = "🌊", Cost = 300, Level = 4, Color = C(90, 215, 255) },
+	{ Id = "bubble", Name = "Bubblegum", Icon = "🫧", Cost = 450, Level = 6, Color = C(255, 150, 205) },
+	{ Id = "flame", Name = "Flame", Icon = "🔥", Cost = 700, Level = 8, Color = C(255, 140, 50) },
+}
+Config.Effects = {
+	{ Id = "pixels", Name = "Pixel Pop", Icon = "🟦", Cost = 0, Level = 0, Colors = { C(90, 215, 255), C(255, 255, 255) } },
+	{ Id = "confetti", Name = "Confetti", Icon = "🎉", Cost = 120, Level = 2, Colors = { C(255, 90, 140), C(255, 226, 90), C(90, 214, 96) } },
+	{ Id = "hearts", Name = "Hearts", Icon = "💖", Cost = 300, Level = 5, Colors = { C(255, 110, 170), C(255, 190, 220) } },
+	{ Id = "glitch", Name = "Glitch", Icon = "👾", Cost = 500, Level = 7, Colors = { C(60, 255, 120), C(255, 60, 200), C(60, 200, 255) } },
+}
+Config.Emotes = {
+	{ Id = "wave", Name = "Wave", Icon = "👋", Cost = 0, Level = 0 },
+	{ Id = "laugh", Name = "Laugh", Icon = "😂", Cost = 0, Level = 0 },
+	{ Id = "cool", Name = "Cool", Icon = "😎", Cost = 0, Level = 0 },
+	{ Id = "think", Name = "Thinking", Icon = "🤔", Cost = 0, Level = 0 },
+	{ Id = "eyes", Name = "Watching", Icon = "👀", Cost = 0, Level = 0 },
+	{ Id = "scared", Name = "Scared", Icon = "😱", Cost = 120, Level = 2 },
+	{ Id = "party", Name = "Party", Icon = "🎉", Cost = 200, Level = 3 },
+	{ Id = "skull", Name = "Oops", Icon = "💀", Cost = 250, Level = 5 },
+}
+Config.TrailById, Config.EffectById, Config.EmoteById = {}, {}, {}
+for _, t in Config.Trails do Config.TrailById[t.Id] = t end
+for _, t in Config.Effects do Config.EffectById[t.Id] = t end
+for _, t in Config.Emotes do Config.EmoteById[t.Id] = t end
+Config.EmoteCooldown = 2.5
 
 --------------------------------------------------------------------------------
 -- Everyone gets a unique colour and animal (their codename) so you can tell people apart.
@@ -457,6 +570,10 @@ for _, x in { -70, -20, 20, 70 } do
 	table.insert(Config.Map.Spawns, Vector3.new(x, 3.5, -43))
 	table.insert(Config.Map.Spawns, Vector3.new(x, 3.5, 43))
 end
+-- 4 information terminals in the corners of the plaza
+Config.Map.Terminals = { Vector3.new(-24, 2, -24), Vector3.new(24, 2, -24), Vector3.new(-24, 2, 24), Vector3.new(24, 2, 24) }
+-- where supply drops land: open ground in the plaza
+Config.Map.DropSpots = { Vector3.new(18, 0, 6), Vector3.new(-18, 0, -6), Vector3.new(6, 0, -18), Vector3.new(-6, 0, 18) }
 -- 16 crate spots: the four crossroads, the plaza, and along the streets.
 Config.Map.Crates = {}
 for _, sx in { -1, 1 } do
@@ -476,6 +593,7 @@ Config.Sounds = {
 	Bass = "rbxasset://sounds/bass.wav",
 	Click = "rbxasset://sounds/button.wav",
 	Flash = "rbxasset://sounds/flashbulb.wav",
+	Footsteps = "rbxasset://sounds/action_footsteps_plastic.mp3",
 }
 Config.MusicTrackId = "" -- optional looping song id; empty = generated music
 Config.MusicVolume = 0.2
@@ -725,8 +843,8 @@ end
 --------------------------------------------------------------------------------
 -- Results
 --------------------------------------------------------------------------------
--- entries: { { id, alive, kills, diedAt } }. Alive players rank first (most kills first); everyone else ranks by how
--- late they were eliminated. Returns the ids best to worst.
+-- entries: { { id, alive, lives, score, kills, diedAt } }. Players still in the game rank first: most lives, then most points,
+-- then most eliminations. Everyone else ranks by how late they were out, then points. Returns the ids best to worst.
 function Rules.standings(entries)
 	local list = table.clone(entries)
 	table.sort(list, function(a, b)
@@ -734,15 +852,21 @@ function Rules.standings(entries)
 			return a.alive
 		end
 		if a.alive then
-			if a.kills ~= b.kills then
-				return a.kills > b.kills
+			if (a.lives or 0) ~= (b.lives or 0) then
+				return (a.lives or 0) > (b.lives or 0)
+			end
+			if (a.score or 0) ~= (b.score or 0) then
+				return (a.score or 0) > (b.score or 0)
+			end
+			if (a.kills or 0) ~= (b.kills or 0) then
+				return (a.kills or 0) > (b.kills or 0)
 			end
 		else
 			if (a.diedAt or 0) ~= (b.diedAt or 0) then
 				return (a.diedAt or 0) > (b.diedAt or 0)
 			end
-			if a.kills ~= b.kills then
-				return a.kills > b.kills
+			if (a.score or 0) ~= (b.score or 0) then
+				return (a.score or 0) > (b.score or 0)
 			end
 		end
 		return a.id < b.id
@@ -752,6 +876,91 @@ function Rules.standings(entries)
 		ids[i] = e.id
 	end
 	return ids
+end
+
+--------------------------------------------------------------------------------
+-- Progression
+--------------------------------------------------------------------------------
+-- XP needed to go from `level` to the next one.
+function Rules.xpNeeded(level)
+	return Config.Levels.First + Config.Levels.Step * (level - 1)
+end
+
+-- Returns (level, xp into this level, xp needed for the next level) for a total amount of XP.
+function Rules.levelFor(xp)
+	local level, left = 1, math.max(0, xp)
+	while level < Config.Levels.Max and left >= Rules.xpNeeded(level) do
+		left -= Rules.xpNeeded(level)
+		level += 1
+	end
+	return level, left, Rules.xpNeeded(level)
+end
+
+-- Coins and XP for one match. score = the player's points, won = true for the winner.
+function Rules.matchRewards(score, won)
+	local r = Config.Rewards
+	local coins = r.Coins.Play + math.floor(score * r.Coins.PerPoint) + (won and r.Coins.Win or 0)
+	local xp = r.XP.Play + math.floor(score * r.XP.PerPoint) + (won and r.XP.Win or 0)
+	return coins, xp
+end
+
+-- Can this player have this cosmetic yet? Returns (true) or (false, reason).
+function Rules.canBuy(item, level, coins)
+	if level < item.Level then
+		return false, "Reach level " .. item.Level
+	end
+	if coins < item.Cost then
+		return false, "Need " .. item.Cost .. " coins"
+	end
+	return true
+end
+
+--------------------------------------------------------------------------------
+-- Terminal clues. Every clue is true for the player's number, so they can never contradict each other.
+--------------------------------------------------------------------------------
+-- Returns up to `count` clues { kind, text, ok = function(n) } for the number n, in random order.
+function Rules.clues(n, count, next)
+	local function between(lo, hi)
+		return lo + math.floor(next() * (hi - lo + 1))
+	end
+	local pool = {}
+	local function add(kind, text, ok)
+		table.insert(pool, { kind = kind, text = text, ok = ok })
+	end
+	local floor = math.max(0, n - between(8, 260))
+	add("greater", "Your number is greater than " .. floor, function(x) return x > floor end)
+	local ceil = math.min(1000, n + between(8, 260))
+	add("less", "Your number is less than " .. ceil, function(x) return x < ceil end)
+	local lo, hi = math.max(1, n - between(20, 220)), math.min(999, n + between(20, 220))
+	add("between", "Your number is between " .. lo .. " and " .. hi, function(x) return x >= lo and x <= hi end)
+	if n % 2 == 0 then
+		add("parity", "Your number is even", function(x) return x % 2 == 0 end)
+	else
+		add("parity", "Your number is odd", function(x) return x % 2 == 1 end)
+	end
+	local sum = (n // 100) + (n // 10 % 10) + (n % 10)
+	if sum % 2 == 0 then
+		add("digits", "Your digits add up to an even number", function(x) return ((x // 100) + (x // 10 % 10) + (x % 10)) % 2 == 0 end)
+	else
+		add("digits", "Your digits add up to an odd number", function(x) return ((x // 100) + (x // 10 % 10) + (x % 10)) % 2 == 1 end)
+	end
+	if n % 3 == 0 then
+		add("three", "Your number is a multiple of 3", function(x) return x % 3 == 0 end)
+	end
+	if n % 5 == 0 then
+		add("five", "Your number is a multiple of 5", function(x) return x % 5 == 0 end)
+	end
+	local first = n // 100
+	add("hundreds", first == 0 and "Your number is under 100" or ("Your number starts with a " .. first), function(x) return x // 100 == first end)
+	for i = #pool, 2, -1 do
+		local j = 1 + math.floor(next() * i)
+		pool[i], pool[j] = pool[j], pool[i]
+	end
+	local out = {}
+	for i = 1, math.min(count, #pool) do
+		out[i] = pool[i]
+	end
+	return out
 end
 
 function Rules.unlockedStyles(wins)
@@ -1062,6 +1271,9 @@ local Match = require(Modules.Match)
 local Guess = require(Modules.Guess)
 local Photos = require(Modules.Photos)
 local Items = require(Modules.Items)
+local Progress = require(Modules.Progress)
+local Alliance = require(Modules.Alliance)
+local State = require(Modules.State)
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
 Players.CharacterAutoLoads = false
@@ -1081,6 +1293,8 @@ Data.init()
 World.build()
 
 -- Every request is checked and rate limited, and a bad one can never crash the server.
+-- the shortest time allowed between two requests of the same kind from one player
+local MIN_GAP = { Guess = 0.25, Use = 0.3, Snap = 0.5, Emote = 1, Buy = 0.5, Equip = 0.3, AllyAsk = 1, AllyReply = 0.3, Share = 1 }
 local lastCall = {} -- userId -> { kind -> time of the last call }
 local function allowed(p, kind)
 	local now = os.clock()
@@ -1089,7 +1303,7 @@ local function allowed(p, kind)
 		mine = {}
 		lastCall[p.UserId] = mine
 	end
-	if now - (mine[kind] or 0) < 0.08 then
+	if now - (mine[kind] or 0) < (MIN_GAP[kind] or 0.08) then
 		return false
 	end
 	mine[kind] = now
@@ -1104,7 +1318,7 @@ function handlers.Snap(p, origin, look)
 	Photos.snap(p, origin, look)
 end
 function handlers.Use(p, id, look)
-	local e = require(Modules.State).byPlayer(p)
+	local e = State.byPlayer(p)
 	if e and type(id) == "string" then
 		Items.use(e, id, look)
 	end
@@ -1115,6 +1329,46 @@ end
 function handlers.Style(p, id)
 	if type(id) == "string" then
 		Match.setStyle(p, id)
+	end
+end
+function handlers.Emote(p, id)
+	if type(id) == "string" then
+		Progress.emote(p, id)
+	end
+end
+local KINDS = { trail = true, effect = true, emote = true }
+function handlers.Buy(p, kind, id)
+	if KINDS[kind] and type(id) == "string" then
+		Progress.buy(p, kind, id)
+	end
+end
+function handlers.Equip(p, kind, id)
+	if type(id) == "string" then
+		Progress.equip(p, kind, id)
+	end
+end
+function handlers.AllyAsk(p, targetId)
+	local e = State.byPlayer(p)
+	if e and type(targetId) == "number" then
+		Alliance.propose(e, targetId)
+	end
+end
+function handlers.AllyReply(p, fromId, yes)
+	local e = State.byPlayer(p)
+	if e and type(fromId) == "number" then
+		Alliance.respond(e, fromId, yes == true)
+	end
+end
+function handlers.AllyEnd(p)
+	local e = State.byPlayer(p)
+	if e then
+		Alliance.leave(e)
+	end
+end
+function handlers.Share(p, entries)
+	local e = State.byPlayer(p)
+	if e then
+		Alliance.share(e, entries)
 	end
 end
 function handlers.Seen(p)
@@ -1175,6 +1429,179 @@ print("[" .. Config.GameName .. "] ready")
         </Properties>
         <Item class="ModuleScript" referent="11">
           <Properties>
+            <string name="Name">Alliance</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: temporary alliances. Voluntary, short, and breakable: shooting your ally ends it (a betrayal). Allies get a
+-- marker on each other and may choose to share what they know. Nothing here pays extra points, so it can't be farmed.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local State = require(script.Parent.State)
+local Net = require(script.Parent.Net)
+local Vision = require(script.Parent.Vision)
+
+local Alliance = {}
+
+local offers = {} -- target id -> { from = id, expires = time }
+
+local function label(e)
+	return e.icon .. " " .. e.code
+end
+
+function Alliance.areAllies(a, b)
+	return a ~= nil and b ~= nil and a.ally == b.id and b.ally == a.id
+end
+
+function Alliance.reset()
+	offers = {}
+end
+
+local function clear(e)
+	e.ally = nil
+	e.allyUntil = nil
+	State.writeEntity(e)
+end
+
+-- Ends the alliance for both. betrayal = true when `breaker` shot their ally.
+function Alliance.betray(breaker, victim)
+	if not Alliance.areAllies(breaker, victim) then
+		return false
+	end
+	clear(breaker)
+	clear(victim)
+	breaker.allyBlockUntil = State.now() + Config.Alliance.ReAllyAfterBetrayal
+	if victim.player then
+		Net.send(victim.player, "ally", "betrayed", label(breaker), 0)
+		Net.toast(victim.player, label(breaker) .. " BETRAYED you!", "bad")
+	end
+	if breaker.player then
+		Net.send(breaker.player, "ally", "broken", label(victim), 0)
+	end
+	return true
+end
+
+-- Ends it politely (the player pressed the button, or time ran out).
+function Alliance.dissolve(e, reason)
+	local other = e.ally and State.entities[e.ally]
+	clear(e)
+	if other then
+		clear(other)
+		if other.player then
+			Net.send(other.player, "ally", reason or "ended", label(e), 0)
+		end
+	end
+	if e.player then
+		Net.send(e.player, "ally", reason or "ended", other and label(other) or "", 0)
+	end
+end
+
+-- `from` asks the player `toId` to team up.
+function Alliance.propose(from, toId)
+	local now = State.now()
+	local to = State.entities[toId]
+	if State.phase ~= "play" or not from or not from.alive or not from.player or not to or not to.alive or not to.player or to == from then
+		return false
+	end
+	if from.ally or to.ally then
+		if from.player then
+			Net.toast(from.player, "One of you already has an ally", "bad")
+		end
+		return false
+	end
+	if (from.allyBlockUntil or 0) > now or (to.allyBlockUntil or 0) > now or (from.allyAskAt or -100) + 3 > now then
+		Net.toast(from.player, "Not right now", "bad")
+		return false
+	end
+	local a, b = Vision.head(from), Vision.head(to)
+	if not a or not b or (a.Position - b.Position).Magnitude > Config.Alliance.Range or Vision.blocked(a.Position, b.Position, true) then
+		Net.toast(from.player, "Get closer and make sure you can see them", "bad")
+		return false
+	end
+	from.allyAskAt = now
+	offers[to.id] = { from = from.id, expires = now + 15 }
+	Net.send(to.player, "allyOffer", label(from), from.id)
+	Net.toast(from.player, "Alliance offer sent to " .. label(to), "info")
+	return true
+end
+
+-- `e` answers the offer from `fromId`.
+function Alliance.respond(e, fromId, yes)
+	local offer = offers[e.id]
+	local from = State.entities[fromId]
+	offers[e.id] = nil
+	if not offer or offer.from ~= fromId or offer.expires < State.now() or not from or not from.alive or not e.alive then
+		return false
+	end
+	if not yes then
+		if from.player then
+			Net.toast(from.player, label(e) .. " said no", "info")
+		end
+		return false
+	end
+	if from.ally or e.ally then
+		return false
+	end
+	local untilT = State.now() + Config.Alliance.Duration
+	from.ally, e.ally = e.id, from.id
+	from.allyUntil, e.allyUntil = untilT, untilT
+	State.writeEntity(from)
+	State.writeEntity(e)
+	Net.send(from.player, "ally", "on", label(e), Config.Alliance.Duration)
+	Net.send(e.player, "ally", "on", label(from), Config.Alliance.Duration)
+	return true
+end
+
+function Alliance.leave(e)
+	if e.ally then
+		Alliance.dissolve(e, "left")
+	end
+end
+
+-- entries: { { id, text } } where text is like "4?7" (what the sender's notebook says). Allies may lie, so the receiver
+-- decides what to believe: the server only checks the shape and that the two really are allies.
+function Alliance.share(e, entries)
+	local ally = e.ally and State.entities[e.ally]
+	if not ally or not ally.player or not Alliance.areAllies(e, ally) or type(entries) ~= "table" then
+		return false
+	end
+	local clean = {}
+	for _, row in entries do
+		if #clean >= Config.Alliance.MaxShare then
+			break
+		end
+		if type(row) == "table" and type(row[1]) == "number" and type(row[2]) == "string" and string.match(row[2], "^[%d%?][%d%?][%d%?]$") then
+			local about = State.entities[row[1]]
+			if about and about ~= ally and about ~= e then
+				table.insert(clean, { about.id, about.code, about.icon, row[2], 0 })
+			end
+		end
+	end
+	if #clean == 0 then
+		return false
+	end
+	Net.send(ally.player, "shared", label(e), clean)
+	return true
+end
+
+function Alliance.tick(now)
+	for id, offer in offers do
+		if offer.expires < now then
+			offers[id] = nil
+		end
+	end
+	for _, e in State.list() do
+		if e.ally and ((e.allyUntil or 0) < now or not e.alive) then
+			Alliance.dissolve(e, "ended")
+		end
+	end
+end
+
+return Alliance
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="12">
+          <Properties>
             <string name="Name">Bots</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: simple computer players that walk the streets and sometimes guess. They keep a match lively when few
 -- people are online, and they make sure "someone is always watching". They are clumsy on purpose.
@@ -1187,6 +1614,7 @@ local Rules = require(Shared:WaitForChild("Rules"))
 local State = require(script.Parent.State)
 local Vision = require(script.Parent.Vision)
 local Guess = require(script.Parent.Guess)
+local Items = require(script.Parent.Items)
 
 local Bots = {}
 
@@ -1295,6 +1723,14 @@ local function walk(e, now)
 	if not hum or not root then
 		return
 	end
+	-- fake footsteps nearby? go and check them out (this is what makes the distraction device a good bait)
+	local lure = Items.nearestDistraction(root.Position, Config.Distraction.Radius)
+	if lure and not Vision.blocked(root.Position + Vector3.new(0, 2, 0), lure.pos + Vector3.new(0, 2, 0), false) then
+		hum:MoveTo(Vector3.new(lure.pos.X, root.Position.Y, lure.pos.Z))
+		e.lastPos = root.Position
+		e.route = {}
+		return
+	end
 	if not e.route or #e.route == 0 or e.routeIndex > #e.route then
 		pickDestination(e)
 	end
@@ -1397,11 +1833,109 @@ return Bots
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="12">
+        <Item class="ModuleScript" referent="13">
+          <Properties>
+            <string name="Name">Bounty</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: the bounty. One player at a time wears a 🎯 tag with a prize. Whoever gets them wins the prize, and a new
+-- target is picked. The tag never shows the number.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local State = require(script.Parent.State)
+local Net = require(script.Parent.Net)
+local Plates = require(script.Parent.Plates)
+
+local Bounty = {}
+
+local rng = Random.new()
+local target = nil
+local expires, nextAt = 0, 0
+Bounty.paused = false -- tests switch the bounty off so scores are predictable
+Bounty.multiplier = function() -- Events: bounty bonus
+	return 1
+end
+
+local function label(e)
+	return e.icon .. " " .. e.code
+end
+
+function Bounty.current()
+	return target
+end
+
+function Bounty.clear()
+	if target then
+		target.bounty = false
+		Plates.showBounty(target, false, 0)
+		State.writeEntity(target)
+	end
+	target = nil
+end
+
+function Bounty.reset()
+	Bounty.clear()
+	expires = 0
+	nextAt = State.now() + 20
+end
+
+function Bounty.assign(now)
+	local list = State.aliveList()
+	if #list < 3 then
+		return false
+	end
+	local pick = list[rng:NextInteger(1, #list)]
+	Bounty.clear()
+	target = pick
+	pick.bounty = true
+	expires = now + Config.Bounty.Lasts
+	local reward = Config.Bounty.Reward * Bounty.multiplier()
+	Plates.showBounty(pick, true, reward)
+	State.writeEntity(pick)
+	Net.sendAll("bounty", label(pick), reward, pick.id)
+	return true
+end
+
+-- Called when `killer` got `victim`. Returns the bonus points paid (0 when it wasn't the bounty target).
+function Bounty.claim(killer, victim)
+	if victim ~= target or killer == victim then
+		return 0
+	end
+	local reward = Config.Bounty.Reward * Bounty.multiplier()
+	killer.score = (killer.score or 0) + reward
+	killer.bonusCoins = (killer.bonusCoins or 0) + Config.Bounty.Coins
+	State.writeEntity(killer)
+	if killer.player then
+		Net.send(killer.player, "bountyWon", reward, Config.Bounty.Coins)
+	end
+	Bounty.clear()
+	nextAt = State.now() + 4
+	return reward
+end
+
+function Bounty.tick(now)
+	if Bounty.paused then
+		return
+	end
+	if target and (not target.alive or now > expires) then
+		Bounty.clear()
+		nextAt = now + 3
+	end
+	if not target and now >= nextAt then
+		Bounty.assign(now)
+		nextAt = now + 5
+	end
+end
+
+return Bounty
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="14">
           <Properties>
             <string name="Name">Combat</string>
-            <string name="Source"><![CDATA[-- FIGURE ME OUT: stunning, speed and eliminations. Everything that changes whether an entity can move or is still in
--- the match goes through here, so the rules stay in one place.
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: lives, stuns, speed and eliminations. Everything that changes whether an entity can move, how many
+-- lives it has or whether it is still in the match goes through here, so the rules stay in one place.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -1412,11 +1946,20 @@ local Plates = require(script.Parent.Plates)
 
 local Combat = {}
 
-Combat.onEliminated = nil -- set by Match: called after someone is out
+Combat.onEliminated = nil -- Match: called after somebody is out of the match for good
+Combat.onCredit = nil -- Match: called after somebody scored a hit (bounty, assists)
+Combat.onRespawn = nil -- Match: puts a player who lost a life somewhere else on the map
+Combat.multiplier = function() -- Events: double points
+	return 1
+end
 
 local function humanoid(e)
 	local char = e.char
 	return char and char:FindFirstChildOfClass("Humanoid") or nil
+end
+
+local function label(e)
+	return e.icon .. " " .. e.code
 end
 
 -- The speed this entity should have right now.
@@ -1427,9 +1970,6 @@ function Combat.speedOf(e)
 	end
 	if e.scoped then
 		return Config.Movement.ScopeWalk
-	end
-	if (e.bootsUntil or 0) > now then
-		return Config.Movement.Boots
 	end
 	return Config.Movement.Walk
 end
@@ -1459,11 +1999,13 @@ function Combat.setNumber(e, digits)
 	Plates.setText(e, digits)
 end
 
+-- The cartoon pixel burst (its colours come from the elimination effect the player picked).
 local function burst(e)
 	local head = e.char and e.char:FindFirstChild("Head")
 	if not head then
 		return
 	end
+	local effect = e.effectDef or Config.EffectById.pixels
 	local p = Instance.new("Part")
 	p.Anchored = true
 	p.CanCollide = false
@@ -1473,7 +2015,11 @@ local function burst(e)
 	p.CFrame = head.CFrame
 	p.Parent = workspace
 	local em = Instance.new("ParticleEmitter")
-	em.Color = ColorSequence.new(e.color or Color3.new(1, 1, 1))
+	local keys = {}
+	for i, color in effect.Colors do
+		keys[i] = ColorSequenceKeypoint.new((i - 1) / math.max(1, #effect.Colors - 1), color)
+	end
+	em.Color = #keys >= 2 and ColorSequence.new(keys) or ColorSequence.new(effect.Colors[1])
 	em.Size = NumberSequence.new(1.2, 0)
 	em.Lifetime = NumberRange.new(0.6, 1.1)
 	em.Speed = NumberRange.new(18, 34)
@@ -1487,25 +2033,58 @@ local function burst(e)
 	end)
 end
 
--- Takes `victim` out of the match. `killer` is an entity or nil (fell off the map, left the game...).
+-- Nobody can guess you for a while: after coming back, and while you are down. A glowing shield shows it.
+function Combat.protect(e, seconds)
+	e.protectedUntil = math.max(e.protectedUntil or 0, State.now() + seconds)
+	local char = e.char
+	if char then
+		pcall(function()
+			local old = char:FindFirstChildOfClass("ForceField")
+			if old then
+				old:Destroy()
+			end
+			local ff = Instance.new("ForceField")
+			ff.Visible = true
+			ff.Parent = char
+			task.delay(seconds, function()
+				ff:Destroy()
+			end)
+		end)
+	end
+	State.writeEntity(e)
+end
+
+-- Points and credit for a successful guess.
+function Combat.credit(killer, victim)
+	local now = State.now()
+	killer.kills = (killer.kills or 0) + 1
+	killer.bullets = math.min(Config.Guess.Bullets, (killer.bullets or 0) + Config.Guess.KillBullets)
+	local points = Config.Score.Hit * Combat.multiplier()
+	killer.score = (killer.score or 0) + points
+	killer.hitTimes = killer.hitTimes or {}
+	killer.hitTimes[victim.id] = now
+	State.writeEntity(killer)
+	if killer.player then
+		Net.send(killer.player, "gotKill", victim.code, victim.icon, victim.lives or 0, points)
+	end
+	if Combat.onCredit then
+		Combat.onCredit(killer, victim)
+	end
+	return points
+end
+
+-- Takes `victim` out of the match for good. `killer` is an entity or nil (left the game, fell off the map...).
 -- how: "guess" | "left" | "fell"
 function Combat.eliminate(victim, killer, how)
 	if not victim or not victim.alive then
 		return false
 	end
 	victim.alive = false
+	victim.lives = 0
 	victim.diedAt = State.now()
 	victim.killer = killer and killer.id or nil
 	victim.scoped = false
-	if killer and killer ~= victim then
-		killer.kills = (killer.kills or 0) + 1
-		killer.bullets = math.min(Config.Guess.Bullets, (killer.bullets or 0) + Config.Guess.KillBullets)
-		State.writeEntity(killer)
-		if killer.player then
-			Net.send(killer.player, "gotKill", victim.code, victim.icon, victim.number)
-		end
-	end
-	Plates.showReveal(victim, true, false) -- the fallen player's plate stays glowing red
+	Plates.hide(victim)
 	burst(victim)
 	local hum = humanoid(victim)
 	if hum then
@@ -1514,22 +2093,9 @@ function Combat.eliminate(victim, killer, how)
 	end
 	State.writeEntity(victim)
 	State.writeWorld()
-	Net.sendAll(
-		"kill",
-		victim.icon .. " " .. victim.code,
-		killer and (killer.icon .. " " .. killer.code) or "",
-		how or "guess",
-		victim.number
-	)
+	Net.sendAll("kill", label(victim), killer and label(killer) or "", how or "guess")
 	if victim.player then
-		Net.send(
-			victim.player,
-			"eliminated",
-			killer and (killer.icon .. " " .. killer.code) or "",
-			how or "guess",
-			State.aliveCount(),
-			#State.order
-		)
+		Net.send(victim.player, "eliminated", killer and label(killer) or "", how or "guess", State.aliveCount(), #State.order)
 	end
 	if Combat.onEliminated then
 		Combat.onEliminated(victim, killer, how)
@@ -1540,11 +2106,45 @@ function Combat.eliminate(victim, killer, how)
 	return true
 end
 
+-- A correct guess: the victim loses a life. With lives left they glitch away and come back, protected, somewhere else.
+function Combat.strike(victim, killer, how)
+	if not victim or not victim.alive then
+		return false
+	end
+	Combat.credit(killer, victim)
+	if (victim.lives or 1) <= 1 then
+		return Combat.eliminate(victim, killer, how)
+	end
+	victim.lives -= 1
+	local delay = Config.Lives.RespawnDelay
+	victim.stunUntil = State.now() + delay
+	victim.scoped = false
+	Combat.protect(victim, delay + Config.Lives.Protect)
+	Combat.applySpeed(victim)
+	burst(victim)
+	State.writeEntity(victim)
+	Net.sendAll("kill", label(victim), label(killer), "life")
+	if victim.player then
+		Net.send(victim.player, "lifeLost", label(killer), victim.lives, delay)
+	end
+	task.delay(delay, function()
+		if victim.alive and State.entities[victim.id] == victim then
+			if Combat.onRespawn then
+				Combat.onRespawn(victim)
+			end
+			victim.stunUntil = 0
+			Combat.applySpeed(victim)
+			State.writeEntity(victim)
+		end
+	end)
+	return true
+end
+
 return Combat
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="13">
+        <Item class="ModuleScript" referent="15">
           <Properties>
             <string name="Name">Cover</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the anti-camping rule. If a wall is right in front of your forehead for too long you get a warning,
@@ -1566,6 +2166,7 @@ function Cover.reset(e)
 	e.coverTimer = 0
 	e.coverStage = "ok"
 	e.exposedUntil = 0
+	e.violations = 0
 end
 
 -- Is something solid right in front of this entity's forehead?
@@ -1585,8 +2186,9 @@ function Cover.isCovered(e)
 	return Rules.isCovered(blocked)
 end
 
+-- Shows the eye marker and red plate for a while. Also used by the information terminals.
 function Cover.expose(e, seconds)
-	e.exposedUntil = State.now() + seconds
+	e.exposedUntil = math.max(e.exposedUntil or 0, State.now() + seconds)
 	Plates.showReveal(e, true, true)
 	State.writeEntity(e)
 	Net.sendAll("exposed", e.icon .. " " .. e.code)
@@ -1609,8 +2211,11 @@ function Cover.step(e, dt)
 	if stage == "expose" then
 		e.coverTimer = 0
 		stage = "ok"
-		Cover.expose(e, Config.Cover.Expose)
-		Net.send(e.player, "cover", "exposed", Config.Cover.Expose)
+		-- every earlier violation makes the exposure longer, so permanent hiding never pays
+		local seconds = Config.Cover.Expose * (1 + Config.Cover.RepeatBonus * (e.violations or 0))
+		e.violations = (e.violations or 0) + 1
+		Cover.expose(e, seconds)
+		Net.send(e.player, "cover", "exposed", math.floor(seconds), e.violations)
 		e.coverStage = "ok"
 		return
 	end
@@ -1626,7 +2231,7 @@ return Cover
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="14">
+        <Item class="ModuleScript" referent="16">
           <Properties>
             <string name="Name">Data</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: player save data (wins, kills, plate style). Loads/saves with DataStores when available; the game
@@ -1657,6 +2262,12 @@ local function defaults()
 		BestStreak = 0,
 		BestKills = 0,
 		Style = "classic",
+		Coins = 0,
+		XP = 0,
+		Trail = "none",
+		Effect = "pixels",
+		Owned = { Trails = { none = true }, Effects = { pixels = true }, Emotes = {} },
+		LastRewardMatch = 0, -- the last match that paid out (so one match never pays twice)
 		Seen = false, -- the how-to-play card has been shown
 		Settings = { Music = true, Sfx = true, Fx = true },
 		LastSeen = nil,
@@ -1797,11 +2408,136 @@ return Data
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="15">
+        <Item class="ModuleScript" referent="17">
+          <Properties>
+            <string name="Name">Events</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: bonus events. Every minute or so a short event is announced, then it runs: double points, low gravity,
+-- a blackout, triple bounties or a supply drop. Everything an event changes is put back when it ends (or when the match does).
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local State = require(script.Parent.State)
+local Net = require(script.Parent.Net)
+local Combat = require(script.Parent.Combat)
+local Bounty = require(script.Parent.Bounty)
+local Pickups = require(script.Parent.Pickups)
+
+local Events = {}
+
+local rng = Random.new()
+local nextAt, startAt, endAt = 0, 0, 0
+local pending, running, last = nil, nil, nil
+local saved = nil
+local startedAt = 0
+
+Events.paused = false -- tests switch events off so scores are predictable
+Events.active = nil -- the id of the running event, for the tests and the screens
+
+local function gap()
+	local g = Config.Events.Gap
+	return g[1] + rng:NextNumber() * (g[2] - g[1])
+end
+
+function Events.reset(now)
+	Events.stop()
+	startedAt = now
+	nextAt = now + Config.Events.First
+	pending, last = nil, nil
+end
+
+local function apply(def)
+	if def.Id == "double" then
+		Combat.multiplier = function()
+			return 2
+		end
+	elseif def.Id == "gravity" then
+		saved = saved or {}
+		saved.Gravity = workspace.Gravity
+		workspace.Gravity = Config.Events.LowGravity
+	elseif def.Id == "blackout" then
+		saved = saved or {}
+		saved.Brightness, saved.Ambient, saved.OutdoorAmbient = Lighting.Brightness, Lighting.Ambient, Lighting.OutdoorAmbient
+		Lighting.Brightness = 0.3
+		Lighting.Ambient = Color3.fromRGB(25, 35, 60)
+		Lighting.OutdoorAmbient = Color3.fromRGB(25, 35, 60)
+	elseif def.Id == "bounty" then
+		Bounty.multiplier = function()
+			return 3
+		end
+	elseif def.Id == "drop" then
+		local spots = Config.Map.DropSpots
+		local at = spots[rng:NextInteger(1, #spots)]
+		Pickups.drop(Vector3.new(at.X, 0, at.Z))
+	end
+end
+
+local function revert()
+	Combat.multiplier = function()
+		return 1
+	end
+	Bounty.multiplier = function()
+		return 1
+	end
+	if saved then
+		if saved.Gravity then
+			workspace.Gravity = saved.Gravity
+		end
+		if saved.Brightness then
+			Lighting.Brightness, Lighting.Ambient, Lighting.OutdoorAmbient = saved.Brightness, saved.Ambient, saved.OutdoorAmbient
+		end
+		saved = nil
+	end
+end
+
+function Events.stop()
+	revert()
+	pending, running = nil, nil
+	Events.active = nil
+end
+
+function Events.tick(now)
+	if Events.paused then
+		return
+	end
+	if running and now >= endAt then
+		Net.sendAll("event", "end", running.Id, running.Name, running.Icon, "")
+		revert()
+		running = nil
+		Events.active = nil
+		nextAt = now + gap()
+	end
+	if pending and now >= startAt then
+		running, pending = pending, nil
+		endAt = now + running.Seconds
+		Events.active = running.Id
+		apply(running)
+		Net.sendAll("event", "start", running.Id, running.Name, running.Icon, running.Text, running.Seconds)
+	end
+	-- not in the last stretch of the match: the finale stays clean
+	if not running and not pending and now >= nextAt and State.phaseEnd - now > Config.Match.RevealAt + 20 then
+		local list = Config.Events.List
+		local pick = list[rng:NextInteger(1, #list)]
+		if pick.Id == last then
+			pick = list[(rng:NextInteger(1, #list - 1) + (table.find(list, pick) or 1) - 1) % #list + 1]
+		end
+		last = pick.Id
+		pending = pick
+		startAt = now + Config.Events.Warn
+		Net.sendAll("event", "warn", pick.Id, pick.Name, pick.Icon, pick.Text, Config.Events.Warn)
+	end
+end
+
+return Events
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="18">
           <Properties>
             <string name="Name">Guess</string>
-            <string name="Source"><![CDATA[-- FIGURE ME OUT: typing someone's number. Right = they are out. Wrong = you lose a bullet and freeze for a moment, and
--- the person you guessed gets an arrow pointing at you.
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: typing someone's number. Right = they lose a life. Wrong = you lose a bullet and freeze for a moment, and
+-- the person you guessed gets an arrow pointing at you. All of it is decided here on the server.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -1811,6 +2547,7 @@ local State = require(script.Parent.State)
 local Net = require(script.Parent.Net)
 local Vision = require(script.Parent.Vision)
 local Combat = require(script.Parent.Combat)
+local Alliance = require(script.Parent.Alliance)
 
 local Guess = {}
 
@@ -1822,14 +2559,7 @@ local function fail(e, text)
 	return "invalid"
 end
 
-local function targetHead(target)
-	if target.model then -- decoy
-		return target.model:FindFirstChild("Head")
-	end
-	return Vision.head(target)
-end
-
--- Core rule, used for players and bots. Returns "hit" | "miss" | "decoy" | or a reason it was refused.
+-- Core rule, used for players and bots. Returns "hit" | "miss" | or a reason it was refused.
 function Guess.attempt(e, targetId, text)
 	if State.phase ~= "play" or not e or not e.alive then
 		return "closed"
@@ -1845,16 +2575,22 @@ function Guess.attempt(e, targetId, text)
 	if not digits then
 		return fail(e, "Type all 3 digits")
 	end
-	local target = State.entities[targetId] or State.decoys[targetId]
-	if not target or target == e or (not target.model and not target.alive) then
+	local target = State.entities[targetId]
+	if not target or target == e or not target.alive then
 		return fail(e, "Aim at someone first")
 	end
-	local from, to = Vision.head(e), targetHead(target)
+	local from, to = Vision.head(e), Vision.head(target)
 	if not from or not to then
 		return fail(e, "Can't see them")
 	end
 	if (from.Position - to.Position).Magnitude > Config.Guess.MaxDistance or Vision.blocked(from.Position, to.Position, true) then
 		return fail(e, "You can't see them")
+	end
+	if (target.protectedUntil or 0) > now then
+		return fail(e, "They are protected for a moment")
+	end
+	if now - ((e.hitTimes or {})[target.id] or -1000) < Config.Lives.AntiFarm then
+		return fail(e, "You just got them. Pick someone else")
 	end
 	if (e.bullets or 0) < 1 then
 		return fail(e, "Out of bullets")
@@ -1863,33 +2599,14 @@ function Guess.attempt(e, targetId, text)
 	if (e.bullets or 0) >= Config.Guess.Bullets then
 		e.chargeSince = now
 	end
-	if target.model then -- a decoy: the number is real on the decoy, but killing it just wastes your time
-		if digits == target.number then
-			target.expires = 0
-			State.decoys[target.id] = nil
-			target.model:Destroy()
-			e.bullets -= 1
-			Combat.stun(e, Config.Guess.DecoyStun)
-			State.writeEntity(e)
-			if e.player then
-				Net.toast(e.player, "That was a DECOY! Frozen for " .. Config.Guess.DecoyStun .. "s", "gold")
-				Net.send(e.player, "guessResult", "decoy")
-			end
-			return "decoy"
-		end
-		e.bullets -= 1
-		Combat.stun(e, Config.Guess.Stun)
-		State.writeEntity(e)
-		if e.player then
-			Net.send(e.player, "guessResult", "miss")
-		end
-		return "miss"
+	if Alliance.areAllies(e, target) then
+		Alliance.betray(e, target) -- shooting your ally ends the deal (and tells them)
 	end
 	if digits == target.number then
 		if e.player then
 			Net.send(e.player, "guessResult", "hit")
 		end
-		Combat.eliminate(target, e, "guess")
+		Combat.strike(target, e, "guess")
 		return "hit"
 	end
 	e.bullets -= 1
@@ -1916,10 +2633,12 @@ return Guess
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="16">
+        <Item class="ModuleScript" referent="19">
           <Properties>
             <string name="Name">Items</string>
-            <string name="Source"><![CDATA[-- FIGURE ME OUT: the things you carry. Flashbangs, smoke grenades, decoys, scramblers, switcheroos and speed boots.
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: the gadgets you carry. Flashbang, smoke grenade, decoy mask, scanner, distraction device and number
+-- scrambler (binoculars and the camera live in Match.setScope and Photos). Every gadget has a charge count and a cooldown,
+-- and everything is checked here on the server.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 
@@ -1935,8 +2654,8 @@ local Plates = require(script.Parent.Plates)
 local Items = {}
 
 local rng = Random.new()
-local nextDecoy = 1000000
 local clouds = {} -- { parts = {...}, expires = number, cloud = vision cloud }
+Items.distractions = {} -- { pos = Vector3, expires = number, part = Part }
 
 local function folder(name)
 	local f = workspace:FindFirstChild(name)
@@ -1949,15 +2668,16 @@ local function folder(name)
 end
 
 --------------------------------------------------------------------------------
--- Carrying
+-- Carrying and cooldowns
 --------------------------------------------------------------------------------
 function Items.reset(e)
 	e.items = {}
 	for _, id in Config.CarriedItems do
 		e.items[id] = Config.ItemById[id].Start or 0
 	end
+	e.cooldowns = {}
 	e.scrambleUntil = 0
-	e.bootsUntil = 0
+	e.maskUntil = 0
 	e.blindUntil = 0
 	State.writeEntity(e)
 end
@@ -1973,6 +2693,19 @@ function Items.give(e, id, count)
 	e.items[id] = have + added
 	State.writeEntity(e)
 	return added
+end
+
+-- Seconds left on a gadget's cooldown (0 when it is ready).
+function Items.cooldownLeft(e, id)
+	return math.max(0, ((e.cooldowns or {})[id] or 0) - State.now())
+end
+
+function Items.startCooldown(e, id, seconds)
+	e.cooldowns = e.cooldowns or {}
+	e.cooldowns[id] = State.now() + seconds
+	if e.player then
+		Net.send(e.player, "cooldown", id, seconds)
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -1995,7 +2728,7 @@ end
 local function throw(e, look, color, fuse, boom)
 	local head = Vision.head(e)
 	if not head then
-		return
+		return false
 	end
 	local start = head.Position + look * 2.5
 	local p = ball(start, color)
@@ -2009,10 +2742,32 @@ local function throw(e, look, color, fuse, boom)
 		p:Destroy()
 		boom(at)
 	end)
+	return true
 end
 
-local function flashBoom(position, thrower)
+-- A short sound at a point in the world (the sounds ship with Roblox; swap them in Config.Sounds).
+local function bang(position, soundId, volume, speed)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.Transparency = 1
+	p.Size = Vector3.new(1, 1, 1)
+	p.Position = position
+	p.Parent = folder("Effects")
+	local sound = Instance.new("Sound")
+	sound.SoundId = soundId
+	sound.Volume = volume
+	sound.PlaybackSpeed = speed
+	sound.RollOffMaxDistance = 160
+	sound.Parent = p
+	sound:Play()
+	Debris:AddItem(p, 3)
+end
+
+local function flashBoom(position)
 	local now = State.now()
+	bang(position, Config.Sounds.Flash, 2, 1)
 	local fx = Instance.new("Part")
 	fx.Anchored = true
 	fx.CanCollide = false
@@ -2048,6 +2803,7 @@ local function flashBoom(position, thrower)
 end
 
 local function smokeBoom(position)
+	bang(position, Config.Sounds.Bass, 1.5, 0.6)
 	local radius = Config.Smoke.Radius
 	local parts = {}
 	local f = folder("Smoke")
@@ -2078,81 +2834,88 @@ local function smokeBoom(position)
 	table.insert(clouds, { parts = parts, expires = expires, cloud = cloud })
 end
 
---------------------------------------------------------------------------------
--- Decoy
---------------------------------------------------------------------------------
-local function makeDecoy(e)
-	local char = e.char
-	if not char then
-		return false
-	end
-	char.Archivable = true
-	local model = char:Clone()
-	for _, d in model:GetDescendants() do
-		if d:IsA("Script") or d:IsA("LocalScript") then
-			d:Destroy()
-		elseif d:IsA("BasePart") then
-			d.Anchored = true
-			d.CanCollide = false
-		end
-	end
-	local reveal = model:FindFirstChild("RevealTag", true)
-	if reveal then
-		reveal:Destroy()
-	end
-	local number = Rules.newNumber(function()
-		return rng:NextNumber()
-	end, State.takenNumbers())
-	local label = model:FindFirstChild("Digits", true)
-	if label then
-		label.Text = number
-	end
-	local hum = model:FindFirstChildOfClass("Humanoid")
-	if hum then
-		hum.WalkSpeed = 0
-	end
-	local root = model:FindFirstChild("HumanoidRootPart")
-	local from = char:GetPivot()
-	model.Name = "Decoy"
-	model:PivotTo(from * CFrame.new(0, 0, -5))
-	nextDecoy += 1
-	model:SetAttribute("EntityId", nextDecoy)
-	model:SetAttribute("Decoy", true)
-	model.Parent = folder("Decoys")
-	State.decoys[nextDecoy] = {
-		id = nextDecoy,
-		owner = e.id,
-		number = number,
-		model = model,
-		code = e.code,
-		icon = e.icon,
-		expires = State.now() + Config.Decoy.Duration,
-	}
-	return root ~= nil
+-- Fake footsteps for a few seconds: a quiet looping sound that people (and bots) go to check out.
+local function distractionBoom(position)
+	local part = Instance.new("Part")
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.Transparency = 1
+	part.Size = Vector3.new(1, 1, 1)
+	part.Position = position
+	part.Parent = folder("Effects")
+	local sound = Instance.new("Sound")
+	sound.SoundId = Config.Sounds.Footsteps
+	sound.Looped = true
+	sound.Volume = 1.2
+	sound.RollOffMaxDistance = 90
+	sound.PlaybackSpeed = 1.2
+	sound.Parent = part
+	sound:Play()
+	local tag = Instance.new("BillboardGui")
+	tag.Size = UDim2.fromOffset(40, 40)
+	tag.StudsOffset = Vector3.new(0, 3, 0)
+	tag.MaxDistance = 60
+	tag.Adornee = part
+	tag.Parent = part
+	local icon = Instance.new("TextLabel")
+	icon.Size = UDim2.fromScale(1, 1)
+	icon.BackgroundTransparency = 1
+	icon.TextScaled = true
+	icon.Text = "👣"
+	icon.Parent = tag
+	table.insert(Items.distractions, { pos = position, expires = State.now() + Config.Distraction.Duration, part = part })
 end
 
---------------------------------------------------------------------------------
--- Using an item
---------------------------------------------------------------------------------
-local function nearestOther(e, range)
-	local mine = Vision.head(e)
-	if not mine then
-		return nil
-	end
+-- The nearest active distraction to a point, or nil.
+function Items.nearestDistraction(pos, within)
+	local now = State.now()
 	local best, bestD
-	for _, other in State.aliveList() do
-		local head = Vision.head(other)
-		if other ~= e and head then
-			local d = (head.Position - mine.Position).Magnitude
-			if d <= range and (not bestD or d < bestD) and not Vision.blocked(mine.Position, head.Position, false) then
-				best, bestD = other, d
+	for _, d in Items.distractions do
+		if d.expires > now then
+			local dist = (d.pos - pos).Magnitude
+			if dist <= within and (not bestD or dist < bestD) then
+				best, bestD = d, dist
 			end
 		end
 	end
 	return best
 end
 
--- Returns true when the item was used.
+--------------------------------------------------------------------------------
+-- Using a gadget
+--------------------------------------------------------------------------------
+-- What is shown on the plate when nothing odd is going on: the decoy mask's fake number, or the real one.
+function Items.restingText(e)
+	if (e.maskUntil or 0) > State.now() and e.maskNumber then
+		return e.maskNumber
+	end
+	return e.number
+end
+
+local function scan(e)
+	local mine = Vision.head(e)
+	if not mine then
+		return false
+	end
+	local found = {}
+	for _, other in State.aliveList() do
+		local head = Vision.head(other)
+		if other ~= e and head then
+			local distance = (head.Position - mine.Position).Magnitude
+			-- the ping goes through walls but not through smoke
+			if distance <= Config.Scanner.Radius and not Vision.inSmoke(mine.Position, head.Position) then
+				table.insert(found, { other.id, other.code, other.icon, head.Position, math.floor(distance + 0.5) })
+			end
+		end
+	end
+	if e.player then
+		Net.send(e.player, "scan", found, Config.Scanner.Show)
+	end
+	return true
+end
+
+-- Returns true when the gadget was used.
 function Items.use(e, id, look)
 	if State.phase ~= "play" or not e or not e.alive then
 		return false
@@ -2162,7 +2925,7 @@ function Items.use(e, id, look)
 		return false
 	end
 	local now = State.now()
-	if (e.stunUntil or 0) > now or now - (e.lastUse or -100) < 0.6 then
+	if (e.stunUntil or 0) > now or Items.cooldownLeft(e, id) > 0 or now - (e.lastUse or -100) < 0.4 then
 		return false
 	end
 	if typeof(look) ~= "Vector3" or look.Magnitude < 0.1 then
@@ -2172,39 +2935,36 @@ function Items.use(e, id, look)
 	look = look.Unit
 	local used = false
 	if id == "flash" then
-		throw(e, look, Color3.fromRGB(255, 255, 255), Config.Flash.Fuse, function(at)
-			flashBoom(at, e)
-		end)
-		used = true
+		used = throw(e, look, Color3.fromRGB(255, 255, 255), Config.Flash.Fuse, flashBoom)
 	elseif id == "smoke" then
-		throw(e, look, Color3.fromRGB(150, 155, 165), Config.Smoke.Fuse, smokeBoom)
+		used = throw(e, look, Color3.fromRGB(150, 155, 165), Config.Smoke.Fuse, smokeBoom)
+	elseif id == "distraction" then
+		used = throw(e, look, Color3.fromRGB(255, 200, 90), Config.Distraction.Fuse, distractionBoom)
+	elseif id == "mask" then
+		local fake
+		for _ = 1, 10 do
+			fake = Rules.newNumber(function()
+				return rng:NextNumber()
+			end, State.takenNumbers())
+			if fake ~= e.number then
+				break
+			end
+		end
+		e.maskNumber = fake
+		e.maskUntil = now + Config.Mask.Duration
+		Plates.setText(e, fake)
+		Plates.refreshRim(e)
 		used = true
-	elseif id == "decoy" then
-		used = makeDecoy(e)
 	elseif id == "scramble" then
 		e.scrambleUntil = now + Config.Scramble.Duration
 		used = true
-	elseif id == "switch" then
-		local other = nearestOther(e, Config.Switch.Range)
-		if other then
-			local a, b = e.number, other.number
-			Combat.setNumber(e, b)
-			Combat.setNumber(other, a)
-			if other.player then
-				Net.toast(other.player, "Someone swapped your number!", "gold")
-			end
-			used = true
-		elseif e.player then
-			Net.toast(e.player, "Nobody close enough to swap with", "bad")
-		end
-	elseif id == "boots" then
-		e.bootsUntil = now + Config.Movement.BootsTime
-		Combat.applySpeed(e)
-		used = true
+	elseif id == "scanner" then
+		used = scan(e)
 	end
 	if used then
 		e.items[id] -= 1
 		e.lastUse = now
+		Items.startCooldown(e, id, def.Cooldown)
 		State.writeEntity(e)
 		if e.player then
 			Net.send(e.player, "used", id)
@@ -2217,12 +2977,11 @@ end
 -- Upkeep (called every quarter second while a match runs)
 --------------------------------------------------------------------------------
 function Items.tick(now)
-	for id, d in State.decoys do
+	for i = #Items.distractions, 1, -1 do
+		local d = Items.distractions[i]
 		if d.expires <= now then
-			State.decoys[id] = nil
-			if d.model then
-				d.model:Destroy()
-			end
+			d.part:Destroy()
+			table.remove(Items.distractions, i)
 		end
 	end
 	for i = #clouds, 1, -1 do
@@ -2248,16 +3007,20 @@ function Items.tick(now)
 		if (e.scrambleUntil or 0) > now and e.alive then
 			local fake = Rules.digitsOf(rng:NextInteger(Config.Number.Min, Config.Number.Max))
 			if fake == e.number then
-				fake = Rules.digitsOf(Config.Number.Min)
+				fake = Rules.digitsOf(Config.Number.Max)
 			end
 			Plates.setText(e, fake)
 		elseif e.scrambleUntil and e.scrambleUntil > 0 then
 			e.scrambleUntil = 0
-			Plates.setText(e, e.number)
+			Plates.setText(e, Items.restingText(e))
 		end
-		if (e.bootsUntil or 0) > 0 and e.bootsUntil <= now then
-			e.bootsUntil = 0
-			Combat.applySpeed(e)
+		if (e.maskUntil or 0) > 0 and e.maskUntil <= now then
+			e.maskUntil = 0
+			e.maskNumber = nil
+			if (e.scrambleUntil or 0) <= now then
+				Plates.setText(e, e.number)
+			end
+			Plates.refreshRim(e)
 		end
 	end
 end
@@ -2269,14 +3032,9 @@ function Items.clearAll()
 		end
 	end
 	clouds = {}
+	Items.distractions = {}
 	Vision.clearClouds()
-	for _, d in State.decoys do
-		if d.model then
-			d.model:Destroy()
-		end
-	end
-	State.decoys = {}
-	for _, name in { "Effects", "Smoke", "Decoys" } do
+	for _, name in { "Effects", "Smoke" } do
 		local f = workspace:FindFirstChild(name)
 		if f then
 			f:ClearAllChildren()
@@ -2288,7 +3046,7 @@ return Items
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="17">
+        <Item class="ModuleScript" referent="20">
           <Properties>
             <string name="Name">Match</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the match from start to finish: lobby wait, countdown, play, THE REVEAL, results, back to the lobby.
@@ -2309,6 +3067,11 @@ local Cover = require(script.Parent.Cover)
 local Pickups = require(script.Parent.Pickups)
 local Bots = require(script.Parent.Bots)
 local World = require(script.Parent.World)
+local Progress = require(script.Parent.Progress)
+local Alliance = require(script.Parent.Alliance)
+local Bounty = require(script.Parent.Bounty)
+local Terminals = require(script.Parent.Terminals)
+local Events = require(script.Parent.Events)
 
 local Match = {}
 
@@ -2414,9 +3177,18 @@ function Match.setup()
 		e.stunUntil = 0
 		e.scoped = false
 		e.lastGuess = -100
+		e.lives = Config.Lives.Start
+		e.score = 0
+		e.hitTimes = {}
+		e.seenBy = {}
+		e.bonusCoins = 0
+		e.startedAt = now
+		e.protectedUntil = 0
+		e.ally = nil
 		State.add(e)
 		Items.reset(e)
 		Cover.reset(e)
+		Terminals.reset(e)
 		Plates.setup(e)
 		State.writeEntity(e)
 		Combat.applySpeed(e)
@@ -2426,6 +3198,15 @@ function Match.setup()
 	for i, p in humans do
 		local char = ensureCharacter(p)
 		local e = { id = p.UserId, player = p, char = char, style = styleFor(p) }
+		local data = Data.get(p)
+		if data then
+			if Progress.owns(p, "trail", data.Trail) then
+				e.trailDef = Config.TrailById[data.Trail]
+			end
+			if Progress.owns(p, "effect", data.Effect) then
+				e.effectDef = Config.EffectById[data.Effect]
+			end
+		end
 		local spawn = Config.Map.Spawns[spawnOrder[(i - 1) % #spawnOrder + 1]]
 		if char then
 			char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
@@ -2441,6 +3222,7 @@ function Match.setup()
 		finish(e, index, spawnOrder[(index - 1) % #spawnOrder + 1])
 	end
 	Pickups.reset()
+	Alliance.reset()
 	State.writeWorld()
 	return total
 end
@@ -2448,6 +3230,25 @@ end
 --------------------------------------------------------------------------------
 -- During a match
 --------------------------------------------------------------------------------
+-- A spawn point with nobody close, for somebody who lost a life and is coming back.
+function Match.safeSpawn()
+	local best, bestScore = nil, -1
+	for _, spawn in Config.Map.Spawns do
+		local nearest = math.huge
+		for _, other in State.aliveList() do
+			local root = other.char and other.char:FindFirstChild("HumanoidRootPart")
+			if root then
+				nearest = math.min(nearest, (root.Position - spawn).Magnitude)
+			end
+		end
+		local score = nearest + roll() * 15
+		if score > bestScore then
+			best, bestScore = spawn, score
+		end
+	end
+	return best or Config.Map.Spawns[1]
+end
+
 function Match.reveal()
 	if State.revealing then
 		return
@@ -2474,6 +3275,11 @@ function Match.tick(dt)
 	local now = State.now()
 	for _, e in State.aliveList() do
 		e.bullets, e.chargeSince = Rules.regenBullets(e.bullets, e.chargeSince, now)
+		-- a few points for every stretch you stay alive
+		if now - (e.surviveAt or e.startedAt or now) >= Config.Score.SurviveEvery then
+			e.surviveAt = now
+			e.score = (e.score or 0) + Config.Score.Survive
+		end
 		Combat.applySpeed(e)
 		if e.player then
 			Cover.step(e, dt)
@@ -2483,6 +3289,9 @@ function Match.tick(dt)
 	Items.tick(now)
 	Pickups.tick(now)
 	Bots.tick(now)
+	Alliance.tick(now)
+	Bounty.tick(now)
+	Events.tick(now)
 	if not State.revealing and State.phaseEnd - now <= Config.Match.RevealAt then
 		Match.reveal()
 	end
@@ -2531,7 +3340,7 @@ end
 function Match.finish()
 	local entries = {}
 	for _, e in State.list() do
-		table.insert(entries, { id = e.id, alive = e.alive, kills = e.kills, diedAt = e.diedAt })
+		table.insert(entries, { id = e.id, alive = e.alive, lives = e.lives, score = e.score, kills = e.kills, diedAt = e.diedAt })
 	end
 	local order = Rules.standings(entries)
 	local winnerId = order[1]
@@ -2539,25 +3348,36 @@ function Match.finish()
 	if winner and not winner.alive then
 		winnerId = nil
 	end
+	if winner and winner.alive then
+		winner.score = (winner.score or 0) + Config.Score.Win
+	end
+	local now = State.now()
 	local rows = {}
 	for rank, id in order do
 		local e = State.entities[id]
 		rows[rank] = {
+			lives = e.lives,
+			score = e.score,
+			survived = math.floor((e.diedAt or now) - (e.startedAt or now)),
 			id = e.id,
 			rank = rank,
 			label = e.icon .. " " .. e.code,
 			who = e.player and e.player.Name or "Bot",
 			kills = e.kills,
-			number = e.number,
 			alive = e.alive,
 		}
 	end
 	for _, e in State.list() do
 		award(e, winnerId, #order)
+		if e.player then
+			Progress.award(e.player, e.score or 0, e.id == winnerId, State.matchId, e.bonusCoins)
+		end
 	end
+	Events.stop()
+	Bounty.clear()
 	if not State.revealing then
 		State.revealing = true
-		for _, e in State.list() do
+		for _, e in State.aliveList() do
 			Plates.showReveal(e, true, false)
 		end
 	end
@@ -2570,6 +3390,9 @@ end
 function Match.cleanup()
 	Items.clearAll()
 	Bots.clear()
+	Events.stop()
+	Bounty.clear()
+	Alliance.reset()
 	local list = Players:GetPlayers()
 	State.clear()
 	State.revealing = false
@@ -2599,6 +3422,7 @@ function Match.onJoin(p)
 	p:SetAttribute("Games", data.Games)
 	p:SetAttribute("TotalKills", data.Kills)
 	p:SetAttribute("Style", data.Style)
+	Progress.publish(p)
 	p:SetAttribute("Seen", data.Seen)
 	p:SetAttribute("Music", data.Settings.Music)
 	p:SetAttribute("Sfx", data.Settings.Sfx)
@@ -2625,8 +3449,10 @@ function Match.onJoin(p)
 end
 
 function Match.onLeave(p)
+	Progress.release(p)
 	local e = State.byPlayer(p)
 	if e then
+		Alliance.leave(e)
 		e.player = nil
 		if e.alive and State.phase ~= "lobby" then
 			Combat.eliminate(e, nil, "left")
@@ -2645,12 +3471,20 @@ function Match.setStyle(p, id)
 	return true
 end
 
+-- Binoculars: raising them is refused during their short cooldown, and lowering them starts it.
 function Match.setScope(p, on)
 	local e = State.byPlayer(p)
 	if not e or not e.alive then
 		return
 	end
-	e.scoped = on == true
+	on = on == true
+	if on and (Items.cooldownLeft(e, "binos") > 0 or State.phase ~= "play" or (e.blindUntil or 0) > State.now()) then
+		return
+	end
+	if e.scoped and not on then
+		Items.startCooldown(e, "binos", Config.ItemById.binos.Cooldown)
+	end
+	e.scoped = on
 	Combat.applySpeed(e)
 end
 
@@ -2664,6 +3498,27 @@ local function waitUntil(deadlineFn)
 end
 
 function Match.run()
+	Combat.onRespawn = function(victim)
+		local spawn = Match.safeSpawn()
+		if victim.char then
+			victim.char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
+		end
+	end
+	Combat.onCredit = function(killer, victim)
+		local now = State.now()
+		-- assists: anybody who photographed the victim's whole number in the last minute (and isn't the killer)
+		for id, at in victim.seenBy or {} do
+			local helper = State.entities[id]
+			if helper and helper ~= killer and helper.alive and now - at <= Config.Score.AssistWindow then
+				helper.score = (helper.score or 0) + Config.Score.Assist
+				victim.seenBy[id] = nil
+				if helper.player then
+					Net.send(helper.player, "assist", Config.Score.Assist)
+				end
+			end
+		end
+		Bounty.claim(killer, victim)
+	end
 	Combat.onEliminated = function(victim)
 		local p = victim.player
 		if p then
@@ -2697,6 +3552,8 @@ function Match.run()
 			Combat.applySpeed(e)
 		end
 		Bots.startPlay(State.now())
+		Bounty.reset()
+		Events.reset(State.now())
 		Net.sendAll("phase", "play", State.phaseEnd)
 		local over = false
 		while not over do
@@ -2717,7 +3574,7 @@ return Match
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="18">
+        <Item class="ModuleScript" referent="21">
           <Properties>
             <string name="Name">Net</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the server's way of talking to players.
@@ -2750,11 +3607,12 @@ return Net
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="19">
+        <Item class="ModuleScript" referent="22">
           <Properties>
             <string name="Name">Photos</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the camera. The server works out who is in the picture and which digits you could actually read, so
--- the album can't be cheated and smoke, walls and turned backs all matter.
+-- the album can't be cheated and smoke, walls and turned backs all matter. A clear photo of a whole number earns a few
+-- points, and an assist if somebody else then gets that player. Close up, the person photographed may notice the flash.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -2769,38 +3627,31 @@ local Photos = {}
 local rng = Random.new()
 
 -- Everything the camera at `origin` pointing along `look` can see. Returns a list of
--- { id, code, icon, text, distance, decoy } sorted nearest first.
+-- { id, code, icon, text, distance, complete } sorted nearest first.
 function Photos.shotsFrom(origin, look, exceptId)
 	local out = {}
-	local function consider(id, head, code, icon, shown, decoy)
-		local inside, distance = Rules.inCone(origin, look, head.Position, Config.Photo.HalfAngle, Config.Photo.MaxDistance)
-		if not inside or Vision.blocked(origin, head.Position, true) then
-			return
-		end
-		local toCamera = (origin - head.Position).Unit
-		local facing = head.CFrame.LookVector:Dot(toCamera)
-		local readable = Rules.photoReadable(distance, facing, { rng:NextNumber(), rng:NextNumber(), rng:NextNumber() })
-		table.insert(out, {
-			id = id,
-			code = code,
-			icon = icon,
-			text = Rules.photoText(shown, readable),
-			distance = distance,
-			decoy = decoy,
-		})
-	end
 	for _, other in State.aliveList() do
 		if other.id ~= exceptId then
 			local head = Vision.head(other)
 			if head then
-				consider(other.id, head, other.code, other.icon, other.shown or other.number, false)
+				local inside, distance = Rules.inCone(origin, look, head.Position, Config.Photo.HalfAngle, Config.Photo.MaxDistance)
+				if inside and not Vision.blocked(origin, head.Position, true) then
+					local toCamera = (origin - head.Position).Unit
+					local facing = head.CFrame.LookVector:Dot(toCamera)
+					local readable = Rules.photoReadable(distance, facing, { rng:NextNumber(), rng:NextNumber(), rng:NextNumber() })
+					local shown = other.shown or other.number
+					local text = Rules.photoText(shown, readable)
+					table.insert(out, {
+						id = other.id,
+						code = other.code,
+						icon = other.icon,
+						text = text,
+						distance = distance,
+						-- only a photo of the REAL number counts as intel (a scrambled or masked plate shows something else)
+						complete = not string.find(text, "?", 1, true) and shown == other.number,
+					})
+				end
 			end
-		end
-	end
-	for _, d in State.decoys do
-		local head = d.model and d.model:FindFirstChild("Head")
-		if head then
-			consider(d.id, head, d.code, d.icon, d.number, true)
 		end
 	end
 	table.sort(out, function(a, b)
@@ -2818,7 +3669,7 @@ function Photos.snap(p, origin, look)
 		return
 	end
 	local now = State.now()
-	if (e.blindUntil or 0) > now or now - (e.lastSnap or -100) < Config.Photo.Cooldown then
+	if (e.blindUntil or 0) > now or (e.stunUntil or 0) > now or now - (e.lastSnap or -100) < Config.Photo.Cooldown then
 		return
 	end
 	local head = Vision.head(e)
@@ -2828,11 +3679,26 @@ function Photos.snap(p, origin, look)
 	e.lastSnap = now
 	local shots = Photos.shotsFrom(origin, look.Unit, e.id)
 	local list = {}
+	e.intelAt = e.intelAt or {}
 	for i, s in shots do
-		if i > 8 then
-			break
+		local target = State.entities[s.id]
+		if s.complete and target then
+			target.seenBy = target.seenBy or {}
+			target.seenBy[e.id] = now
+			-- a little reward the first time per target (and not again for a while, so it can't be farmed)
+			if now - (e.intelAt[s.id] or -1000) > 30 then
+				e.intelAt[s.id] = now
+				e.score = (e.score or 0) + Config.Score.Intel
+				State.writeEntity(e)
+			end
 		end
-		list[i] = { s.id, s.code, s.icon, s.text, math.floor(s.distance + 0.5) }
+		-- close up, the person may notice the flash
+		if target and target.player and s.distance <= Config.Photo.NoticeDistance and rng:NextNumber() < Config.Photo.NoticeChance then
+			Net.send(target.player, "noticed", head.Position)
+		end
+		if i <= 8 then
+			list[i] = { s.id, s.code, s.icon, s.text, math.floor(s.distance + 0.5) }
+		end
 	end
 	Net.send(p, "photo", list, now)
 	return list
@@ -2842,7 +3708,7 @@ return Photos
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="20">
+        <Item class="ModuleScript" referent="23">
           <Properties>
             <string name="Name">Pickups</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: glowing item crates around the map. Walk into one to get a random item (never more than you can carry).
@@ -2859,6 +3725,8 @@ local Pickups = {}
 
 local rng = Random.new()
 local crates = {} -- { part, home = Vector3, readyAt = number }
+local drops = {} -- supply drops: { part, expires }
+local dropParent
 
 local function setReady(c, on)
 	c.part.Transparency = on and 0.1 or 1
@@ -2874,6 +3742,8 @@ end
 
 function Pickups.build(parent)
 	crates = {}
+	drops = {}
+	dropParent = parent
 	for _, pos in Config.Map.Crates do
 		local part = Instance.new("Part")
 		part.Name = "ItemCrate"
@@ -2911,6 +3781,50 @@ function Pickups.reset()
 		c.readyAt = 0
 		setReady(c, true)
 	end
+	for _, d in drops do
+		d.part:Destroy()
+	end
+	drops = {}
+end
+
+-- A supply drop lands at `position`: a big golden crate with a beam of light. First player to reach it takes two gadgets.
+function Pickups.drop(position)
+	local part = Instance.new("Part")
+	part.Name = "SupplyDrop"
+	part.Size = Vector3.new(4, 4, 4)
+	part.Position = position + Vector3.new(0, 2.2, 0)
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.Material = Enum.Material.Neon
+	part.Color = Color3.fromRGB(255, 214, 60)
+	part.Parent = dropParent or workspace
+	local beam = Instance.new("Part")
+	beam.Size = Vector3.new(2, 120, 2)
+	beam.Position = position + Vector3.new(0, 60, 0)
+	beam.Anchored = true
+	beam.CanCollide = false
+	beam.CanQuery = false
+	beam.Material = Enum.Material.Neon
+	beam.Color = Color3.fromRGB(255, 226, 90)
+	beam.Transparency = 0.6
+	beam.Parent = part
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(110, 40)
+	gui.StudsOffset = Vector3.new(0, 4, 0)
+	gui.AlwaysOnTop = true
+	gui.Adornee = part
+	gui.Parent = part
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundTransparency = 1
+	text.Font = Enum.Font.GothamBlack
+	text.TextSize = 18
+	text.TextColor3 = Color3.fromRGB(255, 226, 90)
+	text.Text = "📦 SUPPLY"
+	text.Parent = gui
+	table.insert(drops, { part = part, expires = State.now() + 60 })
+	return part
 end
 
 -- Picks an item the entity can still carry, or nil when they are full of everything.
@@ -2929,10 +3843,49 @@ local function rollFor(e)
 	return nil
 end
 
+local function tickDrops(now)
+	for i = #drops, 1, -1 do
+		local d = drops[i]
+		local taken = false
+		if d.expires <= now then
+			taken = true
+		else
+			for _, e in State.aliveList() do
+				local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+				if root and e.player and (root.Position - d.part.Position).Magnitude <= Config.Pickups.Radius + 2 then
+					local got = {}
+					for _ = 1, 2 do
+						local id = rollFor(e)
+						if id then
+							Items.give(e, id, 1)
+							table.insert(got, id)
+						end
+					end
+					if #got > 0 then
+						Net.send(e.player, "pickup", got[1])
+						Net.toast(e.player, "Supply drop: " .. table.concat(got, " + "), "gold")
+						taken = true
+						break
+					end
+				end
+			end
+		end
+		if taken then
+			d.part:Destroy()
+			table.remove(drops, i)
+		end
+	end
+end
+
+function Pickups.activeDrops()
+	return drops
+end
+
 function Pickups.tick(now)
 	if State.phase ~= "play" then
 		return
 	end
+	tickDrops(now)
 	for _, c in crates do
 		if c.readyAt > 0 and now >= c.readyAt then
 			c.readyAt = 0
@@ -2960,7 +3913,7 @@ return Pickups
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="21">
+        <Item class="ModuleScript" referent="24">
           <Properties>
             <string name="Name">Plates</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: everything on a player's body for the game. The number plate on the forehead (only visible from the
@@ -3107,6 +4060,25 @@ function Plates.attachReveal(char)
 	return { gui = gui, label = text }
 end
 
+-- The rim colour tells a story: red = exposed / reveal, purple = wearing a decoy mask, otherwise the plate's own colour.
+function Plates.refreshRim(e)
+	local plate = e.plate
+	if not plate or not plate.rim then
+		return
+	end
+	local now = workspace:GetServerTimeNow()
+	local color = e.styleDef.Rim
+	local lit = false
+	if e.revealed then
+		color, lit = Color3.fromRGB(255, 60, 60), true
+	elseif (e.maskUntil or 0) > now then
+		color, lit = Color3.fromRGB(190, 90, 255), false
+	end
+	plate.rim.Color = color
+	plate.light.Color = color
+	plate.light.Enabled = lit
+end
+
 -- Makes the forehead plate glow (red rim and light) and, with `marker`, shows the eye marker above the head.
 function Plates.showReveal(e, on, marker)
 	e.revealed = on
@@ -3114,11 +4086,103 @@ function Plates.showReveal(e, on, marker)
 	if reveal and reveal.gui then
 		reveal.gui.Enabled = on and marker == true
 	end
+	Plates.refreshRim(e)
+end
+
+-- Takes the number off a player who is out of the match.
+function Plates.hide(e)
 	local plate = e.plate
-	if plate and plate.rim then
-		plate.rim.Color = on and Color3.fromRGB(255, 60, 60) or e.styleDef.Rim
-		plate.light.Enabled = on
+	if plate and plate.part then
+		plate.part.Transparency = 1
+		plate.rim.Transparency = 1
+		plate.gui.Enabled = false
+		plate.light.Enabled = false
 	end
+	if e.reveal and e.reveal.gui then
+		e.reveal.gui.Enabled = false
+	end
+	if e.bountyTag and e.bountyTag.gui then
+		e.bountyTag.gui.Enabled = false
+	end
+end
+
+-- A small tag over the head of the bounty target: it names the prize, never the number.
+function Plates.attachBounty(char)
+	local head = char:FindFirstChild("Head")
+	if not head then
+		return nil
+	end
+	local old = head:FindFirstChild("BountyTag")
+	if old then
+		old:Destroy()
+	end
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "BountyTag"
+	gui.Size = UDim2.fromOffset(120, 28)
+	gui.StudsOffset = Vector3.new(0, 5.4, 0)
+	gui.AlwaysOnTop = true
+	gui.LightInfluence = 0
+	gui.Enabled = false
+	gui.Adornee = head
+	gui.Parent = head
+	local text = label(gui, { Text = "", TextColor3 = Color3.fromRGB(255, 226, 90), TextStrokeTransparency = 0.2, TextScaled = false, TextSize = 16 })
+	return { gui = gui, label = text }
+end
+
+function Plates.showBounty(e, on, reward)
+	local tag = e.bountyTag
+	if tag and tag.gui then
+		tag.gui.Enabled = on
+		tag.label.Text = on and ("🎯 BOUNTY +" .. reward) or ""
+	end
+end
+
+-- A short emoji bubble above the head (emotes).
+function Plates.bubble(char, icon, seconds)
+	local head = char and char:FindFirstChild("Head")
+	if not head then
+		return
+	end
+	local old = head:FindFirstChild("EmoteBubble")
+	if old then
+		old:Destroy()
+	end
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "EmoteBubble"
+	gui.Size = UDim2.fromOffset(60, 60)
+	gui.StudsOffset = Vector3.new(0, 3.2, 0)
+	gui.LightInfluence = 0
+	gui.Adornee = head
+	gui.Parent = head
+	label(gui, { Text = icon, TextColor3 = Color3.new(1, 1, 1), TextStrokeTransparency = 1 })
+	task.delay(seconds, function()
+		gui:Destroy()
+	end)
+end
+
+-- A coloured trail behind the character (cosmetic).
+function Plates.attachTrail(char, trailDef)
+	local root = char:FindFirstChild("HumanoidRootPart")
+	local old = root and root:FindFirstChild("CosmeticTrail")
+	if old then
+		old:Destroy()
+	end
+	if not root or not trailDef or trailDef.Id == "none" then
+		return nil
+	end
+	local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment")
+	a0.Position = Vector3.new(0, 0.9, 0)
+	a1.Position = Vector3.new(0, -0.9, 0)
+	a0.Parent, a1.Parent = root, root
+	local trail = Instance.new("Trail")
+	trail.Name = "CosmeticTrail"
+	trail.Attachment0, trail.Attachment1 = a0, a1
+	trail.Color = ColorSequence.new(trailDef.Color)
+	trail.Lifetime = 0.7
+	trail.LightEmission = 0.6
+	trail.Transparency = NumberSequence.new(0.2, 1)
+	trail.Parent = root
+	return trail
 end
 
 -- Plain coloured clothes and no accessories, so nobody can hide their forehead under a hat.
@@ -3161,6 +4225,8 @@ function Plates.setup(e)
 	e.plate = Plates.attachPlate(char, e.styleDef, e.number)
 	e.tag = Plates.attachTag(char, e.icon .. " " .. e.code, e.color)
 	e.reveal = Plates.attachReveal(char)
+	e.bountyTag = Plates.attachBounty(char)
+	e.trail = Plates.attachTrail(char, e.trailDef)
 	e.shown = e.number
 	return e.plate ~= nil
 end
@@ -3169,11 +4235,154 @@ return Plates
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="22">
+        <Item class="ModuleScript" referent="25">
+          <Properties>
+            <string name="Name">Progress</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: what you keep between matches: coins, XP, levels and cosmetics (number plates, trails, elimination
+-- effects, emotes). Nothing here changes how strong you are in a match. Rewards are paid once per match.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Rules = require(Shared:WaitForChild("Rules"))
+local Data = require(script.Parent.Data)
+local Net = require(script.Parent.Net)
+local Plates = require(script.Parent.Plates)
+
+local Progress = {}
+
+local LISTS = { trail = "Trails", effect = "Effects", emote = "Emotes" }
+local DEFS = { trail = Config.TrailById, effect = Config.EffectById, emote = Config.EmoteById }
+local emoteAt = {} -- userId -> time of the last emote
+
+-- Everything the profile and shop screens read.
+function Progress.publish(p)
+	local data = Data.get(p)
+	if not data then
+		return
+	end
+	local level, into, need = Rules.levelFor(data.XP)
+	p:SetAttribute("Coins", data.Coins)
+	p:SetAttribute("XP", data.XP)
+	p:SetAttribute("Level", level)
+	p:SetAttribute("XPInto", into)
+	p:SetAttribute("XPNeed", need)
+	p:SetAttribute("Trail", data.Trail)
+	p:SetAttribute("Effect", data.Effect)
+	local owned = {}
+	for kind, listName in LISTS do
+		for id in data.Owned[listName] do
+			table.insert(owned, kind .. ":" .. id)
+		end
+	end
+	for _, e in Config.Emotes do
+		if e.Cost == 0 and e.Level == 0 then
+			table.insert(owned, "emote:" .. e.Id)
+		end
+	end
+	table.sort(owned)
+	p:SetAttribute("Owned", table.concat(owned, ","))
+end
+
+function Progress.owns(p, kind, id)
+	local def = DEFS[kind] and DEFS[kind][id]
+	local data = Data.get(p)
+	if not def or not data then
+		return false
+	end
+	if def.Cost == 0 and def.Level == 0 then
+		return true
+	end
+	return data.Owned[LISTS[kind]][id] == true
+end
+
+-- Pays out one match. Returns (coins, xp, newLevel, leveledUp) or nil when this match already paid.
+function Progress.award(p, score, won, matchId, extraCoins)
+	local data = Data.get(p)
+	if not data or data.LastRewardMatch == matchId then
+		return nil
+	end
+	data.LastRewardMatch = matchId
+	local before = Rules.levelFor(data.XP)
+	local coins, xp = Rules.matchRewards(score, won)
+	coins += extraCoins or 0
+	data.Coins += coins
+	data.XP += xp
+	local after = Rules.levelFor(data.XP)
+	Progress.publish(p)
+	Net.send(p, "rewards", coins, xp, after, after > before)
+	task.spawn(Data.save, p)
+	return coins, xp, after, after > before
+end
+
+function Progress.buy(p, kind, id)
+	local list, def = LISTS[kind], DEFS[kind] and DEFS[kind][id]
+	local data = Data.get(p)
+	if not list or not def or not data then
+		return false
+	end
+	if Progress.owns(p, kind, id) then
+		Net.toast(p, "You already own " .. def.Name, "info")
+		return false
+	end
+	local level = Rules.levelFor(data.XP)
+	local ok, why = Rules.canBuy(def, level, data.Coins)
+	if not ok then
+		Net.toast(p, why, "bad")
+		return false
+	end
+	data.Coins -= def.Cost
+	data.Owned[list][id] = true
+	Progress.publish(p)
+	Net.toast(p, "Unlocked " .. def.Icon .. " " .. def.Name, "gold")
+	task.spawn(Data.save, p)
+	return true
+end
+
+function Progress.equip(p, kind, id)
+	local data = Data.get(p)
+	if not data or (kind ~= "trail" and kind ~= "effect") or not Progress.owns(p, kind, id) then
+		return false
+	end
+	if kind == "trail" then
+		data.Trail = id
+	else
+		data.Effect = id
+	end
+	Progress.publish(p)
+	return true
+end
+
+-- A quick emoji bubble over your head. Works in the lobby and in matches.
+function Progress.emote(p, id)
+	local char = p.Character
+	local def = Config.EmoteById[id]
+	if not char or not def or not Progress.owns(p, "emote", id) then
+		return false
+	end
+	local now = os.clock()
+	if now - (emoteAt[p.UserId] or -100) < Config.EmoteCooldown then
+		return false
+	end
+	emoteAt[p.UserId] = now
+	Plates.bubble(char, def.Icon, 3)
+	return true
+end
+
+function Progress.release(p)
+	emoteAt[p.UserId] = nil
+end
+
+return Progress
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="26">
           <Properties>
             <string name="Name">State</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: who is in the match right now. Every player and bot in a match is an "entity" with an id (a player's
--- user id; bots count down from -1; decoys count up from 1,000,000). This module only keeps the list and writes the
+-- user id; bots count down from -1). This module only keeps the list and writes the
 -- few attributes the screens read; the other modules do the playing.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -3185,7 +4394,6 @@ State.phase = "lobby" -- lobby | countdown | play | results
 State.phaseEnd = 0
 State.entities = {} -- id -> entity
 State.order = {} -- ids in the order they were added
-State.decoys = {} -- id -> { id, owner, number, model, expires }
 State.revealing = false
 State.matchId = 0
 State.onChange = nil -- set by Match: called when the alive list changes
@@ -3202,7 +4410,6 @@ end
 function State.clear()
 	State.entities = {}
 	State.order = {}
-	State.decoys = {}
 end
 
 function State.get(id)
@@ -3245,9 +4452,6 @@ function State.takenNumbers()
 	for _, e in State.entities do
 		taken[e.number or ""] = true
 	end
-	for _, d in State.decoys do
-		taken[d.number] = true
-	end
 	return taken
 end
 
@@ -3278,6 +4482,11 @@ function State.writeEntity(e)
 	end
 	for _, t in targets do
 		t:SetAttribute("Alive", e.alive == true)
+		t:SetAttribute("Lives", e.lives or 0)
+		t:SetAttribute("Score", e.score or 0)
+		t:SetAttribute("Protected", (e.protectedUntil or 0) > State.now())
+		t:SetAttribute("Bounty", e.bounty == true)
+		t:SetAttribute("Ally", e.ally or 0)
 		t:SetAttribute("Code", e.code or "")
 		t:SetAttribute("Icon", e.icon or "")
 		t:SetAttribute("EntityId", e.id)
@@ -3302,7 +4511,123 @@ return State
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="23">
+        <Item class="ModuleScript" referent="27">
+          <Properties>
+            <string name="Name">Terminals</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: information terminals. Hack one to learn something TRUE about your own number (greater than, even or odd,
+-- between...). It is risky: your position is shown to everyone for a few seconds. Each player gets a few uses per match, with a
+-- pause between them, and the clues can never contradict each other.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Rules = require(Shared:WaitForChild("Rules"))
+local State = require(script.Parent.State)
+local Net = require(script.Parent.Net)
+local Vision = require(script.Parent.Vision)
+local Cover = require(script.Parent.Cover)
+
+local Terminals = {}
+
+local rng = Random.new()
+local parts = {}
+
+-- Builds the terminal props under `parent` (each one gets a ProximityPrompt).
+function Terminals.build(parent)
+	parts = {}
+	for i, pos in Config.Map.Terminals do
+		local base = Instance.new("Part")
+		base.Name = "Terminal" .. i
+		base.Size = Vector3.new(3, 5, 1.6)
+		base.Position = pos + Vector3.new(0, 0.5, 0)
+		base.Anchored = true
+		base.Color = Color3.fromRGB(40, 110, 170)
+		base.Material = Enum.Material.SmoothPlastic
+		base.Parent = parent
+		local screen = Instance.new("Part")
+		screen.Name = "Screen"
+		screen.Size = Vector3.new(2.4, 2.4, 0.2)
+		screen.Position = pos + Vector3.new(0, 1.6, -0.85)
+		screen.Anchored = true
+		screen.CanCollide = false
+		screen.CanQuery = false
+		screen.Color = Color3.fromRGB(120, 245, 255)
+		screen.Material = Enum.Material.Neon
+		screen.Parent = parent
+		local gui = Instance.new("BillboardGui")
+		gui.Size = UDim2.fromOffset(110, 34)
+		gui.StudsOffset = Vector3.new(0, 4.4, 0)
+		gui.MaxDistance = 70
+		gui.Adornee = base
+		gui.Parent = base
+		local text = Instance.new("TextLabel")
+		text.Size = UDim2.fromScale(1, 1)
+		text.BackgroundTransparency = 1
+		text.Font = Enum.Font.GothamBold
+		text.TextSize = 16
+		text.TextColor3 = Color3.fromRGB(255, 255, 255)
+		text.TextStrokeTransparency = 0.3
+		text.Text = "🔐 CLUE"
+		text.Parent = gui
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.ActionText = "Hack for a clue (risky)"
+		prompt.ObjectText = "Information terminal"
+		prompt.HoldDuration = 0.8
+		prompt.MaxActivationDistance = Config.Terminal.Range
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = base
+		prompt.Triggered:Connect(function(player)
+			Terminals.use(State.byPlayer(player), i)
+		end)
+		table.insert(parts, base)
+	end
+	return parts
+end
+
+function Terminals.reset(e)
+	e.clues = nil
+	e.clueUses = 0
+	e.terminalAt = {}
+end
+
+-- Returns the clue text on success, or nil and the reason.
+function Terminals.use(e, index)
+	if not e or not e.alive or not e.player or State.phase ~= "play" then
+		return nil, "closed"
+	end
+	local now = State.now()
+	local part = parts[index]
+	local head = Vision.head(e)
+	if part and head and (part.Position - head.Position).Magnitude > Config.Terminal.Range + 6 then
+		return nil, "far"
+	end
+	if (e.clueUses or 0) >= Config.Terminal.Uses then
+		Net.toast(e.player, "No terminal uses left this match", "bad")
+		return nil, "empty"
+	end
+	if now - ((e.terminalAt or {})[index] or -1000) < Config.Terminal.Cooldown then
+		Net.toast(e.player, "That terminal is still cooling down", "bad")
+		return nil, "cooldown"
+	end
+	if not e.clues then
+		e.clues = Rules.clues(tonumber(e.number), Config.Terminal.Uses, function()
+			return rng:NextNumber()
+		end)
+	end
+	e.clueUses = (e.clueUses or 0) + 1
+	e.terminalAt = e.terminalAt or {}
+	e.terminalAt[index] = now
+	local clue = e.clues[e.clueUses] or e.clues[#e.clues]
+	Net.send(e.player, "clue", clue.text, e.clueUses, Config.Terminal.Uses)
+	Cover.expose(e, Config.Terminal.Reveal) -- the risk: everybody sees where you are for a moment
+	return clue.text
+end
+
+return Terminals
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="28">
           <Properties>
             <string name="Name">Vision</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: what can see what. A number can only be read, photographed or guessed when nothing solid is in the
@@ -3323,7 +4648,7 @@ local function arenaList()
 	return arena and { arena } or {}
 end
 
-local function inSmoke(from, to)
+function Vision.inSmoke(from, to)
 	local now = workspace:GetServerTimeNow()
 	for _, c in Vision.clouds do
 		if c.expires > now and Rules.segmentHitsSphere(from, to, c.pos, c.radius) then
@@ -3335,7 +4660,7 @@ end
 
 -- True when a wall, prop or (with includeSmoke) a smoke cloud is between the two points.
 function Vision.blocked(from, to, includeSmoke)
-	if includeSmoke ~= false and inSmoke(from, to) then
+	if includeSmoke ~= false and Vision.inSmoke(from, to) then
 		return true
 	end
 	local list = arenaList()
@@ -3380,7 +4705,7 @@ return Vision
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="24">
+        <Item class="ModuleScript" referent="29">
           <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: builds the world from plain parts: "Plaza Park" (the arena, a city of 8 buildings around a park, with
@@ -3391,6 +4716,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Pickups = require(script.Parent.Pickups)
+local Terminals = require(script.Parent.Terminals)
 
 local World = {}
 
@@ -3561,8 +4887,18 @@ local function buildArena()
 			lamp(lamps, 112 * sx, 31 * sz)
 		end
 	end
+	-- clearly marked spawn points: glowing pads on the street
+	local pads = folder("SpawnPads")
+	for i, spawn in m.Spawns do
+		local pad = neon(pads, "SpawnPad" .. i, Vector3.new(6, 0.15, 6), Vector3.new(spawn.X, 0.5, spawn.Z), C(120, 230, 255))
+		pad.Shape = Enum.PartType.Cylinder
+		pad.Size = Vector3.new(0.15, 6, 6)
+		pad.CFrame = CFrame.new(spawn.X, 0.5, spawn.Z) * CFrame.Angles(0, 0, math.pi / 2)
+		pad.Transparency = 0.35
+	end
 	local crates = folder("Crates")
 	Pickups.build(crates)
+	Terminals.build(folder("Terminals"))
 end
 
 local board
@@ -3765,15 +5101,15 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="25">
+  <Item class="StarterPlayer" referent="30">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="26">
+    <Item class="StarterPlayerScripts" referent="31">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="27">
+      <Item class="LocalScript" referent="32">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[-- FIGURE ME OUT: client entry point. Builds the screen, wires every module together and routes the server's messages.
@@ -3803,6 +5139,9 @@ local Results = require(Modules.Results)
 local Menu = require(Modules.Menu)
 local Controls = require(Modules.Controls)
 local OwnPlate = require(Modules.OwnPlate)
+local Markers = require(Modules.Markers)
+local Inventory = require(Modules.Inventory)
+local Emotes = require(Modules.Emotes)
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "FigureMeOut"
@@ -3825,6 +5164,9 @@ local deps = {
 	Spectate = Spectate,
 	Menu = Menu,
 	Controls = Controls,
+	Markers = Markers,
+	Inventory = Inventory,
+	Emotes = Emotes,
 }
 
 pcall(function()
@@ -3857,11 +5199,51 @@ Spectate.init(gui)
 Results.init(gui, deps)
 Menu.init(gui, deps)
 Hud.init(gui, deps)
+Inventory.init(gui, deps)
+Emotes.init(gui, deps)
+Markers.init()
 Controls.init(deps)
 OwnPlate.init()
 Audio.startMusic()
 
 local C = UI.Colors
+
+-- The loading screen: covers the game for a moment while the world and your profile arrive, then fades away.
+local function loadingScreen()
+	local cover = UI.new("Frame", { Name = "Loading", Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.Bg, BorderSizePixel = 0, ZIndex = 200 }, gui)
+	UI.gradient(cover, Color3.fromRGB(90, 190, 240), Color3.fromRGB(10, 60, 120), 90)
+	local title = UI.label(cover, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.42), Size = UDim2.fromOffset(640, 80), Font = UI.Fonts.Title, TextSize = 60, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "FIGURE ME OUT", ZIndex = 201 })
+	local tip = UI.label(cover, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.52), Size = UDim2.fromOffset(640, 30), Font = UI.Fonts.Bold, TextSize = 18, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Center, Text = "Everyone can see your number. Except you.", ZIndex = 201 })
+	local bar = UI.bar(cover, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.6), Size = UDim2.fromOffset(320, 12) }, C.Accent)
+	bar.back.ZIndex = 201
+	bar.fill.ZIndex = 202
+	task.spawn(function()
+		local tips = {
+			"Everyone can see your number. Except you.",
+			"Hold right mouse for binoculars.",
+			"Smoke blocks sight. Flashbangs blind. Use them!",
+			"Don't stare at walls: the game exposes campers.",
+			"Someone is always watching.",
+		}
+		local waited = 0
+		while waited < 8 do
+			task.wait(0.25)
+			waited += 0.25
+			bar.set(math.min(1, waited / 2.5))
+			tip.Text = tips[math.floor(waited / 1.5) % #tips + 1]
+			local ready = workspace:GetAttribute("Phase") ~= nil and player:GetAttribute("Level") ~= nil
+			if waited >= 2 and ready then
+				break
+			end
+		end
+		UI.tween(cover, 0.6, { BackgroundTransparency = 1 })
+		UI.tween(title, 0.6, { TextTransparency = 1, TextStrokeTransparency = 1 })
+		UI.tween(tip, 0.6, { TextTransparency = 1, TextStrokeTransparency = 1 })
+		task.wait(0.7)
+		cover:Destroy()
+	end)
+end
+loadingScreen()
 
 --------------------------------------------------------------------------------
 -- Messages from the server
@@ -3875,6 +5257,7 @@ end
 function handlers.phase(phase)
 	if phase == "countdown" then
 		Album.reset()
+		Inventory.resetClues()
 		Fx.announce("GET READY", "Hide your number. Find theirs.", C.Accent, 0.22)
 		Audio.reveal()
 	elseif phase == "play" then
@@ -3883,13 +5266,16 @@ function handlers.phase(phase)
 		Fx.flash(Color3.new(1, 1, 1), 0.3, 0.4)
 	elseif phase == "lobby" then
 		Album.reset()
+		Inventory.resetClues()
 		Keypad.close()
 		Scope.set(false)
 	end
 end
 
-function handlers.kill(victim, killer, how, number)
-	if how == "left" then
+function handlers.kill(victim, killer, how)
+	if how == "life" then
+		Hud.feed(killer .. "  ➜  " .. victim .. "  (-1 ❤)", C.Gold)
+	elseif how == "left" then
 		Hud.feed(victim .. " left the game", C.Muted)
 	elseif how == "fell" or killer == "" then
 		Hud.feed(victim .. " is out", C.Muted)
@@ -3899,10 +5285,89 @@ function handlers.kill(victim, killer, how, number)
 	Audio.kill()
 end
 
-function handlers.gotKill(code, icon, number)
-	Fx.announce("ELIMINATED", icon .. " " .. code, C.Good, 0.24)
+function handlers.gotKill(code, icon, lives, points)
+	Fx.announce("HIT!  +" .. points, icon .. " " .. code .. " has " .. lives .. " " .. (lives == 1 and "life" or "lives") .. " left", C.Good, 0.24)
 	Audio.hit()
 	Fx.punch(6)
+end
+
+function handlers.lifeLost(killer, lives, delay)
+	Alerts.lifeLost(killer, lives, delay)
+end
+
+function handlers.cooldown(id, seconds)
+	Hud.setCooldown(id, seconds)
+end
+
+function handlers.scan(rows, seconds)
+	if type(rows) == "table" then
+		local n = Markers.scan(rows, seconds)
+		Toasts.push("📡 Scanner: " .. n .. (n == 1 and " person" or " people") .. " nearby", "info")
+	end
+end
+
+function handlers.noticed(pos)
+	Alerts.noticed(pos)
+end
+
+function handlers.ally(kind, label)
+	Hud.setAlly(label or "", kind == "on" and Config.Alliance.Duration or 0)
+	if kind == "on" then
+		Toasts.push("🤝 Allied with " .. label .. " for " .. Config.Alliance.Duration .. "s", "good")
+		Audio.pickup()
+	elseif kind == "betrayed" then
+		Fx.announce("BETRAYED!", label .. " shot their ally", C.Danger, 0.26)
+		Audio.lose()
+	elseif kind == "broken" then
+		Toasts.push("Alliance with " .. label .. " broken", "info")
+	else
+		Toasts.push("Alliance ended", "info")
+	end
+end
+
+function handlers.allyOffer(label, fromId)
+	Alerts.offer(label, fromId)
+end
+
+function handlers.shared(label, rows)
+	if type(rows) == "table" then
+		Album.add(rows)
+		Toasts.push("🤝 " .. label .. " shared " .. #rows .. " note" .. (#rows == 1 and "" or "s") .. " (they might be bluffing!)", "info")
+	end
+end
+
+function handlers.clue(text, index, total)
+	Inventory.addClue(text)
+	Toasts.push("🔐 Clue " .. index .. "/" .. total .. ": " .. text, "gold")
+	Fx.announce("🔐 CLUE", text, C.Accent, 0.3)
+	Audio.pickup()
+end
+
+function handlers.bounty(label, reward, id)
+	Hud.setBounty(label, reward, id)
+	Toasts.push("🎯 New bounty: " .. label .. "  +" .. reward, "gold")
+	Audio.bounty()
+end
+
+function handlers.bountyWon(points, coins)
+	Fx.announce("BOUNTY COLLECTED!", "+" .. points .. " points  +" .. coins .. " 🪙", C.Gold, 0.3)
+	Audio.win()
+end
+
+function handlers.assist(points)
+	Toasts.push("📷 Assist! +" .. points, "good")
+	Audio.assist()
+end
+
+function handlers.event(stage, id, name, icon, text, seconds)
+	Alerts.event(stage, id, name, icon, text, seconds)
+end
+
+function handlers.rewards(coins, xp, level, leveledUp)
+	Results.setRewards(coins, xp, level, leveledUp)
+	if leveledUp then
+		Toasts.push("⬆ LEVEL UP! You are level " .. level, "gold")
+	end
 end
 
 function handlers.eliminated(killer, how, alive, total)
@@ -3919,9 +5384,6 @@ function handlers.guessResult(result)
 		Audio.miss()
 		Fx.flash(C.Danger, 0.35, 0.4)
 		Toasts.push("Wrong number! -1 bullet, frozen", "bad")
-	elseif result == "decoy" then
-		Audio.miss()
-		Fx.flash(C.Orange, 0.4, 0.5)
 	elseif result == "invalid" then
 		Audio.error()
 	end
@@ -3939,8 +5401,8 @@ function handlers.stun(seconds)
 	Alerts.stun(seconds)
 end
 
-function handlers.cover(stage, value)
-	Alerts.cover(stage, value)
+function handlers.cover(stage, value, violations)
+	Alerts.cover(stage, value, violations)
 end
 
 function handlers.exposed(label)
@@ -3998,15 +5460,16 @@ task.spawn(function()
 end)
 ]]></string>
         </Properties>
-        <Item class="Folder" referent="28">
+        <Item class="Folder" referent="33">
           <Properties>
             <string name="Name">Modules</string>
           </Properties>
-          <Item class="ModuleScript" referent="29">
+          <Item class="ModuleScript" referent="34">
             <Properties>
               <string name="Name">Album</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the photo notebook. Every photo fills in the digits you could read; several blurry photos of the same
 -- person add up to a full number. When a number is complete you can fire straight from the notebook.
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -4079,6 +5542,18 @@ function Album.init(screen, d)
 		ZIndex = 26,
 	})
 	close.MouseButton1Click:Connect(Album.close)
+	local share = UI.button(panel, {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -52, 0, 8),
+		Size = UDim2.fromOffset(110, 28),
+		Text = "🤝 SHARE",
+		TextSize = 13,
+		BackgroundColor3 = C.Accent2,
+		ZIndex = 26,
+	})
+	share.MouseButton1Click:Connect(function()
+		Album.share()
+	end)
 	UI.label(panel, {
 		Position = UDim2.fromOffset(14, 38),
 		Size = UDim2.new(1, -28, 0, 30),
@@ -4117,6 +5592,33 @@ function Album.init(screen, d)
 			end
 		end
 	end)
+end
+
+-- What your notebook says about each person (only entries with at least one known digit): { { id, "4?7" } }.
+function Album.rows()
+	local rows = {}
+	for id, n in notebook do
+		local text = table.concat(n.digits)
+		if text ~= "???" then
+			table.insert(rows, { id, text })
+		end
+	end
+	return rows
+end
+
+-- Sends your notes to your ally. They get them as photos; you may of course lie.
+function Album.share()
+	if (Players.LocalPlayer:GetAttribute("Ally") or 0) == 0 then
+		deps.Toasts.push("You have no ally. Aim at a player and press T", "bad")
+		return
+	end
+	local rows = Album.rows()
+	if #rows == 0 then
+		deps.Toasts.push("Nothing to share yet: take some photos", "bad")
+		return
+	end
+	deps.send("Share", rows)
+	deps.Toasts.push("Shared " .. #rows .. " notes with your ally", "good")
 end
 
 function Album.refresh()
@@ -4317,7 +5819,7 @@ return Album
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="30">
+          <Item class="ModuleScript" referent="35">
             <Properties>
               <string name="Name">Alerts</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: everything the game shouts at you: flashbang blindness, stun, the "don't hide your number" warning,
@@ -4326,6 +5828,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
 local UI = require(Shared:WaitForChild("UI"))
 local Audio = require(Shared:WaitForChild("Audio"))
 local View = require(script.Parent:WaitForChild("View"))
@@ -4337,6 +5840,8 @@ local deps
 local refs = {}
 local blindUntil, stunUntil = 0, 0
 local snitch -- { pos, until }
+local glitchUntil = 0
+local eventState = nil -- { name, icon, text, untilT, stage }
 
 function Alerts.isBlind()
 	return View.now() < blindUntil
@@ -4351,6 +5856,21 @@ function Alerts.init(gui, d)
 	refs.white = UI.new("Frame", { Name = "Blind", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 80 }, gui)
 	refs.smoke = UI.new("Frame", { Name = "SmokeFog", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(190, 194, 205), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 70 }, gui)
 	refs.stunTint = UI.new("Frame", { Name = "StunTint", Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.Sky, BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 40 }, gui)
+	refs.glitch = UI.new("Frame", { Name = "Glitch", Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.Accent, BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 75 }, gui)
+	refs.blackout = UI.new("Frame", { Name = "Blackout", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 0, Active = false }, gui)
+	refs.event = UI.panel(gui, { Name = "EventBanner", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 150), Size = UDim2.fromOffset(380, 56), BackgroundColor3 = Color3.fromRGB(110, 60, 170), Visible = false, ZIndex = 44 })
+	refs.eventTitle = UI.label(refs.event, { Position = UDim2.fromOffset(0, 4), Size = UDim2.new(1, 0, 0, 24), Font = UI.Fonts.Title, TextSize = 18, TextXAlignment = Enum.TextXAlignment.Center, Text = "", ZIndex = 45 })
+	refs.eventSub = UI.label(refs.event, { Position = UDim2.fromOffset(0, 29), Size = UDim2.new(1, 0, 0, 20), Font = UI.Fonts.Bold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Center, Text = "", ZIndex = 45 })
+	refs.offer = UI.panel(gui, { Name = "AllyOffer", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0.7, 0), Size = UDim2.fromOffset(270, 96), BackgroundColor3 = Color3.fromRGB(30, 130, 70), Visible = false, ZIndex = 46 })
+	refs.offerText = UI.label(refs.offer, { Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 36), Font = UI.Fonts.Bold, TextSize = 14, Text = "", ZIndex = 47 })
+	local yes = UI.button(refs.offer, { Position = UDim2.fromOffset(12, 50), Size = UDim2.fromOffset(120, 34), Text = "ACCEPT", TextSize = 15, BackgroundColor3 = C.Good, ZIndex = 47 })
+	local no = UI.button(refs.offer, { Position = UDim2.fromOffset(140, 50), Size = UDim2.fromOffset(120, 34), Text = "NO THANKS", TextSize = 13, BackgroundColor3 = C.Danger, ZIndex = 47 })
+	yes.MouseButton1Click:Connect(function()
+		Alerts.answerOffer(true)
+	end)
+	no.MouseButton1Click:Connect(function()
+		Alerts.answerOffer(false)
+	end)
 	refs.stunLabel = UI.label(gui, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.62),
@@ -4442,11 +5962,11 @@ function Alerts.stun(seconds)
 end
 
 -- stage: "warn" | "ok" | "exposed"
-function Alerts.cover(stage, value)
+function Alerts.cover(stage, value, violations)
 	if stage == "warn" then
 		refs.cover.Visible = true
-		refs.coverTitle.Text = "⚠ DON'T HIDE YOUR NUMBER"
-		refs.coverSub.Text = "Turn away from the wall or be exposed in " .. string.format("%.1f", value) .. "s"
+		refs.coverTitle.Text = "⚠️ NUMBER OBSTRUCTED!"
+		refs.coverSub.Text = "STOP HIDING YOUR NUMBER! Your position is revealed in " .. string.format("%.1f", value) .. "s"
 		if (refs.lastWarnBeep or 0) + 0.8 < os.clock() then
 			refs.lastWarnBeep = os.clock()
 			Audio.warn()
@@ -4457,16 +5977,64 @@ function Alerts.cover(stage, value)
 		refs.cover.Visible = false
 		Audio.siren()
 		deps.Fx.flash(C.Danger, 0.5, 0.6)
-		deps.Fx.announce("YOU'RE EXPOSED!", "Your plate glows red for " .. value .. "s", C.Danger, 0.28)
+		deps.Fx.announce("YOUR POSITION HAS BEEN REVEALED!", "Your plate glows red for " .. value .. "s" .. ((violations or 1) > 1 and ("  •  violation #" .. violations) or ""), C.Danger, 0.28)
 	end
 end
 
-function Alerts.snitch(pos, seconds)
+function Alerts.snitch(pos, seconds, text)
 	snitch = { pos = pos, untilT = View.now() + seconds }
+	refs.arrowText.Text = text or "SOMEONE JUST GUESSED YOU"
 	refs.arrowHolder.Visible = true
 	Audio.snitch()
 	deps.Fx.shake(0.6, 0.3)
-	deps.Toasts.push("Someone just guessed your number!", "bad")
+	if not text then
+		deps.Toasts.push("Someone just guessed your number!", "bad")
+	end
+end
+
+-- Somebody photographed you from close up and you saw the flash.
+function Alerts.noticed(pos)
+	Alerts.snitch(pos, 3, "📷 SOMEONE PHOTOGRAPHED YOU")
+end
+
+-- You lost a life: the screen glitches while you are away, then you come back.
+function Alerts.lifeLost(killer, lives, delay)
+	glitchUntil = View.now() + delay
+	Audio.lifeLost()
+	deps.Scope.set(false)
+	deps.Keypad.close()
+	deps.Fx.shake(1, 0.5)
+	deps.Fx.announce("LIFE LOST  " .. string.rep("❤", lives) .. string.rep("🖤", math.max(0, Config.Lives.Start - lives)), "guessed by " .. killer .. "  •  you'll be back protected", C.Danger, 0.24)
+end
+
+-- Bonus events: warn (coming up), start, end.
+function Alerts.event(stage, id, name, icon, text, seconds)
+	if stage == "warn" then
+		eventState = { name = name, icon = icon, text = text, untilT = View.now() + seconds, stage = "warn", id = id }
+		Audio.event()
+		deps.Fx.announce(icon .. " " .. name, "starts in " .. seconds .. "s: " .. text, C.Gold, 0.3)
+	elseif stage == "start" then
+		eventState = { name = name, icon = icon, text = text, untilT = View.now() + seconds, stage = "start", id = id }
+		Audio.event()
+	else
+		eventState = nil
+	end
+end
+
+function Alerts.offer(label, fromId)
+	refs.offerFrom = fromId
+	refs.offerUntil = View.now() + 15
+	refs.offerText.Text = "🤝 " .. label .. " wants to team up for " .. Config.Alliance.Duration .. "s"
+	refs.offer.Visible = true
+	Audio.snitch()
+end
+
+function Alerts.answerOffer(yes)
+	if refs.offerFrom then
+		deps.send("AllyReply", refs.offerFrom, yes)
+	end
+	refs.offerFrom = nil
+	refs.offer.Visible = false
 end
 
 function Alerts.update()
@@ -4511,6 +6079,35 @@ function Alerts.update()
 	end
 	local want = inside and 0.12 or 1
 	refs.smoke.BackgroundTransparency += (want - refs.smoke.BackgroundTransparency) * 0.2
+	-- glitch overlay while you are down
+	if now < glitchUntil then
+		refs.glitch.Visible = true
+		refs.glitch.BackgroundColor3 = ({ C.Accent, C.Pink, C.Good, Color3.new(1, 1, 1) })[math.random(1, 4)]
+		refs.glitch.BackgroundTransparency = 0.7 + math.random() * 0.2
+	elseif refs.glitch.Visible then
+		refs.glitch.Visible = false
+	end
+	-- event banner and blackout
+	if eventState and now < eventState.untilT then
+		local left = math.ceil(eventState.untilT - now)
+		refs.event.Visible = true
+		refs.eventTitle.Text = eventState.icon .. " " .. eventState.name .. (eventState.stage == "warn" and ("  in " .. left .. "s") or ("  " .. left .. "s"))
+		refs.eventSub.Text = eventState.text
+		refs.event.BackgroundColor3 = eventState.stage == "warn" and Color3.fromRGB(150, 110, 20) or Color3.fromRGB(110, 60, 170)
+		refs.blackout.BackgroundTransparency = (eventState.id == "blackout" and eventState.stage == "start") and 0.45 or 1
+	else
+		if eventState and eventState.stage == "warn" then
+			eventState.stage = "start"
+			eventState.untilT = now + 20 -- the server's "start" message sets the real time right after
+		else
+			eventState = nil
+		end
+		refs.event.Visible = eventState ~= nil
+		refs.blackout.BackgroundTransparency = 1
+	end
+	if refs.offerFrom and now > (refs.offerUntil or 0) then
+		Alerts.answerOffer(false)
+	end
 	-- the cover warning goes away when the game is not running
 	if View.phase() ~= "play" and refs.cover.Visible then
 		refs.cover.Visible = false
@@ -4521,7 +6118,7 @@ return Alerts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="31">
+          <Item class="ModuleScript" referent="36">
             <Properties>
               <string name="Name">Controls</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: keyboard and mouse. G guess, hold right mouse (or Z) for binoculars, click or F for a photo, V for
@@ -4540,6 +6137,7 @@ local Controls = {}
 local player = Players.LocalPlayer
 local deps
 local lastSnap = -100
+local padSelected = 3 -- the gadget a controller player has selected (hotbar slot)
 
 local HOTKEYS = {}
 for i, name in { "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight" } do
@@ -4559,6 +6157,24 @@ function Controls.guess()
 		return
 	end
 	deps.Keypad.open()
+end
+
+-- Ask the player you are aiming at to team up, or end your alliance if you have one.
+function Controls.ally()
+	if not canAct() then
+		return
+	end
+	if (player:GetAttribute("Ally") or 0) ~= 0 then
+		deps.send("AllyEnd")
+		return
+	end
+	local target = View.aimed()
+	if not target or not target.player then
+		deps.Toasts.push("Aim at another player to offer an alliance", "bad")
+		Audio.error()
+		return
+	end
+	deps.send("AllyAsk", target.id)
 end
 
 function Controls.guessSent(target)
@@ -4621,6 +6237,29 @@ function Controls.init(d)
 			Controls.snap()
 		elseif kc == Enum.KeyCode.V then
 			deps.Album.toggle()
+		elseif kc == Enum.KeyCode.T then
+			Controls.ally()
+		elseif kc == Enum.KeyCode.I then
+			deps.Inventory.toggle()
+		elseif kc == Enum.KeyCode.B then
+			deps.Emotes.toggle()
+		-- game controller: X guess, R2 photo, L2 hold for binoculars, Y notebook, L1/R1 choose a gadget, A use it
+		elseif kc == Enum.KeyCode.ButtonX then
+			Controls.guess()
+		elseif kc == Enum.KeyCode.ButtonR2 then
+			Controls.snap()
+		elseif kc == Enum.KeyCode.ButtonL2 then
+			deps.Scope.set(true)
+		elseif kc == Enum.KeyCode.ButtonY then
+			deps.Album.toggle()
+		elseif kc == Enum.KeyCode.ButtonL1 or kc == Enum.KeyCode.ButtonR1 then
+			local step = kc == Enum.KeyCode.ButtonR1 and 1 or -1
+			padSelected = (padSelected - 3 + step) % #Config.CarriedItems + 3
+			deps.Toasts.push(Config.Items[padSelected].Icon .. " " .. Config.Items[padSelected].Name .. " ready (press A)", "info")
+		elseif kc == Enum.KeyCode.ButtonA and View.phase() == "play" and not deps.Keypad.isOpen() then
+			deps.Hud.activate(Config.Items[padSelected].Id)
+		elseif kc == Enum.KeyCode.ButtonStart then
+			deps.Menu.toggle()
 		elseif kc == Enum.KeyCode.M then
 			deps.Menu.toggle()
 		elseif kc == Enum.KeyCode.Z or kind == Enum.UserInputType.MouseButton2 then
@@ -4636,7 +6275,7 @@ function Controls.init(d)
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input)
-		if input.KeyCode == Enum.KeyCode.Z or input.UserInputType == Enum.UserInputType.MouseButton2 then
+		if input.KeyCode == Enum.KeyCode.Z or input.KeyCode == Enum.KeyCode.ButtonL2 or input.UserInputType == Enum.UserInputType.MouseButton2 then
 			deps.Scope.set(false)
 		end
 	end)
@@ -4651,7 +6290,109 @@ return Controls
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="32">
+          <Item class="ModuleScript" referent="37">
+            <Properties>
+              <string name="Name">Emotes</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: the quick emote panel (💬 button). Tap an emoji and it pops up over your head for a few seconds. Great for
+-- bluffing, begging for an alliance, or just being silly. More emotes are unlocked with coins in the menu.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(Shared:WaitForChild("UI"))
+local Audio = require(Shared:WaitForChild("Audio"))
+
+local Emotes = {}
+
+local player = Players.LocalPlayer
+local deps
+local panel, grid
+local lastAt = -100
+
+function Emotes.isOpen()
+	return panel ~= nil and panel.Visible
+end
+
+-- Emotes you own, from the "Owned" list the server publishes ("emote:wave,trail:aqua,...").
+function Emotes.owned()
+	local set = {}
+	for entry in string.gmatch(player:GetAttribute("Owned") or "", "[^,]+") do
+		local id = string.match(entry, "^emote:(.+)$")
+		if id then
+			set[id] = true
+		end
+	end
+	local list = {}
+	for _, e in Config.Emotes do
+		if set[e.Id] or (e.Cost == 0 and e.Level == 0) then
+			table.insert(list, e)
+		end
+	end
+	return list
+end
+
+function Emotes.init(gui, d)
+	deps = d
+	panel = UI.panel(gui, {
+		Name = "Emotes",
+		AnchorPoint = Vector2.new(0, 0),
+		Position = UDim2.new(0, 12, 0.45, 116),
+		Size = UDim2.fromOffset(250, 130),
+		Visible = false,
+		ZIndex = 38,
+	})
+	UI.label(panel, { Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -24, 0, 18), Font = UI.Fonts.Title, TextSize = 14, TextColor3 = UI.Colors.Accent, Text = "💬 QUICK EMOTES", ZIndex = 39 })
+	grid = UI.new("Frame", { Position = UDim2.fromOffset(10, 30), Size = UDim2.new(1, -20, 1, -38), BackgroundTransparency = 1, ZIndex = 39 }, panel)
+	UI.new("UIGridLayout", { CellSize = UDim2.fromOffset(52, 44), CellPadding = UDim2.fromOffset(6, 6), SortOrder = Enum.SortOrder.LayoutOrder }, grid)
+end
+
+function Emotes.refresh()
+	for _, c in grid:GetChildren() do
+		if c:IsA("TextButton") then
+			c:Destroy()
+		end
+	end
+	for i, e in Emotes.owned() do
+		local b = UI.button(grid, { LayoutOrder = i, Size = UDim2.fromOffset(52, 44), Text = e.Icon, TextSize = 26, BackgroundColor3 = UI.Colors.Card, ZIndex = 40 }, "card")
+		b.MouseButton1Click:Connect(function()
+			Emotes.play(e.Id)
+		end)
+	end
+end
+
+function Emotes.play(id)
+	local now = os.clock()
+	if now - lastAt < Config.EmoteCooldown then
+		return false
+	end
+	lastAt = now
+	deps.send("Emote", id)
+	Audio.click()
+	panel.Visible = false
+	return true
+end
+
+function Emotes.toggle()
+	if panel.Visible then
+		panel.Visible = false
+	else
+		Emotes.refresh()
+		panel.Visible = true
+	end
+end
+
+function Emotes.close()
+	if panel then
+		panel.Visible = false
+	end
+end
+
+return Emotes
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="38">
             <Properties>
               <string name="Name">Fx</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
@@ -4889,11 +6630,12 @@ return Fx
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="33">
+          <Item class="ModuleScript" referent="39">
             <Properties>
               <string name="Name">Hud</string>
-              <string name="Source"><![CDATA[-- FIGURE ME OUT: the always-on screen: timer and alive count, your codename and bullets, the kill feed, the item
--- hotbar, the crosshair with the name of whoever you are aiming at, and the small buttons in the corners.
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: the always-on screen: timer and alive count, your codename, lives, points and bullets, the kill feed, the
+-- gadget hotbar with cooldowns, the crosshair with the name of whoever you are aiming at, bounty and alliance chips,
+-- and the small buttons on the left and in the corners.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -4917,11 +6659,9 @@ local slots = {}
 local lastSecond = -1
 local snapReadyAt = 0
 local aimAt, aimTarget, aimDistance = 0, nil, 0
-
-local function chip(parent, props)
-	local f = UI.panel(parent, props)
-	return f
-end
+local bounty = nil -- { id, label, reward }
+local allyUntil, allyLabel = 0, ""
+local finalShown = false
 
 function Hud.init(screen, d)
 	gui = screen
@@ -4930,12 +6670,14 @@ function Hud.init(screen, d)
 	refs.root = root
 
 	-- top centre: phase + timer + alive
-	local top = chip(root, {
+	local top = UI.panel(root, {
 		Name = "Top",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 12),
-		Size = UDim2.fromOffset(280, 64),
+		Size = UDim2.fromOffset(300, 64),
 	})
+	refs.top = top
+	refs.topScale = UI.new("UIScale", {}, top)
 	refs.phase = UI.label(top, {
 		Position = UDim2.fromOffset(0, 5),
 		Size = UDim2.new(1, 0, 0, 16),
@@ -4947,15 +6689,15 @@ function Hud.init(screen, d)
 	})
 	refs.timer = UI.label(top, {
 		Position = UDim2.fromOffset(0, 18),
-		Size = UDim2.new(0.55, 0, 0, 40),
+		Size = UDim2.new(0.5, 0, 0, 40),
 		Font = UI.Fonts.Title,
 		TextSize = 34,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		Text = "0:00",
 	})
 	refs.alive = UI.label(top, {
-		Position = UDim2.new(0.55, 0, 0, 18),
-		Size = UDim2.new(0.45, -8, 0, 40),
+		Position = UDim2.new(0.5, 0, 0, 18),
+		Size = UDim2.new(0.5, -8, 0, 40),
 		Font = UI.Fonts.Title,
 		TextSize = 22,
 		TextColor3 = C.Good,
@@ -4963,147 +6705,101 @@ function Hud.init(screen, d)
 		Text = "",
 	})
 
-	-- top left: who you are + bullets
-	local me = chip(root, {
+	-- chips under the timer: bounty and alliance
+	refs.chips = UI.new("Frame", { Position = UDim2.new(0.5, -150, 0, 82), Size = UDim2.fromOffset(300, 60), BackgroundTransparency = 1 }, root)
+	UI.new("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 4), HorizontalAlignment = Enum.HorizontalAlignment.Center }, refs.chips)
+	refs.bountyChip = UI.panel(refs.chips, { Size = UDim2.fromOffset(280, 26), Radius = 8, BackgroundColor3 = Color3.fromRGB(150, 110, 20), Visible = false, LayoutOrder = 1 })
+	refs.bountyText = UI.label(refs.bountyChip, { Size = UDim2.fromScale(1, 1), Font = UI.Fonts.Bold, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "" })
+	refs.allyChip = UI.panel(refs.chips, { Size = UDim2.fromOffset(280, 26), Radius = 8, BackgroundColor3 = Color3.fromRGB(30, 130, 70), Visible = false, LayoutOrder = 2 })
+	refs.allyText = UI.label(refs.allyChip, { Size = UDim2.fromScale(1, 1), Font = UI.Fonts.Bold, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "" })
+
+	-- left side: who you are (in a match) or your profile (in the lobby)
+	local me = UI.panel(root, {
 		Name = "Me",
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 12, 0.45, 0), -- left-middle: the top-left corner belongs to Roblox's menu and chat
-		Size = UDim2.fromOffset(250, 78),
+		Size = UDim2.fromOffset(270, 104),
 	})
 	refs.meBox = me
-	refs.meTitle = UI.label(me, {
-		Position = UDim2.fromOffset(12, 6),
-		Size = UDim2.new(1, -24, 0, 14),
-		Font = UI.Fonts.Bold,
-		TextSize = 12,
-		TextColor3 = C.Muted,
-		Text = "YOUR CODENAME",
-	})
-	refs.meName = UI.label(me, {
-		Position = UDim2.fromOffset(12, 20),
-		Size = UDim2.new(1, -24, 0, 26),
-		Font = UI.Fonts.Title,
-		TextSize = 20,
-		Text = "-",
-	})
+	refs.meTitle = UI.label(me, { Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -24, 0, 14), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "YOUR CODENAME" })
+	refs.meName = UI.label(me, { Position = UDim2.fromOffset(12, 20), Size = UDim2.new(1, -24, 0, 26), Font = UI.Fonts.Title, TextSize = 20, Text = "-" })
+	refs.hearts = UI.label(me, { Position = UDim2.fromOffset(12, 48), Size = UDim2.fromOffset(120, 22), Font = UI.Fonts.Title, TextSize = 20, TextWrapped = false, Text = "" })
+	refs.score = UI.label(me, { Position = UDim2.fromOffset(130, 50), Size = UDim2.new(1, -142, 0, 20), Font = UI.Fonts.Title, TextSize = 16, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Right, Text = "" })
 	refs.pips = {}
 	for i = 1, Config.Guess.Bullets do
-		local pip = UI.new("Frame", {
-			Position = UDim2.fromOffset(12 + (i - 1) * 26, 52),
-			Size = UDim2.fromOffset(20, 16),
-			BackgroundColor3 = C.Gold,
-			BorderSizePixel = 0,
-		}, me)
+		local pip = UI.new("Frame", { Position = UDim2.fromOffset(12 + (i - 1) * 26, 78), Size = UDim2.fromOffset(20, 16), BackgroundColor3 = C.Gold, BorderSizePixel = 0 }, me)
 		UI.corner(pip, 5)
 		UI.stroke(pip, C.Stroke, 2)
 		refs.pips[i] = pip
 	end
-	refs.meHint = UI.label(me, {
-		Position = UDim2.fromOffset(140, 50),
-		Size = UDim2.new(1, -150, 0, 20),
-		Font = UI.Fonts.Bold,
-		TextSize = 11,
-		TextColor3 = C.Muted,
-		TextXAlignment = Enum.TextXAlignment.Right,
-		Text = "bullets",
-	})
+	refs.meHint = UI.label(me, { Position = UDim2.fromOffset(150, 76), Size = UDim2.new(1, -162, 0, 20), Font = UI.Fonts.Bold, TextSize = 11, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Right, Text = "bullets" })
 
-	-- top right: small buttons
-	local function cornerButton(text, x, onClick)
-		local b = UI.button(root, {
-			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -12 - x, 0, 12),
-			Size = UDim2.fromOffset(44, 44),
-			Text = text,
-			TextSize = 22,
-			BackgroundColor3 = C.Card,
-		}, "card")
+	local profile = UI.panel(root, {
+		Name = "Profile",
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 12, 0.45, 0),
+		Size = UDim2.fromOffset(270, 96),
+	})
+	refs.profile = profile
+	refs.level = UI.label(profile, { Position = UDim2.fromOffset(12, 6), Size = UDim2.new(0.6, 0, 0, 24), Font = UI.Fonts.Title, TextSize = 20, Text = "LEVEL 1" })
+	refs.coins = UI.label(profile, { Position = UDim2.new(0.5, 0, 0, 8), Size = UDim2.new(0.5, -12, 0, 22), Font = UI.Fonts.Title, TextSize = 18, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Right, Text = "🪙 0" })
+	refs.xpBar = UI.bar(profile, { Position = UDim2.fromOffset(12, 38), Size = UDim2.new(1, -24, 0, 12) }, C.Good)
+	refs.xpText = UI.label(profile, { Position = UDim2.fromOffset(12, 52), Size = UDim2.new(1, -24, 0, 16), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "" })
+	refs.profileHint = UI.label(profile, { Position = UDim2.fromOffset(12, 70), Size = UDim2.new(1, -24, 0, 20), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Accent, Text = "Practise here: try the 🔭 and 📷!" })
+
+	-- left quick buttons: emote, alliance, gadget inventory
+	refs.quick = UI.new("Frame", { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 12, 0.45, 62), Size = UDim2.fromOffset(160, 44), BackgroundTransparency = 1 }, root)
+	UI.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8) }, refs.quick)
+	local function quick(text, order, onClick)
+		local b = UI.button(refs.quick, { LayoutOrder = order, Size = UDim2.fromOffset(46, 44), Text = text, TextSize = 22, BackgroundColor3 = C.Card }, "card")
 		b.MouseButton1Click:Connect(function()
 			Audio.click()
 			onClick()
 		end)
 		return b
 	end
-	cornerButton("☰", 0, function()
-		deps.Menu.toggle()
-	end)
-	cornerButton("📒", 52, function()
-		deps.Album.toggle()
-	end)
-	cornerButton("?", 104, function()
-		deps.Menu.open("How to play")
-	end)
+	quick("💬", 1, function() deps.Emotes.toggle() end)
+	refs.allyButton = quick("🤝", 2, function() deps.Controls.ally() end)
+	quick("🎒", 3, function() deps.Inventory.toggle() end)
+
+	-- top right: small buttons
+	local function cornerButton(text, x, onClick)
+		local b = UI.button(root, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12 - x, 0, 12), Size = UDim2.fromOffset(44, 44), Text = text, TextSize = 22, BackgroundColor3 = C.Card }, "card")
+		b.MouseButton1Click:Connect(function()
+			Audio.click()
+			onClick()
+		end)
+		return b
+	end
+	cornerButton("☰", 0, function() deps.Menu.toggle() end)
+	cornerButton("📒", 52, function() deps.Album.toggle() end)
+	cornerButton("?", 104, function() deps.Menu.open("How to play") end)
 
 	-- kill feed (right side)
-	refs.feed = UI.new("Frame", {
-		Name = "Feed",
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -12, 0, 70),
-		Size = UDim2.fromOffset(330, 160),
-		BackgroundTransparency = 1,
-	}, root)
+	refs.feed = UI.new("Frame", { Name = "Feed", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 70), Size = UDim2.fromOffset(330, 160), BackgroundTransparency = 1 }, root)
 	UI.new("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 4), HorizontalAlignment = Enum.HorizontalAlignment.Right }, refs.feed)
 
 	-- crosshair + aimed name
-	refs.cross = UI.new("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(18, 18),
-		BackgroundTransparency = 1,
-	}, root)
+	refs.cross = UI.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(18, 18), BackgroundTransparency = 1 }, root)
 	refs.crossStroke = UI.stroke(refs.cross, Color3.new(1, 1, 1), 2, 0.25)
 	UI.corner(refs.cross, 9)
-	refs.aimLabel = UI.label(root, {
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0.5, 20),
-		Size = UDim2.fromOffset(300, 44),
-		Font = UI.Fonts.Title,
-		TextSize = 18,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		TextColor3 = C.Accent,
-		Text = "",
-	})
+	refs.aimLabel = UI.label(root, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.5, 20), Size = UDim2.fromOffset(300, 44), Font = UI.Fonts.Title, TextSize = 18, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Accent, Text = "" })
 
-	-- hotbar
-	local bar = UI.new("Frame", {
-		Name = "Hotbar",
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -12),
-		Size = UDim2.fromOffset(#Config.Items * 62, 62),
-		BackgroundTransparency = 1,
-	}, root)
+	-- gadget hotbar
+	local bar = UI.new("Frame", { Name = "Hotbar", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -12), Size = UDim2.fromOffset(#Config.Items * 62, 62), BackgroundTransparency = 1 }, root)
 	UI.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, bar)
 	for i, item in Config.Items do
-		local b = UI.button(bar, {
-			LayoutOrder = i,
-			Size = UDim2.fromOffset(58, 58),
-			Text = item.Icon,
-			TextSize = 28,
-			BackgroundColor3 = C.Card,
-		}, "card")
-		UI.label(b, {
-			Position = UDim2.fromOffset(5, 2),
-			Size = UDim2.fromOffset(16, 14),
-			Font = UI.Fonts.Title,
-			TextSize = 12,
-			TextColor3 = C.Gold,
-			Text = tostring(item.Key),
-		})
-		local count = UI.label(b, {
-			AnchorPoint = Vector2.new(1, 1),
-			Position = UDim2.new(1, -4, 1, -2),
-			Size = UDim2.fromOffset(30, 16),
-			Font = UI.Fonts.Title,
-			TextSize = 15,
-			TextXAlignment = Enum.TextXAlignment.Right,
-			Text = "",
-		})
+		local b = UI.button(bar, { LayoutOrder = i, Size = UDim2.fromOffset(58, 58), Text = item.Icon, TextSize = 28, BackgroundColor3 = C.Card }, "card")
+		UI.label(b, { Position = UDim2.fromOffset(5, 2), Size = UDim2.fromOffset(16, 14), Font = UI.Fonts.Title, TextSize = 12, TextColor3 = C.Gold, Text = tostring(item.Key) })
+		local count = UI.label(b, { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -4, 1, -2), Size = UDim2.fromOffset(30, 16), Font = UI.Fonts.Title, TextSize = 15, TextXAlignment = Enum.TextXAlignment.Right, Text = "" })
 		local shade = UI.new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 5 }, b)
 		UI.corner(shade, 12)
+		local cd = UI.label(b, { Size = UDim2.fromScale(1, 1), Font = UI.Fonts.Title, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Center, Text = "", ZIndex = 6 })
+		local selected = UI.stroke(b, C.Accent, 3, 1)
 		b.MouseButton1Click:Connect(function()
 			Hud.activate(item.Id)
 		end)
-		slots[item.Id] = { button = b, count = count, shade = shade, item = item }
+		slots[item.Id] = { button = b, count = count, shade = shade, cd = cd, item = item, cdUntil = 0, selected = selected }
 	end
 
 	-- guess button (also G)
@@ -5115,18 +6811,11 @@ function Hud.init(screen, d)
 		TextSize = 15,
 		BackgroundColor3 = C.Accent2,
 	})
+	refs.guessButton = guess
 	guess.MouseButton1Click:Connect(function()
 		deps.Controls.guess()
 	end)
-	refs.tips = UI.label(root, {
-		AnchorPoint = Vector2.new(0, 1),
-		Position = UDim2.new(0, 14, 1, -14),
-		Size = UDim2.fromOffset(270, 60),
-		Font = UI.Fonts.Bold,
-		TextSize = 12,
-		TextColor3 = C.Muted,
-		Text = "G guess   RMB hold: binoculars   click / F: photo   V notebook   1-8 items",
-	})
+	refs.tips = UI.label(root, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 14, 1, -14), Size = UDim2.fromOffset(300, 60), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "G guess   T ally   RMB hold: binoculars   click / F: photo   V notebook   I gadgets   1-8 gadgets" })
 
 	RunService.RenderStepped:Connect(function()
 		Hud.update()
@@ -5152,17 +6841,8 @@ function Hud.feed(text, color)
 	if not refs.feed then
 		return
 	end
-	local line = UI.panel(refs.feed, { Size = UDim2.fromOffset(330, 26), Radius = 8, BackgroundColor3 = C.Panel, LayoutOrder = -math.floor(os.clock() * 100) })
-	UI.label(line, {
-		Position = UDim2.fromOffset(8, 0),
-		Size = UDim2.new(1, -16, 1, 0),
-		Font = UI.Fonts.Bold,
-		TextSize = 13,
-		TextColor3 = color or C.Text,
-		TextXAlignment = Enum.TextXAlignment.Right,
-		TextWrapped = false,
-		Text = text,
-	})
+	local line = UI.panel(refs.feed, { Size = UDim2.fromOffset(330, 26), Radius = 8, LayoutOrder = -math.floor(os.clock() * 100) })
+	UI.label(line, { Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -16, 1, 0), Font = UI.Fonts.Bold, TextSize = 13, TextColor3 = color or C.Text, TextXAlignment = Enum.TextXAlignment.Right, TextWrapped = false, Text = text })
 	table.insert(feed, line)
 	while #feed > 6 do
 		table.remove(feed, 1):Destroy()
@@ -5180,7 +6860,39 @@ function Hud.snapCooldown(seconds)
 	snapReadyAt = View.now() + seconds
 end
 
-local PHASE_TEXT = { lobby = "NEXT MATCH IN", countdown = "GET READY", play = "TIME LEFT", results = "RESULTS" }
+-- The server says a gadget is cooling down.
+function Hud.setCooldown(id, seconds)
+	local slot = slots[id]
+	if slot then
+		slot.cdUntil = View.now() + seconds
+	end
+	if id == "camera" then
+		snapReadyAt = View.now() + seconds
+	end
+end
+
+function Hud.cooldownLeft(id)
+	local slot = slots[id]
+	return slot and math.max(0, slot.cdUntil - View.now()) or 0
+end
+
+function Hud.setBounty(label, reward, id)
+	bounty = { id = id, label = label, reward = reward }
+end
+
+function Hud.setAlly(label, seconds)
+	allyLabel = label
+	allyUntil = seconds > 0 and View.now() + seconds or 0
+end
+
+-- Highlights the slot of the gadget you are using right now (binoculars while zoomed).
+function Hud.select(id)
+	for sid, slot in slots do
+		slot.selected.Transparency = sid == id and 0 or 1
+	end
+end
+
+local PHASE_TEXT = { lobby = "NEXT MATCH IN", countdown = "GET READY", play = "MATCH TIME", results = "RESULTS" }
 
 function Hud.update()
 	if not refs.root then
@@ -5188,13 +6900,35 @@ function Hud.update()
 	end
 	local phase = View.phase()
 	local left = View.timeLeft()
+	local alive = View.aliveCount()
+	local playing = player:GetAttribute("Alive") == true and (phase == "play" or phase == "countdown")
 	refs.phase.Text = PHASE_TEXT[phase] or ""
+	if phase == "play" and alive <= 3 and alive > 0 then
+		refs.phase.Text = "⚠ ONLY " .. alive .. " LEFT"
+	end
 	refs.timer.Text = Util.clock(left)
-	refs.timer.TextColor3 = (phase == "play" and left <= Config.Match.RevealAt) and C.Danger or C.Text
-	if phase == "play" or phase == "countdown" or phase == "results" then
-		refs.alive.Text = "👥 " .. View.aliveCount() .. "/" .. View.total()
+	local final = phase == "play" and left <= Config.Match.RevealAt
+	refs.timer.TextColor3 = final and C.Danger or C.Text
+	if final then
+		refs.topScale.Scale = 1 + 0.05 * math.abs(math.sin(os.clock() * 5))
+		if not finalShown then
+			finalShown = true
+			deps.Fx.announce("30 SECONDS LEFT!", "Every plate glows. Make it count!", C.Danger, 0.2)
+			Audio.setIntensity(true)
+		end
 	else
-		refs.alive.Text = Players.NumPlayers .. " in lobby"
+		refs.topScale.Scale = 1
+		if finalShown and phase ~= "play" then
+			finalShown = false
+			Audio.setIntensity(false)
+		end
+	end
+	if phase == "play" or phase == "countdown" or phase == "results" then
+		refs.alive.Text = "👥 " .. alive .. "/" .. View.total()
+		refs.alive.TextColor3 = (phase == "play" and alive <= 3) and C.Danger or C.Good
+	else
+		refs.alive.Text = Players.NumPlayers .. " waiting"
+		refs.alive.TextColor3 = C.Good
 	end
 	-- countdown beeps for the last 3 seconds before the start
 	local second = math.ceil(left)
@@ -5207,30 +6941,56 @@ function Hud.update()
 	end
 	lastSecond = second
 
-	-- you
-	local playing = player:GetAttribute("Alive") == true and (phase == "play" or phase == "countdown")
+	-- you (in a match) or your profile (in the lobby)
 	refs.meBox.Visible = playing
+	refs.profile.Visible = not playing and phase ~= "results"
 	if playing then
 		refs.meName.Text = (player:GetAttribute("Icon") or "") .. " " .. (player:GetAttribute("Code") or "")
+		local lives = player:GetAttribute("Lives") or 0
+		refs.hearts.Text = string.rep("❤", lives) .. string.rep("🖤", math.max(0, Config.Lives.Start - lives))
+		refs.score.Text = "⭐ " .. (player:GetAttribute("Score") or 0)
 		local bullets = player:GetAttribute("Bullets") or 0
 		for i, pip in refs.pips do
-			pip.BackgroundColor3 = i <= bullets and C.Gold or Color3.fromRGB(60, 62, 80)
+			pip.BackgroundColor3 = i <= bullets and C.Gold or Color3.fromRGB(60, 90, 120)
 		end
-		refs.meHint.Text = (player:GetAttribute("Kills") or 0) .. " out"
+		refs.meHint.Text = (player:GetAttribute("Kills") or 0) .. " hits"
+	else
+		local level = player:GetAttribute("Level") or 1
+		refs.level.Text = "LEVEL " .. level
+		refs.coins.Text = "🪙 " .. (player:GetAttribute("Coins") or 0)
+		local into, need = player:GetAttribute("XPInto") or 0, player:GetAttribute("XPNeed") or 1
+		refs.xpBar.set(into / math.max(1, need))
+		refs.xpText.Text = into .. " / " .. need .. " XP"
 	end
 
-	-- hotbar
+	-- bounty and alliance chips
+	local showBounty = false
+	if bounty and phase == "play" then
+		local e = View.byId(bounty.id)
+		if e and e.alive then
+			showBounty = true
+			refs.bountyText.Text = "🎯 BOUNTY  " .. bounty.label .. "  +" .. bounty.reward
+		end
+	end
+	refs.bountyChip.Visible = showBounty
 	local now = View.now()
+	local allied = (player:GetAttribute("Ally") or 0) ~= 0 and phase == "play"
+	refs.allyChip.Visible = allied
+	if allied then
+		refs.allyText.Text = "🤝 ALLY  " .. allyLabel .. (allyUntil > now and ("  " .. math.ceil(allyUntil - now) .. "s") or "")
+	end
+
+	-- gadget hotbar
 	for id, slot in slots do
 		local item = slot.item
 		local have = item.Permanent and 1 or (player:GetAttribute("It_" .. id) or 0)
 		slot.count.Text = item.Permanent and "" or ("x" .. have)
-		local usable = playing and have > 0 and phase == "play"
-		if id == "camera" and now < snapReadyAt then
-			usable = false
-		end
+		local cd = math.max(0, slot.cdUntil - now)
+		local usable = playing and have > 0 and phase == "play" and cd <= 0
 		slot.shade.BackgroundTransparency = usable and 1 or 0.55
+		slot.cd.Text = cd > 0.05 and string.format(cd >= 10 and "%d" or "%.1f", cd) or ""
 	end
+	Hud.select(deps.Scope.isOn() and "binos" or nil)
 
 	-- crosshair + the name of whoever you are aiming at
 	refs.cross.Visible = playing and not deps.Scope.isOn()
@@ -5241,7 +7001,7 @@ function Hud.update()
 		end
 		local target, distance = aimTarget, aimDistance
 		if target then
-			refs.aimLabel.Text = target.icon .. " " .. target.code .. "   " .. math.floor(distance + 0.5) .. " m\n[G] to guess"
+			refs.aimLabel.Text = target.icon .. " " .. target.code .. "   " .. math.floor(distance + 0.5) .. " m\n[G] guess" .. (target.player and "   [T] ally" or "")
 			refs.crossStroke.Color = C.Accent
 		else
 			refs.aimLabel.Text = ""
@@ -5258,11 +7018,133 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="34">
+          <Item class="ModuleScript" referent="40">
+            <Properties>
+              <string name="Name">Inventory</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: the gadget inventory (🎒 or I). Every gadget with its charges, cooldown and what it does, plus the clues you
+-- hacked from information terminals this match.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(Shared:WaitForChild("UI"))
+local Audio = require(Shared:WaitForChild("Audio"))
+local View = require(script.Parent:WaitForChild("View"))
+
+local Inventory = {}
+
+local player = Players.LocalPlayer
+local C = UI.Colors
+local deps
+local window, cards, clueLabel
+local clues = {}
+
+function Inventory.isOpen()
+	return window ~= nil and window.Visible
+end
+
+function Inventory.init(gui, d)
+	deps = d
+	window = UI.panel(gui, {
+		Name = "Inventory",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(560, 470),
+		Visible = false,
+		ZIndex = 58,
+	})
+	UI.label(window, { Position = UDim2.fromOffset(16, 10), Size = UDim2.new(1, -70, 0, 28), Font = UI.Fonts.Title, TextSize = 22, Text = "🎒 GADGETS", ZIndex = 59 })
+	local close = UI.button(window, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10), Size = UDim2.fromOffset(40, 32), Text = "✕", TextSize = 18, BackgroundColor3 = C.Danger, ZIndex = 59 })
+	close.MouseButton1Click:Connect(function()
+		Inventory.close()
+	end)
+	local grid = UI.new("Frame", { Position = UDim2.fromOffset(12, 48), Size = UDim2.new(1, -24, 0, 300), BackgroundTransparency = 1, ZIndex = 59 }, window)
+	UI.new("UIGridLayout", { CellSize = UDim2.fromOffset(266, 70), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder }, grid)
+	cards = {}
+	for i, item in Config.Items do
+		local card = UI.new("Frame", { LayoutOrder = i, BackgroundColor3 = C.Card, BorderSizePixel = 0, ZIndex = 60 }, grid)
+		UI.corner(card, 10)
+		UI.label(card, { Position = UDim2.fromOffset(8, 6), Size = UDim2.fromOffset(44, 44), Font = UI.Fonts.Title, TextSize = 30, TextXAlignment = Enum.TextXAlignment.Center, Text = item.Icon, ZIndex = 61 })
+		UI.label(card, { Position = UDim2.fromOffset(54, 4), Size = UDim2.new(1, -110, 0, 18), Font = UI.Fonts.Title, TextSize = 13, TextWrapped = false, Text = item.Key .. "  " .. item.Name, ZIndex = 61 })
+		UI.label(card, { Position = UDim2.fromOffset(54, 22), Size = UDim2.new(1, -60, 0, 44), Font = UI.Fonts.Body, TextSize = 11, TextColor3 = C.Muted, TextYAlignment = Enum.TextYAlignment.Top, Text = item.Tip, ZIndex = 61 })
+		local state = UI.label(card, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 4), Size = UDim2.fromOffset(60, 18), Font = UI.Fonts.Title, TextSize = 13, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Right, Text = "", ZIndex = 61 })
+		cards[item.Id] = state
+	end
+	UI.label(window, { Position = UDim2.fromOffset(16, 354), Size = UDim2.new(1, -32, 0, 20), Font = UI.Fonts.Title, TextSize = 15, TextColor3 = C.Accent, Text = "🔐 CLUES FROM TERMINALS (all true)", ZIndex = 59 })
+	clueLabel = UI.label(window, { Position = UDim2.fromOffset(16, 376), Size = UDim2.new(1, -32, 0, 84), Font = UI.Fonts.Bold, TextSize = 14, TextYAlignment = Enum.TextYAlignment.Top, Text = "", ZIndex = 59 })
+	task.spawn(function()
+		while true do
+			task.wait(0.4)
+			if window.Visible then
+				Inventory.refresh()
+			end
+		end
+	end)
+end
+
+function Inventory.addClue(text)
+	table.insert(clues, text)
+	if window and window.Visible then
+		Inventory.refresh()
+	end
+end
+
+function Inventory.resetClues()
+	clues = {}
+end
+
+function Inventory.refresh()
+	for id, label in cards do
+		local item = Config.ItemById[id]
+		local cd = deps.Hud.cooldownLeft(id)
+		local text
+		if item.Permanent then
+			text = cd > 0 and string.format("%.1fs", cd) or "READY"
+		else
+			local have = player:GetAttribute("It_" .. id) or 0
+			text = "x" .. have .. (cd > 0 and ("  " .. string.format("%.0fs", cd)) or "")
+		end
+		label.Text = text
+	end
+	if #clues == 0 then
+		clueLabel.Text = "Hack an information terminal in the plaza to learn something about YOUR number. It shows where you are for a moment!"
+	else
+		clueLabel.Text = "• " .. table.concat(clues, "\n• ")
+	end
+end
+
+function Inventory.open()
+	window.Visible = true
+	Inventory.refresh()
+	Audio.click()
+end
+
+function Inventory.close()
+	if window then
+		window.Visible = false
+	end
+end
+
+function Inventory.toggle()
+	if Inventory.isOpen() then
+		Inventory.close()
+	else
+		Inventory.open()
+	end
+end
+
+return Inventory
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="41">
             <Properties>
               <string name="Name">Keypad</string>
-              <string name="Source"><![CDATA[-- FIGURE ME OUT: the guess keypad. Press G while aiming at someone, type their three digits and it fires by itself.
--- Works with the keyboard and with the on-screen buttons (for phones and tablets).
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: the guess panel. Press G (or tap GUESS): pick who you mean from the list of people you can see (the one under
+-- the crosshair is chosen for you), type their three digits and press CONFIRM (or Enter). The panel tells you what a wrong
+-- guess costs before you commit, and shows the cooldown. Nothing here ever shows a number: you have to find it yourself.
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -5274,11 +7156,14 @@ local View = require(script.Parent:WaitForChild("View"))
 
 local Keypad = {}
 
+local player = Players.LocalPlayer
 local C = UI.Colors
 local deps
-local panel, slotLabels, title, sub
+local panel, slotLabels, title, cooldownLabel, confirm, chipRow
 local typed = ""
 local target = nil
+local lastGuessAt = -100
+local chips = {}
 
 local DIGIT_KEYS = {}
 for i = 0, 9 do
@@ -5290,12 +7175,93 @@ function Keypad.isOpen()
 	return panel ~= nil and panel.Visible
 end
 
+function Keypad.target()
+	return target
+end
+
 local function redraw()
 	for i, l in slotLabels do
 		local ch = string.sub(typed, i, i)
 		l.Text = ch ~= "" and ch or "_"
 		l.TextColor3 = ch ~= "" and C.Text or C.Muted
 	end
+	local ready = #typed == Config.Number.Digits and target ~= nil
+	confirm.BackgroundColor3 = ready and C.Good or C.Disabled
+	confirm.Text = ready and "CONFIRM" or "TYPE 3 DIGITS"
+end
+
+-- People you could guess right now: alive, in sight, in range. Nearest first, the crosshair target first of all.
+local function candidates()
+	local head = View.myHead()
+	local list = {}
+	if not head then
+		return list
+	end
+	local camera = View.camera()
+	local origin = camera and camera.CFrame.Position or head.Position
+	for _, e in View.aliveOthers() do
+		local distance = (e.head.Position - head.Position).Magnitude
+		if distance <= Config.Guess.MaxDistance and not View.blocked(origin, e.head.Position) then
+			e.distance = distance
+			table.insert(list, e)
+		end
+	end
+	table.sort(list, function(a, b)
+		return a.distance < b.distance
+	end)
+	return list
+end
+
+local function setTarget(entity)
+	target = entity
+	if entity then
+		title.Text = "WHO IS " .. entity.icon .. " " .. string.upper(entity.code) .. "?"
+	else
+		title.Text = "AIM AT SOMEONE"
+	end
+	for id, chip in chips do
+		chip.stroke.Transparency = (entity and id == entity.id) and 0 or 1
+		chip.button.BackgroundColor3 = (entity and id == entity.id) and C.Accent2 or C.Card
+	end
+	redraw()
+end
+
+local function refreshChips()
+	for _, chip in chips do
+		chip.button:Destroy()
+	end
+	chips = {}
+	local aimed = View.aimed()
+	local list = candidates()
+	if aimed then
+		for i, e in list do
+			if e.id == aimed.id then
+				table.remove(list, i)
+				table.insert(list, 1, e)
+				break
+			end
+		end
+	end
+	for i = 1, math.min(5, #list) do
+		local e = list[i]
+		local b = UI.button(chipRow, {
+			LayoutOrder = i,
+			Size = UDim2.fromOffset(98, 40),
+			Text = e.icon .. " " .. e.code .. "\n" .. math.floor(e.distance + 0.5) .. " m",
+			TextSize = 11,
+			TextWrapped = true,
+			BackgroundColor3 = C.Card,
+			ZIndex = 32,
+		}, "card")
+		local st = UI.stroke(b, C.Accent, 3, 1)
+		b.MouseButton1Click:Connect(function()
+			Audio.click()
+			typed = ""
+			setTarget(e)
+		end)
+		chips[e.id] = { button = b, stroke = st, entity = e }
+	end
+	return list
 end
 
 function Keypad.init(gui, d)
@@ -5303,94 +7269,89 @@ function Keypad.init(gui, d)
 	panel = UI.panel(gui, {
 		Name = "Keypad",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -90),
-		Size = UDim2.fromOffset(300, 292),
+		Position = UDim2.new(0.5, 0, 1, -84),
+		Size = UDim2.fromOffset(340, 430),
 		Visible = false,
 		ZIndex = 30,
 	})
-	title = UI.label(panel, {
-		Position = UDim2.fromOffset(0, 8),
-		Size = UDim2.new(1, 0, 0, 24),
-		Font = UI.Fonts.Title,
-		TextSize = 18,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		TextColor3 = C.Accent,
-		Text = "WHO IS IT?",
-		ZIndex = 31,
-	})
-	sub = UI.label(panel, {
-		Position = UDim2.fromOffset(0, 30),
-		Size = UDim2.new(1, 0, 0, 16),
-		Font = UI.Fonts.Bold,
-		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		TextColor3 = C.Muted,
-		Text = "type their 3 digits",
-		ZIndex = 31,
-	})
+	title = UI.label(panel, { Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 24), Font = UI.Fonts.Title, TextSize = 18, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Accent, Text = "WHO IS IT?", ZIndex = 31 })
+	chipRow = UI.new("Frame", { Position = UDim2.fromOffset(10, 36), Size = UDim2.new(1, -20, 0, 44), BackgroundTransparency = 1, ZIndex = 31 }, panel)
+	UI.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, chipRow)
 	slotLabels = {}
 	for i = 1, Config.Number.Digits do
-		local box = UI.new("Frame", {
-			Position = UDim2.fromOffset(50 + (i - 1) * 68, 52),
-			Size = UDim2.fromOffset(60, 52),
-			BackgroundColor3 = C.Bg,
-			BorderSizePixel = 0,
-			ZIndex = 31,
-		}, panel)
+		local box = UI.new("Frame", { Position = UDim2.fromOffset(62 + (i - 1) * 78, 90), Size = UDim2.fromOffset(68, 56), BackgroundColor3 = C.Bg, BorderSizePixel = 0, ZIndex = 31 }, panel)
 		UI.corner(box, 10)
 		UI.stroke(box, C.Accent, 2)
-		slotLabels[i] = UI.label(box, {
-			Size = UDim2.fromScale(1, 1),
-			Font = UI.Fonts.Title,
-			TextSize = 34,
-			TextXAlignment = Enum.TextXAlignment.Center,
-			Text = "_",
-			ZIndex = 32,
-		})
+		slotLabels[i] = UI.label(box, { Size = UDim2.fromScale(1, 1), Font = UI.Fonts.Title, TextSize = 36, TextXAlignment = Enum.TextXAlignment.Center, Text = "_", ZIndex = 32 })
 	end
+	UI.label(panel, {
+		Position = UDim2.fromOffset(14, 152),
+		Size = UDim2.new(1, -28, 0, 30),
+		Font = UI.Fonts.Bold,
+		TextSize = 11,
+		TextColor3 = C.Orange,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Text = "⚠ A wrong guess costs a bullet, freezes you for " .. Config.Guess.Stun .. "s, and shows them where you are.",
+		ZIndex = 31,
+	})
+	cooldownLabel = UI.label(panel, { Position = UDim2.fromOffset(0, 184), Size = UDim2.new(1, 0, 0, 16), Font = UI.Fonts.Bold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Good, Text = "READY", ZIndex = 31 })
 	for n = 1, 10 do
 		local digit = n == 10 and 0 or n
 		local row, col = math.floor((n - 1) / 3), (n - 1) % 3
 		if n == 10 then
 			row, col = 3, 1
 		end
-		local b = UI.button(panel, {
-			Position = UDim2.fromOffset(40 + col * 78, 114 + row * 42),
-			Size = UDim2.fromOffset(70, 36),
-			Text = tostring(digit),
-			TextSize = 20,
-			BackgroundColor3 = C.Card,
-			ZIndex = 31,
-		}, "card")
+		local b = UI.button(panel, { Position = UDim2.fromOffset(40 + col * 90, 204 + row * 42), Size = UDim2.fromOffset(80, 36), Text = tostring(digit), TextSize = 20, BackgroundColor3 = C.Card, ZIndex = 31 }, "card")
 		b.MouseButton1Click:Connect(function()
 			Keypad.press(tostring(digit))
 		end)
 	end
-	local back = UI.button(panel, {
-		Position = UDim2.fromOffset(40, 114 + 3 * 42),
-		Size = UDim2.fromOffset(70, 36),
-		Text = "⌫",
-		TextSize = 20,
-		BackgroundColor3 = C.Card,
-		ZIndex = 31,
-	}, "card")
+	local back = UI.button(panel, { Position = UDim2.fromOffset(40, 204 + 3 * 42), Size = UDim2.fromOffset(80, 36), Text = "⌫", TextSize = 20, BackgroundColor3 = C.Card, ZIndex = 31 }, "card")
 	back.MouseButton1Click:Connect(function()
 		Keypad.back()
 	end)
-	local cancel = UI.button(panel, {
-		Position = UDim2.fromOffset(196, 114 + 3 * 42),
-		Size = UDim2.fromOffset(70, 36),
-		Text = "✕",
-		TextSize = 20,
-		BackgroundColor3 = C.Danger,
-		ZIndex = 31,
-	})
+	local cancel = UI.button(panel, { Position = UDim2.fromOffset(220, 204 + 3 * 42), Size = UDim2.fromOffset(80, 36), Text = "✕", TextSize = 20, BackgroundColor3 = C.Danger, ZIndex = 31 })
 	cancel.MouseButton1Click:Connect(function()
 		Keypad.close()
 	end)
+	confirm = UI.button(panel, { Position = UDim2.fromOffset(40, 204 + 4 * 42 + 4), Size = UDim2.fromOffset(260, 40), Text = "TYPE 3 DIGITS", TextSize = 18, BackgroundColor3 = C.Disabled, ZIndex = 31 })
+	confirm.MouseButton1Click:Connect(function()
+		Keypad.submit()
+	end)
+	task.spawn(function()
+		while true do
+			task.wait(0.2)
+			if panel.Visible then
+				Keypad.update()
+			end
+		end
+	end)
 end
 
--- Opens the keypad for whoever is under the crosshair (or for `entity` when given). Returns true when it opened.
+function Keypad.update()
+	local now = View.now()
+	local wait = lastGuessAt + Config.Guess.Cooldown - now
+	if player:GetAttribute("Stunned") == true then
+		cooldownLabel.Text = "FROZEN"
+		cooldownLabel.TextColor3 = C.Danger
+	elseif wait > 0 then
+		cooldownLabel.Text = "COOLDOWN " .. string.format("%.1f", wait) .. "s"
+		cooldownLabel.TextColor3 = C.Orange
+	else
+		cooldownLabel.Text = "READY  •  " .. (player:GetAttribute("Bullets") or 0) .. " bullets"
+		cooldownLabel.TextColor3 = C.Good
+	end
+	-- the person left sight or went out: forget them
+	if target then
+		local e = View.byId(target.id)
+		if not e or not e.alive then
+			typed = ""
+			setTarget(nil)
+		end
+	end
+end
+
+-- Opens the panel for whoever is under the crosshair (or `entity` when given, or the nearest person in sight).
 function Keypad.open(entity)
 	if not panel then
 		return false
@@ -5398,18 +7359,17 @@ function Keypad.open(entity)
 	if View.phase() ~= "play" or not View.amAlive() then
 		return false
 	end
-	entity = entity or View.aimed()
+	typed = ""
+	local list = refreshChips()
+	entity = entity or View.aimed() or list[1]
 	if not entity then
-		deps.Toasts.push("Aim at someone first", "bad")
+		deps.Toasts.push("Nobody in sight: aim at someone first", "bad")
 		Audio.error()
 		return false
 	end
-	target = entity
-	typed = ""
-	title.Text = "WHO IS " .. entity.icon .. " " .. string.upper(entity.code) .. "?"
-	sub.Text = "type their 3 digits"
-	redraw()
+	setTarget(entity)
 	panel.Visible = true
+	Keypad.update()
 	Audio.click()
 	return true
 end
@@ -5436,7 +7396,7 @@ function Keypad.press(ch)
 	typed ..= ch
 	Audio.play("Click", 1 + #typed * 0.12, 0.5)
 	redraw()
-	if #typed == Config.Number.Digits then
+	if #typed == Config.Number.Digits and Config.Guess.AutoSubmit then
 		Keypad.submit()
 	end
 end
@@ -5444,15 +7404,17 @@ end
 function Keypad.submit()
 	local digits = Rules.parseGuess(typed)
 	if not digits or not target then
+		Audio.error()
 		return
 	end
 	local id = target.id
+	lastGuessAt = View.now()
 	deps.send("Guess", id, digits)
 	deps.Controls.guessSent(target)
 	Keypad.close()
 end
 
--- Called with every key press while the keypad is open. Returns true when the key was used.
+-- Called with every key press while the panel is open. Returns true when the key was used.
 function Keypad.key(input)
 	if not Keypad.isOpen() then
 		return false
@@ -5465,6 +7427,9 @@ function Keypad.key(input)
 	if input.KeyCode == Enum.KeyCode.Backspace then
 		Keypad.back()
 		return true
+	elseif input.KeyCode == Enum.KeyCode.Return or input.KeyCode == Enum.KeyCode.KeypadEnter then
+		Keypad.submit()
+		return true
 	elseif input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.G then
 		Keypad.close()
 		return true
@@ -5476,7 +7441,96 @@ return Keypad
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="35">
+          <Item class="ModuleScript" referent="42">
+            <Properties>
+              <string name="Name">Markers</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: little markers drawn only on your screen: the green 🤝 over your ally, and the pings from your scanner.
+-- A scanner ping shows WHERE someone is (through walls) and who they are by codename, never their number.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local UI = require(Shared:WaitForChild("UI"))
+local Audio = require(Shared:WaitForChild("Audio"))
+local View = require(script.Parent:WaitForChild("View"))
+
+local Markers = {}
+
+local player = Players.LocalPlayer
+local C = UI.Colors
+local folder
+local allyGui
+
+local function makeGui(parent, size, text, color, offset)
+	local gui = Instance.new("BillboardGui")
+	gui.Size = size
+	gui.AlwaysOnTop = true
+	gui.LightInfluence = 0
+	gui.StudsOffset = offset or Vector3.new(0, 0, 0)
+	gui.Adornee = parent
+	gui.Parent = parent
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 14
+	label.TextColor3 = color
+	label.TextStrokeTransparency = 0.2
+	label.Text = text
+	label.Parent = gui
+	return gui, label
+end
+
+function Markers.init()
+	folder = Instance.new("Folder")
+	folder.Name = "ClientMarkers"
+	folder.Parent = workspace
+	task.spawn(function()
+		while true do
+			task.wait(0.4)
+			Markers.updateAlly()
+		end
+	end)
+end
+
+-- The green marker over your ally's head (only you see it).
+function Markers.updateAlly()
+	local allyId = player:GetAttribute("Ally") or 0
+	local entity = allyId ~= 0 and View.phase() == "play" and View.byId(allyId) or nil
+	if allyGui and (not entity or allyGui.Adornee ~= entity.head) then
+		allyGui:Destroy()
+		allyGui = nil
+	end
+	if entity and entity.alive and not allyGui then
+		allyGui = makeGui(entity.head, UDim2.fromOffset(110, 26), "🤝 ALLY", C.Good, Vector3.new(0, 3.2, 0))
+	end
+end
+
+-- rows: { { id, code, icon, position, distance } } from the server's scanner.
+function Markers.scan(rows, seconds)
+	Audio.scan()
+	for _, row in rows do
+		local part = Instance.new("Part")
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanQuery = false
+		part.Transparency = 1
+		part.Size = Vector3.new(1, 1, 1)
+		part.Position = row[4]
+		part.Parent = folder
+		makeGui(part, UDim2.fromOffset(150, 40), "📡 " .. row[3] .. " " .. row[2] .. "\n" .. row[5] .. " m", C.Accent, Vector3.new(0, 1.5, 0))
+		task.delay(seconds, function()
+			part:Destroy()
+		end)
+	end
+	return #rows
+end
+
+return Markers
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="43">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the menu window: how to play, forehead plates you unlock by winning, your stats and the settings.
@@ -5500,15 +7554,17 @@ local plateCards = {}
 local statLabels = {}
 local toggles = {}
 
-local TABS = { "How to play", "Plates", "Stats", "Settings" }
+local TABS = { "How to play", "Cosmetics", "Plates", "Stats", "Settings" }
+local cosmeticCards = {}
+local profileLabel
 
 local STEPS = {
-	{ "🪪", "Everybody has a secret number", "A 3-digit number is printed on every forehead. You can't see yours, but everybody else can." },
-	{ "🎯", "Guess to knock people out", "Aim at someone, press G and type THEIR number. Right = they're out. Wrong = you freeze for 3 seconds and lose a bullet." },
+	{ "🪪", "Everybody has a secret number", "A 3-digit number is on every forehead. You can't see yours, but everybody else can. Each player has 3 lives." },
+	{ "🎯", "Guess to take lives", "Aim at someone, press G, type THEIR number and press CONFIRM. Right = they lose a life. Wrong = you lose a bullet, freeze for 3 seconds and they see an arrow pointing at you." },
 	{ "🔭", "Find the numbers", "Hold the right mouse button for binoculars and read digits from across the map. Click to snap a photo: the notebook (V) joins up digits from several photos." },
-	{ "💥", "Mess with their eyes", "Flashbangs blind everyone who sees them go off. Smoke grenades make a cloud nobody can see through. Grab 🎁 crates for decoys, scramblers, switcheroos and boots." },
-	{ "🚫", "No hiding in corners", "Staring at a wall hides your number, so the game warns you. Ignore it and your plate glows red with a 👁 marker above your head, so everyone knows where to look!" },
-	{ "👁", "Someone is always watching", "A wrong guess points an arrow at the guesser. In the last 30 seconds THE REVEAL makes every plate glow so numbers are easy to spot. Last one standing wins!" },
+	{ "💥", "Mess with their eyes", "Flashbangs blind, smoke blocks sight, the decoy mask shows a fake number, the scanner finds people, the distraction device lures them and the scrambler flickers your plate. Grab 🎁 crates for more." },
+	{ "🔐", "Clues, bounties and friends", "Hack a terminal in the plaza for a true clue about YOUR number (it shows where you are!). Hit the 🎯 bounty target for bonus points. Press T to offer an alliance, and watch your back." },
+	{ "🚫", "No hiding in corners", "Staring at a wall hides your number, so the game warns you. Ignore it and your plate glows red with a 👁 marker above your head for everyone. Last one standing wins!" },
 }
 
 local function page(name)
@@ -5569,9 +7625,57 @@ local function buildPlates(p)
 	end
 end
 
+local function ownedSet()
+	local set = {}
+	for entry in string.gmatch(player:GetAttribute("Owned") or "", "[^,]+") do
+		set[entry] = true
+	end
+	return set
+end
+
+local function buildCosmetics(p)
+	UI.new("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8) }, p)
+	profileLabel = UI.label(p, { LayoutOrder = 0, Size = UDim2.new(1, -8, 0, 26), Font = UI.Fonts.Title, TextSize = 16, TextColor3 = C.Gold, Text = "" })
+	local sections = {
+		{ "trail", "✨ TRAILS", Config.Trails },
+		{ "effect", "💥 ELIMINATION EFFECTS (when you lose a life)", Config.Effects },
+		{ "emote", "💬 EMOTES (tap an owned one to try it)", Config.Emotes },
+	}
+	for si, section in sections do
+		UI.label(p, { LayoutOrder = si * 2 - 1, Size = UDim2.new(1, -8, 0, 22), Font = UI.Fonts.Title, TextSize = 14, TextColor3 = C.Accent, Text = section[2] })
+		local grid = UI.new("Frame", { LayoutOrder = si * 2, Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, ZIndex = 63 }, p)
+		UI.new("UIGridLayout", { CellSize = UDim2.fromOffset(124, 86), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder }, grid)
+		for i, def in section[3] do
+			local card = UI.new("TextButton", { LayoutOrder = i, Text = "", AutoButtonColor = false, BackgroundColor3 = C.Card, BorderSizePixel = 0, ZIndex = 64 }, grid)
+			UI.corner(card, 10)
+			local stroke = UI.stroke(card, C.Stroke, 2)
+			UI.label(card, { Position = UDim2.fromOffset(0, 4), Size = UDim2.new(1, 0, 0, 34), Font = UI.Fonts.Title, TextSize = 26, TextXAlignment = Enum.TextXAlignment.Center, Text = def.Icon, ZIndex = 65 })
+			UI.label(card, { Position = UDim2.fromOffset(0, 40), Size = UDim2.new(1, 0, 0, 16), Font = UI.Fonts.Title, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = def.Name, ZIndex = 65 })
+			local status = UI.label(card, { Position = UDim2.fromOffset(0, 60), Size = UDim2.new(1, 0, 0, 18), Font = UI.Fonts.Bold, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Muted, Text = "", ZIndex = 65 })
+			card.MouseButton1Click:Connect(function()
+				local key = section[1] .. ":" .. def.Id
+				local free = def.Cost == 0 and def.Level == 0
+				if free or ownedSet()[key] then
+					Audio.click()
+					if section[1] == "emote" then
+						deps.Emotes.play(def.Id)
+					else
+						deps.send("Equip", section[1], def.Id)
+					end
+				else
+					deps.send("Buy", section[1], def.Id)
+				end
+			end)
+			table.insert(cosmeticCards, { kind = section[1], def = def, card = card, stroke = stroke, status = status })
+		end
+	end
+end
+
 local function buildStats(p)
 	UI.new("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8) }, p)
 	local rows = {
+		{ "Level", "⭐ Level" },
+		{ "Coins", "🪙 Coins" },
 		{ "Wins", "🏆 Matches won" },
 		{ "Streak", "🔥 Win streak" },
 		{ "BestStreak", "⭐ Best win streak" },
@@ -5621,7 +7725,7 @@ function Menu.init(gui, d)
 		Name = "Menu",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(470, 480),
+		Size = UDim2.fromOffset(560, 500),
 		Visible = false,
 		ZIndex = 60,
 	})
@@ -5634,9 +7738,9 @@ function Menu.init(gui, d)
 	local tabBar = UI.new("Frame", { Position = UDim2.fromOffset(12, 48), Size = UDim2.new(1, -24, 0, 36), BackgroundTransparency = 1, ZIndex = 61 }, window)
 	UI.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6) }, tabBar)
 	body = UI.new("Frame", { Position = UDim2.fromOffset(12, 92), Size = UDim2.new(1, -24, 1, -104), BackgroundTransparency = 1, ZIndex = 61 }, window)
-	local builders = { ["How to play"] = buildHowTo, Plates = buildPlates, Stats = buildStats, Settings = buildSettings }
+	local builders = { ["How to play"] = buildHowTo, Cosmetics = buildCosmetics, Plates = buildPlates, Stats = buildStats, Settings = buildSettings }
 	for _, name in TABS do
-		local b = UI.button(tabBar, { Size = UDim2.fromOffset(104, 34), Text = name, TextSize = 13, BackgroundColor3 = C.Card, ZIndex = 62 }, "card")
+		local b = UI.button(tabBar, { Size = UDim2.fromOffset(100, 34), Text = name, TextSize = 13, BackgroundColor3 = C.Card, ZIndex = 62 }, "card")
 		local p = page(name)
 		builders[name](p)
 		tabs[name] = { button = b, page = p }
@@ -5645,7 +7749,7 @@ function Menu.init(gui, d)
 			Menu.open(name)
 		end)
 	end
-	for _, key in { "Wins", "Streak", "BestStreak", "Games", "TotalKills", "Style", "Music", "Sfx", "Fx" } do
+	for _, key in { "Wins", "Streak", "BestStreak", "Games", "TotalKills", "Style", "Music", "Sfx", "Fx", "Level", "Coins", "Owned", "Trail", "Effect" } do
 		player:GetAttributeChangedSignal(key):Connect(function()
 			Menu.refresh()
 			if key == "Music" or key == "Sfx" then
@@ -5699,6 +7803,31 @@ function Menu.refresh()
 		c.status.Text = id == equipped and "✓ EQUIPPED" or (unlocked and "tap to equip" or ("🔒 " .. c.style.Wins .. " wins"))
 		c.status.TextColor3 = id == equipped and C.Good or C.Muted
 	end
+	local owned = ownedSet()
+	local level = player:GetAttribute("Level") or 1
+	local coins = player:GetAttribute("Coins") or 0
+	if profileLabel then
+		profileLabel.Text = "LEVEL " .. level .. "   •   🪙 " .. coins
+	end
+	for _, c in cosmeticCards do
+		local def = c.def
+		local free = def.Cost == 0 and def.Level == 0
+		local isOwned = free or owned[c.kind .. ":" .. def.Id]
+		local equipped = (c.kind == "trail" and (player:GetAttribute("Trail") or "none") == def.Id) or (c.kind == "effect" and (player:GetAttribute("Effect") or "pixels") == def.Id)
+		c.stroke.Color = equipped and C.Good or C.Stroke
+		c.stroke.Thickness = equipped and 4 or 2
+		if equipped then
+			c.status.Text = "✓ EQUIPPED"
+			c.status.TextColor3 = C.Good
+		elseif isOwned then
+			c.status.Text = c.kind == "emote" and "tap to try" or "tap to equip"
+			c.status.TextColor3 = C.Muted
+		else
+			c.status.Text = level >= def.Level and ("🪙 " .. def.Cost) or ("🔒 Level " .. def.Level)
+			c.status.TextColor3 = (level >= def.Level and coins >= def.Cost) and C.Gold or C.Danger
+		end
+		c.card.BackgroundColor3 = isOwned and C.Card or Color3.fromRGB(28, 80, 120)
+	end
 	for key, label in statLabels do
 		label.Text = tostring(player:GetAttribute(key) or 0)
 	end
@@ -5713,7 +7842,7 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="36">
+          <Item class="ModuleScript" referent="44">
             <Properties>
               <string name="Name">OwnPlate</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: you must never see your own forehead number. The plate is hidden on your screen only; everybody else
@@ -5754,7 +7883,7 @@ return OwnPlate
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="37">
+          <Item class="ModuleScript" referent="45">
             <Properties>
               <string name="Name">Results</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the scoreboard at the end of every match.
@@ -5764,6 +7893,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local UI = require(Shared:WaitForChild("UI"))
+local Util = require(Shared:WaitForChild("Util"))
 local Audio = require(Shared:WaitForChild("Audio"))
 local View = require(script.Parent:WaitForChild("View"))
 
@@ -5772,7 +7902,8 @@ local Results = {}
 local player = Players.LocalPlayer
 local C = UI.Colors
 local deps
-local panel, heading, sub, rowsFrame, footer
+local panel, heading, sub, rowsFrame, footer, rewardsLabel
+local pendingRewards
 
 local MEDALS = { "🥇", "🥈", "🥉" }
 
@@ -5782,7 +7913,7 @@ function Results.init(gui, d)
 		Name = "Results",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(460, 470),
+		Size = UDim2.fromOffset(560, 520),
 		Visible = false,
 		ZIndex = 55,
 	})
@@ -5806,9 +7937,19 @@ function Results.init(gui, d)
 		Text = "",
 		ZIndex = 56,
 	})
+	rewardsLabel = UI.label(panel, {
+		Position = UDim2.fromOffset(0, 78),
+		Size = UDim2.new(1, 0, 0, 24),
+		Font = UI.Fonts.Title,
+		TextSize = 17,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextColor3 = C.Good,
+		Text = "",
+		ZIndex = 56,
+	})
 	rowsFrame = UI.new("ScrollingFrame", {
-		Position = UDim2.fromOffset(14, 86),
-		Size = UDim2.new(1, -28, 1, -128),
+		Position = UDim2.fromOffset(14, 108),
+		Size = UDim2.new(1, -28, 1, -150),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 5,
@@ -5842,11 +7983,19 @@ function Results.init(gui, d)
 	end)
 end
 
+-- The server tells us what this match paid (it arrives just before the results table).
+function Results.setRewards(coins, xp, level, leveledUp)
+	pendingRewards = { coins = coins, xp = xp, level = level, up = leveledUp }
+	if panel and panel.Visible then
+		rewardsLabel.Text = "+" .. coins .. " 🪙   +" .. xp .. " XP" .. (leveledUp and ("   ⬆ LEVEL " .. level .. "!") or "")
+	end
+end
+
 function Results.isOpen()
 	return panel ~= nil and panel.Visible
 end
 
--- rows: { { id, rank, label, who, kills, number, alive } }
+-- rows: { { id, rank, label, who, kills, score, lives, survived, alive } }
 function Results.show(rows, winnerId)
 	if type(rows) ~= "table" then
 		return
@@ -5872,7 +8021,7 @@ function Results.show(rows, winnerId)
 		heading.Text = "🏆 " .. winner.label .. " WINS"
 	end
 	if mine then
-		sub.Text = "You finished #" .. mine.rank .. " of " .. #rows .. "  •  " .. mine.kills .. " eliminated"
+		sub.Text = "You finished #" .. mine.rank .. " of " .. #rows .. "  •  " .. mine.kills .. " hits  •  ⭐ " .. (mine.score or 0)
 	else
 		sub.Text = "Spectating"
 	end
@@ -5896,7 +8045,7 @@ function Results.show(rows, winnerId)
 		})
 		UI.label(row, {
 			Position = UDim2.fromOffset(52, 0),
-			Size = UDim2.new(0.5, -50, 1, 0),
+			Size = UDim2.new(0.42, -50, 1, 0),
 			Font = UI.Fonts.Bold,
 			TextSize = 14,
 			TextWrapped = false,
@@ -5904,27 +8053,41 @@ function Results.show(rows, winnerId)
 			ZIndex = 58,
 		})
 		UI.label(row, {
-			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -78, 0, 0),
-			Size = UDim2.fromOffset(70, 34),
+			Position = UDim2.new(0.42, 0, 0, 0),
+			Size = UDim2.new(0.18, 0, 1, 0),
 			Font = UI.Fonts.Bold,
 			TextSize = 13,
-			TextColor3 = C.Muted,
-			TextXAlignment = Enum.TextXAlignment.Right,
-			Text = r.kills .. " out",
+			TextColor3 = C.Danger,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Text = (r.lives or 0) > 0 and string.rep("❤", r.lives) or "💀",
+			ZIndex = 58,
+		})
+		UI.label(row, {
+			Position = UDim2.new(0.6, 0, 0, 0),
+			Size = UDim2.new(0.2, 0, 1, 0),
+			Font = UI.Fonts.Title,
+			TextSize = 14,
+			TextColor3 = C.Gold,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Text = "⭐ " .. (r.score or 0),
 			ZIndex = 58,
 		})
 		UI.label(row, {
 			AnchorPoint = Vector2.new(1, 0),
 			Position = UDim2.new(1, -8, 0, 0),
-			Size = UDim2.fromOffset(60, 34),
-			Font = UI.Fonts.Title,
-			TextSize = 18,
-			TextColor3 = C.Gold,
+			Size = UDim2.new(0.2, 0, 1, 0),
+			Font = UI.Fonts.Bold,
+			TextSize = 12,
+			TextColor3 = C.Muted,
 			TextXAlignment = Enum.TextXAlignment.Right,
-			Text = r.number,
+			Text = r.kills .. " hits • " .. Util.clock(r.survived or 0),
 			ZIndex = 58,
 		})
+	end
+	rewardsLabel.Text = ""
+	if pendingRewards then
+		rewardsLabel.Text = "+" .. pendingRewards.coins .. " 🪙   +" .. pendingRewards.xp .. " XP" .. (pendingRewards.up and ("   ⬆ LEVEL " .. pendingRewards.level .. "!") or "")
+		pendingRewards = nil
 	end
 	panel.Visible = true
 	if winner and winner.id == myId and winnerId ~= 0 then
@@ -5937,7 +8100,7 @@ return Results
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="38">
+          <Item class="ModuleScript" referent="46">
             <Properties>
               <string name="Name">Scope</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the binoculars. Hold the right mouse button (or Z, or tap the 🔭 slot) to zoom far across the map and
@@ -6103,7 +8266,7 @@ return Scope
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="39">
+          <Item class="ModuleScript" referent="47">
             <Properties>
               <string name="Name">Spectate</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: once you are out, you watch the others. The camera follows a living player; press ◀ ▶ (or the arrow
@@ -6240,7 +8403,7 @@ return Spectate
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="40">
+          <Item class="ModuleScript" referent="48">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -6350,7 +8513,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="41">
+          <Item class="ModuleScript" referent="49">
             <Properties>
               <string name="Name">View</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the client's picture of the match. Reads the attributes the server writes and finds the people in the
@@ -6411,7 +8574,7 @@ function View.amAlive()
 	return player:GetAttribute("Alive") == true and (View.phase() == "play" or View.phase() == "countdown")
 end
 
-local function describe(model, source, alive, decoy)
+local function describe(model, source, alive)
 	local id = source:GetAttribute("EntityId")
 	if not id or not model then
 		return nil
@@ -6427,11 +8590,10 @@ local function describe(model, source, alive, decoy)
 		code = source:GetAttribute("Code") or "?",
 		icon = source:GetAttribute("Icon") or "",
 		alive = alive,
-		decoy = decoy,
 	}
 end
 
--- Everyone in the match (and decoys). Cached for a moment because several screens ask each frame.
+-- Everyone in the match. Cached for a moment because several screens ask each frame.
 function View.entities()
 	local now = os.clock()
 	if now - cacheAt < 0.12 then
@@ -6440,7 +8602,7 @@ function View.entities()
 	cacheAt = now
 	local list = {}
 	for _, p in Players:GetPlayers() do
-		local e = describe(p.Character, p, p:GetAttribute("Alive") == true, false)
+		local e = describe(p.Character, p, p:GetAttribute("Alive") == true)
 		if e then
 			e.player = p
 			e.me = p == player
@@ -6450,16 +8612,7 @@ function View.entities()
 	local bots = workspace:FindFirstChild("Bots")
 	if bots then
 		for _, model in bots:GetChildren() do
-			local e = describe(model, model, model:GetAttribute("Alive") == true, false)
-			if e then
-				table.insert(list, e)
-			end
-		end
-	end
-	local decoys = workspace:FindFirstChild("Decoys")
-	if decoys then
-		for _, model in decoys:GetChildren() do
-			local e = describe(model, model, true, true)
+			local e = describe(model, model, model:GetAttribute("Alive") == true)
 			if e then
 				table.insert(list, e)
 			end
@@ -6481,7 +8634,7 @@ end
 function View.aliveOthers()
 	local list = {}
 	for _, e in View.entities() do
-		if e.alive and not e.me and not e.decoy then
+		if e.alive and not e.me then
 			table.insert(list, e)
 		end
 	end
@@ -6531,7 +8684,7 @@ function View.aimed()
 	local limit = math.max(1.4, 5 * fov / 70) -- degrees; tighter when zoomed in
 	local best, bestAngle, bestDistance
 	for _, e in View.entities() do
-		if not e.me and (e.alive or e.decoy) then
+		if not e.me and e.alive then
 			local to = e.head.Position - origin
 			local distance = to.Magnitude
 			if distance > 1 and distance <= Config.Guess.MaxDistance then
@@ -6553,7 +8706,7 @@ return View
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="42">
+  <Item class="Workspace" referent="50">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

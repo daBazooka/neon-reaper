@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local UI = require(Shared:WaitForChild("UI"))
+local Util = require(Shared:WaitForChild("Util"))
 local Audio = require(Shared:WaitForChild("Audio"))
 local View = require(script.Parent:WaitForChild("View"))
 
@@ -13,7 +14,8 @@ local Results = {}
 local player = Players.LocalPlayer
 local C = UI.Colors
 local deps
-local panel, heading, sub, rowsFrame, footer
+local panel, heading, sub, rowsFrame, footer, rewardsLabel
+local pendingRewards
 
 local MEDALS = { "🥇", "🥈", "🥉" }
 
@@ -23,7 +25,7 @@ function Results.init(gui, d)
 		Name = "Results",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(460, 470),
+		Size = UDim2.fromOffset(560, 520),
 		Visible = false,
 		ZIndex = 55,
 	})
@@ -47,9 +49,19 @@ function Results.init(gui, d)
 		Text = "",
 		ZIndex = 56,
 	})
+	rewardsLabel = UI.label(panel, {
+		Position = UDim2.fromOffset(0, 78),
+		Size = UDim2.new(1, 0, 0, 24),
+		Font = UI.Fonts.Title,
+		TextSize = 17,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextColor3 = C.Good,
+		Text = "",
+		ZIndex = 56,
+	})
 	rowsFrame = UI.new("ScrollingFrame", {
-		Position = UDim2.fromOffset(14, 86),
-		Size = UDim2.new(1, -28, 1, -128),
+		Position = UDim2.fromOffset(14, 108),
+		Size = UDim2.new(1, -28, 1, -150),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 5,
@@ -83,11 +95,19 @@ function Results.init(gui, d)
 	end)
 end
 
+-- The server tells us what this match paid (it arrives just before the results table).
+function Results.setRewards(coins, xp, level, leveledUp)
+	pendingRewards = { coins = coins, xp = xp, level = level, up = leveledUp }
+	if panel and panel.Visible then
+		rewardsLabel.Text = "+" .. coins .. " 🪙   +" .. xp .. " XP" .. (leveledUp and ("   ⬆ LEVEL " .. level .. "!") or "")
+	end
+end
+
 function Results.isOpen()
 	return panel ~= nil and panel.Visible
 end
 
--- rows: { { id, rank, label, who, kills, number, alive } }
+-- rows: { { id, rank, label, who, kills, score, lives, survived, alive } }
 function Results.show(rows, winnerId)
 	if type(rows) ~= "table" then
 		return
@@ -113,7 +133,7 @@ function Results.show(rows, winnerId)
 		heading.Text = "🏆 " .. winner.label .. " WINS"
 	end
 	if mine then
-		sub.Text = "You finished #" .. mine.rank .. " of " .. #rows .. "  •  " .. mine.kills .. " eliminated"
+		sub.Text = "You finished #" .. mine.rank .. " of " .. #rows .. "  •  " .. mine.kills .. " hits  •  ⭐ " .. (mine.score or 0)
 	else
 		sub.Text = "Spectating"
 	end
@@ -137,7 +157,7 @@ function Results.show(rows, winnerId)
 		})
 		UI.label(row, {
 			Position = UDim2.fromOffset(52, 0),
-			Size = UDim2.new(0.5, -50, 1, 0),
+			Size = UDim2.new(0.42, -50, 1, 0),
 			Font = UI.Fonts.Bold,
 			TextSize = 14,
 			TextWrapped = false,
@@ -145,27 +165,41 @@ function Results.show(rows, winnerId)
 			ZIndex = 58,
 		})
 		UI.label(row, {
-			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -78, 0, 0),
-			Size = UDim2.fromOffset(70, 34),
+			Position = UDim2.new(0.42, 0, 0, 0),
+			Size = UDim2.new(0.18, 0, 1, 0),
 			Font = UI.Fonts.Bold,
 			TextSize = 13,
-			TextColor3 = C.Muted,
-			TextXAlignment = Enum.TextXAlignment.Right,
-			Text = r.kills .. " out",
+			TextColor3 = C.Danger,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Text = (r.lives or 0) > 0 and string.rep("❤", r.lives) or "💀",
+			ZIndex = 58,
+		})
+		UI.label(row, {
+			Position = UDim2.new(0.6, 0, 0, 0),
+			Size = UDim2.new(0.2, 0, 1, 0),
+			Font = UI.Fonts.Title,
+			TextSize = 14,
+			TextColor3 = C.Gold,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Text = "⭐ " .. (r.score or 0),
 			ZIndex = 58,
 		})
 		UI.label(row, {
 			AnchorPoint = Vector2.new(1, 0),
 			Position = UDim2.new(1, -8, 0, 0),
-			Size = UDim2.fromOffset(60, 34),
-			Font = UI.Fonts.Title,
-			TextSize = 18,
-			TextColor3 = C.Gold,
+			Size = UDim2.new(0.2, 0, 1, 0),
+			Font = UI.Fonts.Bold,
+			TextSize = 12,
+			TextColor3 = C.Muted,
 			TextXAlignment = Enum.TextXAlignment.Right,
-			Text = r.number,
+			Text = r.kills .. " hits • " .. Util.clock(r.survived or 0),
 			ZIndex = 58,
 		})
+	end
+	rewardsLabel.Text = ""
+	if pendingRewards then
+		rewardsLabel.Text = "+" .. pendingRewards.coins .. " 🪙   +" .. pendingRewards.xp .. " XP" .. (pendingRewards.up and ("   ⬆ LEVEL " .. pendingRewards.level .. "!") or "")
+		pendingRewards = nil
 	end
 	panel.Visible = true
 	if winner and winner.id == myId and winnerId ~= 0 then

@@ -70,7 +70,7 @@ function X.fakeChar(name, pos, look)
 	local head = {Name = "Head", Size = V3new(1.2, 1.2, 1.2), Position = pos + V3new(0, 2, 0)}
 	head.CFrame = cfNew(head.Position, look or V3new(0, 0, -1))
 	head.FindFirstChild = function() return nil end
-	local root = {Name = "HumanoidRootPart", Position = pos}
+	local root = {Name = "HumanoidRootPart", Position = pos, FindFirstChild = function() return nil end}
 	local hum = {ClassName = "Humanoid", _h = 100, WalkSpeed = 16, JumpPower = 50, UseJumpPower = true, Jump = false}
 	local died = {}
 	hum.Died = {Connect = function(_, f) table.insert(died, f); return {} end}
