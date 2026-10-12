@@ -491,6 +491,7 @@ Config.Store = {
 	Passes = {
 		{ Id = "vip", Name = "VIP", Desc = "Gold tag, +25% Aura, free crate daily", Icon = "👑", Color = C(255, 196, 40), Price = 399, PassId = 0 },
 		{ Id = "x2aura", Name = "2x Aura", Desc = "Doubles all Aura you earn", Icon = "✦", Color = C(255, 150, 60), Price = 299, PassId = 0 },
+		{ Id = "mogpass", Name = "Mog Pass", Desc = "Unlocks the premium reward track", Icon = "🎫", Color = C(162, 112, 255), Price = 499, PassId = 0 },
 		{ Id = "x2xp", Name = "2x Levels", Desc = "Level up twice as fast", Icon = "⬆️", Color = C(88, 186, 255), Price = 249, PassId = 0 },
 	},
 	Products = {
@@ -724,6 +725,176 @@ Config.EventById = {}
 for _, e in Config.Events do
 	Config.EventById[e.Id] = e
 end
+
+--------------------------------------------------------------------------------
+-- Goals: daily quests, the Mog Pass, trophies, codes and the ranked rating (the "come back tomorrow" systems)
+--------------------------------------------------------------------------------
+-- Daily quests: three new ones every day, sized to your level.
+Config.DailyQuestCount = 3
+Config.DailyQuestPassXP = 40
+Config.DailyQuestAllXP = 100
+Config.DailyQuestPool = {
+	{ Kind = "swings", Icon = "🔨", Text = "Swing your hammer %d times", Base = 120, Big = true },
+	{ Kind = "train", Icon = "🏋️", Text = "Land %d training reps at the gym", Base = 8 },
+	{ Kind = "perfect", Icon = "🎯", Text = "Hit %d PERFECT reps", Base = 4 },
+	{ Kind = "duel", Icon = "⚔️", Text = "Win %d duel(s)", Base = 2 },
+	{ Kind = "crate", Icon = "📦", Text = "Open %d crate(s)", Base = 2 },
+	{ Kind = "hatch", Icon = "🥚", Text = "Hatch %d pet egg(s)", Base = 2 },
+	{ Kind = "runsec", Icon = "🏃", Text = "Run on treadmills for %d seconds", Base = 90, Big = true },
+	{ Kind = "stage", Icon = "🏟️", Text = "Win %d stage battle(s)", Base = 1 },
+}
+function Config.DailyQuestScale(level)
+	return 1 + math.min(level or 1, 600) / 150
+end
+-- Builds one daily quest from a pool entry for a player of this level.
+function Config.MakeDailyQuest(entry, level, rebirths)
+	local scale = Config.DailyQuestScale(level)
+	local goal = math.max(1, math.floor(entry.Base * (entry.Big and scale or math.sqrt(scale)) + 0.5))
+	return {
+		Kind = entry.Kind,
+		Goal = goal,
+		Reward = math.floor(3 * 40 * (1 + (level or 1) * 0.3) * (1 + (rebirths or 0) * 0.5)),
+	}
+end
+Config.DailyQuestByKind = {}
+for _, q in Config.DailyQuestPool do
+	Config.DailyQuestByKind[q.Kind] = q
+end
+
+-- The Mog Pass: a season of 30 tiers. Everything you do fills it; each tier has a free and a premium reward.
+Config.Pass = { Tiers = 30, SeasonDays = 28 }
+function Config.PassNeed(tier)
+	return 100 + (tier - 1) * 12
+end
+-- XP needed to have finished `tier` tiers in total.
+function Config.PassTotal(tier)
+	local total = 0
+	for t = 1, math.min(tier, Config.Pass.Tiers) do
+		total += Config.PassNeed(t)
+	end
+	return total
+end
+-- Returns (tiers finished, XP into the next tier, XP the next tier needs).
+function Config.PassTierFor(xp)
+	local tier, rest = 0, xp or 0
+	while tier < Config.Pass.Tiers do
+		local need = Config.PassNeed(tier + 1)
+		if rest < need then
+			return tier, rest, need
+		end
+		rest -= need
+		tier += 1
+	end
+	return tier, 0, 0
+end
+-- Rewards: Size is "gift sizes" of Aura (scales with your level), Crates are free crates.
+function Config.PassReward(track, tier)
+	if track == "prem" then
+		return {
+			Size = 4 + tier * 2,
+			Crates = (tier % 3 == 0) and 1 or 0,
+			Label = tier == 30 and "GRAND PRIZE" or (tier % 10 == 0 and "BIG" or nil),
+		}
+	end
+	return {
+		Size = 1 + tier // 2,
+		Crates = (tier % 5 == 0) and (tier == 30 and 3 or 1) or 0,
+		Label = tier == 30 and "FINAL" or nil,
+	}
+end
+-- How much Mog Pass XP each activity gives (per unit).
+Config.PassXP = {
+	swings = 0.02, train = 3, perfect = 2, duel = 25, crate = 8, hatch = 10, runsec = 0.1,
+	stage = 30, quest = 40, dailyquest = 40, dailyall = 100, daily = 20, rebirth = 150,
+}
+
+-- Trophies: long-term goals. Each line has several tiers; every tier gives a reward the moment you reach it.
+Config.Achievements = {}
+local ACH_LINES = {
+	{ Stat = "Swings", Icon = "🔨", Name = "Hammer Time", Text = "Swing the hammer %s times", Goals = { 100, 1000, 10000, 100000 } },
+	{ Stat = "Reps", Icon = "🏋️", Name = "Gym Rat", Text = "Land %s training reps", Goals = { 25, 250, 2500 } },
+	{ Stat = "Perfects", Icon = "🎯", Name = "Perfectionist", Text = "Hit %s perfect reps", Goals = { 25, 250, 1500 } },
+	{ Stat = "Wins", Icon = "⚔️", Name = "Duelist", Text = "Win %s duels", Goals = { 1, 10, 50, 250 } },
+	{ Stat = "BestStreak", Icon = "🔥", Name = "Win Streak", Text = "Win %s duels in a row", Goals = { 3, 8, 15 } },
+	{ Stat = "Stage", Icon = "🏟️", Name = "Stage Climber", Text = "Clear stage %s", Goals = { 1, 5, 10, 15 } },
+	{ Stat = "Hatched", Icon = "🥚", Name = "Pet Lover", Text = "Hatch %s pet eggs", Goals = { 1, 20, 100, 400 } },
+	{ Stat = "CratesOpened", Icon = "📦", Name = "Crate Crusher", Text = "Open %s crates", Goals = { 5, 50, 250 } },
+	{ Stat = "Rebirths", Icon = "🔄", Name = "Born Again", Text = "Rebirth %s times", Goals = { 1, 5, 15, 40 } },
+	{ Stat = "Level", Icon = "⭐", Name = "Glow Up", Text = "Reach level %s", Goals = { 10, 50, 150, 400, 800, 1250 } },
+	{ Stat = "QuestsDone", Icon = "📜", Name = "Quest Master", Text = "Finish %s quests", Goals = { 5, 50, 300 } },
+	{ Stat = "Rating", Icon = "🏆", Name = "Ranked Climber", Text = "Reach %s ranked rating", Goals = { 1100, 1250, 1450, 1700, 2000 } },
+}
+Config.AchLines = ACH_LINES
+Config.AchStats = {}
+for _, line in ACH_LINES do
+	table.insert(Config.AchStats, line.Stat)
+	for i, goal in line.Goals do
+		table.insert(Config.Achievements, {
+			Id = line.Stat .. goal,
+			Stat = line.Stat,
+			Tier = i,
+			Goal = goal,
+			Icon = line.Icon,
+			Name = line.Name,
+			Text = line.Text,
+			Reward = { Size = 4 * i * i, Crates = i >= 3 and 1 or 0 },
+		})
+	end
+end
+Config.AchievementById = {}
+for _, a in Config.Achievements do
+	Config.AchievementById[a.Id] = a
+end
+-- Create badges on your game page (create.roblox.com), paste each id here (key = trophy id, e.g. Level50), and the trophy
+-- also awards the real Roblox badge. 0 or missing = no badge.
+Config.BadgeIds = {}
+
+-- Codes: Aura is in "gift sizes" (it grows with your level), PassXP goes into the Mog Pass. Each code works once per player.
+Config.Codes = {
+	WELCOME = { Aura = 6, Crates = 1, PassXP = 100 },
+	SUB5 = { Aura = 4, Crates = 0, PassXP = 60 },
+	TRUEADAM = { Aura = 10, Crates = 2, PassXP = 150 },
+	MOGGER = { Aura = 8, Crates = 1, PassXP = 120 },
+	LAUNCH = { Aura = 12, Crates = 2, PassXP = 200 },
+}
+
+-- Ranked rating (every duel against another player moves it).
+Config.RatingStart = 1000
+Config.RatingK = 32
+Config.RatingTiers = {
+	{ Name = "Bronze", Icon = "🥉", Min = 0, Color = C(205, 140, 90) },
+	{ Name = "Silver", Icon = "🥈", Min = 1100, Color = C(205, 210, 222) },
+	{ Name = "Gold", Icon = "🥇", Min = 1250, Color = C(255, 205, 60) },
+	{ Name = "Platinum", Icon = "💠", Min = 1450, Color = C(110, 225, 220) },
+	{ Name = "Diamond", Icon = "💎", Min = 1700, Color = C(110, 170, 255) },
+	{ Name = "Master", Icon = "👑", Min = 2000, Color = C(200, 120, 255) },
+	{ Name = "Mogger Legend", Icon = "🔥", Min = 2400, Color = C(255, 110, 110) },
+}
+function Config.RatingTier(rating)
+	local index = 1
+	for i, t in Config.RatingTiers do
+		if (rating or 0) >= t.Min then
+			index = i
+		end
+	end
+	return index, Config.RatingTiers[index]
+end
+-- Elo: how many points `mine` gains (or loses, if negative) against `theirs`.
+function Config.RatingChange(mine, theirs, won)
+	local expected = 1 / (1 + 10 ^ ((theirs - mine) / 400))
+	local change = Config.RatingK * ((won and 1 or 0) - expected)
+	if change >= 0 then
+		return math.max(1, math.floor(change + 0.5))
+	end
+	return math.min(-1, math.ceil(change - 0.5))
+end
+-- What the season ending pays for the tier you reached (Size is gift sizes of Aura).
+function Config.RatingSeasonReward(tierIndex)
+	return { Size = 6 * tierIndex, Crates = math.max(0, tierIndex - 2) }
+end
+-- Friends in the same server boost your Aura.
+Config.FriendBonusEach = 0.1
+Config.FriendBonusMax = 5
 
 --------------------------------------------------------------------------------
 -- Audio (sounds that ship with Roblox; swap any for an asset id from the Creator Store)

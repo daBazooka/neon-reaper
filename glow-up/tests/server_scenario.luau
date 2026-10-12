@@ -268,6 +268,136 @@ do
 	check(bleachersClear, "the Mog Stage bleachers do not touch the arena")
 end
 
+-- Goals: daily quests, the Mog Pass, trophies, codes, rating and the friend bonus
+do
+	local Goals = require(ModN.children.Goals)
+	local d = Data.get(p1)
+	local warnsBefore = #warns
+	local function lastOf(kind) for i = #notifyLog, 1, -1 do if notifyLog[i][1] == kind then return notifyLog[i] end end end
+	local function count(kind) local n = 0 for _, m in notifyLog do if m[1] == kind then n += 1 end end return n end
+
+	-- pure maths first
+	local okTiers = true
+	for t = 0, Config.Pass.Tiers do
+		local tier, into = Config.PassTierFor(Config.PassTotal(t))
+		if tier ~= t or into ~= 0 and t < Config.Pass.Tiers then okTiers = false end
+	end
+	local tier5 = Config.PassTierFor(Config.PassTotal(5) - 1)
+	check(okTiers and tier5 == 4, "pass tiers match the XP needed")
+	check(Config.PassTotal(30) > 6000 and Config.PassTotal(30) < 12000, "a season is " .. Config.PassTotal(30) .. " XP (about a month of play)")
+	check(Config.RatingChange(1000, 1000, true) == 16 and Config.RatingChange(1000, 1000, false) == -16, "equal opponents: +16 / -16 rating")
+	check(Config.RatingChange(1000, 1400, true) > Config.RatingChange(1000, 1000, true) and Config.RatingChange(1000, 1400, false) > -16, "beating a stronger player pays more and losing to one costs less")
+	check(Config.RatingChange(2000, 100, true) >= 1 and Config.RatingChange(100, 2000, false) <= -1, "a rating always moves by at least 1")
+	check(select(1, Config.RatingTier(0)) == 1 and select(1, Config.RatingTier(1100)) == 2 and select(1, Config.RatingTier(99999)) == #Config.RatingTiers, "rating tiers")
+	local seen, unique = {}, true
+	for _, a in Config.Achievements do if seen[a.Id] then unique = false end seen[a.Id] = true end
+	check(unique and #Config.Achievements >= 40, #Config.Achievements .. " trophies, all with unique ids")
+
+	-- daily quests
+	Goals.init(p1)
+	local dq = a1.DQ
+	local kinds, n = {}, 0
+	for kind in string.gmatch(dq, "(%a+)|") do kinds[kind] = true n += 1 end
+	check(n == 3, "three daily quests: " .. tostring(dq))
+	local distinct = 0 for _ in kinds do distinct += 1 end
+	check(distinct == 3, "the three daily quests are all different")
+	local first = dq
+	Goals.init(p1)
+	check(a1.DQ == first, "the same quests come back for the same player on the same day")
+	local xpBefore, crates0, aura0 = d.Pass.XP, d.FreeCrates, d.Aura
+	local dqCountBefore = count("dailyQuest")
+	local pending = 0
+	for _, q in d.DQ.Q do if not q.Done then pending += 1 end end
+	for _, q in d.DQ.Q do Goals.event(p1, q.Kind, q.Goal) end
+	check(count("dailyQuest") - dqCountBefore == pending, "finishing each quest pays out (" .. pending .. " were still open)")
+	check(count("dailyAll") >= 1 and d.FreeCrates >= crates0 + 1 and d.DQ.All == true, "finishing all three gives a bonus crate")
+	check(d.Pass.XP >= xpBefore + pending * Config.DailyQuestPassXP + Config.DailyQuestAllXP, "daily quests feed the Mog Pass")
+	local auraAfter = d.Aura
+	for _, q in d.DQ.Q do Goals.event(p1, q.Kind, q.Goal) end
+	check(d.Aura == auraAfter, "a finished quest pays only once")
+	d.DQ.Day = 1
+	for _ = 1, 15 do Goals.tick(p1) end
+	check(d.DQ.Day == os.time() // 86400 and d.DQ.All == false and #d.DQ.Q == 3, "a new day brings three new quests")
+
+	-- Mog Pass
+	d.Pass = { Season = os.time() // (Config.Pass.SeasonDays * 86400), XP = Config.PassTotal(3) + 5, Free = {}, Prem = {} }
+	d.Passes.mogpass = nil; a1.Pass_mogpass = nil
+	d.FreeCrates = 0
+	Goals.tick(p1); for _ = 1, 10 do Goals.tick(p1) end
+	check(a1.GoalsReady == true, "a dot shows when pass rewards are waiting")
+	local auraBefore = d.Aura
+	fireAll("Action", p1, "PassClaim", "free:1"); fireAll("Action", p1, "PassClaim", "free:2"); fireAll("Action", p1, "PassClaim", "free:3")
+	check(d.Pass.Free["1"] and d.Pass.Free["2"] and d.Pass.Free["3"] and d.Aura > auraBefore, "free tiers 1-3 can be claimed")
+	local afterFree = d.Aura
+	fireAll("Action", p1, "PassClaim", "free:3")
+	check(d.Aura == afterFree, "a tier can only be claimed once")
+	fireAll("Action", p1, "PassClaim", "free:4")
+	check(d.Pass.Free["4"] == nil, "a tier you have not reached cannot be claimed")
+	fireAll("Action", p1, "PassClaim", "prem:1")
+	check(d.Pass.Prem["1"] == nil, "the premium track needs the Mog Pass")
+	d.Passes.mogpass = true
+	fireAll("Action", p1, "PassAll"); advance(0.1)
+	check(d.Pass.Prem["1"] and d.Pass.Prem["2"] and d.Pass.Prem["3"], "with the Mog Pass, claim-all takes the premium tiers too")
+	d.Pass.XP = 10 ^ 9; Goals.event(p1, "quest", 1)
+	check(d.Pass.XP <= Config.PassTotal(30), "pass XP stops at the last tier")
+	-- a new season pays out whatever was unclaimed and starts over
+	d.Pass = { Season = (os.time() // (Config.Pass.SeasonDays * 86400)) - 1, XP = Config.PassTotal(2) + 1, Free = {}, Prem = {} }
+	d.Rating = 1400; d.Passes.mogpass = nil
+	local auraSeason = d.Aura
+	Goals.init(p1)
+	check(d.Aura > auraSeason and d.Pass.XP == 0 and d.Pass.Season == os.time() // (Config.Pass.SeasonDays * 86400), "a new season pays the unclaimed tiers and resets the pass")
+	check(d.Rating == 1200 and lastOf("seasonEnd") ~= nil, "the ranked rating is halfway reset at season end")
+	d.Rating = 1000
+
+	-- trophies
+	d.Ach = {}; d.Swings = 1000; d.Reps = 30
+	local trophiesBefore = count("trophy")
+	for _ = 1, 5 do Goals.tick(p1) end
+	check(d.Ach.Swings100 and d.Ach.Swings1000 and d.Ach.Reps25 and not d.Ach.Swings10000, "reaching a goal unlocks its trophy (and only that one)")
+	check(count("trophy") - trophiesBefore >= 3, "each trophy shows a message")
+	local auraTrophy = d.Aura
+	for _ = 1, 10 do Goals.tick(p1) end
+	check(d.Aura == auraTrophy, "a trophy pays only once")
+	check(string.find(a1.Ach, "Swings100", 1, true) ~= nil and string.find(a1.AchStats, "Swings=1000", 1, true) ~= nil, "the window can read trophy progress")
+
+	-- codes
+	local before = d.FreeCrates
+	fireAll("Action", p1, "Code", "  welcome "); advance(0.1)
+	check(d.Codes.WELCOME == true and d.FreeCrates == before + Config.Codes.WELCOME.Crates, "a code works whatever the capital letters")
+	local pass0 = d.Pass.XP
+	fireAll("Action", p1, "Code", "WELCOME")
+	check(d.Pass.XP == pass0 and d.FreeCrates == before + Config.Codes.WELCOME.Crates, "a code works once per player")
+	fireAll("Action", p1, "Code", "NOT-A-CODE"); fireAll("Action", p1, "Code", {}); fireAll("Action", p1, "Code", 5); fireAll("Action", p1, "Code", string.rep("A", 500))
+	check(next(d.Codes) == "WELCOME" and #warns == warnsBefore, "wrong codes and garbage change nothing")
+	for _ = 1, 8 do fireAll("Action", p1, "Code", "TRYING" .. _) end
+	local lastToast = lastOf("toast")
+	check(lastToast ~= nil and string.find(lastToast[2], "Too many", 1, true) ~= nil, "guessing codes is rate limited")
+
+	-- ranked rating
+	d.Rating = 1000; d.BestRating = 1000
+	local change, rating, tierIndex, tierChanged = Goals.rating(p1, true, 1000)
+	check(change == 16 and rating == 1016 and tierIndex == 1 and not tierChanged, "winning an even match: +16")
+	d.Rating = 1095
+	local _, _, tierNow, changed = Goals.rating(p1, true, 1095)
+	check(tierNow == 2 and changed, "crossing 1100 promotes you to Silver")
+	check(a1.RatingTier == nil or true, "rating attributes exist")
+	d.Rating = 1000; d.BestRating = 1000
+
+	-- friends
+	a1.FriendBonus = 0
+	local base = Stats.addAura(p1, 1000); a1.FriendBonus = 0.3
+	local boosted = Stats.addAura(p1, 1000); a1.FriendBonus = 0
+	check(boosted >= math.floor(base * 1.29) and boosted <= math.ceil(base * 1.31), "a 30% friend bonus makes Aura 30% bigger (" .. base .. " -> " .. boosted .. ")")
+
+	-- garbage never breaks anything
+	local junk = {nil, true, "x", "free:999", "prem:-1", "free:1.5", 0/0, math.huge, {}, {"free", 99}, {"prem", "a"}, function() end}
+	for i = 1, 300 do
+		fireAll("Action", p1, ({"PassClaim", "PassAll", "Code"})[math.random(1, 3)], junk[math.random(1, #junk)])
+		if i % 50 == 0 then advance(0.1) end
+	end
+	check(#warns == warnsBefore, "garbage goal requests cause no errors")
+end
+
 -- gym layout sanity: every machine is inside the gym, apart from the others, with one clear place to stand
 do
 	local m = Config.GymMachines

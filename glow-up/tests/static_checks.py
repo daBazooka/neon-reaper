@@ -79,6 +79,21 @@ for word in ("Duel Ring", "RingBase", "CornerPost"):
     if re.search(r"\b" + word + r"\b", joined):
         problems.append(f"old ring leftover: {word}")
 
+# 3c. the Goals systems are wired end to end
+hud = read("client/Client/Modules/Hud.luau")
+if 'Menu.toggle("Goals")' not in hud or "GoalsReady" not in hud:
+    problems.append("the Goals button / badge is missing from the HUD")
+if 'Menu.addTab("Goals"' not in init:
+    problems.append("the Goals window is not registered")
+server_init = read("server/Main/init.server.luau")
+for needle in ("Goals.init", "Goals.tick", "Goals.handle", "Goals.release"):
+    if needle not in server_init:
+        problems.append(f"{needle} is not wired into the server")
+if "Goals.event" not in read("server/Main/Modules/Quests.luau"):
+    problems.append("quests do not feed the Goals systems")
+if not os.path.exists(os.path.join(ROOT, "docs", "GAME_CONCEPT.md")):
+    problems.append("docs/GAME_CONCEPT.md is missing")
+
 # 4. things that were removed must stay removed
 for word in ("Shards", "Orbs", "StageRoof", "StagePillar", "shardSlots"):
     if re.search(r"\b" + word + r"\b", joined):

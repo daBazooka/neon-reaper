@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
+local Goals = require(script.Parent.Goals)
 
 local Shop = {}
 
@@ -43,6 +44,7 @@ function Shop.rebirth(p)
 		return
 	end
 	profile.Rebirths += 1
+	Goals.event(p, "rebirth", 1)
 	profile.Power, profile.Style, profile.Charm = 0, 0, 0
 	profile.Levels = {}
 	for _, def in Config.Upgrades do

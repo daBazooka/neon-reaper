@@ -294,7 +294,7 @@ local function buildSides(gui, Menu)
 		Name = "RightButtons",
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -8, 0.5, -10),
-		Size = UDim2.fromOffset(66, 2 * 66 + 8),
+		Size = UDim2.fromOffset(66, 3 * 66 + 16),
 		BackgroundTransparency = 1,
 	}, gui)
 	addFit(right)
@@ -306,6 +306,10 @@ local function buildSides(gui, Menu)
 		Menu.toggle("Crates")
 	end)
 	refs.badges.Crates = crateBadge
+	local _, _, goalsBadge = sideButton(right, 3, 66, C.Purple, "🎯", "Goals", function()
+		Menu.toggle("Goals")
+	end)
+	refs.badges.Goals = goalsBadge
 end
 
 -- A small window with a button for every place; pressing one jumps you there.
@@ -755,6 +759,7 @@ function Hud.refresh()
 	end
 	refs.badges.Rewards.Visible = player:GetAttribute("DailyReady") == true
 	refs.badges.Crates.Visible = (player:GetAttribute("FreeCrates") or 0) > 0
+	refs.badges.Goals.Visible = player:GetAttribute("GoalsReady") == true
 	refs.badges.Upgrades.Visible = affordable
 	refs.badges.Wardrobe.Visible = refs.newItem == true
 end

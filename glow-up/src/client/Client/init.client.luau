@@ -25,6 +25,7 @@ local TabUpgrades = require(Modules.TabUpgrades)
 local TabPets = require(Modules.TabPets)
 local TabProfile = require(Modules.TabProfile)
 local TabRewards = require(Modules.TabRewards)
+local TabGoals = require(Modules.TabGoals)
 local TabSettings = require(Modules.TabSettings)
 local TrainingUI = require(Modules.TrainingUI)
 local DuelUI = require(Modules.DuelUI)
@@ -77,6 +78,9 @@ Menu.addTab("Profile", "📈", function(page)
 end)
 Menu.addTab("Rewards", "📅", function(page)
 	return TabRewards.build(page, Action, Menu)
+end, true)
+Menu.addTab("Goals", "🎯", function(page)
+	return TabGoals.build(page, Action, Menu)
 end, true)
 Menu.addTab("Settings", "⚙️", function(page)
 	return TabSettings.build(page, Action)
@@ -337,6 +341,41 @@ end
 
 function handlers.duelProgress(oppTaps)
 	DuelUI.progress(oppTaps)
+end
+
+function handlers.dailyQuest(text, reward)
+	Audio.quest()
+	Toasts.push("📜 Daily quest done: " .. text .. "  +✦" .. Util.fmt(reward), "gold")
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		Fx.burst(root.Position, UI.Colors.Gold, 16)
+	end
+end
+
+function handlers.dailyAll()
+	Audio.levelUp(true)
+	Fx.flash(UI.Colors.Gold, 0.3, 0.6)
+	Toasts.push("🌟 ALL DAILY QUESTS DONE!  +1 crate and bonus pass XP", "gold")
+end
+
+function handlers.passTier(tier)
+	Audio.quest()
+	Toasts.push("🎫 Mog Pass tier " .. tier .. " reached. Open Goals to claim!", "gold")
+end
+
+function handlers.trophy(name, text, aura, crates)
+	Audio.quest()
+	Toasts.push("🏆 TROPHY  " .. name .. "  ·  +✦" .. Util.fmt(aura) .. (crates > 0 and ("  +" .. crates .. " 🎁") or ""), "gold")
+end
+
+function handlers.codeOk(code, aura, crates, passXP)
+	Audio.levelUp(false)
+	Toasts.push("🎁 Code " .. code .. ": +✦" .. Util.fmt(aura) .. (crates > 0 and ("  +" .. crates .. " 🎁") or "") .. (passXP > 0 and ("  +" .. passXP .. " pass XP") or ""), "gold")
+end
+
+function handlers.seasonEnd(aura, crates, tierIndex)
+	local tier = Config.RatingTiers[tierIndex] or Config.RatingTiers[1]
+	Fx.announce("NEW SEASON", string.format("Season rewards: +✦%s%s  ·  you finished %s %s", Util.fmt(aura), crates > 0 and ("  +" .. crates .. " 🎁") or "", tier.Icon, tier.Name), UI.Colors.Gold, 0.25)
 end
 
 function handlers.duelEnd(...)

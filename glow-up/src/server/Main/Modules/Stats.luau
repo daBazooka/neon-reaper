@@ -289,6 +289,7 @@ function Stats.addAura(p, base, opts)
 			* Stats.eventMult("AuraMult")
 			* (1 + (Stats.petBonus(profile)))
 			* Stats.passMult(profile, "aura")
+			* (1 + (p:GetAttribute("FriendBonus") or 0))
 	end
 	amount = math.max(0, math.floor(amount + 0.5))
 	profile.Aura += amount

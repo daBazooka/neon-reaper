@@ -8,6 +8,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Co
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
 local Quests = require(script.Parent.Quests)
+local Goals = require(script.Parent.Goals)
 
 local Duels = {}
 
@@ -89,7 +90,7 @@ local function finish(duel)
 	local eb = effort(tb, duel.scoreB, duel.scoreA) * (0.94 + rng:NextNumber() * 0.12)
 	local aWins = ea >= eb
 
-	local function settle(p, wins, oppScore, myTaps, oppTaps, myEff, oppEff)
+	local function settle(p, wins, oppScore, myTaps, oppTaps, myEff, oppEff, oppRating)
 		if not p or p.Parent == nil then
 			return
 		end
@@ -133,11 +134,19 @@ local function finish(duel)
 		Stats.addXP(p, wins and (40 + oppScore * 0.05) or 15)
 		reward *= Stats.eventMult("DuelMult")
 		local given = Stats.addAura(p, math.max(10, reward))
-		Stats.send(p, "duelEnd", wins, given, myTaps, oppTaps, myEff, oppEff, p:GetAttribute("DuelStreak") or 0)
+		-- fights against other players move your ranked rating
+		local ratingChange, rating, tierIndex
+		if duel.ranked and oppRating then
+			ratingChange, rating, tierIndex = Goals.rating(p, wins, oppRating)
+		end
+		if stage and wins then
+			Goals.event(p, "stage", 1)
+		end
+		Stats.send(p, "duelEnd", wins, given, myTaps, oppTaps, myEff, oppEff, p:GetAttribute("DuelStreak") or 0, ratingChange, rating, tierIndex)
 	end
 
-	settle(a, aWins, duel.scoreB, ta, tb, ea, eb)
-	settle(b, not aWins, duel.scoreA, tb, ta, eb, ea)
+	settle(a, aWins, duel.scoreB, ta, tb, ea, eb, duel.ratingB)
+	settle(b, not aWins, duel.scoreA, tb, ta, eb, ea, duel.ratingA)
 end
 
 local function startDuel(a, b, opts)
@@ -157,6 +166,9 @@ local function startDuel(a, b, opts)
 	end
 
 	local duel = {
+		ratingA = Goals.ratingOf(a),
+		ratingB = b and Goals.ratingOf(b) or nil,
+		ranked = b ~= nil and not opts.stage,
 		a = a,
 		b = b,
 		scoreA = scoreA,

@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
+local Goals = require(script.Parent.Goals)
 
 local Pets = {}
 
@@ -62,6 +63,7 @@ function Pets.hatch(p, eggId)
 	local copies = (profile.Pets[pet.Id] or 0) + 1
 	profile.Pets[pet.Id] = copies
 	profile.Hatched += 1
+	Goals.event(p, "hatch", 1)
 	-- A new pet goes straight into an empty slot.
 	if #profile.PetsEq < Config.PetSlots and not table.find(profile.PetsEq, pet.Id) then
 		table.insert(profile.PetsEq, pet.Id)

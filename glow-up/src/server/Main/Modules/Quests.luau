@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
+local Goals = require(script.Parent.Goals)
 
 local Quests = {}
 
@@ -34,6 +35,9 @@ end
 
 -- absolute = true means "progress is the max value reached" (not used by current quests, kept for flexibility).
 function Quests.progress(p, kind, amount, absolute)
+	if not absolute then
+		Goals.event(p, kind, amount)
+	end
 	local profile = Data.get(p)
 	local q = profile and profile.Quest
 	if not q or q.Kind ~= kind then
@@ -46,6 +50,7 @@ function Quests.progress(p, kind, amount, absolute)
 	end
 
 	profile.QuestsDone += 1
+	Goals.event(p, "quest", 1)
 	Stats.addAura(p, q.Reward, { raw = true })
 	Stats.addXP(p, 25 + profile.QuestsDone * 5)
 	local bonus = ""

@@ -1610,6 +1610,7 @@ Config.Store = {
 	Passes = {
 		{ Id = "vip", Name = "VIP", Desc = "Gold tag, +25% Aura, free crate daily", Icon = "👑", Color = C(255, 196, 40), Price = 399, PassId = 0 },
 		{ Id = "x2aura", Name = "2x Aura", Desc = "Doubles all Aura you earn", Icon = "✦", Color = C(255, 150, 60), Price = 299, PassId = 0 },
+		{ Id = "mogpass", Name = "Mog Pass", Desc = "Unlocks the premium reward track", Icon = "🎫", Color = C(162, 112, 255), Price = 499, PassId = 0 },
 		{ Id = "x2xp", Name = "2x Levels", Desc = "Level up twice as fast", Icon = "⬆️", Color = C(88, 186, 255), Price = 249, PassId = 0 },
 	},
 	Products = {
@@ -1843,6 +1844,176 @@ Config.EventById = {}
 for _, e in Config.Events do
 	Config.EventById[e.Id] = e
 end
+
+--------------------------------------------------------------------------------
+-- Goals: daily quests, the Mog Pass, trophies, codes and the ranked rating (the "come back tomorrow" systems)
+--------------------------------------------------------------------------------
+-- Daily quests: three new ones every day, sized to your level.
+Config.DailyQuestCount = 3
+Config.DailyQuestPassXP = 40
+Config.DailyQuestAllXP = 100
+Config.DailyQuestPool = {
+	{ Kind = "swings", Icon = "🔨", Text = "Swing your hammer %d times", Base = 120, Big = true },
+	{ Kind = "train", Icon = "🏋️", Text = "Land %d training reps at the gym", Base = 8 },
+	{ Kind = "perfect", Icon = "🎯", Text = "Hit %d PERFECT reps", Base = 4 },
+	{ Kind = "duel", Icon = "⚔️", Text = "Win %d duel(s)", Base = 2 },
+	{ Kind = "crate", Icon = "📦", Text = "Open %d crate(s)", Base = 2 },
+	{ Kind = "hatch", Icon = "🥚", Text = "Hatch %d pet egg(s)", Base = 2 },
+	{ Kind = "runsec", Icon = "🏃", Text = "Run on treadmills for %d seconds", Base = 90, Big = true },
+	{ Kind = "stage", Icon = "🏟️", Text = "Win %d stage battle(s)", Base = 1 },
+}
+function Config.DailyQuestScale(level)
+	return 1 + math.min(level or 1, 600) / 150
+end
+-- Builds one daily quest from a pool entry for a player of this level.
+function Config.MakeDailyQuest(entry, level, rebirths)
+	local scale = Config.DailyQuestScale(level)
+	local goal = math.max(1, math.floor(entry.Base * (entry.Big and scale or math.sqrt(scale)) + 0.5))
+	return {
+		Kind = entry.Kind,
+		Goal = goal,
+		Reward = math.floor(3 * 40 * (1 + (level or 1) * 0.3) * (1 + (rebirths or 0) * 0.5)),
+	}
+end
+Config.DailyQuestByKind = {}
+for _, q in Config.DailyQuestPool do
+	Config.DailyQuestByKind[q.Kind] = q
+end
+
+-- The Mog Pass: a season of 30 tiers. Everything you do fills it; each tier has a free and a premium reward.
+Config.Pass = { Tiers = 30, SeasonDays = 28 }
+function Config.PassNeed(tier)
+	return 100 + (tier - 1) * 12
+end
+-- XP needed to have finished `tier` tiers in total.
+function Config.PassTotal(tier)
+	local total = 0
+	for t = 1, math.min(tier, Config.Pass.Tiers) do
+		total += Config.PassNeed(t)
+	end
+	return total
+end
+-- Returns (tiers finished, XP into the next tier, XP the next tier needs).
+function Config.PassTierFor(xp)
+	local tier, rest = 0, xp or 0
+	while tier < Config.Pass.Tiers do
+		local need = Config.PassNeed(tier + 1)
+		if rest < need then
+			return tier, rest, need
+		end
+		rest -= need
+		tier += 1
+	end
+	return tier, 0, 0
+end
+-- Rewards: Size is "gift sizes" of Aura (scales with your level), Crates are free crates.
+function Config.PassReward(track, tier)
+	if track == "prem" then
+		return {
+			Size = 4 + tier * 2,
+			Crates = (tier % 3 == 0) and 1 or 0,
+			Label = tier == 30 and "GRAND PRIZE" or (tier % 10 == 0 and "BIG" or nil),
+		}
+	end
+	return {
+		Size = 1 + tier // 2,
+		Crates = (tier % 5 == 0) and (tier == 30 and 3 or 1) or 0,
+		Label = tier == 30 and "FINAL" or nil,
+	}
+end
+-- How much Mog Pass XP each activity gives (per unit).
+Config.PassXP = {
+	swings = 0.02, train = 3, perfect = 2, duel = 25, crate = 8, hatch = 10, runsec = 0.1,
+	stage = 30, quest = 40, dailyquest = 40, dailyall = 100, daily = 20, rebirth = 150,
+}
+
+-- Trophies: long-term goals. Each line has several tiers; every tier gives a reward the moment you reach it.
+Config.Achievements = {}
+local ACH_LINES = {
+	{ Stat = "Swings", Icon = "🔨", Name = "Hammer Time", Text = "Swing the hammer %s times", Goals = { 100, 1000, 10000, 100000 } },
+	{ Stat = "Reps", Icon = "🏋️", Name = "Gym Rat", Text = "Land %s training reps", Goals = { 25, 250, 2500 } },
+	{ Stat = "Perfects", Icon = "🎯", Name = "Perfectionist", Text = "Hit %s perfect reps", Goals = { 25, 250, 1500 } },
+	{ Stat = "Wins", Icon = "⚔️", Name = "Duelist", Text = "Win %s duels", Goals = { 1, 10, 50, 250 } },
+	{ Stat = "BestStreak", Icon = "🔥", Name = "Win Streak", Text = "Win %s duels in a row", Goals = { 3, 8, 15 } },
+	{ Stat = "Stage", Icon = "🏟️", Name = "Stage Climber", Text = "Clear stage %s", Goals = { 1, 5, 10, 15 } },
+	{ Stat = "Hatched", Icon = "🥚", Name = "Pet Lover", Text = "Hatch %s pet eggs", Goals = { 1, 20, 100, 400 } },
+	{ Stat = "CratesOpened", Icon = "📦", Name = "Crate Crusher", Text = "Open %s crates", Goals = { 5, 50, 250 } },
+	{ Stat = "Rebirths", Icon = "🔄", Name = "Born Again", Text = "Rebirth %s times", Goals = { 1, 5, 15, 40 } },
+	{ Stat = "Level", Icon = "⭐", Name = "Glow Up", Text = "Reach level %s", Goals = { 10, 50, 150, 400, 800, 1250 } },
+	{ Stat = "QuestsDone", Icon = "📜", Name = "Quest Master", Text = "Finish %s quests", Goals = { 5, 50, 300 } },
+	{ Stat = "Rating", Icon = "🏆", Name = "Ranked Climber", Text = "Reach %s ranked rating", Goals = { 1100, 1250, 1450, 1700, 2000 } },
+}
+Config.AchLines = ACH_LINES
+Config.AchStats = {}
+for _, line in ACH_LINES do
+	table.insert(Config.AchStats, line.Stat)
+	for i, goal in line.Goals do
+		table.insert(Config.Achievements, {
+			Id = line.Stat .. goal,
+			Stat = line.Stat,
+			Tier = i,
+			Goal = goal,
+			Icon = line.Icon,
+			Name = line.Name,
+			Text = line.Text,
+			Reward = { Size = 4 * i * i, Crates = i >= 3 and 1 or 0 },
+		})
+	end
+end
+Config.AchievementById = {}
+for _, a in Config.Achievements do
+	Config.AchievementById[a.Id] = a
+end
+-- Create badges on your game page (create.roblox.com), paste each id here (key = trophy id, e.g. Level50), and the trophy
+-- also awards the real Roblox badge. 0 or missing = no badge.
+Config.BadgeIds = {}
+
+-- Codes: Aura is in "gift sizes" (it grows with your level), PassXP goes into the Mog Pass. Each code works once per player.
+Config.Codes = {
+	WELCOME = { Aura = 6, Crates = 1, PassXP = 100 },
+	SUB5 = { Aura = 4, Crates = 0, PassXP = 60 },
+	TRUEADAM = { Aura = 10, Crates = 2, PassXP = 150 },
+	MOGGER = { Aura = 8, Crates = 1, PassXP = 120 },
+	LAUNCH = { Aura = 12, Crates = 2, PassXP = 200 },
+}
+
+-- Ranked rating (every duel against another player moves it).
+Config.RatingStart = 1000
+Config.RatingK = 32
+Config.RatingTiers = {
+	{ Name = "Bronze", Icon = "🥉", Min = 0, Color = C(205, 140, 90) },
+	{ Name = "Silver", Icon = "🥈", Min = 1100, Color = C(205, 210, 222) },
+	{ Name = "Gold", Icon = "🥇", Min = 1250, Color = C(255, 205, 60) },
+	{ Name = "Platinum", Icon = "💠", Min = 1450, Color = C(110, 225, 220) },
+	{ Name = "Diamond", Icon = "💎", Min = 1700, Color = C(110, 170, 255) },
+	{ Name = "Master", Icon = "👑", Min = 2000, Color = C(200, 120, 255) },
+	{ Name = "Mogger Legend", Icon = "🔥", Min = 2400, Color = C(255, 110, 110) },
+}
+function Config.RatingTier(rating)
+	local index = 1
+	for i, t in Config.RatingTiers do
+		if (rating or 0) >= t.Min then
+			index = i
+		end
+	end
+	return index, Config.RatingTiers[index]
+end
+-- Elo: how many points `mine` gains (or loses, if negative) against `theirs`.
+function Config.RatingChange(mine, theirs, won)
+	local expected = 1 / (1 + 10 ^ ((theirs - mine) / 400))
+	local change = Config.RatingK * ((won and 1 or 0) - expected)
+	if change >= 0 then
+		return math.max(1, math.floor(change + 0.5))
+	end
+	return math.min(-1, math.ceil(change - 0.5))
+end
+-- What the season ending pays for the tier you reached (Size is gift sizes of Aura).
+function Config.RatingSeasonReward(tierIndex)
+	return { Size = 6 * tierIndex, Crates = math.max(0, tierIndex - 2) }
+end
+-- Friends in the same server boost your Aura.
+Config.FriendBonusEach = 0.1
+Config.FriendBonusMax = 5
 
 --------------------------------------------------------------------------------
 -- Audio (sounds that ship with Roblox; swap any for an asset id from the Creator Store)
@@ -2540,6 +2711,7 @@ local Training = require(Modules.Training)
 local Crates = require(Modules.Crates)
 local Duels = require(Modules.Duels)
 local RankedArena = require(Modules.RankedArena)
+local Goals = require(Modules.Goals)
 local Competition = require(Modules.Competition)
 local Shop = require(Modules.Shop)
 local Events = require(Modules.Events)
@@ -2621,6 +2793,7 @@ local function onPlayer(p)
 	safe("playtime", Playtime.init, p)
 	safe("tutorial", Tutorial.init, p)
 	safe("store", Store.init, p)
+	safe("goals", Goals.init, p)
 	safe("nameplate", Nameplate.init, p)
 	safe("cosmetics", Cosmetics.sync, p)
 	p:SetAttribute("GuideSeen", profile.GuideSeen == true)
@@ -2662,6 +2835,7 @@ Players.PlayerRemoving:Connect(function(p)
 	Playtime.release(p)
 	Tutorial.release(p)
 	Treadmill.release(p)
+	Goals.release(p)
 	Duels.release(p)
 	Competition.release(p)
 	Stats.forget(p)
@@ -2684,6 +2858,7 @@ task.spawn(function()
 				end
 				Playtime.tick(p)
 				Tutorial.tick(p)
+				Goals.tick(p)
 				Treadmill.tick(p)
 				if tick % 30 == 0 then
 					Daily.refresh(p)
@@ -2800,6 +2975,8 @@ local function handleAction(p, kind, a, b)
 		Hammers.swing(p)
 	elseif kind == "Interact" and type(a) == "string" then
 		interact(p, a)
+	elseif kind == "PassClaim" or kind == "PassAll" or kind == "Code" then
+		Goals.handle(p, kind, a)
 	elseif kind == "Claim" then
 		Daily.claim(p)
 	elseif kind == "TrainHit" or kind == "TrainDown" or kind == "TrainCancel" then
@@ -4154,6 +4331,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
+local Goals = require(script.Parent.Goals)
 
 local Daily = {}
 
@@ -4190,6 +4368,7 @@ function Daily.claim(p)
 	profile.Daily.Streak = profile.Daily.Last == today() - 1 and profile.Daily.Streak + 1 or 1
 	profile.Daily.Last = today()
 	Stats.addAura(p, aura, { raw = true })
+	Goals.event(p, "daily", 1)
 	if reward.Crates then
 		Stats.addFreeCrates(p, reward.Crates)
 	end
@@ -4254,6 +4433,13 @@ local function defaults()
 		HammersOwned = { ["1"] = true },
 		Perfects = 0,
 		Records = {}, -- machine id -> best set total
+		DQ = { Day = 0, Q = {}, All = false }, -- today's three daily quests
+		Pass = { Season = 0, XP = 0, Free = {}, Prem = {} }, -- the Mog Pass (tiers claimed use string keys)
+		Ach = {}, -- trophy id -> true
+		Codes = {}, -- redeemed codes
+		Rating = 1000, -- ranked rating
+		BestRating = 1000,
+		RatingSeason = 0,
 		CratesOpened = 0,
 		Pity = { neon = 0, icon = 0 },
 		QuestsDone = 0,
@@ -4650,6 +4836,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Co
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
 local Quests = require(script.Parent.Quests)
+local Goals = require(script.Parent.Goals)
 
 local Duels = {}
 
@@ -4731,7 +4918,7 @@ local function finish(duel)
 	local eb = effort(tb, duel.scoreB, duel.scoreA) * (0.94 + rng:NextNumber() * 0.12)
 	local aWins = ea >= eb
 
-	local function settle(p, wins, oppScore, myTaps, oppTaps, myEff, oppEff)
+	local function settle(p, wins, oppScore, myTaps, oppTaps, myEff, oppEff, oppRating)
 		if not p or p.Parent == nil then
 			return
 		end
@@ -4775,11 +4962,19 @@ local function finish(duel)
 		Stats.addXP(p, wins and (40 + oppScore * 0.05) or 15)
 		reward *= Stats.eventMult("DuelMult")
 		local given = Stats.addAura(p, math.max(10, reward))
-		Stats.send(p, "duelEnd", wins, given, myTaps, oppTaps, myEff, oppEff, p:GetAttribute("DuelStreak") or 0)
+		-- fights against other players move your ranked rating
+		local ratingChange, rating, tierIndex
+		if duel.ranked and oppRating then
+			ratingChange, rating, tierIndex = Goals.rating(p, wins, oppRating)
+		end
+		if stage and wins then
+			Goals.event(p, "stage", 1)
+		end
+		Stats.send(p, "duelEnd", wins, given, myTaps, oppTaps, myEff, oppEff, p:GetAttribute("DuelStreak") or 0, ratingChange, rating, tierIndex)
 	end
 
-	settle(a, aWins, duel.scoreB, ta, tb, ea, eb)
-	settle(b, not aWins, duel.scoreA, tb, ta, eb, ea)
+	settle(a, aWins, duel.scoreB, ta, tb, ea, eb, duel.ratingB)
+	settle(b, not aWins, duel.scoreA, tb, ta, eb, ea, duel.ratingA)
 end
 
 local function startDuel(a, b, opts)
@@ -4799,6 +4994,9 @@ local function startDuel(a, b, opts)
 	end
 
 	local duel = {
+		ratingA = Goals.ratingOf(a),
+		ratingB = b and Goals.ratingOf(b) or nil,
+		ranked = b ~= nil and not opts.stage,
 		a = a,
 		b = b,
 		scoreA = scoreA,
@@ -5013,6 +5211,476 @@ return Events
           </Properties>
         </Item>
         <Item class="ModuleScript" referent="27">
+          <Properties>
+            <string name="Name">Goals</string>
+            <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the systems that make you come back tomorrow.
+--   Daily quests  - three new ones every day (a bonus crate for finishing all three)
+--   Mog Pass      - a 28-day season of 30 tiers with a free and a premium reward track
+--   Trophies      - long-term achievements that pay out the moment you reach them (and award Roblox badges once set up)
+--   Codes         - redeem codes for Aura, crates and pass XP
+--   Ranked rating - Elo rating from duels against other players, with a tier ladder and a soft reset every season
+--   Friend bonus  - more Aura for every friend in the same server
+-- The server owns all of it; the client only reads attributes and asks to claim.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Data = require(script.Parent.Data)
+local Stats = require(script.Parent.Stats)
+
+local Goals = {}
+
+local dirty = {} -- player -> true when attributes need re-writing
+local codeTries = {} -- player -> { count, since }
+local friendCache = {} -- "a:b" -> boolean
+
+local function today()
+	return os.time() // 86400
+end
+
+local function season()
+	return os.time() // (Config.Pass.SeasonDays * 86400)
+end
+
+-- Seconds until the next day / season starts (the client shows the countdown).
+function Goals.secondsToTomorrow()
+	return 86400 - os.time() % 86400
+end
+function Goals.secondsToSeasonEnd()
+	local length = Config.Pass.SeasonDays * 86400
+	return length - os.time() % length
+end
+
+local function grantAura(p, profile, size)
+	local aura = Config.GiftAura(profile.Level, size)
+	Stats.addAura(p, aura, { raw = true })
+	return aura
+end
+
+-- Awards the real Roblox badge for a trophy if you created one and pasted its id into Config.BadgeIds.
+local function awardBadge(p, id)
+	local badgeId = Config.BadgeIds[id]
+	if type(badgeId) == "number" and badgeId > 0 then
+		task.spawn(function()
+			pcall(function()
+				game:GetService("BadgeService"):AwardBadge(p.UserId, badgeId)
+			end)
+		end)
+	end
+end
+
+local function owns(p)
+	local profile = Data.get(p)
+	return profile ~= nil and (profile.Passes.mogpass == true or p:GetAttribute("Pass_mogpass") == true)
+end
+
+--------------------------------------------------------------------------------
+-- Writing attributes (what the Goals window reads)
+--------------------------------------------------------------------------------
+local function keysOf(set)
+	local list = {}
+	for k in set do
+		table.insert(list, k)
+	end
+	table.sort(list, function(a, b)
+		return (tonumber(a) or 0) < (tonumber(b) or 0)
+	end)
+	return table.concat(list, ",")
+end
+
+local function statValue(profile, stat)
+	if stat == "Rating" then
+		return profile.BestRating or profile.Rating or 0
+	end
+	return profile[stat] or 0
+end
+
+local function claimable(p, profile)
+	local tier = Config.PassTierFor(profile.Pass.XP)
+	local ownsPass = owns(p)
+	for t = 1, tier do
+		if not profile.Pass.Free[tostring(t)] then
+			return true
+		end
+		if ownsPass and not profile.Pass.Prem[tostring(t)] then
+			return true
+		end
+	end
+	return false
+end
+
+local function write(p)
+	local profile = Data.get(p)
+	if not profile then
+		return
+	end
+	local parts = {}
+	for _, q in profile.DQ.Q do
+		table.insert(parts, string.format("%s|%d|%d|%d|%d", q.Kind, q.Goal, math.min(q.Prog, q.Goal), q.Done and 1 or 0, q.Reward))
+	end
+	p:SetAttribute("DQ", table.concat(parts, ";"))
+	p:SetAttribute("DQAll", profile.DQ.All == true)
+	p:SetAttribute("PassXP", math.floor(profile.Pass.XP * 10) / 10)
+	p:SetAttribute("PassFree", keysOf(profile.Pass.Free))
+	p:SetAttribute("PassPrem", keysOf(profile.Pass.Prem))
+	p:SetAttribute("Rating", profile.Rating)
+	p:SetAttribute("RatingTier", (Config.RatingTier(profile.Rating)))
+	local stats = {}
+	for _, stat in Config.AchStats do
+		table.insert(stats, stat .. "=" .. math.floor(statValue(profile, stat)))
+	end
+	p:SetAttribute("AchStats", table.concat(stats, ";"))
+	p:SetAttribute("Ach", keysOf(profile.Ach))
+	local ready = claimable(p, profile)
+	p:SetAttribute("GoalsReady", ready)
+	dirty[p] = nil
+end
+
+--------------------------------------------------------------------------------
+-- Mog Pass
+--------------------------------------------------------------------------------
+local function addPassXP(p, profile, amount)
+	if amount <= 0 then
+		return
+	end
+	local before = Config.PassTierFor(profile.Pass.XP)
+	local cap = Config.PassTotal(Config.Pass.Tiers)
+	profile.Pass.XP = math.min(cap, profile.Pass.XP + amount)
+	local after = Config.PassTierFor(profile.Pass.XP)
+	if after > before then
+		Stats.send(p, "passTier", after)
+	end
+	dirty[p] = true
+end
+
+local function payTier(p, profile, track, tier)
+	local reward = Config.PassReward(track, tier)
+	local aura = grantAura(p, profile, reward.Size)
+	if reward.Crates > 0 then
+		Stats.addFreeCrates(p, reward.Crates)
+	end
+	return aura, reward.Crates
+end
+
+-- Season change: pay out everything unclaimed, reset the pass, and soft-reset the ranked rating with its season reward.
+local function rollSeason(p, profile)
+	local now = season()
+	if profile.Pass.Season == now then
+		return
+	end
+	if profile.Pass.Season ~= 0 then
+		local tier = Config.PassTierFor(profile.Pass.XP)
+		local ownsPass = owns(p)
+		local aura, crates = 0, 0
+		for t = 1, tier do
+			if not profile.Pass.Free[tostring(t)] then
+				local a, c = payTier(p, profile, "free", t)
+				aura, crates = aura + a, crates + c
+			end
+			if ownsPass and not profile.Pass.Prem[tostring(t)] then
+				local a, c = payTier(p, profile, "prem", t)
+				aura, crates = aura + a, crates + c
+			end
+		end
+		local tierIndex = Config.RatingTier(profile.Rating)
+		local seasonReward = Config.RatingSeasonReward(tierIndex)
+		aura += grantAura(p, profile, seasonReward.Size)
+		if seasonReward.Crates > 0 then
+			Stats.addFreeCrates(p, seasonReward.Crates)
+			crates += seasonReward.Crates
+		end
+		profile.Rating = math.floor(Config.RatingStart + (profile.Rating - Config.RatingStart) * 0.5)
+		Stats.send(p, "seasonEnd", aura, crates, tierIndex)
+	end
+	profile.Pass = { Season = now, XP = 0, Free = {}, Prem = {} }
+	profile.RatingSeason = now
+	dirty[p] = true
+end
+
+-- Claim one tier of one track ("free" or "prem").
+function Goals.claimTier(p, track, tier)
+	local profile = Data.get(p)
+	if not profile or (track ~= "free" and track ~= "prem") or type(tier) ~= "number" or tier % 1 ~= 0 then
+		return false
+	end
+	if tier < 1 or tier > Config.Pass.Tiers then
+		return false
+	end
+	local reached = Config.PassTierFor(profile.Pass.XP)
+	local set = track == "free" and profile.Pass.Free or profile.Pass.Prem
+	if tier > reached or set[tostring(tier)] then
+		return false
+	end
+	if track == "prem" and not owns(p) then
+		Stats.toast(p, "The premium track needs the Mog Pass", "bad")
+		return false
+	end
+	set[tostring(tier)] = true
+	local aura, crates = payTier(p, profile, track, tier)
+	Stats.toast(p, string.format("Tier %d  +✦%d%s", tier, aura, crates > 0 and ("  +" .. crates .. " 🎁") or ""), "gold")
+	dirty[p] = true
+	return true
+end
+
+function Goals.claimAll(p)
+	local profile = Data.get(p)
+	if not profile then
+		return 0
+	end
+	local n = 0
+	local reached = Config.PassTierFor(profile.Pass.XP)
+	for t = 1, reached do
+		if Goals.claimTier(p, "free", t) then
+			n += 1
+		end
+		if owns(p) and Goals.claimTier(p, "prem", t) then
+			n += 1
+		end
+	end
+	return n
+end
+
+--------------------------------------------------------------------------------
+-- Daily quests
+--------------------------------------------------------------------------------
+local function rollDaily(p, profile)
+	if profile.DQ.Day == today() and #profile.DQ.Q == Config.DailyQuestCount then
+		return
+	end
+	local rng = Random.new(today() * 7919 + p.UserId)
+	local pool = table.clone(Config.DailyQuestPool)
+	local quests = {}
+	for _ = 1, Config.DailyQuestCount do
+		local i = rng:NextInteger(1, #pool)
+		local q = Config.MakeDailyQuest(table.remove(pool, i), profile.Level, profile.Rebirths)
+		q.Prog, q.Done = 0, false
+		table.insert(quests, q)
+	end
+	profile.DQ = { Day = today(), Q = quests, All = false }
+	dirty[p] = true
+end
+
+local function checkDailyQuests(p, profile, kind, amount)
+	local changed = false
+	for _, q in profile.DQ.Q do
+		if q.Kind == kind and not q.Done then
+			q.Prog += amount
+			changed = true
+			if q.Prog >= q.Goal then
+				q.Done = true
+				Stats.addAura(p, q.Reward, { raw = true })
+				addPassXP(p, profile, Config.DailyQuestPassXP)
+				Stats.send(p, "dailyQuest", Config.DailyQuestByKind[q.Kind].Text:format(q.Goal), q.Reward)
+			end
+		end
+	end
+	if changed then
+		local all = true
+		for _, q in profile.DQ.Q do
+			all = all and q.Done
+		end
+		if all and not profile.DQ.All then
+			profile.DQ.All = true
+			Stats.addFreeCrates(p, 1)
+			addPassXP(p, profile, Config.DailyQuestAllXP)
+			Stats.send(p, "dailyAll")
+		end
+		dirty[p] = true
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Trophies
+--------------------------------------------------------------------------------
+local function checkTrophies(p, profile)
+	for _, a in Config.Achievements do
+		if not profile.Ach[a.Id] and statValue(profile, a.Stat) >= a.Goal then
+			profile.Ach[a.Id] = true
+			local aura = grantAura(p, profile, a.Reward.Size)
+			if a.Reward.Crates > 0 then
+				Stats.addFreeCrates(p, a.Reward.Crates)
+			end
+			awardBadge(p, a.Id)
+			Stats.send(p, "trophy", a.Icon .. " " .. a.Name, a.Text:format(tostring(a.Goal)), aura, a.Reward.Crates)
+			dirty[p] = true
+		end
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Codes
+--------------------------------------------------------------------------------
+function Goals.redeem(p, text)
+	local profile = Data.get(p)
+	if not profile or type(text) ~= "string" then
+		return false
+	end
+	local now = os.clock()
+	local tries = codeTries[p]
+	if not tries or now - tries.since > 60 then
+		tries = { count = 0, since = now }
+		codeTries[p] = tries
+	end
+	tries.count += 1
+	if tries.count > 6 then
+		Stats.toast(p, "Too many tries. Wait a minute.", "bad")
+		return false
+	end
+	local code = string.upper(string.gsub(text, "[%s%-_]", ""))
+	if #code < 2 or #code > 24 or string.find(code, "[^A-Z0-9]") then
+		Stats.toast(p, "That code is not valid", "bad")
+		return false
+	end
+	local def = Config.Codes[code]
+	if not def then
+		Stats.toast(p, "That code is not valid", "bad")
+		return false
+	end
+	if profile.Codes[code] then
+		Stats.toast(p, "You already used that code", "bad")
+		return false
+	end
+	profile.Codes[code] = true
+	local aura = def.Aura and def.Aura > 0 and grantAura(p, profile, def.Aura) or 0
+	if (def.Crates or 0) > 0 then
+		Stats.addFreeCrates(p, def.Crates)
+	end
+	addPassXP(p, profile, def.PassXP or 0)
+	Stats.send(p, "codeOk", code, aura, def.Crates or 0, def.PassXP or 0)
+	dirty[p] = true
+	return true
+end
+
+--------------------------------------------------------------------------------
+-- Ranked rating
+--------------------------------------------------------------------------------
+-- Call once per player after a duel against another player. Returns the change (or nil if there is no profile).
+function Goals.rating(p, won, opponentRating)
+	local profile = Data.get(p)
+	if not profile then
+		return nil
+	end
+	local before = profile.Rating
+	local change = Config.RatingChange(before, opponentRating or Config.RatingStart, won)
+	profile.Rating = math.max(100, before + change)
+	profile.BestRating = math.max(profile.BestRating or 0, profile.Rating)
+	dirty[p] = true
+	local oldTier = Config.RatingTier(before)
+	local newTier = Config.RatingTier(profile.Rating)
+	return profile.Rating - before, profile.Rating, newTier, newTier ~= oldTier
+end
+
+function Goals.ratingOf(p)
+	local profile = Data.get(p)
+	return profile and profile.Rating or Config.RatingStart
+end
+
+--------------------------------------------------------------------------------
+-- Friends in the same server
+--------------------------------------------------------------------------------
+local function areFriends(a, b)
+	local key = math.min(a.UserId, b.UserId) .. ":" .. math.max(a.UserId, b.UserId)
+	local cached = friendCache[key]
+	if cached ~= nil then
+		return cached
+	end
+	local ok, result = pcall(function()
+		return a:IsFriendsWith(b.UserId)
+	end)
+	if ok then
+		friendCache[key] = result == true
+		return result == true
+	end
+	return false
+end
+
+local function refreshFriends(p)
+	local count = 0
+	for _, other in Players:GetPlayers() do
+		if other ~= p and areFriends(p, other) then
+			count += 1
+		end
+	end
+	p:SetAttribute("FriendCount", count)
+	p:SetAttribute("FriendBonus", math.min(count, Config.FriendBonusMax) * Config.FriendBonusEach)
+end
+
+--------------------------------------------------------------------------------
+-- Entry points
+--------------------------------------------------------------------------------
+function Goals.init(p)
+	local profile = Data.get(p)
+	if not profile then
+		return
+	end
+	rollSeason(p, profile)
+	rollDaily(p, profile)
+	checkTrophies(p, profile)
+	write(p)
+	task.spawn(refreshFriends, p)
+end
+
+-- Something happened (kind is a Config.PassXP key: swings, train, perfect, duel, crate, hatch, runsec, stage, quest, daily, rebirth).
+function Goals.event(p, kind, amount)
+	local profile = Data.get(p)
+	if not profile or type(amount) ~= "number" then
+		return
+	end
+	addPassXP(p, profile, (Config.PassXP[kind] or 0) * amount)
+	checkDailyQuests(p, profile, kind, amount)
+end
+
+-- Called once a second for every player.
+local ticks = {}
+function Goals.tick(p)
+	local profile = Data.get(p)
+	if not profile then
+		return
+	end
+	ticks[p] = (ticks[p] or 0) + 1
+	local t = ticks[p]
+	if t % 5 == 0 then
+		checkTrophies(p, profile)
+	end
+	if t % 15 == 0 then
+		rollSeason(p, profile)
+		rollDaily(p, profile)
+		task.spawn(refreshFriends, p)
+	end
+	if dirty[p] or t % 10 == 0 then
+		write(p)
+	end
+end
+
+function Goals.release(p)
+	dirty[p] = nil
+	codeTries[p] = nil
+	ticks[p] = nil
+end
+
+function Goals.handle(p, kind, a)
+	if kind == "PassClaim" and type(a) == "table" then
+		Goals.claimTier(p, a[1], a[2])
+	elseif kind == "PassClaim" and type(a) == "string" then
+		local track, tier = string.match(a, "^(%a+):(%d+)$")
+		if track then
+			Goals.claimTier(p, track, tonumber(tier))
+		end
+	elseif kind == "PassAll" then
+		local n = Goals.claimAll(p)
+		if n == 0 then
+			Stats.toast(p, "Nothing to claim yet", "info")
+		end
+	elseif kind == "Code" then
+		Goals.redeem(p, a)
+	end
+end
+
+return Goals
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="28">
           <Properties>
             <string name="Name">GymEquipment</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: everything you would find in a real gym, built from parts: a big dumbbell rack (5 kg to 100 kg),
@@ -5528,7 +6196,7 @@ return GymEquipment
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="28">
+        <Item class="ModuleScript" referent="29">
           <Properties>
             <string name="Name">Hammers</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: click / tap to swing a hammer, plus buying and equipping hammers.
@@ -5693,7 +6361,7 @@ return Hammers
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="29">
+        <Item class="ModuleScript" referent="30">
           <Properties>
             <string name="Name">Island</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the island. A bright voxel (LEGO-style) world: studded green lawns, tan brick paths with gold
@@ -6474,7 +7142,7 @@ return Island
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="30">
+        <Item class="ModuleScript" referent="31">
           <Properties>
             <string name="Name">Lift</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: makes training look like training. At every gym machine your character really does the exercise:
@@ -7103,7 +7771,7 @@ return Lift
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="31">
+        <Item class="ModuleScript" referent="32">
           <Properties>
             <string name="Name">Nameplate</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the tag above every player. It says what they are (their looks tier)
@@ -7191,7 +7859,7 @@ return Nameplate
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="32">
+        <Item class="ModuleScript" referent="33">
           <Properties>
             <string name="Name">Pets</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: pets. Hatch eggs, equip up to 3; they follow you around (everyone sees them),
@@ -7201,6 +7869,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
+local Goals = require(script.Parent.Goals)
 
 local Pets = {}
 
@@ -7258,6 +7927,7 @@ function Pets.hatch(p, eggId)
 	local copies = (profile.Pets[pet.Id] or 0) + 1
 	profile.Pets[pet.Id] = copies
 	profile.Hatched += 1
+	Goals.event(p, "hatch", 1)
 	-- A new pet goes straight into an empty slot.
 	if #profile.PetsEq < Config.PetSlots and not table.find(profile.PetsEq, pet.Id) then
 		table.insert(profile.PetsEq, pet.Id)
@@ -7342,7 +8012,7 @@ return Pets
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="33">
+        <Item class="ModuleScript" referent="34">
           <Properties>
             <string name="Name">Playtime</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: play-time gifts. Stay in the server and gifts arrive on their own (Aura + crates),
@@ -7394,7 +8064,7 @@ return Playtime
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="34">
+        <Item class="ModuleScript" referent="35">
           <Properties>
             <string name="Name">Quests</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: an endless chain of small goals. There is always exactly one active quest.
@@ -7403,6 +8073,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
+local Goals = require(script.Parent.Goals)
 
 local Quests = {}
 
@@ -7433,6 +8104,9 @@ end
 
 -- absolute = true means "progress is the max value reached" (not used by current quests, kept for flexibility).
 function Quests.progress(p, kind, amount, absolute)
+	if not absolute then
+		Goals.event(p, kind, amount)
+	end
 	local profile = Data.get(p)
 	local q = profile and profile.Quest
 	if not q or q.Kind ~= kind then
@@ -7445,6 +8119,7 @@ function Quests.progress(p, kind, amount, absolute)
 	end
 
 	profile.QuestsDone += 1
+	Goals.event(p, "quest", 1)
 	Stats.addAura(p, q.Reward, { raw = true })
 	Stats.addXP(p, 25 + profile.QuestsDone * 5)
 	local bonus = ""
@@ -7460,7 +8135,7 @@ return Quests
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="35">
+        <Item class="ModuleScript" referent="36">
           <Properties>
             <string name="Name">Quirks</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: faces, hair and muscles. Every player has their own face (see Genome) that starts goofy
@@ -7657,7 +8332,7 @@ return Quirks
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="36">
+        <Item class="ModuleScript" referent="37">
           <Properties>
             <string name="Name">RankedArena</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Ranked Arena (1v1 duels). A red-and-pink fighting platform with a white rim stands on a dark
@@ -8056,7 +8731,7 @@ return RankedArena
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="37">
+        <Item class="ModuleScript" referent="38">
           <Properties>
             <string name="Name">Runway</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the runway in the middle of the district. Walk it for a steady Aura trickle that
@@ -8097,7 +8772,7 @@ return Runway
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="38">
+        <Item class="ModuleScript" referent="39">
           <Properties>
             <string name="Name">Shop</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades and rebirth.
@@ -8106,6 +8781,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
+local Goals = require(script.Parent.Goals)
 
 local Shop = {}
 
@@ -8145,6 +8821,7 @@ function Shop.rebirth(p)
 		return
 	end
 	profile.Rebirths += 1
+	Goals.event(p, "rebirth", 1)
 	profile.Power, profile.Style, profile.Charm = 0, 0, 0
 	profile.Levels = {}
 	for _, def in Config.Upgrades do
@@ -8169,7 +8846,7 @@ return Shop
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="39">
+        <Item class="ModuleScript" referent="40">
           <Properties>
             <string name="Name">Stats</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the heart of progression. Owns Aura, stats, Glow Score, rank and the
@@ -8463,6 +9140,7 @@ function Stats.addAura(p, base, opts)
 			* Stats.eventMult("AuraMult")
 			* (1 + (Stats.petBonus(profile)))
 			* Stats.passMult(profile, "aura")
+			* (1 + (p:GetAttribute("FriendBonus") or 0))
 	end
 	amount = math.max(0, math.floor(amount + 0.5))
 	profile.Aura += amount
@@ -8554,7 +9232,7 @@ return Stats
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="40">
+        <Item class="ModuleScript" referent="41">
           <Properties>
             <string name="Name">Store</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: real-money store (game passes + Aura packs). Nothing is charged until you paste real ids into
@@ -8634,7 +9312,7 @@ return Store
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="41">
+        <Item class="ModuleScript" referent="42">
           <Properties>
             <string name="Name">Training</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: machine training. Every gym machine has its own mini-game, and the server grades all of them,
@@ -9084,7 +9762,7 @@ return Training
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="42">
+        <Item class="ModuleScript" referent="43">
           <Properties>
             <string name="Name">Treadmill</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: treadmills. Buy one with Aura, press the use button to hop on and run. You earn Aura (and a little
@@ -9095,6 +9773,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Co
 local Util = require(ReplicatedStorage.Shared.Util)
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
+local Goals = require(script.Parent.Goals)
 
 local Treadmill = {}
 
@@ -9304,6 +9983,7 @@ function Treadmill.tick(p)
 	p:SetAttribute("RunHeat", heat[p])
 	local gained = Stats.addAura(p, def.Rate * Config.RunHeatMult(heat[p]))
 	Stats.addXP(p, 0.4 + id * 0.25)
+	Goals.event(p, "runsec", 1)
 	Stats.send(p, "runTick", gained, heat[p], id)
 end
 
@@ -9316,7 +9996,7 @@ return Treadmill
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="43">
+        <Item class="ModuleScript" referent="44">
           <Properties>
             <string name="Name">Tutorial</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the first-time tutorial. Five short steps that teach the core loop (swing, hammer, train, pet,
@@ -9423,7 +10103,7 @@ return Tutorial
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="44">
+        <Item class="ModuleScript" referent="45">
           <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: builds the whole town from code (nothing to import).
@@ -10143,15 +10823,15 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="45">
+  <Item class="StarterPlayer" referent="46">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="46">
+    <Item class="StarterPlayerScripts" referent="47">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="47">
+      <Item class="LocalScript" referent="48">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: client entry point. Builds the interface, wires the menu tabs, and routes everything
@@ -10181,6 +10861,7 @@ local TabUpgrades = require(Modules.TabUpgrades)
 local TabPets = require(Modules.TabPets)
 local TabProfile = require(Modules.TabProfile)
 local TabRewards = require(Modules.TabRewards)
+local TabGoals = require(Modules.TabGoals)
 local TabSettings = require(Modules.TabSettings)
 local TrainingUI = require(Modules.TrainingUI)
 local DuelUI = require(Modules.DuelUI)
@@ -10233,6 +10914,9 @@ Menu.addTab("Profile", "📈", function(page)
 end)
 Menu.addTab("Rewards", "📅", function(page)
 	return TabRewards.build(page, Action, Menu)
+end, true)
+Menu.addTab("Goals", "🎯", function(page)
+	return TabGoals.build(page, Action, Menu)
 end, true)
 Menu.addTab("Settings", "⚙️", function(page)
 	return TabSettings.build(page, Action)
@@ -10495,6 +11179,41 @@ function handlers.duelProgress(oppTaps)
 	DuelUI.progress(oppTaps)
 end
 
+function handlers.dailyQuest(text, reward)
+	Audio.quest()
+	Toasts.push("📜 Daily quest done: " .. text .. "  +✦" .. Util.fmt(reward), "gold")
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		Fx.burst(root.Position, UI.Colors.Gold, 16)
+	end
+end
+
+function handlers.dailyAll()
+	Audio.levelUp(true)
+	Fx.flash(UI.Colors.Gold, 0.3, 0.6)
+	Toasts.push("🌟 ALL DAILY QUESTS DONE!  +1 crate and bonus pass XP", "gold")
+end
+
+function handlers.passTier(tier)
+	Audio.quest()
+	Toasts.push("🎫 Mog Pass tier " .. tier .. " reached. Open Goals to claim!", "gold")
+end
+
+function handlers.trophy(name, text, aura, crates)
+	Audio.quest()
+	Toasts.push("🏆 TROPHY  " .. name .. "  ·  +✦" .. Util.fmt(aura) .. (crates > 0 and ("  +" .. crates .. " 🎁") or ""), "gold")
+end
+
+function handlers.codeOk(code, aura, crates, passXP)
+	Audio.levelUp(false)
+	Toasts.push("🎁 Code " .. code .. ": +✦" .. Util.fmt(aura) .. (crates > 0 and ("  +" .. crates .. " 🎁") or "") .. (passXP > 0 and ("  +" .. passXP .. " pass XP") or ""), "gold")
+end
+
+function handlers.seasonEnd(aura, crates, tierIndex)
+	local tier = Config.RatingTiers[tierIndex] or Config.RatingTiers[1]
+	Fx.announce("NEW SEASON", string.format("Season rewards: +✦%s%s  ·  you finished %s %s", Util.fmt(aura), crates > 0 and ("  +" .. crates .. " 🎁") or "", tier.Icon, tier.Name), UI.Colors.Gold, 0.25)
+end
+
 function handlers.duelEnd(...)
 	DuelUI.finish(...)
 end
@@ -10523,11 +11242,11 @@ task.spawn(function()
 end)
 ]]></string>
         </Properties>
-        <Item class="Folder" referent="48">
+        <Item class="Folder" referent="49">
           <Properties>
             <string name="Name">Modules</string>
           </Properties>
-          <Item class="ModuleScript" referent="49">
+          <Item class="ModuleScript" referent="50">
             <Properties>
               <string name="Name">CompetitionUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: Mog Competition overlay. Everyone on stage flexes (taps) for 8 seconds; a live
@@ -10811,7 +11530,7 @@ return CompetitionUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="50">
+          <Item class="ModuleScript" referent="51">
             <Properties>
               <string name="Name">DuelUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: duel overlay. Both sides tap as fast as they can for 7 seconds; Mog Power gives an
@@ -11013,7 +11732,7 @@ function DuelUI.progress(oppTaps)
 	end
 end
 
-function DuelUI.finish(win, given, myTaps, oppTaps, myEff, oppEff, streak)
+function DuelUI.finish(win, given, myTaps, oppTaps, myEff, oppEff, streak, ratingChange, rating, tierIndex)
 	if not duel then
 		return
 	end
@@ -11036,6 +11755,10 @@ function DuelUI.finish(win, given, myTaps, oppTaps, myEff, oppEff, streak)
 		Audio.lose()
 		resultLabel.Text = string.format("%s took this one   ·   still earned +✦%s", oppName.Text, Util.fmt(given))
 	end
+	if ratingChange and rating then
+		local tier = Config.RatingTiers[tierIndex or 1] or Config.RatingTiers[1]
+		resultLabel.Text ..= string.format("\n%s  %+d  →  %s  %s %s", win and "RANKED" or "RANKED", ratingChange, Util.fmt(rating), tier.Icon, tier.Name:upper())
+	end
 	resultLabel.TextColor3 = C.Text
 	local finished = duel
 	duel = nil
@@ -11051,7 +11774,7 @@ return DuelUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="51">
+          <Item class="ModuleScript" referent="52">
             <Properties>
               <string name="Name">Fx</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
@@ -11289,7 +12012,7 @@ return Fx
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="52">
+          <Item class="ModuleScript" referent="53">
             <Properties>
               <string name="Name">Guide</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the welcome guide. Shown once on a player's very first visit (and again from the ? button):
@@ -11489,7 +12212,7 @@ return Guide
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="53">
+          <Item class="ModuleScript" referent="54">
             <Properties>
               <string name="Name">HammerRow</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: floating OWNED / EQUIPPED / price labels over every hammer pedestal.
@@ -11614,7 +12337,7 @@ return HammerRow
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="54">
+          <Item class="ModuleScript" referent="55">
             <Properties>
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the always-on screen.
@@ -11913,7 +12636,7 @@ local function buildSides(gui, Menu)
 		Name = "RightButtons",
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -8, 0.5, -10),
-		Size = UDim2.fromOffset(66, 2 * 66 + 8),
+		Size = UDim2.fromOffset(66, 3 * 66 + 16),
 		BackgroundTransparency = 1,
 	}, gui)
 	addFit(right)
@@ -11925,6 +12648,10 @@ local function buildSides(gui, Menu)
 		Menu.toggle("Crates")
 	end)
 	refs.badges.Crates = crateBadge
+	local _, _, goalsBadge = sideButton(right, 3, 66, C.Purple, "🎯", "Goals", function()
+		Menu.toggle("Goals")
+	end)
+	refs.badges.Goals = goalsBadge
 end
 
 -- A small window with a button for every place; pressing one jumps you there.
@@ -12374,6 +13101,7 @@ function Hud.refresh()
 	end
 	refs.badges.Rewards.Visible = player:GetAttribute("DailyReady") == true
 	refs.badges.Crates.Visible = (player:GetAttribute("FreeCrates") or 0) > 0
+	refs.badges.Goals.Visible = player:GetAttribute("GoalsReady") == true
 	refs.badges.Upgrades.Visible = affordable
 	refs.badges.Wardrobe.Visible = refs.newItem == true
 end
@@ -12386,7 +13114,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="55">
+          <Item class="ModuleScript" referent="56">
             <Properties>
               <string name="Name">Interact</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: "use" button for every place and hammer. Stand near something and a big button
@@ -12608,7 +13336,7 @@ return Interact
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="56">
+          <Item class="ModuleScript" referent="57">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the one main menu. A single window with a tab list so the screen never fills up with
@@ -12861,7 +13589,7 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="57">
+          <Item class="ModuleScript" referent="58">
             <Properties>
               <string name="Name">PetsView</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: draws every player's equipped pets on your own screen. They trot after their owner with real
@@ -13012,7 +13740,7 @@ return PetsView
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="58">
+          <Item class="ModuleScript" referent="59">
             <Properties>
               <string name="Name">Runner</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: everything you see and feel while running on a treadmill: the run animation, a wider field of
@@ -13138,7 +13866,7 @@ return Runner
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="59">
+          <Item class="ModuleScript" referent="60">
             <Properties>
               <string name="Name">Swing</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: click / tap anywhere (or hold) to swing your hammer at your own face.
@@ -13283,7 +14011,7 @@ return Swing
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="60">
+          <Item class="ModuleScript" referent="61">
             <Properties>
               <string name="Name">TabCrates</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: crates tab. The server rolls; this plays the reveal (a spinning reel that slows
@@ -13582,7 +14310,388 @@ return TabCrates
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="61">
+          <Item class="ModuleScript" referent="62">
+            <Properties>
+              <string name="Name">TabGoals</string>
+              <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Goals window, the "come back tomorrow" screen. Four tabs:
+--   DAILY   three fresh quests every day (finish all three for a bonus crate)
+--   PASS    the 28-day Mog Pass: 30 tiers, a free track and a premium track
+--   TROPHIES long-term goals with several tiers each
+--   CODES   redeem a code
+-- It only reads the attributes the server writes and asks the server to claim.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(Shared:WaitForChild("UI"))
+local Util = require(Shared:WaitForChild("Util"))
+local Audio = require(Shared:WaitForChild("Audio"))
+local TabStore = require(script.Parent.TabStore)
+
+local player = Players.LocalPlayer
+local C = UI.Colors
+
+local TabGoals = {}
+
+local NAVY = Color3.fromRGB(34, 48, 96)
+local OUTLINE = Color3.fromRGB(10, 14, 30)
+
+--------------------------------------------------------------------------------
+-- Reading what the server wrote
+--------------------------------------------------------------------------------
+local function parseDQ(text)
+	local list = {}
+	for kind, goal, prog, done, reward in string.gmatch(text or "", "(%a+)|(%d+)|(%d+)|(%d)|(%d+)") do
+		table.insert(list, { kind = kind, goal = tonumber(goal), prog = tonumber(prog), done = done == "1", reward = tonumber(reward) })
+	end
+	return list
+end
+
+local function parseStats(text)
+	local stats = {}
+	for key, value in string.gmatch(text or "", "(%a+)=(%d+)") do
+		stats[key] = tonumber(value)
+	end
+	return stats
+end
+
+local function parseSet(text)
+	local set = {}
+	for key in string.gmatch(text or "", "[%w_]+") do
+		set[key] = true
+	end
+	return set
+end
+
+local function clockDays(seconds)
+	seconds = math.max(0, math.floor(seconds))
+	local d = seconds // 86400
+	local h = (seconds % 86400) // 3600
+	local m = (seconds % 3600) // 60
+	if d > 0 then
+		return string.format("%dd %dh", d, h)
+	end
+	return string.format("%dh %02dm", h, m)
+end
+
+--------------------------------------------------------------------------------
+-- Little builders
+--------------------------------------------------------------------------------
+local function box(parent, props, color, radius)
+	props.BackgroundColor3 = color
+	props.BorderSizePixel = 0
+	props.ZIndex = props.ZIndex or 24
+	local f = UI.new("Frame", props, parent)
+	UI.corner(f, radius or 12)
+	UI.stroke(f, OUTLINE, 2.5, 0)
+	return f
+end
+
+local function text(parent, props)
+	props.ZIndex = props.ZIndex or 26
+	if props.TextWrapped == nil then
+		props.TextWrapped = false
+	end
+	props.TextXAlignment = props.TextXAlignment or Enum.TextXAlignment.Left
+	return UI.label(parent, props)
+end
+
+local function rewardText(track, tier)
+	local r = Config.PassReward(track, tier)
+	local level = player:GetAttribute("Level") or 1
+	local s = "✦" .. Util.fmt(Config.GiftAura(level, r.Size))
+	if r.Crates > 0 then
+		s ..= "\n🎁 x" .. r.Crates
+	end
+	return s, r
+end
+
+--------------------------------------------------------------------------------
+-- The window
+--------------------------------------------------------------------------------
+function TabGoals.build(parent, Action, Menu)
+	local body = UI.new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = NAVY, BorderSizePixel = 0, ZIndex = 22 }, parent)
+	UI.corner(body, 20)
+	TabStore.header(parent, "🎯  GOALS", Color3.fromRGB(162, 112, 255), function()
+		Menu.close()
+	end)
+
+	local pages, buttons = {}, {}
+	local function show(name)
+		for key, page in pages do
+			page.Visible = key == name
+		end
+		for key, b in buttons do
+			b.BackgroundColor3 = key == name and C.Good or C.Disabled
+		end
+	end
+	local order = { { "DAILY", "📜 DAILY" }, { "PASS", "🎫 MOG PASS" }, { "TROPHIES", "🏆 TROPHIES" }, { "CODES", "🎁 CODES" } }
+	local tabRow = UI.new("Frame", { Position = UDim2.fromOffset(20, 64), Size = UDim2.fromOffset(470, 34), BackgroundTransparency = 1, ZIndex = 24 }, parent)
+	UI.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, tabRow)
+	for i, entry in order do
+		local b = UI.button(tabRow, { LayoutOrder = i, Size = UDim2.fromOffset(110, 34), Text = entry[2], TextSize = 13, Radius = 9, ZIndex = 25 }, "primary")
+		b.Activated:Connect(function()
+			Audio.click()
+			show(entry[1])
+		end)
+		buttons[entry[1]] = b
+		pages[entry[1]] = UI.new("Frame", { Position = UDim2.fromOffset(20, 106), Size = UDim2.new(1, -40, 1, -120), BackgroundTransparency = 1, Visible = false, ZIndex = 23 }, parent)
+	end
+	-- ranked + friends summary, top right
+	local summary = text(parent, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -20, 0, 66), Size = UDim2.fromOffset(250, 32), Font = UI.Fonts.Bold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Right, TextWrapped = true, TextColor3 = C.Muted, Text = "" })
+	local refreshers = {}
+
+	----------------------------------------------------------------------------
+	-- DAILY QUESTS
+	----------------------------------------------------------------------------
+	local daily = pages.DAILY
+	local cards = {}
+	for i = 1, Config.DailyQuestCount do
+		local card = box(daily, { Position = UDim2.fromOffset(0, (i - 1) * 84), Size = UDim2.new(1, 0, 0, 76) }, Color3.fromRGB(88, 160, 255), 14)
+		UI.gradient(card, Color3.new(1, 1, 1), Color3.fromRGB(170, 176, 205), 90)
+		local icon = text(card, { Position = UDim2.fromOffset(12, 0), Size = UDim2.fromOffset(52, 76), Font = UI.Fonts.Title, TextSize = 36, TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 1, Text = "" })
+		local label = text(card, { Position = UDim2.fromOffset(70, 8), Size = UDim2.new(1, -230, 0, 22), Font = UI.Fonts.Title, TextSize = 15, TextStrokeTransparency = 0.2, Text = "" })
+		local bar = UI.bar(card, { Position = UDim2.fromOffset(70, 40), Size = UDim2.new(1, -230, 0, 14) }, C.Good)
+		bar.back.ZIndex = 25
+		bar.fill.ZIndex = 26
+		local count = text(card, { Position = UDim2.fromOffset(70, 55), Size = UDim2.new(1, -230, 0, 16), Font = UI.Fonts.Bold, TextSize = 11, TextStrokeTransparency = 0.4, Text = "" })
+		local reward = text(card, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 10), Size = UDim2.fromOffset(140, 56), Font = UI.Fonts.Title, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = true, TextStrokeTransparency = 0.2, Text = "" })
+		local tick = text(card, { Size = UDim2.fromScale(1, 1), Font = UI.Fonts.Title, TextSize = 46, TextColor3 = Color3.fromRGB(80, 255, 120), BackgroundTransparency = 0.5, BackgroundColor3 = Color3.fromRGB(10, 20, 40), TextXAlignment = Enum.TextXAlignment.Center, Text = "✓  DONE", Visible = false, ZIndex = 30 })
+		UI.corner(tick, 14)
+		cards[i] = { card = card, icon = icon, label = label, bar = bar, count = count, reward = reward, tick = tick }
+	end
+	local bonus = box(daily, { Position = UDim2.fromOffset(0, 258), Size = UDim2.new(1, 0, 0, 52) }, Color3.fromRGB(255, 190, 60), 14)
+	UI.gradient(bonus, Color3.new(1, 1, 1), Color3.fromRGB(200, 190, 160), 90)
+	local bonusText = text(bonus, { Position = UDim2.fromOffset(14, 0), Size = UDim2.new(1, -28, 1, 0), Font = UI.Fonts.Title, TextSize = 15, TextStrokeTransparency = 0.2, TextWrapped = true, Text = "" })
+	local resetText = text(daily, { Position = UDim2.fromOffset(0, 318), Size = UDim2.new(1, 0, 0, 20), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Center, Text = "" })
+	table.insert(refreshers, function()
+		local quests = parseDQ(player:GetAttribute("DQ"))
+		for i, c in cards do
+			local q = quests[i]
+			c.card.Visible = q ~= nil
+			if q then
+				local def = Config.DailyQuestByKind[q.kind]
+				c.icon.Text = def and def.Icon or "🎯"
+				c.label.Text = def and string.format(def.Text, q.goal) or q.kind
+				c.bar.set(q.prog / math.max(1, q.goal))
+				c.count.Text = string.format("%s / %s", Util.fmt(q.prog), Util.fmt(q.goal))
+				c.reward.Text = string.format("✦%s\n+%d pass XP", Util.fmt(q.reward), Config.DailyQuestPassXP)
+				c.tick.Visible = q.done
+			end
+		end
+		local all = player:GetAttribute("DQAll") == true
+		bonusText.Text = all and "🌟 All three done! You got a bonus crate and extra pass XP." or string.format("🌟 Finish all %d: 🎁 a free crate + %d pass XP", Config.DailyQuestCount, Config.DailyQuestAllXP)
+		resetText.Text = "New quests in " .. clockDays(86400 - os.time() % 86400)
+	end)
+
+	----------------------------------------------------------------------------
+	-- MOG PASS
+	----------------------------------------------------------------------------
+	local pass = pages.PASS
+	local seasonText = text(pass, { Size = UDim2.new(1, -180, 0, 20), Font = UI.Fonts.Title, TextSize = 15, Text = "" })
+	local passBar = UI.bar(pass, { Position = UDim2.fromOffset(0, 26), Size = UDim2.new(1, -180, 0, 16) }, C.Accent2)
+	passBar.back.ZIndex = 25
+	passBar.fill.ZIndex = 26
+	local claimAll = UI.button(pass, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.fromOffset(168, 42), Text = "CLAIM ALL", TextSize = 16, Radius = 10, ZIndex = 26 }, "primary")
+	claimAll.Activated:Connect(function()
+		Audio.click()
+		Action:FireServer("PassAll")
+	end)
+	local scroll = UI.new("ScrollingFrame", {
+		Position = UDim2.fromOffset(0, 52),
+		Size = UDim2.new(1, 0, 1, -76),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 6,
+		CanvasSize = UDim2.fromOffset(Config.Pass.Tiers * 96 + 70, 0),
+		ScrollingDirection = Enum.ScrollingDirection.X,
+		ZIndex = 23,
+	}, pass)
+	-- row labels on the left
+	text(scroll, { Position = UDim2.fromOffset(0, 40), Size = UDim2.fromOffset(60, 84), Font = UI.Fonts.Title, TextSize = 12, TextColor3 = Color3.fromRGB(200, 150, 255), TextWrapped = true, Text = "PREMIUM\n🎫" })
+	text(scroll, { Position = UDim2.fromOffset(0, 134), Size = UDim2.fromOffset(60, 84), Font = UI.Fonts.Title, TextSize = 12, TextColor3 = C.Good, TextWrapped = true, Text = "FREE" })
+	local cells = {}
+	for t = 1, Config.Pass.Tiers do
+		local x = 66 + (t - 1) * 96
+		local head = text(scroll, { Position = UDim2.fromOffset(x, 4), Size = UDim2.fromOffset(88, 30), Font = UI.Fonts.Title, TextSize = 18, TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.2, Text = tostring(t) })
+		for k, track in { "prem", "free" } do
+			local color = track == "prem" and Color3.fromRGB(162, 112, 255) or Color3.fromRGB(80, 170, 255)
+			local cell = UI.new("TextButton", {
+				Position = UDim2.fromOffset(x, k == 1 and 40 or 134),
+				Size = UDim2.fromOffset(88, 86),
+				BackgroundColor3 = color,
+				BorderSizePixel = 0,
+				AutoButtonColor = false,
+				Text = "",
+				ZIndex = 24,
+			}, scroll)
+			UI.corner(cell, 12)
+			local stroke = UI.stroke(cell, OUTLINE, 2.5, 0)
+			local label = text(cell, { Size = UDim2.fromScale(1, 1), Font = UI.Fonts.Title, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = true, TextStrokeTransparency = 0.2, Text = "" })
+			local tag = text(cell, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -2), Size = UDim2.new(1, 0, 0, 14), Font = UI.Fonts.Title, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.3, Text = "" })
+			cell.Activated:Connect(function()
+				Audio.click()
+				Action:FireServer("PassClaim", track .. ":" .. t)
+			end)
+			cells[track .. t] = { cell = cell, stroke = stroke, label = label, tag = tag, color = color }
+		end
+		cells["head" .. t] = { head = head }
+	end
+	local passNote = text(pass, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 0, 1, 0), Size = UDim2.new(1, 0, 0, 20), Font = UI.Fonts.Bold, TextSize = 11, TextColor3 = C.Muted, Text = "" })
+	table.insert(refreshers, function()
+		local xp = player:GetAttribute("PassXP") or 0
+		local reached, into, need = Config.PassTierFor(xp)
+		local ownsPass = player:GetAttribute("Pass_mogpass") == true
+		local freeSet, premSet = parseSet(player:GetAttribute("PassFree")), parseSet(player:GetAttribute("PassPrem"))
+		seasonText.Text = string.format("Season ends in %s   ·   Tier %d / %d%s", clockDays(Config.Pass.SeasonDays * 86400 - os.time() % (Config.Pass.SeasonDays * 86400)), reached, Config.Pass.Tiers, need > 0 and string.format("   ·   %s / %s XP", Util.fmt(into), Util.fmt(need)) or "   ·   COMPLETE!")
+		passBar.set(need > 0 and into / need or 1)
+		local anyReady = false
+		for t = 1, Config.Pass.Tiers do
+			for _, track in { "prem", "free" } do
+				local c = cells[track .. t]
+				local set = track == "prem" and premSet or freeSet
+				local label = rewardText(track, t)
+				local locked = t > reached
+				local claimed = set[tostring(t)] == true
+				local noPass = track == "prem" and not ownsPass
+				local ready = not locked and not claimed and not noPass
+				anyReady = anyReady or ready
+				c.label.Text = (track == "prem" and noPass and not claimed) and ("🔒\n" .. label) or label
+				c.cell.BackgroundColor3 = claimed and Color3.fromRGB(70, 84, 120) or (locked and Color3.fromRGB(88, 96, 130) or c.color)
+				c.cell.BackgroundTransparency = claimed and 0.3 or 0
+				c.stroke.Color = ready and Color3.fromRGB(80, 255, 120) or OUTLINE
+				c.stroke.Thickness = ready and 4 or 2.5
+				c.tag.Text = claimed and "✓ CLAIMED" or (ready and "TAP TO CLAIM" or "")
+				c.tag.TextColor3 = claimed and C.Muted or Color3.fromRGB(80, 255, 120)
+			end
+			cells["head" .. t].head.TextColor3 = t <= reached and C.Gold or C.Muted
+		end
+		claimAll.BackgroundColor3 = anyReady and C.Good or C.Disabled
+		passNote.Text = ownsPass and "🎫 Mog Pass active: both tracks pay out." or "🔒 The premium track needs the Mog Pass (see the Store). The free track is yours."
+	end)
+
+	----------------------------------------------------------------------------
+	-- TROPHIES
+	----------------------------------------------------------------------------
+	local trophies = pages.TROPHIES
+	local tscroll = UI.new("ScrollingFrame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 6,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ZIndex = 23,
+	}, trophies)
+	UI.new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, tscroll)
+	local rows = {}
+	for i, line in Config.AchLines do
+		local row = box(tscroll, { LayoutOrder = i, Size = UDim2.new(1, -12, 0, 66) }, Color3.fromRGB(70, 96, 170), 12)
+		UI.gradient(row, Color3.new(1, 1, 1), Color3.fromRGB(180, 186, 212), 90)
+		local icon = text(row, { Position = UDim2.fromOffset(8, 0), Size = UDim2.fromOffset(50, 66), Font = UI.Fonts.Title, TextSize = 32, TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 1, Text = line.Icon })
+		local title = text(row, { Position = UDim2.fromOffset(62, 6), Size = UDim2.new(1, -250, 0, 20), Font = UI.Fonts.Title, TextSize = 14, TextStrokeTransparency = 0.2, Text = "" })
+		local bar = UI.bar(row, { Position = UDim2.fromOffset(62, 32), Size = UDim2.new(1, -250, 0, 12) }, C.Good)
+		bar.back.ZIndex = 25
+		bar.fill.ZIndex = 26
+		local count = text(row, { Position = UDim2.fromOffset(62, 46), Size = UDim2.new(1, -250, 0, 16), Font = UI.Fonts.Bold, TextSize = 11, TextStrokeTransparency = 0.4, Text = "" })
+		local pips = {}
+		for k = 1, #line.Goals do
+			local pip = UI.new("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -14 - (#line.Goals - k) * 24, 0.5, 0), Size = UDim2.fromOffset(18, 18), BackgroundColor3 = C.Disabled, BorderSizePixel = 0, ZIndex = 26 }, row)
+			UI.corner(pip, 9)
+			UI.stroke(pip, OUTLINE, 2, 0)
+			pips[k] = pip
+		end
+		rows[i] = { title = title, bar = bar, count = count, pips = pips, line = line }
+	end
+	table.insert(refreshers, function()
+		local stats = parseStats(player:GetAttribute("AchStats"))
+		local done = parseSet(player:GetAttribute("Ach"))
+		for _, r in rows do
+			local value = stats[r.line.Stat] or 0
+			local nextTier
+			for k, goal in r.line.Goals do
+				local isDone = done[r.line.Stat .. goal] == true
+				r.pips[k].BackgroundColor3 = isDone and C.Gold or C.Disabled
+				if not isDone and not nextTier then
+					nextTier = k
+				end
+			end
+			if nextTier then
+				local goal = r.line.Goals[nextTier]
+				r.title.Text = r.line.Name .. "  ·  " .. string.format(r.line.Text, Util.fmt(goal))
+				r.bar.set(math.min(1, value / goal))
+				r.count.Text = string.format("%s / %s", Util.fmt(value), Util.fmt(goal))
+			else
+				r.title.Text = r.line.Name .. "  ·  ALL DONE 👑"
+				r.bar.set(1)
+				r.count.Text = Util.fmt(value)
+			end
+		end
+	end)
+
+	----------------------------------------------------------------------------
+	-- CODES
+	----------------------------------------------------------------------------
+	local codes = pages.CODES
+	text(codes, { Position = UDim2.fromOffset(0, 10), Size = UDim2.new(1, 0, 0, 30), Font = UI.Fonts.Title, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Center, Text = "🎁  Have a code?" })
+	local input = UI.new("TextBox", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, -80, 0, 60),
+		Size = UDim2.fromOffset(300, 48),
+		BackgroundColor3 = Color3.fromRGB(14, 11, 32),
+		BorderSizePixel = 0,
+		Font = UI.Fonts.Title,
+		TextSize = 22,
+		TextColor3 = Color3.new(1, 1, 1),
+		PlaceholderText = "TYPE A CODE",
+		PlaceholderColor3 = C.Muted,
+		Text = "",
+		ClearTextOnFocus = false,
+		ZIndex = 25,
+	}, codes)
+	UI.corner(input, 12)
+	UI.stroke(input, OUTLINE, 2.5, 0)
+	local redeem = UI.button(codes, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 130, 0, 60), Size = UDim2.fromOffset(150, 48), BackgroundColor3 = C.Good, Text = "REDEEM", TextSize = 18, Radius = 12, ZIndex = 26 }, "primary")
+	local function submit()
+		local value = input.Text
+		if value ~= "" then
+			Audio.click()
+			Action:FireServer("Code", value)
+			input.Text = ""
+		end
+	end
+	redeem.Activated:Connect(submit)
+	input.FocusLost:Connect(function(enter)
+		if enter then
+			submit()
+		end
+	end)
+	text(codes, { Position = UDim2.fromOffset(0, 130), Size = UDim2.new(1, 0, 0, 60), Font = UI.Fonts.Body, TextSize = 14, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = true, Text = "New codes appear on the game page and our social links.\nEach code works once per player and can give Aura, crates and Mog Pass XP." })
+
+	table.insert(refreshers, function()
+		local rating = player:GetAttribute("Rating") or Config.RatingStart
+		local _, tier = Config.RatingTier(rating)
+		local friends = player:GetAttribute("FriendCount") or 0
+		summary.Text = string.format("%s %s  ·  %s rating\n👥 Friends here: %d  (+%d%% Aura)", tier.Icon, tier.Name, Util.fmt(rating), friends, math.floor(math.min(friends, Config.FriendBonusMax) * Config.FriendBonusEach * 100 + 0.5))
+	end)
+
+	show("DAILY")
+	return {
+		refresh = function()
+			for _, fn in refreshers do
+				fn()
+			end
+		end,
+		show = show,
+	}
+end
+
+return TabGoals
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="63">
             <Properties>
               <string name="Name">TabPets</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Pets tab. Hatch eggs at the top, manage your pets below.
@@ -13805,7 +14914,7 @@ return TabPets
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="62">
+          <Item class="ModuleScript" referent="64">
             <Properties>
               <string name="Name">TabProfile</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: your character sheet: rank, stats, duel record and the current quest.
@@ -13984,7 +15093,7 @@ return TabProfile
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="63">
+          <Item class="ModuleScript" referent="65">
             <Properties>
               <string name="Name">TabRewards</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Rewards window with three tabs, FREE (free crates + live event), Timed (play-time gifts
@@ -14207,7 +15316,7 @@ return TabRewards
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="64">
+          <Item class="ModuleScript" referent="66">
             <Properties>
               <string name="Name">TabSettings</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: simple toggles. Settings are saved on the server so they follow the player.
@@ -14312,7 +15421,7 @@ return TabSettings
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="65">
+          <Item class="ModuleScript" referent="67">
             <Properties>
               <string name="Name">TabStore</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the Store window. Colourful offer cards with a green Robux button each. Offers whose id
@@ -14544,7 +15653,7 @@ return TabStore
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="66">
+          <Item class="ModuleScript" referent="68">
             <Properties>
               <string name="Name">TabUpgrades</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: upgrades (bought with Aura) and the rebirth button.
@@ -14704,7 +15813,7 @@ return TabUpgrades
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="67">
+          <Item class="ModuleScript" referent="69">
             <Properties>
               <string name="Name">TabWardrobe</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the wardrobe. A collection grid: owned items can be worn, unowned ones show as locked
@@ -14931,7 +16040,7 @@ return TabWardrobe
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="68">
+          <Item class="ModuleScript" referent="70">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -15041,7 +16150,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="69">
+          <Item class="ModuleScript" referent="71">
             <Properties>
               <string name="Name">TrainingUI</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the machine training window. Each kind of machine has its own mini-game:
@@ -15613,7 +16722,7 @@ return TrainingUI
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="70">
+          <Item class="ModuleScript" referent="72">
             <Properties>
               <string name="Name">Tutorial</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: the first-time guide. A brand-new player sees NO banners, cards or voice. They only get arrows:
@@ -15905,7 +17014,7 @@ return Tutorial
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="71">
+          <Item class="ModuleScript" referent="73">
             <Properties>
               <string name="Name">WorldTags</string>
               <string name="Source"><![CDATA[-- SUB 5 TO TRUE ADAM: floating signs over every building and treadmill that show what it costs, what it gives and
@@ -16053,7 +17162,7 @@ return WorldTags
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="72">
+  <Item class="Workspace" referent="74">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

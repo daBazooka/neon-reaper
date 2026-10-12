@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
+local Goals = require(script.Parent.Goals)
 
 local Daily = {}
 
@@ -40,6 +41,7 @@ function Daily.claim(p)
 	profile.Daily.Streak = profile.Daily.Last == today() - 1 and profile.Daily.Streak + 1 or 1
 	profile.Daily.Last = today()
 	Stats.addAura(p, aura, { raw = true })
+	Goals.event(p, "daily", 1)
 	if reward.Crates then
 		Stats.addFreeCrates(p, reward.Crates)
 	end

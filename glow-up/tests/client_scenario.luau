@@ -12,6 +12,9 @@ a.GiftsClaimed = 2
 a.Lv_Boots = 0; a.Lv_Training = 1; a.Lv_Luck = 0; a.Lv_Boost = 0
 a.Set_Music = true; a.Set_Sfx = true; a.Set_Fx = true; a.Set_Duels = true
 a.OfflineGain = 5000
+a.DQ = "swings|132|40|0|4560;train|8|8|1|4560;hatch|3|0|0|4560"; a.DQAll = false
+a.PassXP = 640; a.PassFree = "1,2"; a.PassPrem = ""; a.Rating = 1130; a.RatingTier = 2; a.FriendCount = 2
+a.AchStats = "Swings=1200;Reps=40;Level=14;Rating=1130"; a.Ach = "Swings100,Swings1000,Reps25"; a.GoalsReady = true
 attrsWS.Event = "Golden"; attrsWS.EventEnd = clock + 60; attrsWS.CompState = "open"; attrsWS.CompEnd = clock + 25
 
 local ok, err = pcall(sources[ClientN], ClientN)
@@ -23,13 +26,31 @@ check(true, "render loop runs")
 
 -- every tab opens + refreshes
 local Menu = require(ModN.children.Menu)
-for _, name in {"Wardrobe", "Crates", "Pets", "Store", "Upgrades", "Profile", "Rewards", "Settings"} do
+for _, name in {"Wardrobe", "Crates", "Pets", "Store", "Upgrades", "Profile", "Rewards", "Goals", "Settings"} do
 	local ok2, e2 = pcall(Menu.open, name)
 	check(ok2, "open tab " .. name .. " " .. tostring(e2))
 	local ok3, e3 = pcall(Menu.refresh)
 	check(ok3, "refresh tab " .. name .. " " .. tostring(e3))
 end
 Menu.close()
+
+-- the Goals window in every state
+do
+	local function goalsState(label)
+		pcall(Menu.open, "Goals"); local ok = pcall(Menu.refresh); for i = 1, 3 do advance(0.1); fireAll("RenderStepped", 0.016) end
+		check(ok, "Goals window refreshes: " .. label)
+	end
+	goalsState("normal")
+	a.DQ = ""; a.PassXP = 0; a.PassFree = ""; a.AchStats = ""; a.Ach = ""; goalsState("brand new player (nothing yet)")
+	a.DQ = "swings|1|1|1|10;train|1|1|1|10;hatch|1|1|1|10"; a.DQAll = true; a.PassXP = 10 ^ 7; a.PassFree = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30"; a.PassPrem = a.PassFree; a.Pass_mogpass = true
+	a.AchStats = "Swings=999999;Reps=99999;Perfects=99999;Wins=9999;BestStreak=99;Stage=15;Hatched=9999;CratesOpened=9999;Rebirths=99;Level=1250;QuestsDone=999;Rating=3000"
+	local all = {} for _, ach in require(RS.children.Shared.children.Config).Achievements do table.insert(all, ach.Id) end
+	a.Ach = table.concat(all, ","); a.Rating = 2500; goalsState("everything finished")
+	a.DQ = "bogus|x|y;;;|||"; a.PassXP = nil; a.Rating = nil; a.FriendCount = nil; goalsState("garbage data")
+	a.DQ = "swings|132|40|0|4560;train|8|8|1|4560;hatch|3|0|0|4560"; a.DQAll = false; a.PassXP = 640; a.PassFree = "1,2"; a.PassPrem = ""; a.Pass_mogpass = nil; a.Rating = 1130; a.FriendCount = 2
+	a.AchStats = "Swings=1200;Reps=40"; a.Ach = "Swings100,Swings1000,Reps25"
+	Menu.close()
+end
 
 -- server messages
 local function send(...) fireAll("notify", ...) end
@@ -62,6 +83,8 @@ local clickRight = {KeyCode = Enum.KeyCode.A, UserInputType = Enum.UserInputType
 local function frames(n) for i = 1, n do advance(0.1); fireAll("RenderStepped", 0.016) end end
 
 -- sweep (dumbbell rack): a click after the countdown sends one timed press
+send("dailyQuest", "Swing your hammer 132 times", 4560); send("dailyAll"); send("passTier", 3); send("trophy", "🏋️ Gym Rat", "Land 25 training reps", 900, 1); send("codeOk", "WELCOME", 900, 1, 100); send("seasonEnd", 5000, 2, 3); advance(1)
+check(true, "goal messages (quest, trophy, pass tier, code, new season) show without errors")
 send("trainStart", "Power", {mode = "sweep", rep = 1, reps = 5, startedAt = clock + 1.1, speed = 1.05, center = 0.5, goodWidth = 0.26, perfectWidth = 0.09}, 5, "Starter", "rack")
 frames(3)
 local before = fired("TrainHit")
@@ -132,11 +155,11 @@ check(true, "every machine window opens, plays and closes")
 send("duelStart", "Mogger Bot", 2, 150, 130, clock + 3, 7)
 for i = 1, 100 do advance(0.1); fireAll("RenderStepped", 0.016) end
 send("duelProgress", 33)
-send("duelEnd", true, 320, 55, 33, 71, 60, 3)
+send("duelEnd", true, 320, 55, 33, 71, 60, 3, 16, 1116, 2)
 advance(5)
 send("duelStart", "Rival", 4, 900, 130, clock + 3, 7)
 advance(1)
-send("duelEnd", false, 40, 20, 50, 40, 70, 0)
+send("duelEnd", false, 40, 20, 50, 40, 70, 0, -14, 986, 1)
 advance(5)
 -- hammers + interact button + click to swing
 a.Pets = "cat:2,dragon:1"; a.PetsEq = "cat,dragon"; a.PetMult = 5.3

@@ -6,6 +6,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Co
 local Util = require(ReplicatedStorage.Shared.Util)
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
+local Goals = require(script.Parent.Goals)
 
 local Treadmill = {}
 
@@ -215,6 +216,7 @@ function Treadmill.tick(p)
 	p:SetAttribute("RunHeat", heat[p])
 	local gained = Stats.addAura(p, def.Rate * Config.RunHeatMult(heat[p]))
 	Stats.addXP(p, 0.4 + id * 0.25)
+	Goals.event(p, "runsec", 1)
 	Stats.send(p, "runTick", gained, heat[p], id)
 end
 

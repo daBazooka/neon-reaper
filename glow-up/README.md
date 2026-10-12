@@ -110,3 +110,12 @@ The 1v1 duel arena is a red-and-pink checkered platform with a white rim, standi
 
 ## Map detail
 Signposts at every path, flower beds, ponds with jetties, market stalls, camp fires, a windmill, hay bales, log piles, mushrooms, grass tufts, pine trees, flags on the plaza corners and clouds in the sky.
+
+## Goals (the "come back tomorrow" systems)
+See `docs/GAME_CONCEPT.md` for the full concept. The 🎯 **Goals** button (right side) opens a window with:
+- **Daily quests**: three new quests every day, sized to your level; finishing all three gives a crate.
+- **Mog Pass**: a 28-day season with 30 tiers and a free and a premium track (the premium track needs the Mog Pass, which shows "Coming soon" in the Store until you paste its id). Everything you do fills it.
+- **Trophies**: 47 long-term achievements; each pays out the moment you reach it. Paste Roblox badge ids into `Config.BadgeIds` and each trophy awards a real badge.
+- **Codes**: `WELCOME`, `SUB5`, `TRUEADAM`, `MOGGER`, `LAUNCH` (edit `Config.Codes` to add your own).
+- **Ranked rating**: duels against other players move an Elo rating (Bronze up to Mogger Legend), with a soft reset and rewards every season.
+- **Friend bonus**: +10% Aura for every friend in the same server, up to +50%.

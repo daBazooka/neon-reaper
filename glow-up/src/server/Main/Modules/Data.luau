@@ -48,6 +48,13 @@ local function defaults()
 		HammersOwned = { ["1"] = true },
 		Perfects = 0,
 		Records = {}, -- machine id -> best set total
+		DQ = { Day = 0, Q = {}, All = false }, -- today's three daily quests
+		Pass = { Season = 0, XP = 0, Free = {}, Prem = {} }, -- the Mog Pass (tiers claimed use string keys)
+		Ach = {}, -- trophy id -> true
+		Codes = {}, -- redeemed codes
+		Rating = 1000, -- ranked rating
+		BestRating = 1000,
+		RatingSeason = 0,
 		CratesOpened = 0,
 		Pity = { neon = 0, icon = 0 },
 		QuestsDone = 0,

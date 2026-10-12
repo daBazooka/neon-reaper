@@ -197,7 +197,7 @@ function DuelUI.progress(oppTaps)
 	end
 end
 
-function DuelUI.finish(win, given, myTaps, oppTaps, myEff, oppEff, streak)
+function DuelUI.finish(win, given, myTaps, oppTaps, myEff, oppEff, streak, ratingChange, rating, tierIndex)
 	if not duel then
 		return
 	end
@@ -219,6 +219,10 @@ function DuelUI.finish(win, given, myTaps, oppTaps, myEff, oppEff, streak)
 		center.TextColor3 = C.Cyan
 		Audio.lose()
 		resultLabel.Text = string.format("%s took this one   ·   still earned +✦%s", oppName.Text, Util.fmt(given))
+	end
+	if ratingChange and rating then
+		local tier = Config.RatingTiers[tierIndex or 1] or Config.RatingTiers[1]
+		resultLabel.Text ..= string.format("\n%s  %+d  →  %s  %s %s", win and "RANKED" or "RANKED", ratingChange, Util.fmt(rating), tier.Icon, tier.Name:upper())
 	end
 	resultLabel.TextColor3 = C.Text
 	local finished = duel
