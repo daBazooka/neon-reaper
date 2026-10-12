@@ -104,3 +104,9 @@ A new player sees no banners, cards or voice. Only bouncing arrows, a trail of g
 
 ## Tests
 `sh tests/run_all.sh` builds and runs the server, client and lift tests, the static checks and the animal animation test.
+
+## Ranked Arena
+The 1v1 duel arena is a red-and-pink checkered platform with a white rim, standing on a dark pillar in the middle of a pit full of spikes. The pit is walled in by stepped, green-topped voxel cliffs with trees, fences and torches, and a "RANKED • 1v1" sign hangs on the back wall. You walk in through a stone gate, up a staircase and across a bridge. The spikes are only decoration; anyone who falls off the platform is put back in front of the gate within a second.
+
+## Map detail
+Signposts at every path, flower beds, ponds with jetties, market stalls, camp fires, a windmill, hay bales, log piles, mushrooms, grass tufts, pine trees, flags on the plaza corners and clouds in the sky.

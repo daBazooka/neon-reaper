@@ -67,6 +67,18 @@ for bad in ("Audio.say", "Toasts.push", "Fx.announce", "TextLabel", "TutorialCar
 if "DailyReady" in init and "TutStep" not in init:
     problems.append("daily-reward toast is not hidden from first-time players")
 
+# 3b. the Ranked Arena: the bot stands in the same spot in the world and in the interact table, and the old ring is gone
+world = read("server/Main/Modules/World.luau")
+config = read("shared/Config.luau")
+if "CFrame.new(-14, 0.4, -52)" not in world or "CFrame.new(-14, 0.4, -52)" not in config:
+    problems.append("the Mogger Bot position differs between World and Config")
+for needle in ("RANKED  •  1v1", "RANKED ARENA", "RankedArena.rescue"):
+    if needle not in read("server/Main/Modules/RankedArena.luau") + read("server/Main/init.server.luau"):
+        problems.append(f"missing arena feature: {needle}")
+for word in ("Duel Ring", "RingBase", "CornerPost"):
+    if re.search(r"\b" + word + r"\b", joined):
+        problems.append(f"old ring leftover: {word}")
+
 # 4. things that were removed must stay removed
 for word in ("Shards", "Orbs", "StageRoof", "StagePillar", "shardSlots"):
     if re.search(r"\b" + word + r"\b", joined):

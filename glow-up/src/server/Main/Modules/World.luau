@@ -8,6 +8,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Co
 local Decor = require(script.Parent.Decor)
 local Architecture = require(script.Parent.Architecture)
 local Island = require(script.Parent.Island)
+local RankedArena = require(script.Parent.RankedArena)
 local Util = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"))
 local HammerModel = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HammerModel"))
 
@@ -570,46 +571,12 @@ local function buildDummy(parent, at, facing)
 end
 
 local function buildRing(parent)
-	local pos, inward, tangent = stationAt("Ring")
+	local pos, inward = stationAt("Ring")
 	local cf = CFrame.lookAt(pos, pos + inward)
-	-- Platform with steps toward the plaza
-	block(parent, "RingStepLow", Vector3.new(14, 0.9, 5), cf * CFrame.new(0, 0.45, -26.5), C3(150, 150, 156), M.Concrete)
-	block(parent, "RingStepHigh", Vector3.new(14, 1.8, 5), cf * CFrame.new(0, 0.9, -23), C3(160, 160, 166), M.Concrete)
-	block(parent, "RingBase", Vector3.new(40, 2.6, 40), cf * CFrame.new(0, 1.3, 0), C3(120, 120, 126), M.Concrete)
-	block(parent, "Canvas", Vector3.new(36, 0.2, 36), cf * CFrame.new(0, 2.7, 0), C3(228, 224, 214), M.Fabric)
-	-- Corner posts + ropes
-	local top = Vector3.new(0, 2.8, 0)
-	for sx = -1, 1, 2 do
-		for sz = -1, 1, 2 do
-			block(parent, "CornerPost", Vector3.new(1.2, 7, 1.2), cf * CFrame.new(sx * 17.4, 6.2, sz * 17.4), (sx * sz > 0) and RED or BLUE, M.SmoothPlastic)
-			block(parent, "CornerPad", Vector3.new(1.8, 2.2, 1.8), cf * CFrame.new(sx * 17.4, 4.8, sz * 17.4), (sx * sz > 0) and RED or BLUE, M.Fabric)
-		end
-	end
-	for i, y in { 4.2, 5.8, 7.4 } do
-		local color = i == 2 and WHITE or (i == 1 and RED or BLUE)
-		for side = -1, 1, 2 do
-			block(parent, "RopeX", Vector3.new(34.8, 0.35, 0.35), cf * CFrame.new(0, y, side * 17.4), color, M.SmoothPlastic, { CanCollide = false })
-			block(parent, "RopeZ", Vector3.new(0.35, 0.35, 34.8), cf * CFrame.new(side * 17.4, y, 0), color, M.SmoothPlastic, { CanCollide = false })
-		end
-	end
-	-- Corner markers where duelists stand
-	local padA = cf * CFrame.new(-10, 2.9, 0)
-	local padB = cf * CFrame.new(10, 2.9, 0)
-	disk(parent, "CornerA", padA.Position, 3.5, 0.15, BLUE, M.SmoothPlastic).CanCollide = false
-	disk(parent, "CornerB", padB.Position, 3.5, 0.15, RED, M.SmoothPlastic).CanCollide = false
-	sign(parent, (cf * CFrame.new(0, 15, 20)).Position, inward, Vector3.new(26, 5, 0.6), "🥊  DUEL RING", C3(150, 30, 20))
-	for side = -1, 1, 2 do
-		block(parent, "SignPost", Vector3.new(1.2, 15, 1.2), cf * CFrame.new(side * 15, 7.5, 20), DARK, M.Metal)
-	end
-	buildDummy(parent, (cf * CFrame.new(-26, 0.4, -8)).Position, inward)
-	local ringGlow = Config.Buildings.ring.Glow
-	for sx = -1, 1, 2 do
-		for sz = -1, 1, 2 do
-			Decor.smoke(parent, (cf * CFrame.new(sx * 17.4, 9.8, sz * 17.4)).Position, ringGlow, 0.8)
-		end
-	end
-	Decor.groundAura(parent, pos, 32, ringGlow)
-	return { padA = padA, padB = padB, center = pos + Vector3.new(0, 2.8, 0) }
+	local info = RankedArena.build(parent, cf)
+	-- the Mogger Bot practice dummy stands on the lawn beside the staircase
+	buildDummy(parent, (cf * CFrame.new(-14, 0.4, -52)).Position, inward)
+	return info
 end
 
 --------------------------------------------------------------------------------

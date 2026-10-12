@@ -55,10 +55,10 @@ local function teleport(position, lookAt)
 end
 
 -- Places you can jump to from the 📍 button. `building` says which unlock it needs (nil = open to everyone).
-local function atStation(name)
+local function atStation(name, distance)
 	return function()
 		local pos, front = Config.StationPos(name), Config.StationFront(name)
-		teleport(pos + front * 30 + Vector3.new(0, 4, 0), pos)
+		teleport(pos + front * (distance or 30) + Vector3.new(0, 4, 0), pos)
 	end
 end
 local PLACES = {
@@ -79,7 +79,7 @@ local PLACES = {
 		teleport(Vector3.new(0, 5, 12), Vector3.new(0, 5, -20))
 	end },
 	{ name = "Charm Lounge", icon = "🛋️", building = "lounge", go = atStation("Lounge") },
-	{ name = "Duel Ring", icon = "🥊", building = "ring", go = atStation("Ring") },
+	{ name = "Ranked Arena", icon = "🥊", building = "ring", go = atStation("Ring", 60) },
 	{ name = "Crate Shop", icon = "📦", building = "crates", go = atStation("Crates") },
 }
 

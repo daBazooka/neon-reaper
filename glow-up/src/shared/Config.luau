@@ -395,7 +395,7 @@ Config.Buildings = {
 	studio = { Name = "Style Studio", Cost = 4000, Main = C(235, 90, 185), Glow = C(255, 140, 225), Aura = "Style" },
 	stage = { Name = "Mog Stage", Cost = 15000, Main = C(140, 80, 230), Glow = C(195, 140, 255), Aura = "Competitions" },
 	lounge = { Name = "Charm Lounge", Cost = 30000, Main = C(40, 185, 200), Glow = C(100, 245, 235), Aura = "Charm" },
-	ring = { Name = "Duel Ring", Cost = 75000, Main = C(230, 50, 70), Glow = C(255, 90, 90), Aura = "PvP duels" },
+	ring = { Name = "Ranked Arena", Cost = 75000, Main = C(230, 50, 70), Glow = C(255, 90, 90), Aura = "PvP duels" },
 	crates = { Name = "Crate Shop", Cost = 120000, Main = C(245, 185, 40), Glow = C(255, 215, 100), Aura = "Loot" },
 	treadmills = { Name = "Treadmill Hall", Cost = 0, Main = C(90, 215, 95), Glow = C(160, 255, 130), Aura = "Passive Aura" },
 }
@@ -513,7 +513,7 @@ Config.Interactables = {
 	{ Id = "Studio", Object = "Style Studio", Action = "Style yourself", Pos = "station:Studio", Radius = 17, Building = "studio" },
 	{ Id = "Lounge", Object = "Charm Lounge", Action = "Practise charm", Pos = "station:Lounge", Radius = 17, Building = "lounge" },
 	{ Id = "Crates", Object = "Crate Shop", Action = "Open crates", Pos = "station:Crates", Radius = 16, Building = "crates" },
-	{ Id = "Ring", Object = "Duel Ring", Action = "Find a duel", Pos = "station:Ring", Radius = 24, Building = "ring" },
+	{ Id = "Ring", Object = "Ranked Arena", Action = "Find a ranked duel", Pos = "station:Ring", Radius = 36, Building = "ring" },
 	{ Id = "Bot", Object = "Mogger Bot", Action = "Duel the bot", Pos = "bot", Radius = 9, Building = "ring" },
 	{ Id = "Battle", Object = "Stage Battle", Action = "Stage battle", Pos = "battle", Radius = 34, Building = "battle" },
 	{ Id = "Stage", Object = "Mog Stage", Action = "Enter competition", Pos = "stage", Radius = 24, Building = "stage" },
@@ -528,7 +528,7 @@ function Config.InteractPos(entry)
 	elseif entry.Pos == "bot" then
 		-- the training dummy stands beside the duel ring
 		local ring = Config.StationPos("Ring")
-		return (CFrame.lookAt(ring, ring + Config.StationFront("Ring")) * CFrame.new(-26, 0.4, -8)).Position
+		return (CFrame.lookAt(ring, ring + Config.StationFront("Ring")) * CFrame.new(-14, 0.4, -52)).Position
 	end
 	return Vector3.new(0, 0, 0)
 end

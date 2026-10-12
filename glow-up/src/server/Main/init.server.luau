@@ -29,6 +29,7 @@ local Daily = require(Modules.Daily)
 local Training = require(Modules.Training)
 local Crates = require(Modules.Crates)
 local Duels = require(Modules.Duels)
+local RankedArena = require(Modules.RankedArena)
 local Competition = require(Modules.Competition)
 local Shop = require(Modules.Shop)
 local Events = require(Modules.Events)
@@ -164,6 +165,7 @@ task.spawn(function()
 	while true do
 		task.wait(1)
 		tick += 1
+		safe("ranked arena rescue", RankedArena.rescue)
 		for _, p in Players:GetPlayers() do
 			if p:GetAttribute("Ready") then
 				local rate = p:GetAttribute("AuraRate") or 0

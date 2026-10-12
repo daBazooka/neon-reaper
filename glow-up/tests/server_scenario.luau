@@ -216,6 +216,58 @@ do
 	check(a1.MachineLock == nil and p1.root.Anchored == false, "no machine ever leaves the player stuck")
 end
 
+-- ranked arena: layout, rescue and the spike pit
+do
+	local RankedArena = require(ModN.children.RankedArena)
+	local ring, front = Config.StationPos("Ring"), Config.StationFront("Ring")
+	RankedArena.setZone(ring, front)
+	local right = Vector3.new(-front.Z, 0, front.X)
+	local function at(lx, lz, y) return ring + right * lx - front * lz + Vector3.new(0, y, 0) end
+	check(RankedArena.inPit(at(0, 0, 3)) and RankedArena.inPit(at(24, 24, 3)) and RankedArena.inPit(at(-24, -24, 1)), "the spike pit counts as the pit")
+	check(not RankedArena.inPit(at(0, 0, 8.6)), "the fighting platform is not the pit")
+	check(not RankedArena.inPit(at(0, -22, 8)), "the bridge is not the pit")
+	check(not RankedArena.inPit(at(0, -58, 3)) and not RankedArena.inPit(at(45, 0, 3)), "outside the gate and the cliffs is not the pit")
+	-- someone who falls in is put back in front of the gate (and anyone mid-duel is left alone)
+	p1.root.Position = at(8, 10, 3)
+	a1.InDuel = false
+	local moved = RankedArena.rescue()
+	check(moved >= 1 and p1.root.CFrame ~= nil, "a player who fell into the pit is rescued")
+	p1.root.Position = at(8, 10, 3); a1.InDuel = true
+	check(RankedArena.rescue() == 0, "a player in a duel is never moved")
+	a1.InDuel = false; p1.root.Position = Vector3.new(0, 3, 0)
+	check(RankedArena.rescue() == 0, "players elsewhere are never moved")
+	-- nothing else stands where the arena is
+	local function lcl(p)
+		local d = p - ring
+		return d.X * right.X + d.Z * right.Z, -(d.X * front.X + d.Z * front.Z)
+	end
+	local function insideArena(lx, lz)
+		return (math.abs(lx) <= 49 and lz > -31 and lz <= 49) or (math.abs(lx) <= 9 and lz >= -48 and lz <= -30)
+	end
+	local clear = true
+	for name in Config.Stations do
+		if name ~= "Ring" then
+			local lx, lz = lcl(Config.StationPos(name))
+			if insideArena(lx, lz) or math.sqrt((math.abs(lx) - 49) ^ 2 + 0) < 0 then clear = false end
+			if math.abs(lx) < 49 + 24 and lz > -31 and lz < 49 + 24 then clear = false print("station too close to the arena:", name, lx, lz) end
+		end
+	end
+	check(clear, "no other building stands near the Ranked Arena")
+	local bleachersClear = true
+	for _, side in {-1, 1} do
+		for tier = 1, 3 do
+			local cx = side * (42 + tier * 6)
+			for _, dx in {-3, 3} do
+				for _, dz in {-11, 11} do
+					local lx, lz = lcl(Vector3.new(cx + dx, 0, dz))
+					if insideArena(lx, lz) then bleachersClear = false end
+				end
+			end
+		end
+	end
+	check(bleachersClear, "the Mog Stage bleachers do not touch the arena")
+end
+
 -- gym layout sanity: every machine is inside the gym, apart from the others, with one clear place to stand
 do
 	local m = Config.GymMachines
