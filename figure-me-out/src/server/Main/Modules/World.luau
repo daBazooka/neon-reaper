@@ -374,14 +374,27 @@ local function scenery()
 	end
 end
 
+-- Builds everything. Each piece is separate, so a problem in one decoration can never stop the game. Returns a list of
+-- error messages (empty when everything worked).
 function World.build()
-	lighting()
-	buildArena()
-	buildLobby()
-	scenery()
-	for _, name in { "Smoke", "Decoys", "Bots", "Effects" } do
-		folder(name)
+	local errors = {}
+	local function step(name, fn)
+		local ok, err = pcall(fn)
+		if not ok then
+			warn("[FigureMeOut] world step '" .. name .. "' failed: " .. tostring(err))
+			table.insert(errors, name .. ": " .. tostring(err))
+		end
 	end
+	step("lighting", lighting)
+	step("arena", buildArena)
+	step("lobby", buildLobby)
+	step("scenery", scenery)
+	step("folders", function()
+		for _, name in { "Smoke", "Decoys", "Bots", "Effects" } do
+			folder(name)
+		end
+	end)
+	return errors
 end
 
 return World

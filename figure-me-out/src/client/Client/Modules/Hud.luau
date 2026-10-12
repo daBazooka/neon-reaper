@@ -180,6 +180,20 @@ function Hud.init(screen, d)
 	guess.MouseButton1Click:Connect(function()
 		deps.Controls.guess()
 	end)
+	refs.error = UI.label(root, {
+		Position = UDim2.fromOffset(12, 130),
+		Size = UDim2.fromOffset(520, 120),
+		Font = UI.Fonts.Bold,
+		TextSize = 13,
+		TextColor3 = Color3.fromRGB(255, 120, 120),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		BackgroundColor3 = Color3.fromRGB(40, 0, 0),
+		BackgroundTransparency = 0.2,
+		Visible = false,
+		ZIndex = 300,
+		Text = "",
+	})
 	refs.tips = UI.label(root, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 14, 1, -14), Size = UDim2.fromOffset(300, 60), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "G guess   T ally   RMB hold: binoculars   click / F: photo   V notebook   I gadgets   1-8 gadgets" })
 
 	RunService.RenderStepped:Connect(function()
@@ -374,6 +388,12 @@ function Hud.update()
 		end
 	else
 		refs.aimLabel.Text = ""
+	end
+	-- a server problem is shown in red so it can be reported
+	local bootError = workspace:GetAttribute("BootErrors")
+	refs.error.Visible = type(bootError) == "string" and bootError ~= ""
+	if refs.error.Visible then
+		refs.error.Text = "⚠ SERVER PROBLEM (please screenshot this):\n" .. bootError
 	end
 	-- the key hints only show at the start of a match, then get out of the way
 	refs.tips.Visible = playing and (phase == "countdown" or Config.Match.Length - left < 25)

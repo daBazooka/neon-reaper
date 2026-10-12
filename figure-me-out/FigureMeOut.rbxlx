@@ -1289,8 +1289,26 @@ local notify = Instance.new("RemoteEvent")
 notify.Name = "Notify"
 notify.Parent = net
 
-Data.init()
-World.build()
+-- Anything that goes wrong while starting up is printed AND shown on every player's screen, so it can be fixed fast.
+local bootErrors = {}
+local function report(where, err)
+	warn("[FigureMeOut] " .. where .. " failed: " .. tostring(err))
+	table.insert(bootErrors, where .. ": " .. tostring(err))
+	workspace:SetAttribute("BootErrors", string.sub(table.concat(bootErrors, "\n"), 1, 600))
+end
+
+local okData, errData = pcall(Data.init)
+if not okData then
+	report("Data.init", errData)
+end
+local okWorld, worldErrors = pcall(World.build)
+if not okWorld then
+	report("World.build", worldErrors)
+else
+	for _, e in worldErrors do
+		report("World", e)
+	end
+end
 
 -- Every request is checked and rate limited, and a bad one can never crash the server.
 -- the shortest time allowed between two requests of the same kind from one player
@@ -1397,11 +1415,21 @@ action.OnServerEvent:Connect(function(p, kind, ...)
 	end
 end)
 
+local function join(p)
+	local ok, err = pcall(Match.onJoin, p)
+	if not ok then
+		report("join " .. p.Name, err)
+		-- still give them a body so they are never stuck staring at the sky
+		pcall(function()
+			p:LoadCharacter()
+		end)
+	end
+end
 Players.PlayerAdded:Connect(function(p)
-	task.spawn(Match.onJoin, p)
+	task.spawn(join, p)
 end)
 for _, p in Players:GetPlayers() do
-	task.spawn(Match.onJoin, p)
+	task.spawn(join, p)
 end
 Players.PlayerRemoving:Connect(function(p)
 	Match.onLeave(p)
@@ -1419,7 +1447,15 @@ task.spawn(function()
 	end
 end)
 
-task.spawn(Match.run)
+-- The match loop restarts itself if anything in it ever fails, instead of leaving everybody stuck.
+task.spawn(function()
+	while true do
+		local ok, err = pcall(Match.run)
+		report("match loop", err)
+		pcall(Match.cleanup)
+		task.wait(3)
+	end
+end)
 print("[" .. Config.GameName .. "] ready")
 ]]></string>
       </Properties>
@@ -5084,14 +5120,27 @@ local function scenery()
 	end
 end
 
+-- Builds everything. Each piece is separate, so a problem in one decoration can never stop the game. Returns a list of
+-- error messages (empty when everything worked).
 function World.build()
-	lighting()
-	buildArena()
-	buildLobby()
-	scenery()
-	for _, name in { "Smoke", "Decoys", "Bots", "Effects" } do
-		folder(name)
+	local errors = {}
+	local function step(name, fn)
+		local ok, err = pcall(fn)
+		if not ok then
+			warn("[FigureMeOut] world step '" .. name .. "' failed: " .. tostring(err))
+			table.insert(errors, name .. ": " .. tostring(err))
+		end
 	end
+	step("lighting", lighting)
+	step("arena", buildArena)
+	step("lobby", buildLobby)
+	step("scenery", scenery)
+	step("folders", function()
+		for _, name in { "Smoke", "Decoys", "Bots", "Effects" } do
+			folder(name)
+		end
+	end)
+	return errors
 end
 
 return World
@@ -6815,6 +6864,20 @@ function Hud.init(screen, d)
 	guess.MouseButton1Click:Connect(function()
 		deps.Controls.guess()
 	end)
+	refs.error = UI.label(root, {
+		Position = UDim2.fromOffset(12, 130),
+		Size = UDim2.fromOffset(520, 120),
+		Font = UI.Fonts.Bold,
+		TextSize = 13,
+		TextColor3 = Color3.fromRGB(255, 120, 120),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		BackgroundColor3 = Color3.fromRGB(40, 0, 0),
+		BackgroundTransparency = 0.2,
+		Visible = false,
+		ZIndex = 300,
+		Text = "",
+	})
 	refs.tips = UI.label(root, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 14, 1, -14), Size = UDim2.fromOffset(300, 60), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "G guess   T ally   RMB hold: binoculars   click / F: photo   V notebook   I gadgets   1-8 gadgets" })
 
 	RunService.RenderStepped:Connect(function()
@@ -7009,6 +7072,12 @@ function Hud.update()
 		end
 	else
 		refs.aimLabel.Text = ""
+	end
+	-- a server problem is shown in red so it can be reported
+	local bootError = workspace:GetAttribute("BootErrors")
+	refs.error.Visible = type(bootError) == "string" and bootError ~= ""
+	if refs.error.Visible then
+		refs.error.Text = "⚠ SERVER PROBLEM (please screenshot this):\n" .. bootError
 	end
 	-- the key hints only show at the start of a match, then get out of the way
 	refs.tips.Visible = playing and (phase == "countdown" or Config.Match.Length - left < 25)

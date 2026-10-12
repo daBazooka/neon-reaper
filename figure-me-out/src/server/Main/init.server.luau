@@ -27,8 +27,26 @@ local notify = Instance.new("RemoteEvent")
 notify.Name = "Notify"
 notify.Parent = net
 
-Data.init()
-World.build()
+-- Anything that goes wrong while starting up is printed AND shown on every player's screen, so it can be fixed fast.
+local bootErrors = {}
+local function report(where, err)
+	warn("[FigureMeOut] " .. where .. " failed: " .. tostring(err))
+	table.insert(bootErrors, where .. ": " .. tostring(err))
+	workspace:SetAttribute("BootErrors", string.sub(table.concat(bootErrors, "\n"), 1, 600))
+end
+
+local okData, errData = pcall(Data.init)
+if not okData then
+	report("Data.init", errData)
+end
+local okWorld, worldErrors = pcall(World.build)
+if not okWorld then
+	report("World.build", worldErrors)
+else
+	for _, e in worldErrors do
+		report("World", e)
+	end
+end
 
 -- Every request is checked and rate limited, and a bad one can never crash the server.
 -- the shortest time allowed between two requests of the same kind from one player
@@ -135,11 +153,21 @@ action.OnServerEvent:Connect(function(p, kind, ...)
 	end
 end)
 
+local function join(p)
+	local ok, err = pcall(Match.onJoin, p)
+	if not ok then
+		report("join " .. p.Name, err)
+		-- still give them a body so they are never stuck staring at the sky
+		pcall(function()
+			p:LoadCharacter()
+		end)
+	end
+end
 Players.PlayerAdded:Connect(function(p)
-	task.spawn(Match.onJoin, p)
+	task.spawn(join, p)
 end)
 for _, p in Players:GetPlayers() do
-	task.spawn(Match.onJoin, p)
+	task.spawn(join, p)
 end
 Players.PlayerRemoving:Connect(function(p)
 	Match.onLeave(p)
@@ -157,5 +185,13 @@ task.spawn(function()
 	end
 end)
 
-task.spawn(Match.run)
+-- The match loop restarts itself if anything in it ever fails, instead of leaving everybody stuck.
+task.spawn(function()
+	while true do
+		local ok, err = pcall(Match.run)
+		report("match loop", err)
+		pcall(Match.cleanup)
+		task.wait(3)
+	end
+end)
 print("[" .. Config.GameName .. "] ready")
