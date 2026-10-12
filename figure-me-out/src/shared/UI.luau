@@ -7,27 +7,28 @@ local Util = require(script.Parent:WaitForChild("Util"))
 
 local UI = {}
 
+-- Frutiger Aero: glossy aqua glass with white text, fresh green and sunny yellow accents.
 UI.Colors = {
-	Bg = Color3.fromRGB(14, 16, 26),
-	Panel = Color3.fromRGB(26, 30, 48),
-	Card = Color3.fromRGB(40, 46, 74),
-	CardHover = Color3.fromRGB(58, 66, 104),
-	Stroke = Color3.fromRGB(6, 8, 16),
+	Bg = Color3.fromRGB(10, 52, 92),
+	Panel = Color3.fromRGB(30, 118, 178),
+	Card = Color3.fromRGB(52, 150, 205),
+	CardHover = Color3.fromRGB(86, 186, 235),
+	Stroke = Color3.fromRGB(10, 56, 104),
 	Text = Color3.fromRGB(255, 255, 255),
-	Muted = Color3.fromRGB(170, 180, 215),
-	Accent = Color3.fromRGB(60, 220, 255),
-	Accent2 = Color3.fromRGB(255, 70, 160),
-	Good = Color3.fromRGB(70, 230, 140),
-	Gold = Color3.fromRGB(255, 214, 60),
-	Cyan = Color3.fromRGB(60, 220, 255),
-	Danger = Color3.fromRGB(255, 70, 80),
-	Disabled = Color3.fromRGB(80, 88, 120),
-	Pink = Color3.fromRGB(255, 70, 160),
-	Orange = Color3.fromRGB(255, 150, 50),
-	Mint = Color3.fromRGB(110, 240, 200),
-	Purple = Color3.fromRGB(170, 110, 255),
-	Sky = Color3.fromRGB(100, 190, 255),
-	Yellow = Color3.fromRGB(255, 226, 70),
+	Muted = Color3.fromRGB(205, 232, 250),
+	Accent = Color3.fromRGB(130, 245, 255),
+	Accent2 = Color3.fromRGB(70, 200, 90),
+	Good = Color3.fromRGB(90, 214, 96),
+	Gold = Color3.fromRGB(255, 226, 90),
+	Cyan = Color3.fromRGB(110, 235, 255),
+	Danger = Color3.fromRGB(255, 96, 96),
+	Disabled = Color3.fromRGB(110, 150, 180),
+	Pink = Color3.fromRGB(255, 130, 190),
+	Orange = Color3.fromRGB(255, 170, 70),
+	Mint = Color3.fromRGB(140, 250, 210),
+	Purple = Color3.fromRGB(180, 150, 255),
+	Sky = Color3.fromRGB(150, 210, 255),
+	Yellow = Color3.fromRGB(255, 232, 100),
 }
 
 UI.Fonts = {
@@ -123,10 +124,21 @@ function UI.panel(parent, props)
 			base[k] = v
 		end
 	end
+	base.BackgroundTransparency = props.BackgroundTransparency or 0.12
 	local frame = UI.new("Frame", base, parent)
 	UI.corner(frame, radius)
-	UI.stroke(frame)
-	UI.gradient(frame, Color3.new(1, 1, 1), Color3.fromRGB(196, 200, 214), 90)
+	UI.stroke(frame, Color3.fromRGB(255, 255, 255), 1.5, 0.35)
+	UI.gradient(frame, Color3.new(1, 1, 1), Color3.fromRGB(160, 205, 235), 90)
+	-- the shiny top half of aero glass
+	local gloss = UI.new("Frame", {
+		Name = "Gloss",
+		Size = UDim2.new(1, 0, 0.5, 0),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.86,
+		BorderSizePixel = 0,
+		Active = false,
+	}, frame)
+	UI.corner(gloss, radius)
 	return frame
 end
 
@@ -154,7 +166,7 @@ function UI.button(parent, props, style)
 	UI.corner(btn, radius)
 	local scale = UI.new("UIScale", {}, btn)
 	UI.stroke(btn, UI.Colors.Stroke, 2.5, 0)
-	local grad = UI.gradient(btn, Color3.new(1, 1, 1), Color3.fromRGB(190, 196, 210), 90)
+	local grad = UI.gradient(btn, Color3.new(1, 1, 1), Color3.fromRGB(150, 200, 235), 90)
 	local baseColor = base.BackgroundColor3
 	btn.MouseEnter:Connect(function()
 		UI.tween(scale, 0.12, { Scale = 1.04 })

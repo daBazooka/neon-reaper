@@ -18,7 +18,7 @@
 1. **Lobby (14 s).** Everybody waits on the island. Bots fill the match up to 10 players, so there is always a game. Up to 20 real players.
 2. **Countdown (8 s).** Everybody is placed on the streets of Plaza Park, frozen. Each player gets a unique colour + animal codename ("🦊 Red Fox") and a unique 3-digit number (100 to 999).
 3. **Play (up to 5 min).** Walk, hide, read, guess. Last one standing wins.
-4. **THE REVEAL (last 30 s).** Every number glows above every head. Chaos.
+4. **THE REVEAL (last 30 s).** Every plate glows. Chaos.
 5. **Results (12 s).** Ranking, numbers, kills. Wins unlock new forehead plates.
 
 ## Guessing
@@ -41,7 +41,7 @@ Aim at someone, press **G**, type their three digits. It fires on the third digi
 You can't see your own number but you can turn your forehead away, break line of sight, or use items. What you can't do is stare into a wall:
 
 * A wall right in front of your forehead for **1 second** = a red warning with a countdown.
-* **6 seconds** = **EXPOSED**: your number floats above your head, visible through walls, for 20 seconds.
+* **6 seconds** = **EXPOSED**: your plate glows red and a 👁 marker shows over your head (visible through walls) for 20 seconds. Numbers are only ever shown on the forehead.
 * The timer drains twice as fast when you turn away, so a quick look at a wall is fine.
 
 ## Items
@@ -64,6 +64,7 @@ Always with you: 🔭 binoculars and 📷 camera. The rest are carried in limite
 * **Top winners board** in the lobby (all-time, across servers once the game is published).
 * **Spectating:** after you are out you watch the others (◀ ▶ to switch).
 * **Bots** walk the streets, stand in view, and sometimes guess. They are clumsy on purpose.
+* **Look:** a sunny early-2000s "Windows XP hills" afternoon with a Frutiger Aero feel: glossy aqua glass screens, pastel glass buildings, bubbles, a glass boundary wall and rolling green hills. Numbers appear only on the forehead plate.
 * **Map:** "Plaza Park": a park in the middle, 8 buildings around it with ladders to sniper roofs, streets between, lamps and hedges for cover.
 
 ## What is built and what is next

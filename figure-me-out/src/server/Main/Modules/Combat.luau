@@ -55,9 +55,6 @@ end
 function Combat.setNumber(e, digits)
 	e.number = digits
 	Plates.setText(e, digits)
-	if e.reveal and e.reveal.gui.Enabled then
-		e.reveal.label.Text = digits
-	end
 end
 
 local function burst(e)
@@ -106,15 +103,7 @@ function Combat.eliminate(victim, killer, how)
 			Net.send(killer.player, "gotKill", victim.code, victim.icon, victim.number)
 		end
 	end
-	if victim.reveal and victim.reveal.gui then
-		-- the fallen player's number shows briefly, then goes away so the arena doesn't fill with red numbers
-		Plates.showReveal(victim, true)
-		task.delay(6, function()
-			if not State.revealing and (victim.exposedUntil or 0) <= State.now() then
-				Plates.showReveal(victim, false)
-			end
-		end)
-	end
+	Plates.showReveal(victim, true, false) -- the fallen player's plate stays glowing red
 	burst(victim)
 	local hum = humanoid(victim)
 	if hum then

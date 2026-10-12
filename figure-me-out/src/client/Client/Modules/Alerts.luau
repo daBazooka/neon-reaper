@@ -135,7 +135,7 @@ function Alerts.cover(stage, value)
 		refs.cover.Visible = false
 		Audio.siren()
 		deps.Fx.flash(C.Danger, 0.5, 0.6)
-		deps.Fx.announce("YOU'RE EXPOSED!", "Everyone can see your number for " .. value .. "s", C.Danger, 0.28)
+		deps.Fx.announce("YOU'RE EXPOSED!", "Your plate glows red for " .. value .. "s", C.Danger, 0.28)
 	end
 end
 

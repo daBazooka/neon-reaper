@@ -161,7 +161,7 @@ function Match.reveal()
 	end
 	State.revealing = true
 	for _, e in State.aliveList() do
-		Plates.showReveal(e, true)
+		Plates.showReveal(e, true, false)
 	end
 	State.writeWorld()
 	Net.sendAll("reveal")
@@ -265,7 +265,7 @@ function Match.finish()
 	if not State.revealing then
 		State.revealing = true
 		for _, e in State.list() do
-			Plates.showReveal(e, true)
+			Plates.showReveal(e, true, false)
 		end
 	end
 	State.setPhase("results", State.now() + Config.Match.ResultsTime)

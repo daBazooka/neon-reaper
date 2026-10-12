@@ -14,7 +14,7 @@ Config.Match = {
 	Intermission = 14, -- lobby wait between matches (seconds)
 	Countdown = 8, -- before the start whistle
 	Length = 300, -- the match (seconds)
-	RevealAt = 30, -- seconds left when THE REVEAL begins and every number glows above every head
+	RevealAt = 30, -- seconds left when THE REVEAL begins and every plate glows
 	ResultsTime = 12,
 }
 
@@ -39,7 +39,7 @@ Config.Cover = {
 	NeedBlocked = 2,
 	WarnAfter = 1.0, -- seconds covered before the warning appears
 	Limit = 6.0, -- seconds covered before you are exposed
-	Expose = 20, -- seconds everybody can see your number above your head
+	Expose = 20, -- seconds your plate glows red and a marker shows over your head
 	Tick = 0.25,
 }
 

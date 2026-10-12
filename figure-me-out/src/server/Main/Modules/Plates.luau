@@ -79,7 +79,13 @@ function Plates.attachPlate(char, style, text)
 	gui.MaxDistance = 500
 	gui.Parent = plate
 	local text3 = label(gui, { Text = text, TextColor3 = style.Text, Name = "Digits" })
-	return { part = plate, label = text3, gui = gui }
+	local glow = Instance.new("PointLight")
+	glow.Range = 10
+	glow.Brightness = 2
+	glow.Color = Color3.fromRGB(255, 70, 70)
+	glow.Enabled = false
+	glow.Parent = plate
+	return { part = plate, rim = rim, light = glow, label = text3, gui = gui }
 end
 
 function Plates.setText(e, text)
@@ -113,7 +119,7 @@ function Plates.attachTag(char, text, color)
 	return gui
 end
 
--- The big number above the head that everybody can see through walls (exposed players and THE REVEAL).
+-- A small eye marker above the head of an exposed player (no digits: the number is only ever on the forehead).
 function Plates.attachReveal(char)
 	local head = char:FindFirstChild("Head")
 	if not head then
@@ -125,27 +131,28 @@ function Plates.attachReveal(char)
 	end
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "RevealTag"
-	gui.Size = UDim2.fromOffset(96, 40)
-	gui.StudsOffset = Vector3.new(0, 4.4, 0)
+	gui.Size = UDim2.fromOffset(80, 28)
+	gui.StudsOffset = Vector3.new(0, 4.2, 0)
 	gui.AlwaysOnTop = true
 	gui.LightInfluence = 0
 	gui.Enabled = false
 	gui.Adornee = head
 	gui.Parent = head
-	local text = label(gui, { Text = "", TextColor3 = Color3.fromRGB(255, 80, 90), TextStrokeTransparency = 0 })
+	local text = label(gui, { Text = "👁 SEEN", TextColor3 = Color3.fromRGB(255, 90, 90), TextStrokeTransparency = 0.2, TextScaled = false, TextSize = 16 })
 	return { gui = gui, label = text }
 end
 
-function Plates.showReveal(e, on)
+-- Makes the forehead plate glow (red rim and light) and, with `marker`, shows the eye marker above the head.
+function Plates.showReveal(e, on, marker)
+	e.revealed = on
 	local reveal = e.reveal
 	if reveal and reveal.gui then
-		reveal.gui.Enabled = on
-		if on then
-			reveal.label.Text = e.number
-		end
+		reveal.gui.Enabled = on and marker == true
 	end
-	if e.plate and e.plate.part then
-		e.plate.part.Color = on and Color3.fromRGB(200, 30, 40) or e.styleDef.Back
+	local plate = e.plate
+	if plate and plate.rim then
+		plate.rim.Color = on and Color3.fromRGB(255, 60, 60) or e.styleDef.Rim
+		plate.light.Enabled = on
 	end
 end
 

@@ -242,11 +242,11 @@ local note = lastNote("cover")
 check(note and note[2] == "warn" and note[3] > 0 and note[3] < Config.Cover.Limit, "warning has a countdown")
 wait(Config.Cover.Limit)
 check((me.exposedUntil or 0) > State.now(), "ignoring the warning exposes you")
-check(me.reveal.gui.Enabled == true, "exposed number floats above the head")
+check(me.reveal.gui.Enabled == true and me.revealed == true, "exposed player gets a glowing plate and a marker")
 check(lastNote("cover") and lastNote("exposed") ~= nil, "everyone is told who got exposed")
 X.clearWalls()
 wait(Config.Cover.Expose + 1)
-check((me.exposedUntil or 0) == 0 and me.reveal.gui.Enabled == false, "exposure ends after " .. Config.Cover.Expose .. "s")
+check((me.exposedUntil or 0) == 0 and me.reveal.gui.Enabled == false and not me.revealed, "exposure ends after " .. Config.Cover.Expose .. "s")
 -- ...and a quick look at a wall is fine
 X.addWall(V3new(-8, 0, 3), V3new(8, 30, 4))
 wait(0.6)
@@ -283,8 +283,8 @@ check(State.revealing == false and attrsWS.Reveal == false, "no reveal at the st
 wait(State.phaseEnd - State.now() - Config.Match.RevealAt + 1)
 check(State.revealing == true and attrsWS.Reveal == true, "THE REVEAL starts with " .. Config.Match.RevealAt .. "s left")
 local allShown = true
-for _, e in State.aliveList() do if not e.reveal.gui.Enabled then allShown = false end end
-check(allShown, "every living number glows above every head")
+for _, e in State.aliveList() do if not e.revealed then allShown = false end end
+check(allShown, "every living plate glows")
 check(lastNote("reveal") ~= nil, "everybody is told about the reveal")
 
 -- clear everyone out by guessing: the last one standing wins

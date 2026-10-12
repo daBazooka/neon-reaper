@@ -26,8 +26,8 @@ local STEPS = {
 	{ "🎯", "Guess to knock people out", "Aim at someone, press G and type THEIR number. Right = they're out. Wrong = you freeze for 3 seconds and lose a bullet." },
 	{ "🔭", "Find the numbers", "Hold the right mouse button for binoculars and read digits from across the map. Click to snap a photo: the notebook (V) joins up digits from several photos." },
 	{ "💥", "Mess with their eyes", "Flashbangs blind everyone who sees them go off. Smoke grenades make a cloud nobody can see through. Grab 🎁 crates for decoys, scramblers, switcheroos and boots." },
-	{ "🚫", "No hiding in corners", "Staring at a wall hides your number, so the game warns you. Ignore it and your number floats above your head for everyone!" },
-	{ "👁", "Someone is always watching", "A wrong guess points an arrow at the guesser. In the last 30 seconds THE REVEAL shows every number. Last one standing wins!" },
+	{ "🚫", "No hiding in corners", "Staring at a wall hides your number, so the game warns you. Ignore it and your plate glows red with a 👁 marker above your head, so everyone knows where to look!" },
+	{ "👁", "Someone is always watching", "A wrong guess points an arrow at the guesser. In the last 30 seconds THE REVEAL makes every plate glow so numbers are easy to spot. Last one standing wins!" },
 }
 
 local function page(name)

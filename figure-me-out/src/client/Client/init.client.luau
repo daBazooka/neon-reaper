@@ -186,7 +186,7 @@ function handlers.pickup(id)
 end
 
 function handlers.reveal()
-	Fx.announce("THE REVEAL", "Every number is showing!", C.Gold, 0.2)
+	Fx.announce("THE REVEAL", "Every plate is glowing!", C.Gold, 0.2)
 	Audio.reveal()
 	Fx.flash(C.Gold, 0.35, 0.5)
 end

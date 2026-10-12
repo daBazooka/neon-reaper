@@ -38,7 +38,7 @@ end
 
 function Cover.expose(e, seconds)
 	e.exposedUntil = State.now() + seconds
-	Plates.showReveal(e, true)
+	Plates.showReveal(e, true, true)
 	State.writeEntity(e)
 	Net.sendAll("exposed", e.icon .. " " .. e.code)
 end
@@ -48,9 +48,7 @@ function Cover.step(e, dt)
 	local now = State.now()
 	if (e.exposedUntil or 0) > 0 and now >= e.exposedUntil then
 		e.exposedUntil = 0
-		if not State.revealing then
-			Plates.showReveal(e, false)
-		end
+		Plates.showReveal(e, State.revealing, false)
 		State.writeEntity(e)
 	end
 	if not e.alive or not e.player then

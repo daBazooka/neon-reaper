@@ -356,7 +356,8 @@ function Hud.update()
 	else
 		refs.aimLabel.Text = ""
 	end
-	refs.tips.Visible = playing
+	-- the key hints only show at the start of a match, then get out of the way
+	refs.tips.Visible = playing and (phase == "countdown" or Config.Match.Length - left < 25)
 end
 
 return Hud
