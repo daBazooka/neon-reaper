@@ -3763,6 +3763,21 @@ local deps = {
 pcall(function()
 	player.CameraMaxZoomDistance = 14
 end)
+-- the player list, health bar and backpack would sit on top of the game's own screens
+task.spawn(function()
+	local StarterGui = game:GetService("StarterGui")
+	for _ = 1, 10 do
+		local ok = pcall(function()
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Health, false)
+		end)
+		if ok then
+			break
+		end
+		task.wait(0.5)
+	end
+end)
 
 Audio.Init()
 Fx.init(gui)
@@ -4884,7 +4899,8 @@ function Hud.init(screen, d)
 	-- top left: who you are + bullets
 	local me = chip(root, {
 		Name = "Me",
-		Position = UDim2.fromOffset(12, 12),
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 12, 0.45, 0), -- left-middle: the top-left corner belongs to Roblox's menu and chat
 		Size = UDim2.fromOffset(250, 78),
 	})
 	refs.meBox = me
@@ -5872,6 +5888,7 @@ local Scope = {}
 
 local deps
 local overlay, range, zoomText
+local refs = {}
 local on = false
 local fov = Config.Scope.Fov
 local normalSensitivity = 1
@@ -5883,17 +5900,22 @@ end
 function Scope.init(gui, d)
 	deps = d
 	overlay = UI.new("Frame", { Name = "Scope", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false, ZIndex = 20 }, gui)
-	-- a big circle whose very thick black outline covers everything outside it
-	local ring = UI.new("Frame", {
+	-- black bars frame a centred square view (this works everywhere) ...
+	refs.bars = {}
+	for i = 1, 4 do
+		refs.bars[i] = UI.new("Frame", { BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, ZIndex = 20 }, overlay)
+	end
+	-- ... and a big circle with a very thick black outline rounds off the corners of the square
+	refs.ring = UI.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
 		Size = UDim2.fromOffset(620, 620),
 		BackgroundTransparency = 1,
 		ZIndex = 20,
 	}, overlay)
-	UI.corner(ring, 310)
-	UI.new("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1400, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, ring)
-	UI.new("UIStroke", { Color = UI.Colors.Accent, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Transparency = 0.2 }, ring)
+	refs.ringCorner = UI.corner(refs.ring, 310)
+	UI.new("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1400, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, refs.ring)
+	UI.new("UIStroke", { Color = UI.Colors.Accent, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Transparency = 0.2 }, refs.ring)
 	local function line(size, pos)
 		UI.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = pos, Size = size, BackgroundColor3 = UI.Colors.Accent, BackgroundTransparency = 0.25, BorderSizePixel = 0, ZIndex = 21 }, overlay)
 	end
@@ -5931,6 +5953,24 @@ function Scope.init(gui, d)
 	end)
 end
 
+-- Sizes the square view and the bars around it for the current screen.
+local function layout()
+	local camera = View.camera()
+	local vp = camera and camera.ViewportSize
+	if not vp or type(vp.X) ~= "number" then
+		return
+	end
+	local side = math.floor(math.min(vp.X, vp.Y) * 0.92)
+	local gapX, gapY = math.max(0, (vp.X - side) / 2), math.max(0, (vp.Y - side) / 2)
+	refs.ring.Size = UDim2.fromOffset(side, side)
+	refs.ringCorner.CornerRadius = UDim.new(0, side / 2)
+	local bars = refs.bars
+	bars[1].Position, bars[1].Size = UDim2.fromOffset(0, 0), UDim2.fromOffset(gapX + 1, vp.Y)
+	bars[2].Position, bars[2].Size = UDim2.fromOffset(vp.X - gapX - 1, 0), UDim2.fromOffset(gapX + 1, vp.Y)
+	bars[3].Position, bars[3].Size = UDim2.fromOffset(0, 0), UDim2.fromOffset(vp.X, gapY + 1)
+	bars[4].Position, bars[4].Size = UDim2.fromOffset(0, vp.Y - gapY - 1), UDim2.fromOffset(vp.X, gapY + 1)
+end
+
 function Scope.update()
 	if not View.amAlive() or View.phase() ~= "play" or (Players.LocalPlayer:GetAttribute("Stunned") == true) then
 		Scope.set(false)
@@ -5954,6 +5994,9 @@ function Scope.set(value)
 		return
 	end
 	on = value
+	if on then
+		layout()
+	end
 	overlay.Visible = on
 	pcall(function()
 		Players.LocalPlayer.CameraMode = on and Enum.CameraMode.LockFirstPerson or Enum.CameraMode.Classic

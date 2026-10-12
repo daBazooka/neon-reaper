@@ -1,4 +1,4 @@
-import os
+import os, sys
 here = os.path.dirname(os.path.abspath(__file__))
 root = os.path.join(here, "..", "src")
 def read(p): return open(os.path.join(root, p)).read()
@@ -11,5 +11,7 @@ out.append('local MainN = node("Main", nil); local ModN = node("Modules", MainN)
 for m in sorted(f[:-5] for f in os.listdir(os.path.join(root, "server/Main/Modules"))):
     out.append(f'addSrc(ModN, "{m}", function(script)\n{read("server/Main/Modules/"+m+".luau")}\nend)')
 out.append(f'sources[MainN] = function(script)\n{read("server/Main/init.server.luau")}\nend')
-out.append(open(os.path.join(here, "server_scenario.luau")).read())
-open("/tmp/claude-0/lu/fmo_server_test.luau", "w").write("\n".join(out))
+scenario = sys.argv[1] if len(sys.argv) > 1 else "server_scenario.luau"
+target = sys.argv[2] if len(sys.argv) > 2 else "fmo_server_test.luau"
+out.append(open(os.path.join(here, scenario)).read())
+open("/tmp/claude-0/lu/" + target, "w").write("\n".join(out))

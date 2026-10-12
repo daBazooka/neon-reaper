@@ -54,13 +54,16 @@ property, method and enum name against Roblox's real API dump.
 sh tests/run_all.sh        # needs the luau tools in /tmp/claude-0/lu
 ```
 
-It runs three suites and a static check:
+It runs four suites and a static check:
 
 * **rules**: the pure game rules (guess parsing, unique numbers, bullets, cover timing, photo readability, flash
   blindness, smoke geometry, street routes that never cut through a building...).
 * **server**: whole matches with a fake lobby: joining, bots filling, countdown, guessing right and wrong, walls and smoke blocking
   guesses, flashbangs, photos, decoys, scramblers, switcheroos, boots, binoculars, cover warnings and exposure,
   crates, THE REVEAL, results, unlocking plates, second match, leaving, and garbage sent to the remotes.
+* **full house**: 20 real players and a 21st spectator, a whole match played out by 50+ random guesses with the books
+  checked after every one (alive count, kills, bullets), results and ranks for all 20, the next match, half the lobby leaving
+  mid-countdown, everyone leaving, and a new player arriving.
 * **client**: every screen: lobby, how-to-play, HUD, aiming, keypad, photos and notebook, items, binoculars, flash/stun
   /cover/snitch alerts, spectating, results, menu.
 * **static**: the analyzer, every server message has a client handler (and the other way round), every
