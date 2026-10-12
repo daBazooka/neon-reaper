@@ -15,7 +15,7 @@ local Bots = {}
 local rng = Random.new()
 local LEVEL = 3.5
 
-Bots.Accuracy = 0.3 -- chance that a bot's guess is right when it has a clear view
+Bots.Accuracy = 0.12 -- chance that a bot's guess is right when it has a clear view
 Bots.SightRange = 70
 
 local function fallbackModel()
@@ -170,7 +170,7 @@ local function think(e, now)
 	if now < (e.nextGuessAt or 0) or (e.blindUntil or 0) > now or (e.stunUntil or 0) > now then
 		return
 	end
-	e.nextGuessAt = now + rng:NextNumber(9, 16)
+	e.nextGuessAt = now + rng:NextNumber(16, 28)
 	local list = candidates(e)
 	if #list == 0 then
 		e.nextGuessAt = now + rng:NextNumber(2, 4)
@@ -203,7 +203,7 @@ end
 function Bots.startPlay(now)
 	for _, e in State.list() do
 		if e.bot then
-			e.nextGuessAt = now + rng:NextNumber(10, 20)
+			e.nextGuessAt = now + rng:NextNumber(20, 35)
 		end
 	end
 end

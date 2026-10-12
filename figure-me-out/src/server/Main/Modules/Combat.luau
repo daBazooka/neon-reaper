@@ -107,7 +107,13 @@ function Combat.eliminate(victim, killer, how)
 		end
 	end
 	if victim.reveal and victim.reveal.gui then
+		-- the fallen player's number shows briefly, then goes away so the arena doesn't fill with red numbers
 		Plates.showReveal(victim, true)
+		task.delay(6, function()
+			if not State.revealing and (victim.exposedUntil or 0) <= State.now() then
+				Plates.showReveal(victim, false)
+			end
+		end)
 	end
 	burst(victim)
 	local hum = humanoid(victim)

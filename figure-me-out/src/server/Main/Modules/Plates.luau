@@ -125,7 +125,7 @@ function Plates.attachReveal(char)
 	end
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "RevealTag"
-	gui.Size = UDim2.fromOffset(150, 66)
+	gui.Size = UDim2.fromOffset(96, 40)
 	gui.StudsOffset = Vector3.new(0, 4.4, 0)
 	gui.AlwaysOnTop = true
 	gui.LightInfluence = 0
