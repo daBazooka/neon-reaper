@@ -22,11 +22,8 @@ attrsWS.Phase = "lobby"; attrsWS.PhaseEnd = clock + 12; attrsWS.Alive = 0; attrs
 local ok, err = pcall(sources[ClientN], ClientN)
 check(ok, "client starts " .. tostring(err))
 frames(40)
-check(Config.Match.MinHumans >= 2 and Config.Match.MinTotal == 0, "the game is for real players: at least two, and no bots")
-check(X.seen("WAITING FOR PLAYERS") and X.seen("1/" .. Config.Match.MinHumans), "alone in the lobby: waiting for players (1/" .. Config.Match.MinHumans .. ")")
-Players.NumPlayers = Config.Match.MinHumans
-frames(5)
-check(X.seen("NEXT MATCH IN") and not X.seen("WAITING FOR PLAYERS"), "with enough players the countdown to the next match shows")
+check(Config.Match.MinHumans == 1 and Config.Match.MinTotal == 0, "the game is for real players: a match starts for one, everybody else drops in, and there are no bots")
+check(X.seen("NEXT MATCH IN") and not X.seen("WAITING FOR PLAYERS"), "the lobby counts down to the next match")
 check(not X.seen("LET'S GO") and not X.seen("Everybody has a secret"), "no tutorial wall on the first visit")
 check(not X.seen("📒") and not X.seen("🎒") and not X.seen("🤝"), "no notebook, gadget or alliance buttons")
 check(X.seen("☰") and X.seen("?") and X.seen("⚙"), "menu, help and settings buttons stay")

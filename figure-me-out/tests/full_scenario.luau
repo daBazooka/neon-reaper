@@ -1,7 +1,7 @@
 -- ===== full house: 20 real players, no bots, a whole match played out by guesses =====
 local function check(cond, msg) print((cond and "PASS  " or "FAIL  ") .. msg) end
 do local F = require(RS.children.Shared.children.Config).Features for k in F do F[k] = true end end -- these scenarios test the full game with every extra switched on
-do local M0 = require(RS.children.Shared.children.Config).Match; M0.MinTotal = 10; M0.MinHumans = 1 end -- (the last check is a lone player with bots)
+do local M0 = require(RS.children.Shared.children.Config).Match; M0.MinTotal = 10; M0.MinHumans = 1; M0.FirstMatchAtOnce = false end -- (the last check is a lone player with bots)
 local ok, err = pcall(sources[MainN], MainN)
 check(ok, "Main runs without error " .. tostring(err))
 local State = require(ModN.children.State)

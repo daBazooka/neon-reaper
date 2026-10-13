@@ -93,6 +93,39 @@ local function hookDeath(e)
 	end
 end
 
+-- Makes an entity a living member of the match: codename, number, lives, plate. (Used when a match starts and when somebody joins late.)
+function Match.activate(e, color, animal, now)
+	e.code = color.Name .. " " .. animal.Name
+	e.icon = animal.Icon
+	if not e.team then
+		e.color = color.Color
+	end
+	e.number = Rules.newNumber(roll, State.takenNumbers())
+	e.alive = true
+	e.kills = 0
+	e.bullets = Config.Guess.Bullets
+	e.chargeSince = now
+	e.stunUntil = 0
+	e.scoped = false
+	e.lastGuess = -100
+	e.lives = Config.Lives.Start
+	e.score = 0
+	e.hitTimes = {}
+	e.seenBy = {}
+	e.bonusCoins = 0
+	e.startedAt = now
+	e.protectedUntil = 0
+	e.ally = nil
+	State.add(e)
+	Items.reset(e)
+	Cover.reset(e)
+	Terminals.reset(e)
+	Plates.setup(e)
+	State.writeEntity(e)
+	Combat.applySpeed(e)
+	hookDeath(e)
+end
+
 -- Builds the list of players and bots for a new match and puts everyone on the street. Returns the number of entities.
 function Match.setup()
 	Items.clearAll()
@@ -117,37 +150,7 @@ function Match.setup()
 
 	local function finish(e, index)
 		local nameInfo = names[index]
-		local color = Config.Colors[nameInfo.color]
-		local animal = Config.Animals[nameInfo.animal]
-		e.code = color.Name .. " " .. animal.Name
-		e.icon = animal.Icon
-		if not e.team then
-			e.color = color.Color
-		end
-		e.number = Rules.newNumber(roll, State.takenNumbers())
-		e.alive = true
-		e.kills = 0
-		e.bullets = Config.Guess.Bullets
-		e.chargeSince = now
-		e.stunUntil = 0
-		e.scoped = false
-		e.lastGuess = -100
-		e.lives = Config.Lives.Start
-		e.score = 0
-		e.hitTimes = {}
-		e.seenBy = {}
-		e.bonusCoins = 0
-		e.startedAt = now
-		e.protectedUntil = 0
-		e.ally = nil
-		State.add(e)
-		Items.reset(e)
-		Cover.reset(e)
-		Terminals.reset(e)
-		Plates.setup(e)
-		State.writeEntity(e)
-		Combat.applySpeed(e)
-		hookDeath(e)
+		Match.activate(e, Config.Colors[nameInfo.color], Config.Animals[nameInfo.animal], now)
 	end
 
 	-- first make everybody (so teams can be dealt), then place them
@@ -232,6 +235,65 @@ function Match.safeSpawn(team)
 		end
 	end
 	return best or arena[1]
+end
+
+-- Can somebody who just arrived still join the match that is running? Yes, unless it is nearly over, full, or they already played in it.
+function Match.canDropIn(p)
+	if State.byPlayer(p) or not p.Parent then
+		return false
+	end
+	if State.phase == "countdown" then
+		return #State.order < Config.Match.MaxPlayers
+	end
+	return State.phase == "play" and #State.order < Config.Match.MaxPlayers and State.phaseEnd - State.now() > Config.Match.RevealAt
+end
+
+-- A player arrives while a match is on: they go straight into it (a fresh codename and number, three lives, a few seconds
+-- of protection, on their team's side in team modes). Returns true when they joined.
+function Match.dropIn(p)
+	if not Match.canDropIn(p) then
+		return false
+	end
+	local char = ensureCharacter(p)
+	if not char or not Match.canDropIn(p) then
+		return false
+	end
+	local used = {}
+	for _, other in State.list() do
+		used[other.code or ""] = true
+	end
+	local color, animal
+	for _ = 1, 300 do
+		color, animal = Config.Colors[1 + math.floor(roll() * #Config.Colors)], Config.Animals[1 + math.floor(roll() * #Config.Animals)]
+		if not used[color.Name .. " " .. animal.Name] then
+			break
+		end
+	end
+	local e: any = { id = p.UserId, player = p, char = char, style = styleFor(p) }
+	local data = Data.get(p)
+	if data then
+		if Progress.owns(p, "trail", data.Trail) then
+			e.trailDef = Config.TrailById[data.Trail]
+		end
+		if Progress.owns(p, "effect", data.Effect) then
+			e.effectDef = Config.EffectById[data.Effect]
+		end
+	end
+	if State.mode.Teams then
+		e.team = Modes.teamFor()
+		e.color = Config.Teams[e.team].Color
+	end
+	local spawn = Match.safeSpawn(e.team)
+	char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
+	Match.activate(e, color, animal, State.now())
+	Combat.protect(e, Config.Lives.Protect)
+	State.writeEntity(e)
+	State.writeWorld()
+	Net.send(p, "phase", State.phase, State.phaseEnd)
+	if Config.Number.ShowOwn then
+		Net.send(p, "myNumber", e.number)
+	end
+	return true
 end
 
 -- Tells every real player their own number (and nobody else's), so they know what to hide.
@@ -386,6 +448,7 @@ function Match.finish()
 	end
 	for _, e in State.list() do
 		local won = (mode.Teams and winnerTeam ~= 0 and e.team == winnerTeam) or (not mode.Teams and e.id == winnerId)
+		won = won and State.peak >= 2 -- (winning a match nobody else was in is not a win)
 		award(e, won)
 		if e.player then
 			Progress.award(e.player, e.score or 0, won, State.matchId, e.bonusCoins)
@@ -464,7 +527,10 @@ function Match.onJoin(p)
 			end)
 		end
 	end)
-	task.spawn(Match.respawnLobby, p)
+	task.spawn(function()
+		Match.respawnLobby(p)
+		Match.dropIn(p) -- (a match is on: straight into it)
+	end)
 end
 
 function Match.onLeave(p)
@@ -553,6 +619,7 @@ function Match.run()
 			end)
 		end
 	end
+	local first = Config.Match.FirstMatchAtOnce
 	while true do
 		State.setPhase("lobby", State.now() + Config.Match.Intermission)
 		Modes.chooseNext()
@@ -562,8 +629,10 @@ function Match.run()
 				State.phaseEnd = State.now() + Config.Match.Intermission
 				return false
 			end
-			return State.now() >= State.phaseEnd
+			-- the very first match starts the moment somebody is here (no lobby wait); after that the lobby counts down
+			return first or State.now() >= State.phaseEnd
 		end)
+		first = false
 
 		Match.setup()
 		State.setPhase("countdown", State.now() + Config.Match.Countdown)

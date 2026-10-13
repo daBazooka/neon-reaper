@@ -22,12 +22,16 @@ function State.now()
 	return workspace:GetServerTimeNow()
 end
 
+State.peak = 0 -- the most players this match has had at once (a match that never had two does not pay win rewards)
+
 function State.add(e)
 	State.entities[e.id] = e
 	table.insert(State.order, e.id)
+	State.peak = math.max(State.peak, #State.order)
 end
 
 function State.clear()
+	State.peak = 0
 	State.entities = {}
 	State.order = {}
 	State.decoys = {}

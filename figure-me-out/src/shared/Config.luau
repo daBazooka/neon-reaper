@@ -22,7 +22,8 @@ Config.Features = {
 
 Config.Match = {
 	MaxPlayers = 20,
-	MinHumans = 2, -- real players needed before a match starts (the lobby waits until this many are here)
+	MinHumans = 1, -- real players needed before a match starts. 1 = the match starts as soon as somebody is here, and everybody else drops straight in when they arrive
+	FirstMatchAtOnce = true, -- the first match after the server starts begins the moment somebody is here (no lobby wait); after that, the lobby counts down
 	MinTotal = 0, -- 0 = real players only. (A number here would add bots up to that many players: handy for testing alone in Studio.)
 	Intermission = 10, -- lobby wait between matches (seconds)
 	Countdown = 5, -- before the start whistle

@@ -1,7 +1,7 @@
 -- ===== scenario =====
 local function check(cond, msg) print((cond and "PASS  " or "FAIL  ") .. msg) end
 do local C0 = require(RS.children.Shared.children.Config); C0.Map.use("city"); local F = C0.Features for k in F do F[k] = true end end -- these scenarios test the full game with every extra switched on
-do local M0 = require(RS.children.Shared.children.Config).Match; M0.MinTotal = 10; M0.MinHumans = 1 end -- these scenarios use bots as opponents (the shipped game has real players only)
+do local M0 = require(RS.children.Shared.children.Config).Match; M0.MinTotal = 10; M0.MinHumans = 1; M0.FirstMatchAtOnce = false end -- these scenarios use bots as opponents (the shipped game has real players only)
 local ok, err = pcall(sources[MainN], MainN)
 check(ok, "Main runs without error " .. tostring(err))
 local State = require(ModN.children.State)
@@ -643,8 +643,8 @@ check(Progress.emote(p1, "skull") == false, "locked emotes are refused")
 -- ===== the reveal, the end, results, rewards, a second match =====
 local late = join(999, "TooLate")
 wait(1)
-check(State.byPlayer(late) == nil, "someone joining mid-match is a spectator, not a player")
-check(late.Character ~= nil, "...but still gets a body in the lobby")
+check(State.byPlayer(late) ~= nil and State.byPlayer(late).alive, "someone joining mid-match drops straight into it")
+check(late.Character ~= nil, "...with a body")
 check(State.revealing == false and attrsWS.Reveal == false, "no reveal before the final stretch")
 extendMatch = false
 State.phaseEnd = State.now() + 120
@@ -665,7 +665,7 @@ check(State.aliveCount() == 1 and me.alive, "last one standing")
 wait(1)
 check(State.phase == "results", "match ends when one is left (" .. State.phase .. ")")
 local res = lastNote("results")
-check(res ~= nil and #res[2] == Config.Match.MinTotal, "results list everyone (" .. tostring(res and #res[2]) .. ")")
+check(res ~= nil and #res[2] == Config.Match.MinTotal + 1, "results list everyone, including the late joiner (" .. tostring(res and #res[2]) .. ")")
 check(res and res[3] == me.id and res[2][1].id == me.id and res[2][1].rank == 1, "I am rank 1 and the winner")
 check(res[2][1].score == me.score and res[2][1].lives == me.lives and res[2][1].survived >= 0, "results carry points, lives and survival time")
 check(me.score >= Config.Score.Win, "the winner gets the win bonus")

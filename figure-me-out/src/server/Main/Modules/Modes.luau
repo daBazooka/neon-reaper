@@ -36,6 +36,20 @@ function Modes.begin()
 end
 
 -- Assigns every entity a team (team modes). `list` is the entities, real players first.
+-- The team a late joiner goes to: the one with fewer players in it (a coin toss when level).
+function Modes.teamFor()
+	local count = { 0, 0 }
+	for _, e in State.aliveList() do
+		if e.team then
+			count[e.team] += 1
+		end
+	end
+	if count[1] == count[2] then
+		return rng:NextInteger(1, 2)
+	end
+	return count[1] < count[2] and 1 or 2
+end
+
 function Modes.assignTeams(list)
 	if not State.mode.Teams then
 		return

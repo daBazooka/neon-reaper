@@ -48,7 +48,7 @@ The arena is **Waterfall Canyon**: a tall cliff along one side with three waterf
 
 ## Real players, your own number, instant guesses
 
-* **Real players only.** No bots: a match needs at least 2 players and the lobby waits ("WAITING FOR PLAYERS 1/2") until they are there. Up to 20 can play. If everybody on a team leaves, or only one player is left, the match ends and the ones still there win.
+* **Real players only, and you drop straight in.** No bots. The very first player to arrive goes **straight into a match** (no lobby wait). Everybody who arrives after that drops into the match that is running (fresh number and codename, 3 lives, a few seconds of protection, on the smaller team in team modes) as long as it isn't in its last 20 seconds and isn't full (20). When a match ends there are the results, then the lobby for **10 seconds**, then the next match starts. Someone who leaves can't rejoin the same match. A match nobody else was in pays no win reward. If only one player is left, or a whole team has left, the match ends and the ones still there win. Settings: `Config.Match.FirstMatchAtOnce`, `MinHumans`, `Intermission`.
 * **You can see your own number** (big, top-left of the screen, and on your own plate and floating tag) so you know what to hide. Only you are told yours; the server never sends anybody else's.
 * **No Enter, no CONFIRM.** Look at somebody and just type their three digits (or press G / Enter, or tap them on a phone first): the guess goes in by itself on the third digit and you see right or wrong at once. `Config.Guess.AutoSubmit = false` brings the CONFIRM button back.
 * **Colour grading** follows the moment (warm golden lobby, bright vivid match, punchy pulsing last seconds, celebratory results). Tune it in `Config.Look`.
