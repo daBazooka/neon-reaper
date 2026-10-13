@@ -282,4 +282,109 @@ for _ = 1, 40 do
 	end
 end
 
+-- ---- decoration (never solid, never in the way): the same every time ----
+local function decorFree(x, z, pad)
+	if math.abs(x) > 124 or z > 94 or z < -124 then
+		return false
+	end
+	for _, w in Canyon.Water do
+		if inRect(x, z, w.X, w.Z, w.W, w.D, pad) then
+			return false
+		end
+	end
+	if inRect(x, z, Canyon.Lake.X, Canyon.Lake.Z, Canyon.Lake.Size, Canyon.Lake.Size, pad) then
+		return false
+	end
+	for _, b in Canyon.Bases do
+		if (b[1] - x) ^ 2 + (b[2] - z) ^ 2 < 10 ^ 2 then
+			return false
+		end
+	end
+	return true
+end
+
+Canyon.Patches = {} -- big soft patches of lighter and darker grass: { x, z, radius, tone }
+for i = 1, 400 do
+	if #Canyon.Patches >= 22 then
+		break
+	end
+	local x, z = (nextRandom() * 2 - 1) * 120, -120 + nextRandom() * 212
+	if decorFree(x, z, 6) then
+		table.insert(Canyon.Patches, { x, z, 8 + nextRandom() * 10, #Canyon.Patches % 2 })
+	end
+end
+Canyon.Bushes = {} -- { x, z, size }
+for i = 1, 900 do
+	if #Canyon.Bushes >= 70 then
+		break
+	end
+	local x, z = (nextRandom() * 2 - 1) * 122, -122 + nextRandom() * 214
+	if decorFree(x, z, 3) then
+		table.insert(Canyon.Bushes, { x, z, 1.6 + nextRandom() * 1.8 })
+	end
+end
+Canyon.Flowers = {} -- clusters: { x, z, colour 1-6 }
+for i = 1, 900 do
+	if #Canyon.Flowers >= 34 then
+		break
+	end
+	local x, z = (nextRandom() * 2 - 1) * 122, -122 + nextRandom() * 214
+	if decorFree(x, z, 3) then
+		table.insert(Canyon.Flowers, { x, z, 1 + math.floor(nextRandom() * 6) })
+	end
+end
+-- stones along the river banks
+Canyon.Stones = {} -- { x, z, size }
+for _, w in Canyon.Water do
+	if string.sub(w.Name, 1, 4) ~= "Fall" and string.sub(w.Name, 1, 4) ~= "Pool" then
+		local alongZ = w.D >= w.W
+		local len = alongZ and w.D or w.W
+		local k = 0
+		while k * 9 < len - 6 do
+			for _, side in { -1, 1 } do
+				local off = (alongZ and w.W or w.D) / 2 + 1.2 + nextRandom() * 1.2
+				local along = -len / 2 + 4 + k * 9 + nextRandom() * 3
+				local x, z = w.X + (alongZ and side * off or along), w.Z + (alongZ and along or side * off)
+				if math.abs(x) < 124 and z < 96 and z > -48 then
+					table.insert(Canyon.Stones, { x, z, 0.9 + nextRandom() * 1.6 })
+				end
+			end
+			k += 1
+		end
+	end
+end
+-- lily pads on the lake, reeds round its shore
+Canyon.Lilies = {}
+for i = 1, 200 do
+	if #Canyon.Lilies >= 9 then
+		break
+	end
+	local x = Canyon.Lake.X + (nextRandom() * 2 - 1) * 30
+	local z = Canyon.Lake.Z + (nextRandom() * 2 - 1) * 30
+	local fromIsland = math.sqrt((x - Canyon.Island.X) ^ 2 + (z - Canyon.Island.Z) ^ 2)
+	if fromIsland > 15 and not (x > 6 and math.abs(z - Canyon.Dock.Z) < 6) then
+		table.insert(Canyon.Lilies, { x, z, 1 + nextRandom() * 0.8 })
+	end
+end
+Canyon.Reeds = {}
+for k = 0, 13 do
+	local t = (k + nextRandom() * 0.6) / 14
+	local side = k % 4
+	local half = Canyon.Lake.Size / 2 - 1
+	local x, z
+	if side == 0 then x, z = -half + t * 2 * half, Canyon.Lake.Z + half
+	elseif side == 1 then x, z = -half + t * 2 * half, Canyon.Lake.Z - half
+	elseif side == 2 then x, z = -half, Canyon.Lake.Z - half + t * 2 * half
+	else x, z = half, Canyon.Lake.Z - half + t * 2 * half end
+	if not (side == 3 and math.abs(z - Canyon.Dock.Z) < 4) and not (side == 0 and math.abs(x) < 9) then
+		table.insert(Canyon.Reeds, { x + Canyon.Lake.X, z })
+	end
+end
+-- dirt trails between the bases, the bridges and the spawn clusters: { x1, z1, x2, z2 }
+Canyon.Trails = {
+	{ -90, 0, -14, 12 }, { 90, 0, 14, 12 }, { -14, 12, -40, 75 }, { 14, 12, 40, 75 },
+	{ -90, 0, -105, -20 }, { 90, 0, 105, -20 }, { -90, 0, -85, 30 }, { 90, 0, 85, 30 },
+	{ -40, -20, -14, 12 }, { 40, -20, 14, 12 },
+}
+
 return Canyon

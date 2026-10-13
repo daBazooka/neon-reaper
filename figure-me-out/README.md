@@ -43,6 +43,7 @@ The arena is **Waterfall Canyon**: a tall cliff along one side with three waterf
 * **The river pushes you.** Wading in the river, the side streams, the pools or under a waterfall carries you the way the water runs (a waterfall shoves hardest). Switch the current off or change its strength with `Config.Water.PushScale`. Bridges and rocks are out of the water.
 * **Everything moves on your own screen.** The ripples on the water and the planes are animated by each player's computer from the server clock, so everybody sees the planes in the same place and it costs no network traffic. The planes are scenery: they can't be ridden, shot or hurt anyone.
 * **Bots know the map.** They walk between open spots and go round trees, rocks, arches and the lake.
+* **Dressing:** soft patches of lighter and darker grass, dirt trails between the bases, bridges and spawn areas, bushes, flower clusters, stones along the river banks, lily pads and reeds on the lake, moss bands and hanging vines on the cliff, lanterns on the dock, fireflies drifting over the grass and a rainbow over the middle waterfall. All of it is decoration that nobody can bump into.
 * The whole layout is plain data in `src/shared/Canyon.luau` (waterfall positions, river boxes, spawns, bases, trees...). The old city map ("Plaza Park") is still in the code: put `Config.Map.use("city")` instead of `Config.Map.use("canyon")` at the end of the map section in `Config.luau` to get it back.
 * `docs/maps/` has the picture of what the world builder really makes (`built_canyon.png`) next to the six other map ideas.
 
@@ -55,7 +56,7 @@ The arena is **Waterfall Canyon**: a tall cliff along one side with three waterf
 
 ## The lobby and the spawn pads
 
-The lobby is a floating garden island: stone plaza with a fountain, paths, benches, lamps, flower beds, trees, two small waterfalls spilling into the sky, a title banner, the winners board, a how-to board and a **big status screen** ("WAITING FOR PLAYERS 1 / 2", "NEXT: DEATHMATCH - starts in 8 s", "GET READY!", "MATCH IN PROGRESS - 7 alive"). The spawn pads in the arena (`Workspace.ArenaSpawns`) are **invisible and not solid** while you play; set `Config.Map.ShowSpawns = true` if you want to see them while moving them around in Studio. The code is in `src/server/Main/Modules/LobbyWorld.luau`; `docs/maps/lobby.png` is a picture of what it builds.
+The lobby is a floating garden island: stone plaza with a fountain, paths, benches, lamps, flower beds, trees, two small waterfalls spilling into the sky, a golden trophy, bunting between the lamps, floating paper lanterns, a rainbow behind the title banner, glowing lights along the paths, mown stripes in the grass, a title banner, the winners board, a how-to board and a **big status screen** ("WAITING FOR PLAYERS 1 / 2", "NEXT: DEATHMATCH - starts in 8 s", "GET READY!", "MATCH IN PROGRESS - 7 alive"). The spawn pads in the arena (`Workspace.ArenaSpawns`) are **invisible and not solid** while you play; set `Config.Map.ShowSpawns = true` if you want to see them while moving them around in Studio. The code is in `src/server/Main/Modules/LobbyWorld.luau`; `docs/maps/lobby.png` is a picture of what it builds.
 
 ## Quick-and-simple mode (the default)
 

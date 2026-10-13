@@ -241,6 +241,131 @@ local function bridges(arena)
 	end
 end
 
+-- A rainbow: coloured bands of glowing blocks making a half circle standing up (centre cx, cy, cz; outer radius r0), facing along z.
+function CanyonWorld.rainbow(parent, cx, cy, cz, r0, bandWidth)
+	local colours = { C(255, 70, 70), C(255, 160, 60), C(255, 230, 80), C(90, 220, 110), C(80, 170, 255), C(170, 110, 255) }
+	local segments = 24
+	for band, colour in colours do
+		local r = r0 - (band - 1) * bandWidth
+		for k = 0, segments - 1 do
+			local a = (k + 0.5) / segments * math.pi
+			local len = math.pi * r / segments * 1.18
+			local p = deco(parent, "RainbowBand", Vector3.new(bandWidth * 1.02, len, 0.5), Vector3.new(cx + r * math.cos(a), cy + r * math.sin(a), cz), colour, Enum.Material.Neon)
+			p.CFrame = CFrame.new(cx + r * math.cos(a), cy + r * math.sin(a), cz) * CFrame.Angles(0, 0, a)
+			p.Transparency = 0.5
+		end
+	end
+end
+
+-- Everything that makes the canyon look alive but never gets in the way: soft patches of grass, dirt trails, bushes, flowers,
+-- stones along the river, lily pads and reeds on the lake, moss bands and vines on the cliff, a rainbow over the middle waterfall,
+-- fireflies drifting over the grass and lanterns on the dock. All of it is non-solid decoration in Workspace.CanyonScenery.
+local function dress(scenery)
+	local patches = folder("Patches")
+	for _, p in Canyon.Patches do
+		local d = part(patches, "GrassPatch", Vector3.new(0.06, p[3] * 2, p[3] * 2), Vector3.new(p[1], 0.03, p[2]), p[4] == 0 and C(124, 200, 100) or C(82, 158, 74), Enum.Material.Grass)
+		d.Shape = Enum.PartType.Cylinder
+		d.CFrame = CFrame.new(p[1], 0.03, p[2]) * CFrame.Angles(0, 0, math.pi / 2)
+		d.CanCollide = false
+		d.CanQuery = false
+		d.CastShadow = false
+	end
+	for _, t in Canyon.Trails do
+		local a, b = Vector3.new(t[1], 0.05, t[2]), Vector3.new(t[3], 0.05, t[4])
+		local len = (b - a).Magnitude
+		local trail = deco(patches, "Trail", Vector3.new(4.6, 0.08, len), (a + b) / 2, C(184, 152, 108), Enum.Material.Ground)
+		trail.CFrame = CFrame.lookAt((a + b) / 2, b)
+	end
+	local plants = folder("Plants")
+	for i, b in Canyon.Bushes do
+		local s = b[3]
+		local bush = deco(plants, "Bush", Vector3.new(s * 2.2, s * 1.5, s * 2.2), Vector3.new(b[1], s * 0.6, b[2]), C(46 + (i * 13) % 40, 138 + (i * 7) % 50, 64 + (i * 5) % 30), Enum.Material.Grass)
+		bush.Shape = Enum.PartType.Ball
+	end
+	local flowerColours = { C(255, 120, 160), C(255, 214, 80), C(190, 130, 255), C(255, 150, 70), C(120, 200, 255), C(255, 255, 255) }
+	for _, f in Canyon.Flowers do
+		for k = 1, 4 do
+			local a = k * 1.57 + f[1]
+			local flower = deco(plants, "Flower", Vector3.new(0.9, 0.9, 0.9), Vector3.new(f[1] + math.cos(a) * 1.1, 0.55, f[2] + math.sin(a) * 1.1), flowerColours[(f[3] + k) % 6 + 1], Enum.Material.SmoothPlastic)
+			flower.Shape = Enum.PartType.Ball
+		end
+	end
+	local stones = folder("Stones")
+	for i, s in Canyon.Stones do
+		local stone = deco(stones, "Stone", Vector3.new(s[3] * 1.6, s[3], s[3] * 1.3), Vector3.new(s[1], s[3] * 0.4, s[2]), i % 2 == 0 and C(150, 150, 158) or C(176, 170, 160), Enum.Material.Slate)
+		stone.CFrame = CFrame.new(s[1], s[3] * 0.4, s[2]) * CFrame.Angles(0, i * 1.3, 0)
+	end
+	-- the lake: lily pads (some with a flower) and reeds
+	local lake = folder("LakeLife")
+	for i, l in Canyon.Lilies do
+		local pad = deco(lake, "LilyPad", Vector3.new(0.12, l[3] * 2.4, l[3] * 2.4), Vector3.new(l[1], Config.Map.Theme == "canyon" and Canyon.Lake.Surface + 0.08 or 0.9, l[2]), C(70, 170, 80), Enum.Material.Grass)
+		pad.Shape = Enum.PartType.Cylinder
+		pad.CFrame = CFrame.new(l[1], Canyon.Lake.Surface + 0.08, l[2]) * CFrame.Angles(0, 0, math.pi / 2)
+		if i % 2 == 0 then
+			local bloom = deco(lake, "LilyFlower", Vector3.new(0.8, 0.8, 0.8), Vector3.new(l[1], Canyon.Lake.Surface + 0.5, l[2]), C(255, 150, 190), Enum.Material.SmoothPlastic)
+			bloom.Shape = Enum.PartType.Ball
+		end
+	end
+	for i, r in Canyon.Reeds do
+		for k = 1, 4 do
+			local h = 3 + ((i + k) % 3)
+			deco(lake, "Reed", Vector3.new(0.3, h, 0.3), Vector3.new(r[1] + (k - 2.5) * 0.7, h / 2, r[2] + ((k * 7) % 3 - 1) * 0.6), C(110, 160, 70), Enum.Material.Grass)
+			if k % 2 == 0 then
+				deco(lake, "Cattail", Vector3.new(0.45, 1.1, 0.45), Vector3.new(r[1] + (k - 2.5) * 0.7, h + 0.4, r[2] + ((k * 7) % 3 - 1) * 0.6), C(112, 78, 46), Enum.Material.Wood)
+			end
+		end
+	end
+	-- the cliff: moss and rock bands, and vines hanging down it
+	local cliff = folder("CliffLife")
+	for i, y in { 6, 14, 22, 29 } do
+		deco(cliff, "Strata", Vector3.new((Canyon.Half + 4) * 2, 1.3, 0.8), Vector3.new(0, y, Z0 - 0.4), i % 2 == 0 and C(128, 118, 106) or C(188, 176, 156), Enum.Material.Slate)
+	end
+	for k = 1, 18 do
+		local x = -124 + k * 13.2 + (k % 3) * 2
+		local clear = true
+		for _, f in Canyon.Falls do
+			if math.abs(x - f.X) < f.Width / 2 + 3 then
+				clear = false
+			end
+		end
+		if clear then
+			local len = 7 + (k * 5) % 9
+			deco(cliff, "Vine", Vector3.new(0.6, len, 0.3), Vector3.new(x, Canyon.Wall.Height - len / 2, Z0 - 0.5), C(60, 150, 70), Enum.Material.Grass)
+			deco(cliff, "VineLeaf", Vector3.new(1.4, 1.1, 0.5), Vector3.new(x + 0.4, Canyon.Wall.Height - len * 0.35, Z0 - 0.6), C(80, 180, 84), Enum.Material.Grass)
+		end
+	end
+	-- a rainbow over the middle waterfall
+	CanyonWorld.rainbow(cliff, 0, 1, Z0 - 17, 27, 1.5)
+	-- fireflies drifting over the whole arena, and pollen by the falls
+	local fireAnchor = deco(scenery, "FireflyAnchor", Vector3.new(230, 14, 200), Vector3.new(0, 8, -10), C(255, 255, 200))
+	fireAnchor.Transparency = 1
+	local fireflies = Instance.new("ParticleEmitter")
+	fireflies.Name = "Fireflies"
+	fireflies.Rate = 7
+	fireflies.Lifetime = NumberRange.new(7, 10)
+	fireflies.Speed = NumberRange.new(0.3, 1.2)
+	fireflies.SpreadAngle = Vector2.new(180, 180)
+	fireflies.Shape = Enum.ParticleEmitterShape.Box
+	fireflies.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	fireflies.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.2, 0.35), NumberSequenceKeypoint.new(1, 0) })
+	fireflies.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.2, 0.15), NumberSequenceKeypoint.new(1, 1) })
+	fireflies.Color = ColorSequence.new(C(255, 240, 150))
+	fireflies.LightEmission = 1
+	fireflies.Parent = fireAnchor
+	-- lanterns on the dock
+	local d = Canyon.Dock
+	for _, side in { -1, 1 } do
+		local x, z = d.X2 - 2, d.Z + side * (d.Width / 2 + 0.4)
+		deco(scenery, "LanternPost", Vector3.new(0.4, 3.4, 0.4), Vector3.new(x, 1.7, z), C(70, 76, 92), Enum.Material.Metal)
+		local bulb = deco(scenery, "Lantern", Vector3.new(1.1, 1.3, 1.1), Vector3.new(x, 3.6, z), C(255, 226, 150), Enum.Material.Neon)
+		local light = Instance.new("PointLight")
+		light.Color = C(255, 220, 150)
+		light.Range = 14
+		light.Brightness = 1.2
+		light.Parent = bulb
+	end
+end
+
 function CanyonWorld.build(arena, ground)
 	local scenery = folder("CanyonScenery")
 	local deco_f = folder("Water")
@@ -290,6 +415,8 @@ function CanyonWorld.build(arena, ground)
 	placePlane(wreck, arena, Vector3.new(Canyon.Wreck.X, 3.5, Canyon.Wreck.Z), 0.6, -0.2, 0.3, true)
 	local sea = planeModel("Seaplane", C(255, 216, 77))
 	placePlane(sea, scenery, Vector3.new(Canyon.Seaplane.X, 2.2, Canyon.Seaplane.Z), math.pi / 2, 0, 0, false)
+
+	dress(scenery)
 
 	-- the planes in the sky: the client makes them fly (see Client/Modules/Ambient)
 	local sky = folder("Planes")

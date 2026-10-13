@@ -3,14 +3,14 @@ import sys, os, math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import map_concepts as mc
 
-CYL = ("Grass", "Rock", "EdgeGlow", "Plaza", "FountainBasin", "FountainWater", "FountainColumn", "FountainBowl", "FlowerBed", "SkyIsle", "SkyIsleRock", "Island")
-BALL = ("Leaves", "Flower", "LampBulb", "BannerKnob", "Cloud")
+CYL = ("Mown", "Trophy", "PathLight", "Grass", "Rock", "EdgeGlow", "Plaza", "FountainBasin", "FountainWater", "FountainColumn", "FountainBowl", "FlowerBed", "SkyIsle", "SkyIsleRock", "Island")
+BALL = ("Leaves", "Flower", "LampBulb", "BannerKnob", "Cloud", "Flag", "PaperLantern")
 
 def colour(n):
     t = [("Grass", "#7ace5c"), ("EdgeGlow", "#5ad7ff"), ("Rock", "#968a7c"), ("SkyIsleRock", "#968a7c"), ("SkyIsle", "#7ace5c"), ("PlazaRing1", "#5ad7ff"), ("PlazaRing3", "#ffd63c"),
          ("PlazaRing", "#ece6d8"), ("Plaza", "#ece6d8"), ("FountainWater", "#6edcff"), ("Fountain", "#ece6d8"), ("Path", "#e2cea4"), ("FlowerBed", "#96704a"), ("Flower", "#ff78a0"),
          ("Bench", "#a07648"), ("LampPost", "#464c5c"), ("LampBulb", "#ffecaa"), ("Trunk", "#705030"), ("Leaves", "#3ca850"), ("Fall", "#9bdcff"), ("Banner", "#464c5c"), ("Title", "#166096"),
-         ("Status", "#0e1e40"), ("Board", "#166096"), ("HowTo", "#166096"), ("Cloud", "#ffffff"), ("Spawn", "#40f0ff")]
+         ("Status", "#0e1e40"), ("Board", "#166096"), ("HowTo", "#166096"), ("Cloud", "#ffffff"), ("Spawn", "#40f0ff"), ("Mown", "#84d668"), ("TrophyPedestal", "#ece6d8"), ("TrophyPlinth", "#d2c8b6"), ("Trophy", "#ffc83c"), ("PathLight", "#5ad7ff"), ("Flag", "#ff648c"), ("PaperLantern", "#ffd650"), ("RainbowBand", "#ff9ec8")]
     for k, v in t:
         if n.startswith(k):
             return v
@@ -25,7 +25,7 @@ def main(src, out):
         if len(f) < 10 or f[0] != "PART":
             continue
         name = f[1]; x, y, z, w, h, d = map(float, f[2:8])
-        if name in ("SparkleAnchor", "FountainSpout", "LobbySpawnLocation"):
+        if name in ("SparkleAnchor", "FountainSpout", "LobbySpawnLocation", "LanternString"):
             continue
         if not (-190 < x < 190 and 230 < z < 610):
             continue
@@ -34,6 +34,8 @@ def main(src, out):
         if base:
             r = max(h, d) / 2
             sc.cyl(x, z - 420, r, w, c, y0=y - w / 2, n=28, alpha=0.85 if "Water" in name else 1.0)
+        elif name == "RainbowBand":
+            sc.box(x, z - 420, 1.8, 0.6, 1.8, c, y0=y - 0.9, alpha=0.7)
         elif name == "Cloud":
             sc.cyl(x, z - 420, max(w, d) / 2, max(h, 2), c, y0=y - h / 2, n=20, alpha=0.8)
         elif any(name.startswith(b) for b in BALL):

@@ -34,6 +34,26 @@ check(named.Waterfall2 and named.Waterfall2.CanCollide == false and named.Waterf
 local list = World.arenaSpawns()
 check(#list == 20, "20 arena spawns are in use (" .. #list .. ")")
 
+-- ---- decoration: lots of it, and none of it solid ----
+local decoNames = { Bush = true, Flower = true, Stone = true, GrassPatch = true, Reed = true, Cattail = true, LilyPad = true, Strata = true, Vine = true, RainbowBand = true, Lantern = true, Flag = true, PaperLantern = true, Mown = true, PathLight = true, Trail = true }
+local decoCount, solidDeco = 0, 0
+for _, o in X.parts do
+	local n = o.Name
+	if type(n) == "string" then
+		local key = string.match(n, "^(%a+)")
+		if decoNames[n] or decoNames[key or ""] then
+			decoCount += 1
+			if o.CanCollide ~= false then solidDeco += 1 end
+		end
+	end
+end
+check(decoCount > 400, "plenty of decoration: bushes, flowers, stones, reeds, lily pads, trails, rainbows, bunting (" .. decoCount .. " pieces)")
+check(solidDeco == 0, "none of the decoration is solid, so nobody gets stuck on it (" .. solidDeco .. " solid)")
+local rainbows = 0
+for _, o in X.parts do if o.Name == "RainbowBand" then rainbows += 1 end end
+check(rainbows == 2 * 6 * 24, "two rainbows (one over the middle waterfall, one over the lobby): " .. rainbows .. " bands")
+check(attrsWS.BootErrors == nil, "the world still builds without any error")
+
 -- ---- the river current ----
 local p1, p2 = join(1, "Swimmer"), join(2, "Dry")
 advance(1)

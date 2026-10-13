@@ -126,6 +126,11 @@ function LobbyWorld.build(lobby)
 	end
 	disc(lobby, "EdgeGlow", c.X, top - 0.9, c.Z, 65, 1.4, AQUA, Enum.Material.Neon, false).Transparency = 0.15 -- a glowing rim round the grass
 
+	-- mown stripes: bands of lighter and darker grass in rings
+	for i, def in { { 60, C(132, 214, 104) }, { 52, C(116, 196, 90) }, { 44, C(132, 214, 104) }, { 36, C(116, 196, 90) } } do
+		disc(lobby, "Mown" .. i, c.X, top + 0.02 + i * 0.01, c.Z, def[1], 0.1, def[2], Enum.Material.Grass, false)
+	end
+
 	-- the plaza and the fountain
 	disc(lobby, "Plaza", c.X, top + 0.2, c.Z, 22, 0.4, STONE, Enum.Material.Marble)
 	disc(lobby, "PlazaRing1", c.X, top + 0.45, c.Z, 20, 0.1, AQUA, Enum.Material.Neon, false)
@@ -228,6 +233,76 @@ function LobbyWorld.build(lobby)
 		CanyonWorld.flowing(sheet, Enum.NormalId.Front, Config.Water.FallSpeed, 6, 0.35)
 		CanyonWorld.flowing(sheet, Enum.NormalId.Back, Config.Water.FallSpeed, 6, 0.35)
 	end
+
+	-- a golden trophy on a marble pedestal in the plaza (win a match to be on the board!)
+	local tx, tz = c.X + 14, c.Z + 11
+	part(lobby, "TrophyPedestal", Vector3.new(4.6, 3, 4.6), Vector3.new(tx, top + 1.9, tz), STONE, Enum.Material.Marble)
+	part(lobby, "TrophyPlinth", Vector3.new(5.4, 0.6, 5.4), Vector3.new(tx, top + 0.7, tz), C(210, 200, 182), Enum.Material.Marble)
+	local gold = C(255, 200, 60)
+	disc(lobby, "TrophyBase", tx, top + 3.6, tz, 1.6, 0.5, gold, Enum.Material.Metal, false)
+	disc(lobby, "TrophyStem", tx, top + 4.8, tz, 0.5, 2, gold, Enum.Material.Metal, false)
+	disc(lobby, "TrophyCupLow", tx, top + 6.2, tz, 1.5, 0.9, gold, Enum.Material.Metal, false)
+	disc(lobby, "TrophyCup", tx, top + 7.1, tz, 2.1, 1.2, gold, Enum.Material.Metal, false)
+	for _, side in { -1, 1 } do
+		local handle = ball(lobby, "TrophyHandle", 1.3, Vector3.new(tx + side * 2.3, top + 7, tz), gold, Enum.Material.Metal)
+		handle.CanCollide = false
+		handle.CanQuery = false
+	end
+	local star = ball(lobby, "TrophyStar", 1.4, Vector3.new(tx, top + 9.2, tz), C(255, 250, 190), Enum.Material.Neon)
+	star.CanCollide = false
+	star.CanQuery = false
+	local starLight = Instance.new("PointLight")
+	starLight.Color = C(255, 230, 150)
+	starLight.Range = 18
+	starLight.Brightness = 1.5
+	starLight.Parent = star
+
+	-- glowing stepping lights along the paths
+	for _, dir in { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } } do
+		for k = 0, 5 do
+			local r = 26 + k * 6
+			for _, side in { -4.6, 4.6 } do
+				local x = c.X + dir[1] * r + (dir[1] == 0 and side or 0)
+				local z = c.Z + dir[2] * r + (dir[2] == 0 and side or 0)
+				disc(lobby, "PathLight", x, top + 0.45, z, 0.45, 0.3, AQUA, Enum.Material.Neon, false)
+			end
+		end
+	end
+
+	-- bunting: little coloured flags strung between the lamps
+	local flagColours = { C(255, 100, 140), C(255, 214, 80), C(110, 200, 255), C(150, 230, 120), C(200, 140, 255) }
+	for i = 1, 12 do
+		local a1, a2 = (i / 12) * math.pi * 2, ((i % 12 + 1) / 12) * math.pi * 2
+		local x1, z1, x2, z2 = math.cos(a1) * 37, math.sin(a1) * 37, math.cos(a2) * 37, math.sin(a2) * 37
+		for k = 1, 7 do
+			local t = k / 8
+			local fx, fz = x1 + (x2 - x1) * t, z1 + (z2 - z1) * t
+			local flag = ball(lobby, "Flag", 0.95, Vector3.new(c.X + fx, top + 9.6 - 1.4 * math.sin(math.pi * t), c.Z + fz), flagColours[(i + k) % 5 + 1], Enum.Material.SmoothPlastic)
+			flag.CanCollide = false
+			flag.CanQuery = false
+			flag.CastShadow = false
+		end
+	end
+
+	-- paper lanterns floating on strings above the garden
+	for i = 1, 10 do
+		local a = i * 0.63 + 0.2
+		local r = 44 + (i % 3) * 3
+		local y = top + 15 + (i % 4) * 2
+		local string_ = deco(lobby, "LanternString", Vector3.new(0.15, 6, 0.15), Vector3.new(c.X + math.cos(a) * r, y + 3.6, c.Z + math.sin(a) * r), C(90, 90, 100))
+		local lantern = ball(lobby, "PaperLantern", 2.6, Vector3.new(c.X + math.cos(a) * r, y, c.Z + math.sin(a) * r), flagColours[i % 5 + 1], Enum.Material.Neon)
+		lantern.CanCollide = false
+		lantern.CanQuery = false
+		lantern.Transparency = 0.15
+		local glow = Instance.new("PointLight")
+		glow.Color = lantern.Color
+		glow.Range = 16
+		glow.Brightness = 1
+		glow.Parent = lantern
+	end
+
+	-- a rainbow behind the banner
+	CanyonWorld.rainbow(lobby, c.X, top - 4, c.Z + 66, 54, 2.2)
 
 	-- the title banner on two tall posts (read from the middle)
 	for _, dx in { -32, 32 } do

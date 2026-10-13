@@ -35,6 +35,7 @@ local CFrame = {
 		return cfNew(x, look)
 	end,
 	Angles = function() return cfNew(V3new(0, 0, 0)) end,
+	lookAt = function(from, to) local d = to - from local look = d.Magnitude > 0.001 and d.Unit or V3new(0, 0, -1) return cfNew(from, look) end,
 }
 
 -- walls: axis aligned boxes { min = V3, max = V3 }; a ray from `o` along `d` hits one when the segment crosses it
