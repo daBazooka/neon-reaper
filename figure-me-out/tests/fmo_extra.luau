@@ -172,5 +172,6 @@ X.made = {}
 do
 	local made = Instance.new
 	X.parts = {}
-	Instance.new = function(c) X.made[c] = (X.made[c] or 0) + 1; local o = made(c); if c == "Part" or c == "TrussPart" then table.insert(X.parts, o) end return o end
+	X.where = setmetatable({}, {__mode = "k"})
+	Instance.new = function(c) X.made[c] = (X.made[c] or 0) + 1; local o = made(c); if c == "Part" or c == "TrussPart" then table.insert(X.parts, o); X.where[o] = (string.match(debug.traceback("", 2), "[^\n]*\n[^\n]*\n([^\n]*)") or "?") end return o end
 end

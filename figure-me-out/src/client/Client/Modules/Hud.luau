@@ -4,6 +4,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -202,6 +203,8 @@ function Hud.init(screen, d)
 	})
 	refs.tips = UI.label(root, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 14, 1, -14), Size = UDim2.fromOffset(300, 60), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "G guess   T ally   RMB hold: binoculars   click / F: photo   V notebook   I gadgets   1-8 gadgets" })
 
+	-- the keyboard hints are no use on a phone
+	refs.tips.Visible = UserInputService.KeyboardEnabled
 	-- everything important can shrink on small screens (phones, small windows)
 	for _, thing in { me, profile, refs.quick, bar, guess, refs.feed } do
 		table.insert(scaleObjects, UI.new("UIScale", {}, thing))
@@ -297,7 +300,9 @@ local function updateScale()
 	if not vp or type(vp.X) ~= "number" then
 		return
 	end
-	local want = math.clamp(math.min(vp.X / 1100, vp.Y / 650), 0.62, 1.1)
+	-- fingers need bigger buttons than a mouse does, so touch screens never shrink the HUD as far
+	local floor = UserInputService.TouchEnabled and 0.78 or 0.62
+	local want = math.clamp(math.min(vp.X / 1100, vp.Y / 650), floor, 1.1)
 	if math.abs(want - uiScale) > 0.01 then
 		uiScale = want
 		for _, obj in scaleObjects do

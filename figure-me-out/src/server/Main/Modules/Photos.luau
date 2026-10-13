@@ -65,7 +65,8 @@ function Photos.snap(p, origin, look)
 	if not e or State.phase ~= "play" or not e.alive then
 		return
 	end
-	if typeof(origin) ~= "Vector3" or typeof(look) ~= "Vector3" or look.Magnitude < 0.1 then
+	origin, look = Rules.cleanVector(origin), Rules.cleanVector(look)
+	if not origin or not look or look.Magnitude < 0.1 then
 		return
 	end
 	local now = State.now()

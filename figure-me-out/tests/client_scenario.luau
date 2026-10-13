@@ -486,6 +486,11 @@ do
 	X.camera.ViewportSize = {X = 640, Y = 360}
 	advance(1.2); fireAll("RenderStepped", 0.016)
 	check(Hud2.uiScale() < 0.7, "a phone-sized screen shrinks it (" .. string.format("%.2f", Hud2.uiScale()) .. ")")
+	-- phones: touch screen, no keyboard
+	UIS.TouchEnabled, UIS.KeyboardEnabled = true, false
+	advance(1.2); fireAll("RenderStepped", 0.016)
+	check(Hud2.uiScale() >= 0.78 and Hud2.uiScale() * 728 <= 640, "on a touch screen buttons stay big enough for fingers (" .. string.format("%.2f", Hud2.uiScale()) .. ") and the hotbar still fits")
+	UIS.TouchEnabled, UIS.KeyboardEnabled = false, true
 	X.camera.ViewportSize = {X = 1920, Y = 1080}
 	advance(1.2); fireAll("RenderStepped", 0.016)
 end

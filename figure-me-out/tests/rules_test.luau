@@ -13,7 +13,7 @@ local Vector3 = { new = function(x, y, z) return setmetatable({ X = x or 0, Y = 
 local Color3 = { fromRGB = function(r, g, b) return { R = r / 255, G = g / 255, B = b / 255 } end }
 
 local loaded = {}
-local env = setmetatable({ Vector3 = Vector3, Color3 = Color3 }, { __index = _G })
+local env = setmetatable({ Vector3 = Vector3, Color3 = Color3, typeof = function(v) if getmetatable(v) == V then return "Vector3" end return type(v) end }, { __index = _G })
 local function load(name)
 	if loaded[name] then return loaded[name] end
 	local fn = loadstring(MODULE_SOURCES[name])
@@ -87,6 +87,13 @@ anchor, ct = Rules.campStep(anchor, ct, Vector3.new(10 + Config.Camp.Radius + 1,
 check(ct == 0 and anchor.X == 10 + Config.Camp.Radius + 1, "walking out of the circle starts again from the new place")
 check(Rules.campStage(0) == "ok" and Rules.campStage(Config.Camp.WarnAfter) == "warn" and Rules.campStage(Config.Camp.Limit) == "expose", "camp stages")
 check(Config.Camp.Limit >= Config.Camp.WarnAfter + 10 and Config.Camp.WarnAfter >= 20, "there is a fair warning and a generous time before the penalty")
+
+-- exploit guards ------------------------------------------------------------------------------
+check(Rules.moveAllowed(4, Config.Movement.Walk, 0.25) and Rules.moveAllowed(Config.Sprint.Speed * 0.25, Config.Sprint.Speed, 0.25), "walking and sprinting are allowed")
+check(not Rules.moveAllowed(60, Config.Sprint.Speed, 0.25) and not Rules.moveAllowed(500, Config.Sprint.Speed, 100), "teleporting is not (even after a long wait)")
+check(Rules.moveAllowed(30, Config.Movement.Walk, 10), "a lag spike followed by a jump of what you could have walked is allowed")
+check(Rules.cleanVector(Vector3.new(1, 2, 3)) ~= nil and Rules.cleanVector(Vector3.new(0 / 0, 0, 0)) == nil and Rules.cleanVector(Vector3.new(math.huge, 0, 0)) == nil and Rules.cleanVector(Vector3.new(1e9, 0, 0)) == nil and Rules.cleanVector("x") == nil and Rules.cleanVector(nil) == nil, "vectors from clients: NaN, infinity and huge values are refused")
+check(Rules.parseGuess(string.rep("1", 100000)) == nil and Rules.parseGuess(123) == nil and Rules.parseGuess("1 2 3") == "123", "guess text: huge or wrong types are refused, spaces are fine")
 
 -- photos ----------------------------------------------------------------------------------
 local all = Rules.photoReadable(10, 1, { 0.99, 0.99, 0.99 })

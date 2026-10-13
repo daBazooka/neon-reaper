@@ -10,6 +10,7 @@ local Guess = require(ModN.children.Guess)
 local Flags = require(ModN.children.Flags)
 local Bounty = require(ModN.children.Bounty)
 local Events = require(ModN.children.Events)
+Config.Sanity.Enabled = false
 Config.Modes.Mode = "ctf"
 Bounty.paused = true; Events.paused = true
 local function lastNote(kind) for i = #notifyLog, 1, -1 do if notifyLog[i][1] == kind then return notifyLog[i] end end end

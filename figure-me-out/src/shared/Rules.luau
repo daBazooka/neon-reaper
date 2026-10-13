@@ -12,7 +12,7 @@ end
 
 -- Checks what the player typed. Returns the cleaned digits, or nil and a reason.
 function Rules.parseGuess(text)
-	if type(text) ~= "string" then
+	if type(text) ~= "string" or #text > 16 then
 		return nil, "type 3 digits"
 	end
 	local digits = string.gsub(text, "%s", "")
@@ -102,6 +102,24 @@ function Rules.campStep(anchor, timer, pos, dt)
 		return pos, 0
 	end
 	return anchor, timer + dt
+end
+
+-- Is a horizontal move of `distance` studs in `dt` seconds possible at `speed` studs per second?
+function Rules.moveAllowed(distance, speed, dt)
+	dt = math.clamp(dt, 0, Config.Sanity.MaxDt)
+	return distance <= speed * dt * Config.Sanity.SpeedSlack + Config.Sanity.Slack
+end
+
+-- A vector from a client that is safe to use: a real Vector3 with ordinary numbers (no NaN, no infinity, nothing huge).
+function Rules.cleanVector(v)
+	if typeof(v) ~= "Vector3" then
+		return nil
+	end
+	local x, y, z = v.X, v.Y, v.Z
+	if x ~= x or y ~= y or z ~= z or math.abs(x) > 1e5 or math.abs(y) > 1e5 or math.abs(z) > 1e5 then
+		return nil
+	end
+	return v
 end
 
 -- "ok", "warn" or "expose" for the idle timer.

@@ -19,6 +19,7 @@ function Cover.reset(e)
 	e.exposedUntil = 0
 	e.violations = 0
 	e.campAnchor = nil
+	e.sanePos = nil; e.saneAt = nil
 	e.campLast = nil
 	e.campTimer = 0
 	e.campStage = "ok"
@@ -102,6 +103,40 @@ local function campStep(e)
 	e.campStage = stage
 end
 
+-- Movement check (teleport / speed hacks): if the player is further from where we last saw them than their speed allows,
+-- they are put back. Server-made teleports clear `sanePos` first (spawning, respawning).
+function Cover.sanity(e)
+	if not Config.Sanity.Enabled then
+		return
+	end
+	local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return
+	end
+	local now = State.now()
+	local pos = root.Position
+	local last = e.sanePos
+	if State.phase ~= "play" or not last then
+		e.sanePos, e.saneAt = pos, now
+		return
+	end
+	local dx, dz = pos.X - last.X, pos.Z - last.Z
+	local dist = math.sqrt(dx * dx + dz * dz)
+	if dist < 0.5 then
+		return -- standing still: the clock keeps running, so a lag spike followed by a jump is not mistaken for a teleport
+	end
+	local top = math.max(Config.Movement.Walk, Config.Sprint.Speed)
+	if (e.stunUntil or 0) > now then
+		top = 0
+	end
+	if Rules.moveAllowed(dist, top, now - (e.saneAt or now)) then
+		e.sanePos, e.saneAt = pos, now
+		return
+	end
+	e.sanityHits = (e.sanityHits or 0) + 1
+	e.char:PivotTo(CFrame.new(last.X, pos.Y, last.Z) * CFrame.Angles(0, 0, 0))
+end
+
 -- Called every Cover.Tick seconds for every living entity that is a real player.
 function Cover.step(e, dt)
 	local now = State.now()
@@ -113,6 +148,7 @@ function Cover.step(e, dt)
 	if not e.alive or not e.player then
 		return
 	end
+	Cover.sanity(e)
 	campStep(e)
 	local covered = Cover.isCovered(e)
 	e.coverTimer = Rules.coverStep(e.coverTimer or 0, covered, dt)

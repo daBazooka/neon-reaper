@@ -137,8 +137,10 @@ function Alliance.share(e, entries)
 		return false
 	end
 	local clean = {}
+	local looked = 0
 	for _, row in entries do
-		if #clean >= Config.Alliance.MaxShare then
+		looked += 1
+		if #clean >= Config.Alliance.MaxShare or looked > 50 then
 			break
 		end
 		if type(row) == "table" and type(row[1]) == "number" and type(row[2]) == "string" and string.match(row[2], "^[%d%?][%d%?][%d%?]$") then

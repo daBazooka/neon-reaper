@@ -107,6 +107,15 @@ Config.Camp = {
 	BaseExempt = 30, -- capture the flag: staying this close to your own flag is allowed
 }
 
+-- Server-side movement check: the server compares where a player is now with where it saw them last. Anybody who
+-- moves much further than their speed allows (teleport / speed hacks) is put back where they were.
+Config.Sanity = {
+	Enabled = true,
+	SpeedSlack = 1.5, -- allowed distance = speed x time x this (lag makes players "catch up")
+	Slack = 8, -- ... plus this many studs, so small jolts and pushes are never punished
+	MaxDt = 1.5, -- at most this many seconds of movement are credited at once (after a lag spike)
+}
+
 Config.Movement = { Walk = 16, Jump = 50, ScopeWalk = 8 }
 
 --------------------------------------------------------------------------------

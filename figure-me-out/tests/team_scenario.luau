@@ -12,6 +12,7 @@ local Match = require(ModN.children.Match)
 local Alliance = require(ModN.children.Alliance)
 local Bounty = require(ModN.children.Bounty)
 local Events = require(ModN.children.Events)
+Config.Sanity.Enabled = false
 Config.Modes.Mode = "team"
 Bounty.paused = true; Events.paused = true
 local function lastNote(kind) for i = #notifyLog, 1, -1 do if notifyLog[i][1] == kind then return notifyLog[i] end end end

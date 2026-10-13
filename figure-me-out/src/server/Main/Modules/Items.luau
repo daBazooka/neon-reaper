@@ -334,7 +334,8 @@ function Items.use(e, id, look)
 	if (e.stunUntil or 0) > now or Items.cooldownLeft(e, id) > 0 or now - (e.lastUse or -100) < 0.4 then
 		return false
 	end
-	if typeof(look) ~= "Vector3" or look.Magnitude < 0.1 then
+	look = Rules.cleanVector(look)
+	if not look or look.Magnitude < 0.1 then
 		local head = Vision.head(e)
 		look = head and head.CFrame.LookVector or Vector3.new(0, 0, -1)
 	end

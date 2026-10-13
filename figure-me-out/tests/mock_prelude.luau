@@ -1593,7 +1593,9 @@ local function mk(name, class)
 	local mt = {}
 	local function sub() return mk(name .. ".?") end
 	mt.__index = function(t, k)
+		if k == "__destroyed" then return store.__destroyed end
 		if class and type(k) == "string" and not membersOf(class)[k] then bad("BADREAD", class, k) end
+		if k == "Destroy" then return function() store.__destroyed = true; store.Parent = nil end end
 		if k == "SetAttribute" then return function(_, key, v) attrs[key] = v end end
 		if k == "GetAttribute" then return function(_, key) return attrs[key] end end
 		if store[k] ~= nil then return store[k] end
@@ -1647,6 +1649,7 @@ local function advance(seconds, step)
 	end
 end
 
+local realClock = os.clock
 local os = setmetatable({clock = function() return clock end, time = function() return 1700000000 + math.floor(clock - 1000) end}, {__index = os})
 local warns = {}
 local function warn(...) table.insert(warns, table.concat({...}, " ")); print("WARN:", ...) end
@@ -1714,6 +1717,7 @@ local game = {GetService = function(_, n)
 		end
 		return {Play = function() end, Cancel = function() end}
 	end} end
+	if n == "Debris" then return {AddItem = function(_, obj, t) task.delay(t or 10, function() pcall(function() obj:Destroy() end) end) end} end
 	return U(n)
 end, BindToClose = function() end}
 local remoteCount = 0

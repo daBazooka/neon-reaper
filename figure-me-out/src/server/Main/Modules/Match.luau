@@ -196,6 +196,7 @@ function Match.setup()
 			Bots.place(e, spawn)
 		elseif e.char then
 			e.char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
+			e.sanePos = nil; e.saneAt = nil
 		end
 		finish(e, index)
 	end
@@ -499,6 +500,7 @@ function Match.run()
 		local spawn = Match.safeSpawn(victim.team)
 		if victim.char then
 			victim.char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
+			victim.sanePos = nil
 		end
 	end
 	Combat.onCredit = function(killer, victim)

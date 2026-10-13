@@ -4,6 +4,7 @@ local ok, err = pcall(sources[MainN], MainN)
 check(ok, "Main runs without error " .. tostring(err))
 local State = require(ModN.children.State)
 local Config = require(RS.children.Shared.children.Config)
+Config.Sanity.Enabled = false
 Config.Modes.Mode = "deathmatch" -- these scenarios test the deathmatch rules in every match (team and flag modes have their own)
 local Rules = require(RS.children.Shared.children.Rules)
 local Vision = require(ModN.children.Vision)

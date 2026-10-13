@@ -64,3 +64,22 @@ Set `Config.Modes.Mode` in `Config.luau` to `"team"` or `"ctf"` and press Play (
 * **No sound:** the generated sounds need Roblox's built-in sound files; check Studio's volume. Custom ids in Config only work if you may use them.
 * **Bots slide without animating:** Roblox's default walk animation failed to load; the game plays fine anyway.
 * **A key does nothing:** keys don't work while a text box has focus (chat). Click the game first.
+
+## Cheating, phones and speed (Milestone 7)
+
+**What the server does about cheaters**
+
+* Every request from a player (`Action`) is type-checked, rate limited per kind (a guess at most every 0.25 s, a photo every 0.5 s, anything else every 0.08 s) and wrapped so a bad one can never crash the server. Vectors with NaN, infinity or huge values, guess texts longer than 16 characters and oversized share lists are refused.
+* A guess is decided only on the server: range, line of sight, cooldown, bullets, protection, teammates. Numbers are never sent to other players' computers as data (only the plate, which is part of the game). Brute-forcing numbers stops after 5 bullets and each miss freezes you 3 s.
+* Flags, captures, scores, lives and gadget charges are server-only. A request to "capture" does not exist; the server notices where players stand.
+* Movement check: if a player ends up much further away than their speed allows (teleport / speed hack), the server puts them back (`Config.Sanity`). Lag spikes are allowed for. Frozen players can't move at all.
+
+**What it can't stop (honest limits)**
+
+* Roblox lets each player's own computer move their own character, so a speed hack can still gain a little per second (about 1.5x the normal speed is tolerated to avoid punishing lag). Flying straight up is not checked.
+* An exploiter can read their *own* plate (it is a 3D object everyone receives) and can see through walls with injected tools. Neither lets them hit anyone, because the server needs the *other* player's number, and the number is only ever on that player's forehead.
+* Aim assist / auto-typing by a cheating client looks like a fast human. The 5-bullet limit and the 3 s freeze keep it harmless.
+
+**Phones and tablets**: all buttons work by tapping (hotbar, GUESS, keypad with digits, notebook, menu). On touch screens the HUD never shrinks below 78% so buttons stay finger-sized; keyboard hints are hidden when there is no keyboard. Drag the screen to look around, tap the gadget buttons to use binoculars/photo/gadgets.
+
+**Speed**: with 20 players the server sends about 4 messages per second per player in the busiest possible test (everybody guessing and throwing gadgets every second), the number of parts in the world stays level over minutes (grenades, effects and sounds clean up), and one server tick is far below its 250 ms budget. Test files: `tests/exploit_scenario.luau`, `tests/perf_scenario.luau`, `tests/churn_scenario.luau`.
