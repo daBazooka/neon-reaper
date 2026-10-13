@@ -11,6 +11,7 @@ local Audio = require(Shared:WaitForChild("Audio"))
 local View = require(script.Parent:WaitForChild("View"))
 
 local Scope = {}
+local VIDEO = Config.Hud.Style == "video" -- the original game: a black figure-8 view, no crosshair lines
 
 local deps
 local overlay, range, zoomText
@@ -41,12 +42,21 @@ function Scope.init(gui, d)
 	}, overlay)
 	refs.ringCorner = UI.corner(refs.ring, 310)
 	UI.new("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1400, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, refs.ring)
-	UI.new("UIStroke", { Color = UI.Colors.Accent, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Transparency = 0.2 }, refs.ring)
-	local function line(size, pos)
-		UI.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = pos, Size = size, BackgroundColor3 = UI.Colors.Accent, BackgroundTransparency = 0.25, BorderSizePixel = 0, ZIndex = 21 }, overlay)
+	if not VIDEO then
+		UI.new("UIStroke", { Color = UI.Colors.Accent, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Transparency = 0.2 }, refs.ring)
+		local function line(size, pos)
+			UI.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = pos, Size = size, BackgroundColor3 = UI.Colors.Accent, BackgroundTransparency = 0.25, BorderSizePixel = 0, ZIndex = 21 }, overlay)
+		end
+		line(UDim2.fromOffset(2, 150), UDim2.fromScale(0.5, 0.5))
+		line(UDim2.fromOffset(150, 2), UDim2.fromScale(0.5, 0.5))
+	else
+		-- the neck between the two lenses: a small black notch at the top and the bottom of the middle
+		refs.notches = {}
+		for i = 1, 2 do
+			refs.notches[i] = UI.new("Frame", { AnchorPoint = Vector2.new(0.5, i == 1 and 0 or 1), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, ZIndex = 21 }, overlay)
+			UI.corner(refs.notches[i], 30)
+		end
 	end
-	line(UDim2.fromOffset(2, 150), UDim2.fromScale(0.5, 0.5))
-	line(UDim2.fromOffset(150, 2), UDim2.fromScale(0.5, 0.5))
 	range = UI.label(overlay, {
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0.5, 90),
@@ -86,6 +96,20 @@ local function layout()
 	if not vp or type(vp.X) ~= "number" then
 		return
 	end
+	if VIDEO then
+		-- two merged round lenses: a wide pill (rounded all the way) with a notch at the top and bottom of the middle
+		local h = math.floor(math.min(vp.Y * 0.8, vp.X * 0.5))
+		local w = math.floor(math.min(vp.X * 0.96, h * 1.9))
+		refs.ring.Size = UDim2.fromOffset(w, h)
+		refs.ringCorner.CornerRadius = UDim.new(0, h / 2)
+		for _, bar in refs.bars do
+			bar.Visible = false
+		end
+		local nw, nh = math.floor(h * 0.14), math.floor(h * 0.12)
+		refs.notches[1].Size, refs.notches[1].Position = UDim2.fromOffset(nw, nh), UDim2.fromOffset(vp.X / 2, (vp.Y - h) / 2 - 2)
+		refs.notches[2].Size, refs.notches[2].Position = UDim2.fromOffset(nw, nh), UDim2.fromOffset(vp.X / 2, (vp.Y + h) / 2 + 2)
+		return
+	end
 	local side = math.floor(math.min(vp.X, vp.Y) * 0.92)
 	local gapX, gapY = math.max(0, (vp.X - side) / 2), math.max(0, (vp.Y - side) / 2)
 	refs.ring.Size = UDim2.fromOffset(side, side)
@@ -108,7 +132,7 @@ function Scope.update()
 	else
 		range.Text = ""
 	end
-	zoomText.Text = "ZOOM x" .. string.format("%.1f", Config.Scope.NormalFov / fov) .. "   (scroll to change)"
+	zoomText.Text = VIDEO and "" or ("ZOOM x" .. string.format("%.1f", Config.Scope.NormalFov / fov) .. "   (scroll to change)")
 end
 
 function Scope.set(value)

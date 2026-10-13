@@ -330,7 +330,7 @@ function LobbyWorld.build(lobby)
 	local hpart, hgui = board(lobby, "HowTo", Vector3.new(26, 22, 1), Vector3.new(c.X + 46, top + 13, c.Z + 26), Vector3.new(c.X, top + 13, c.Z), C(22, 96, 150), Enum.NormalId.Front)
 	part(lobby, "HowToPost", Vector3.new(1.4, 12, 1.4), Vector3.new(c.X + 46, top + 6, c.Z + 26), C(70, 76, 92), Enum.Material.Metal)
 	label(hgui, { Size = UDim2.new(1, 0, 0, 70), Text = "HOW TO PLAY", TextColor3 = WHITE })
-	label(hgui, { Position = UDim2.fromOffset(20, 80), Size = UDim2.new(1, -40, 1, -90), Text = "• Everyone has a 3-digit number over their head.\n• Yours is on your screen: keep it hidden!\n• Look at someone and type THEIR number: it goes in by itself.\n• Right = they lose a life. Wrong = you freeze.\n• Last one standing wins.", Font = Enum.Font.GothamBold, TextScaled = false, TextSize = 25, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
+	label(hgui, { Position = UDim2.fromOffset(20, 80), Size = UDim2.new(1, -40, 1, -90), Text = "• Everyone has a " .. Config.Number.Digits .. "-digit number on a sign on their forehead.\n• Yours is on your screen: keep it hidden!\n• Put the dot on someone and type THEIR number.\n• Right = they are out. Wrong = you freeze.\n• F camera, G binoculars, chests give grenades.", Font = Enum.Font.GothamBold, TextScaled = false, TextSize = 25, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
 
 	-- the skyline: little floating islands with trees, and clouds
 	for i = 1, 7 do

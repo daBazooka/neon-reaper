@@ -5,15 +5,15 @@ local C = Color3.fromRGB
 Config.GameName = "Figure Me Out"
 
 --------------------------------------------------------------------------------
--- The idea: everybody wears a secret 3-digit number on their forehead that they cannot see.
+-- The idea: everybody wears a secret 4-digit number on a mustard sign on their forehead that they cannot see.
 -- Type someone else's number correctly and they are out. Read numbers, hide yours, last one standing wins.
 --------------------------------------------------------------------------------
 -- QUICK-AND-SIMPLE MODE. The core game is: look at a head, type the number, win. Everything else is an optional extra
 -- that is switched OFF by default so the game stays easy to read and play. Set any of these to true to bring it back.
 Config.Features = {
-	Gadgets = false, -- the hotbar: flashbang, smoke, distraction, scanner, sprint, decoy (and the crates / supply drops that refill them)
-	Photos = false, -- the camera and the notebook
-	Binoculars = false, -- hold to zoom
+	Gadgets = true, -- flashbang, smoke and sound grenades from the yellow crates (they take over one of the two item slots, F or G, until used)
+	Photos = true, -- the camera (slot F at the start): a click takes a photo and a polaroid shows what you could read
+	Binoculars = true, -- the binoculars (slot G at the start): zoom with a black figure-8 view
 	Terminals = false, -- hack a terminal for a clue
 	Bounty = false, -- a gold-tagged target with a prize
 	Alliances = false, -- ask somebody to team up
@@ -27,8 +27,8 @@ Config.Match = {
 	MinTotal = 0, -- 0 = real players only. (A number here would add bots up to that many players: handy for testing alone in Studio.)
 	Intermission = 10, -- lobby wait between matches (seconds)
 	Countdown = 5, -- before the start whistle
-	Length = 90, -- the match: a minute and a half
-	RevealAt = 20, -- the final stretch: every plate glows, the timer turns red, the music speeds up
+	Length = 1500, -- the match: 25 minutes (a mode can set its own Length below; the timer counts down like 21:32)
+	RevealAt = 20, -- the final stretch: the timer turns red and the music speeds up
 	ResultsTime = 8,
 }
 
@@ -37,12 +37,12 @@ Config.Match = {
 --   team:       two teams, unlimited respawns, a point for every hit on the other team, first to ScoreLimit
 --   ctf:        two teams, unlimited respawns, steal the other team's flag and bring it home, first to CaptureLimit
 Config.Modes = {
-	Rotation = { "deathmatch", "team", "ctf" },
+	Rotation = { "ctf", "team", "deathmatch" },
 	Mode = "rotate", -- "rotate" or one of the ids above
 	List = {
-		deathmatch = { Id = "deathmatch", Name = "DEATHMATCH", Icon = "💀", Teams = false, Respawn = false, Tip = "Everybody for themselves. 3 lives." },
-		team = { Id = "team", Name = "TEAM DEATHMATCH", Icon = "⚔️", Teams = true, Respawn = true, ScoreLimit = 15, Tip = "Two teams. Every hit on the other team scores. First to 15." },
-		ctf = { Id = "ctf", Name = "CAPTURE THE FLAG", Icon = "🚩", Teams = true, Respawn = true, CaptureLimit = 2, Tip = "Grab the enemy flag and bring it home. First to 2 captures." },
+		deathmatch = { Id = "deathmatch", Name = "DEATHMATCH", Icon = "💀", Teams = false, Respawn = false, Length = 600, Tip = "Everybody for themselves. 3 lives." },
+		team = { Id = "team", Name = "TEAM DEATHMATCH", Icon = "⚔️", Teams = true, Respawn = true, ScoreLimit = 50, Tip = "Two teams. Every hit on the other team scores. First to 50." },
+		ctf = { Id = "ctf", Name = "CAPTURE THE FLAG", Icon = "🚩", Teams = true, Respawn = true, CaptureLimit = 10, Tip = "Grab the enemy flag and bring it home. First to 10 captures." },
 	},
 }
 Config.Teams = {
@@ -62,7 +62,7 @@ Config.Flag = {
 	TakePoints = 20, -- ... and for taking the enemy flag
 }
 
-Config.Number = { Digits = 3, Min = 1, Max = 999, TagRange = 110, ShowOwn = true, FloatingTag = false } -- ShowOwn: you see your own number in the HUD box (so you know what to hide). FloatingTag: the big gold number above heads is OFF: the number is only on the forehead plate -- shown with leading zeros: 007, 042, 512
+Config.Number = { Digits = 4, Min = 1000, Max = 9999, TagRange = 110, ShowOwn = true, FloatingTag = false } -- ShowOwn: you see your own number in the HUD box (so you know what to hide). FloatingTag: the big gold number above heads is OFF: the number is only on the forehead plate -- (4 digits, 1000 to 9999, like the original game)
 
 -- Lives: a correct guess takes one life. You come back after a moment, protected, until your lives run out.
 Config.Lives = {
@@ -139,9 +139,9 @@ Config.Movement = { Walk = 16, Jump = 50, ScopeWalk = 8 }
 Config.Items = {
 	{ Id = "binos", Name = "Binoculars", Icon = "🔭", Key = 1, Permanent = true, Cooldown = 0.6, Tip = "Hold to zoom in and read far-away plates. Can't see through walls." },
 	{ Id = "camera", Name = "Snapshot Camera", Icon = "📷", Key = 2, Permanent = true, Cooldown = 1.4, Tip = "Photograph everyone in frame. Clear numbers go into your notebook." },
-	{ Id = "flash", Name = "Flashbang", Icon = "💥", Key = 3, Start = 2, Max = 3, Weight = 22, Cooldown = 4, Tip = "Throw it: blinds whoever sees it go off. Turn away to blink less." },
-	{ Id = "smoke", Name = "Smoke Grenade", Icon = "💨", Key = 4, Start = 2, Max = 3, Weight = 22, Cooldown = 4, Tip = "Throw it: a thick cloud nobody can see through for 15s." },
-	{ Id = "distraction", Name = "Distraction Grenade", Icon = "🔔", Key = 5, Start = 1, Max = 2, Weight = 16, Cooldown = 6, Tip = "Throw it: fake footsteps for 8s. Bots (and people) go to check." },
+	{ Id = "flash", Name = "Flashbang", Icon = "⚡", Key = 3, Start = 2, Max = 3, Weight = 22, Cooldown = 4, Tip = "Throw it: blinds whoever sees it go off. Turn away to blink less." },
+	{ Id = "smoke", Name = "Smoke Bottle", Icon = "🧪", Key = 4, Start = 2, Max = 3, Weight = 22, Cooldown = 4, Tip = "Throw it: a thick cloud nobody can see through for 15s." },
+	{ Id = "distraction", Name = "Sound Grenade", Icon = "🔊", Key = 5, Start = 1, Max = 2, Weight = 16, Cooldown = 6, Tip = "Throw it: fake footsteps for 8s. Bots (and people) go to check." },
 	{ Id = "scanner", Name = "Scanner", Icon = "📡", Key = 6, Start = 1, Max = 3, Weight = 16, Cooldown = 8, Tip = "Pings people nearby: you see where they are, never their number." },
 	{ Id = "sprint", Name = "Sprint Boost", Icon = "👟", Key = 7, Start = 1, Max = 2, Weight = 16, Cooldown = 12, Tip = "Run much faster for 5 seconds." },
 	{ Id = "decoy", Name = "Decoy", Icon = "🎭", Key = 8, Start = 1, Max = 2, Weight = 14, Cooldown = 10, Tip = "Drops a copy of you wearing a fake number for 30s. Your real number never changes." },
@@ -152,7 +152,19 @@ for _, item in Config.Items do
 	Config.ItemById[item.Id] = item
 	table.insert(Config.ItemOrder, item.Id)
 end
-Config.CarriedItems = { "flash", "smoke", "distraction", "scanner", "sprint", "decoy" }
+Config.CarriedItems = { "flash", "smoke", "distraction", "scanner", "sprint", "decoy" } -- (the full list of six: the shipped game replaces it just below with the three crate items)
+
+-- Two item slots, keys F and G, like the original game. You start with the camera in F and the binoculars in G. A crate gives you
+-- a flashbang, a smoke bottle or a sound grenade: it takes over a slot (G first) until it is used up, then the camera or the
+-- binoculars come back. Press F or G to hold that item, click to use it (the camera takes a photo; the binoculars zoom while held).
+Config.Loadout = { Enabled = true, F = "camera", G = "binos", Pickups = { "flash", "smoke", "distraction" } }
+if Config.Loadout.Enabled then
+	Config.CarriedItems = Config.Loadout.Pickups
+end
+
+-- The look of the screen. "video" = the minimal screen of the original game (red and blue score boxes, timer, strike marks, two
+-- item slots, big typed digits); "classic" = the older glass panels.
+Config.Hud = { Style = "video" }
 
 Config.Flash = { Radius = 80, Fuse = 1.6, MaxBlind = 6.5, MinBlind = 1.2, ThrowSpeed = 55, ThrowUp = 22 }
 Config.Smoke = { Radius = 9, Duration = 15, Fuse = 1.3, Fade = 3 }
@@ -267,9 +279,14 @@ Config.Animals = {
 	{ Name = "Duck", Icon = "🦆" }, { Name = "Snake", Icon = "🐍" }, { Name = "Crab", Icon = "🦀" }, { Name = "Whale", Icon = "🐳" },
 }
 
+-- The forehead sign and the name tags. Width = the sign's width in head widths, Height = its height in sign widths, Up = how high on the
+-- forehead (in head heights), Tilt = the most it is stuck on crooked (degrees). Detail = little bolts and a shine strip (off: it is a
+-- plain sign). WhiteNames = the small see-through white name above each head; DarkTrousers = dark trousers under the team shirt.
+Config.Plate = { Width = 1.3, Height = 0.4, Up = 0.32, Tilt = 4, Detail = false, WhiteNames = true, NameRange = 70, DarkTrousers = true }
+
 -- Forehead plates you unlock by winning. Wins = how many wins unlock it.
 Config.PlateStyles = {
-	{ Id = "classic", Name = "Classic", Wins = 0, Back = C(20, 22, 30), Text = C(255, 255, 255), Rim = C(255, 255, 255) },
+	{ Id = "classic", Name = "Classic", Wins = 0, Back = C(226, 178, 34), Text = C(22, 20, 16), Rim = C(150, 108, 14) }, -- the sign from the original game: mustard yellow, black digits
 	{ Id = "gold", Name = "Gold", Wins = 1, Back = C(40, 30, 6), Text = C(255, 214, 60), Rim = C(255, 214, 60) },
 	{ Id = "neon", Name = "Neon", Wins = 3, Back = C(8, 20, 28), Text = C(60, 255, 220), Rim = C(60, 255, 220) },
 	{ Id = "hot", Name = "Hot Pink", Wins = 6, Back = C(36, 8, 24), Text = C(255, 90, 190), Rim = C(255, 90, 190) },
@@ -378,8 +395,8 @@ Config.Map.Themes = {
 			Crates = toVectors(Canyon.Crates, 1.5),
 		},
 	}
-	-- the four kit maps (Frosty Peaks, Candy Kingdom, Desert Ruins, Neon Station): positions come from Maps.layout
-	for _, id in { "frost", "candy", "desert", "station" } do
+	-- the five kit maps (School Yard, Frosty Peaks, Candy Kingdom, Desert Ruins, Neon Station): positions come from Maps.layout
+	for _, id in { "school", "frost", "candy", "desert", "station" } do
 		local L = Maps.layout(id)
 		Config.Map.Themes[id] = {
 			Spawns = toVectors(L.Spawns, 3.5),
@@ -398,7 +415,7 @@ Config.Map.Themes = {
 			Config.Map[k] = v
 		end
 	end
-	Config.Map.use("canyon")
+	Config.Map.use(Maps.FirstMap)
 end
 
 --------------------------------------------------------------------------------

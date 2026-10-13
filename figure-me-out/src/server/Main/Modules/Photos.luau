@@ -9,10 +9,20 @@ local Rules = require(Shared:WaitForChild("Rules"))
 local State = require(script.Parent.State)
 local Net = require(script.Parent.Net)
 local Vision = require(script.Parent.Vision)
+local Items = require(script.Parent.Items)
 
 local Photos = {}
 
 local rng = Random.new()
+
+-- one random number per digit
+local function rolls()
+	local out = {}
+	for i = 1, Config.Number.Digits do
+		out[i] = rng:NextNumber()
+	end
+	return out
+end
 
 -- Everything the camera at `origin` pointing along `look` can see. Returns a list of
 -- { id, code, icon, text, distance, complete } sorted nearest first.
@@ -26,7 +36,7 @@ function Photos.shotsFrom(origin, look, exceptId)
 				if inside and not Vision.blocked(origin, head.Position, true) then
 					local toCamera = (origin - head.Position).Unit
 					local facing = head.CFrame.LookVector:Dot(toCamera)
-					local readable = Rules.photoReadable(distance, facing, { rng:NextNumber(), rng:NextNumber(), rng:NextNumber() })
+					local readable = Rules.photoReadable(distance, facing, rolls())
 					local shown = other.shown or other.number
 					local text = Rules.photoText(shown, readable)
 					table.insert(out, {
@@ -49,7 +59,7 @@ function Photos.shotsFrom(origin, look, exceptId)
 			local inside, distance = Rules.inCone(origin, look, head.Position, Config.Photo.HalfAngle, Config.Photo.MaxDistance)
 			if inside and not Vision.blocked(origin, head.Position, true) then
 				local facing = head.CFrame.LookVector:Dot((origin - head.Position).Unit)
-				local readable = Rules.photoReadable(distance, facing, { rng:NextNumber(), rng:NextNumber(), rng:NextNumber() })
+				local readable = Rules.photoReadable(distance, facing, rolls())
 				table.insert(out, { id = d.id, code = d.code, icon = d.icon, text = Rules.photoText(d.number, readable), distance = distance, complete = false })
 			end
 		end
@@ -64,6 +74,9 @@ function Photos.snap(p, origin, look)
 	local e = State.byPlayer(p)
 	if not e or State.phase ~= "play" or not e.alive then
 		return
+	end
+	if Config.Loadout.Enabled and not Items.slotOf(e, "camera") then
+		return -- (a crate item is in the camera's slot right now)
 	end
 	origin, look = Rules.cleanVector(origin), Rules.cleanVector(look)
 	if not origin or not look or look.Magnitude < 0.1 then

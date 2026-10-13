@@ -16,7 +16,10 @@ local drops = {} -- supply drops: { part, expires }
 local dropParent
 
 local function setReady(c, on)
-	c.part.Transparency = on and 0.1 or 1
+	c.part.Transparency = on and 0 or 1
+	for _, extra in c.extras or {} do
+		extra.Transparency = on and 0 or 1
+	end
 	local gui = c.part:FindFirstChildOfClass("BillboardGui")
 	if gui then
 		gui.Enabled = on
@@ -35,20 +38,40 @@ function Pickups.build(parent)
 	drops = {}
 	dropParent = parent
 	for _, pos in Config.Map.Crates do
+		-- a yellow wooden chest (like the ones in the original game's courtyards) with a darker lid, two bands and a latch
 		local part = Instance.new("Part")
 		part.Name = "ItemCrate"
-		part.Size = Vector3.new(2.6, 2.6, 2.6)
+		part.Size = Vector3.new(3.4, 2.2, 2.4)
 		part.Position = pos + Vector3.new(0, 0.6, 0)
 		part.Anchored = true
 		part.CanCollide = false
 		part.CanQuery = false
-		part.Material = Enum.Material.Neon
-		part.Color = Color3.fromRGB(60, 220, 255)
+		part.Material = Enum.Material.Wood
+		part.Color = Color3.fromRGB(226, 182, 62)
 		part.Parent = parent
+		local extras = {}
+		local function trim(name, size, offset, color)
+			local t = Instance.new("Part")
+			t.Name = name
+			t.Size = size
+			t.Position = part.Position + offset
+			t.Anchored = true
+			t.CanCollide = false
+			t.CanQuery = false
+			t.Material = Enum.Material.Wood
+			t.Color = color
+			t.Parent = parent
+			table.insert(extras, t)
+		end
+		local dark = Color3.fromRGB(150, 104, 36)
+		trim("ChestLid", Vector3.new(3.6, 0.5, 2.6), Vector3.new(0, 1.35, 0), Color3.fromRGB(238, 196, 76))
+		trim("ChestBand", Vector3.new(0.3, 2.3, 2.5), Vector3.new(-1.1, 0, 0), dark)
+		trim("ChestBand", Vector3.new(0.3, 2.3, 2.5), Vector3.new(1.1, 0, 0), dark)
+		trim("ChestLatch", Vector3.new(0.5, 0.6, 0.2), Vector3.new(0, 0.7, -1.25), Color3.fromRGB(40, 36, 30))
 		local gui = Instance.new("BillboardGui")
-		gui.Size = UDim2.fromOffset(60, 60)
-		gui.StudsOffset = Vector3.new(0, 2.6, 0)
-		gui.MaxDistance = 90
+		gui.Size = UDim2.fromOffset(44, 44)
+		gui.StudsOffset = Vector3.new(0, 3, 0)
+		gui.MaxDistance = 60
 		gui.AlwaysOnTop = false
 		gui.Parent = part
 		local l = Instance.new("TextLabel")
@@ -58,11 +81,11 @@ function Pickups.build(parent)
 		l.TextScaled = true
 		l.Parent = gui
 		local light = Instance.new("PointLight")
-		light.Color = part.Color
-		light.Range = 14
-		light.Brightness = 2
+		light.Color = Color3.fromRGB(255, 220, 140)
+		light.Range = 10
+		light.Brightness = 1
 		light.Parent = part
-		table.insert(crates, { part = part, readyAt = 0 })
+		table.insert(crates, { part = part, extras = extras, readyAt = 0 })
 	end
 end
 

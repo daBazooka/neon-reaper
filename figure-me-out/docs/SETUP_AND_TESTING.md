@@ -61,6 +61,13 @@ Only use sounds you are allowed to use. If an id can't load, the game skips it s
 
 Set `Config.Modes.Mode` in `Config.luau` to `"team"` or `"ctf"` and press Play (or use Test > Start with 2+ players). Check: team colours and spawn sides, the score banner at the top, no way to guess a teammate, flags at the two base pads (west red, east blue), taking/dropping/returning/capturing, and the results screen naming the winning team.
 
+## Testing the video-style game
+
+* Two players in Studio (Test > Clients and Servers). Match 1 is capture the flag on the School Yard: check the red and blue boxes, the 25:00 timer, the F and G slots, and that numbers have 4 digits on a mustard sign.
+* Aim the dot at the other player and type their 4 digits (the number is on their sign): they are out / score, and you see "You killed <name>".
+* F then click = polaroid. G then click = binoculars. Walk into a yellow chest: a slot changes to ⚡ 🧪 or 🔊; press its key and click to throw; it goes back to the camera / binoculars afterwards.
+* Stand facing a wall: the red bar fills and "don't cover your number" shows; after the bar is full you get an X and your number glows for a while.
+
 ## Testing the maps and the vote
 
 * In Studio choose Test > Clients and Servers > 2 players. The first player goes straight into a match on Waterfall Canyon. Let it end (or wait out the 90 seconds): the **vote cards** appear along the bottom of both screens. Vote differently on each player, check the numbers on the cards change, then watch the lobby clock: the winner is announced ("Next map: ...") and the match starts on it.

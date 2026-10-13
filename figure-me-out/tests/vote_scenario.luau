@@ -37,7 +37,7 @@ local skip = Maps.winner({ frost = 2, desert = 2 }, 0.0, "frost")
 check(skip == "desert", "a tie avoids the map that was just played when something else is tied")
 check(Maps.winner({ frost = 2, desert = 1 }, 0.0, "frost") == "frost", "...but never overrides a clear winner")
 local round = Maps.decode(Maps.encode({ frost = 4, candy = 2 }))
-check(round.frost == 4 and round.candy == 2 and round.city == 0, "the counts survive being sent as text")
+check(round.frost == 4 and round.candy == 2 and round.canyon == 0, "the counts survive being sent as text")
 
 -- the first match: no vote, the starter map ------------------------------------------------------------------------------
 local p1 = join(1, "Alice")
@@ -97,11 +97,11 @@ check(t1 and t2 and winnerLow == "desert" and winnerHigh == "station", "a tie be
 Votes.open()
 local w0, count0 = Votes.close(0.5)
 check(count0 == 0 and Maps.List[w0] ~= nil, "nobody votes: any map is picked (" .. w0 .. ")")
-Votes.open(); Votes.cast(q1, "city"); Votes.cast(q2, "city"); Votes.last = "city"
-check(Votes.close(0.1) == "city", "a clear winner is played even if it was just played")
+Votes.open(); Votes.cast(q1, "canyon"); Votes.cast(q2, "canyon"); Votes.last = "canyon"
+check(Votes.close(0.1) == "canyon", "a clear winner is played even if it was just played")
 
 -- the world really changes when a map is loaded ----------------------------------------------------------------------------------
-for _, mapId in { "candy", "desert", "station", "canyon", "city", "frost" } do
+for _, mapId in { "candy", "desert", "station", "canyon", "school", "frost" } do
 	World.loadMap(mapId)
 	check(Config.Map.Theme == mapId and World.currentMap() == mapId and attrsWS.MapName == Maps.name(mapId), "loading " .. mapId .. " rebuilds the arena")
 end

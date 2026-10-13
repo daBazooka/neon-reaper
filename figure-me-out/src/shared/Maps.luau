@@ -6,8 +6,8 @@ local Maps = {}
 
 local C = Color3.fromRGB
 
-Maps.Order = { "canyon", "city", "frost", "candy", "desert", "station" }
-Maps.FirstMap = "canyon" -- the very first match (nobody could vote yet)
+Maps.Order = { "school", "canyon", "frost", "candy", "desert", "station" } -- the six maps on the vote cards (Plaza Park, "city", is still built into the game but is not offered)
+Maps.FirstMap = "school" -- the very first match (nobody could vote yet): the school courtyard, like the original game
 
 -- Name, icon and one-line blurb are shown on the vote cards. Look = changes to the "play" and "final" colour grades on this map
 -- (Clock = time of day, Tint = colour cast, Saturation = colour strength). Atmo = lighting colours the server applies for the match.
@@ -21,6 +21,14 @@ Maps.List = {
 		Id = "city", Name = "Plaza Park", Icon = "🏙️", Blurb = "Streets, buildings with balconies and a park", Card = C(255, 112, 170),
 		Look = { Clock = 14.5 },
 		Scenery = { Hill = C(118, 204, 78), Far = C(128, 208, 84), Bubbles = true },
+	},
+	school = {
+		Id = "school", Name = "School Yard", Icon = "🏫", Blurb = "A school courtyard: basketball court, wooden decks and yellow chests", Card = C(255, 150, 70),
+		Look = { Clock = 13.5, Tint = C(255, 247, 232), Saturation = 0.2 },
+		Atmo = { Ambient = C(150, 146, 150), Outdoor = C(168, 164, 170), Fog = C(214, 228, 244), Haze = 0.5, AtmoColor = C(206, 224, 244) },
+		Scenery = { Hill = C(118, 190, 86), Far = C(128, 196, 92), Bubbles = false },
+		Ground = { Color = C(212, 150, 126), Material = Enum.Material.Concrete, Patch = C(232, 190, 130) },
+		Wall = { Color = C(238, 228, 208), Material = Enum.Material.SmoothPlastic, Trim = C(70, 58, 66), Height = 30, Cap = Enum.Material.SmoothPlastic },
 	},
 	frost = {
 		Id = "frost", Name = "Frosty Peaks", Icon = "❄️", Blurb = "Igloos, snowmen and a frozen pond", Card = C(120, 200, 255),
@@ -159,6 +167,7 @@ Maps.Half = 134
 
 -- Props (cover) per map: kind, how much room it takes (radius at normal size) and how often it is picked.
 Maps.Props = {
+	school = { { "bench", 4, 4 }, { "hedge", 6, 6 }, { "planter", 4, 5 }, { "logs", 4, 4 }, { "locker", 4, 4 }, { "tree", 6, 6 }, { "stack", 5, 5 }, { "fence", 7, 3 }, { "bush", 3, 4 } },
 	frost = { { "igloo", 8, 3 }, { "pine", 4, 8 }, { "snowman", 3.5, 4 }, { "iceblock", 5, 5 }, { "crystal", 5, 4 }, { "cabin", 9, 2 }, { "drift", 5, 4 } },
 	candy = { { "lollipop", 5, 6 }, { "cupcake", 5, 5 }, { "gumdrop", 4, 6 }, { "cane", 3, 4 }, { "donut", 7, 3 }, { "cookie", 6, 4 } },
 	desert = { { "pillar", 3.5, 7 }, { "ruin", 8, 4 }, { "cactus", 3, 6 }, { "minipyramid", 8, 2 }, { "rocks", 6, 5 }, { "palm", 4, 4 }, { "obelisk", 3, 3 } },

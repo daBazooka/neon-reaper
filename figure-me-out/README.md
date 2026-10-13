@@ -1,9 +1,6 @@
 # Figure Me Out
 
-A Roblox game for up to 20 players. Everybody wears a secret 3-digit number on their forehead that they cannot see.
-Type someone else's number to take one of their three lives. Read numbers with binoculars and photos, hide yours with smoke,
-flashbangs, distraction grenades and decoys, sprint away, scan for enemies, hack terminals for clues, ally and betray, collect bounties, and don't
-get caught staring at a wall or sitting in one spot: the game exposes campers. Last one standing wins.
+A Roblox game for up to 20 players, made to match the reference trailer of the original (see [docs/VIDEO_SPEC.md](docs/VIDEO_SPEC.md) for exactly what the video shows and how each thing is done here). Everybody wears a secret **4-digit number on a mustard sign on their forehead**. Put the dot on someone's head and **type their number**: it goes in by itself and they are out. Capture the flag (or team fights) in 25-minute matches: red against blue, respawning, with a red box and a blue box for the score. Take out the **camera (F)** or the **binoculars (G)** to read numbers from far away, grab yellow chests for a flashbang, a smoke bottle or a sound grenade, and **don't cover your number**: facing a wall or sitting still fills a red bar and you get strikes.
 
 See [docs/GAME_CONCEPT.md](docs/GAME_CONCEPT.md) for the full design and [docs/SETUP_AND_TESTING.md](docs/SETUP_AND_TESTING.md) for setup, a testing checklist and troubleshooting.
 
@@ -23,27 +20,29 @@ Or run `rojo serve` and click Connect in the Rojo plugin to live-edit.
 
 | Key | What |
 |---|---|
-| **G** | Guess: aim at someone, then type their 3 digits |
-| **Hold right mouse** or **Z** | Binoculars (scroll to zoom) |
-| **Click** or **F** | Take a photo |
+| **0 to 9** | Just type the number of the player under the dot (4 digits, it sends by itself, Backspace fixes a typo) |
+| **F** | Take out the camera (slot F); press again to put it away. **Click** to take a photo (a polaroid drops in) |
+| **G** | Take out the binoculars (slot G). **Click** to look through them (click again to lower them). Or hold the **right mouse button** / **Z** to zoom, scroll to change |
+| **F / G with a crate item** | The slot now holds a flashbang ⚡, a smoke bottle 🧪 or a sound grenade 🔊: press the key, **click** to throw. When it is used up the camera / binoculars come back |
 | **V** | Notebook (your photos, joined up) |
-| **3 to 8** | Use a gadget (flashbang, smoke, distraction grenade, scanner, sprint boost, decoy) |
-| **T** | Offer an alliance to the player you aim at (or end yours) |
-| **I** | Gadget inventory and your clues |
 | **B** | Quick emotes |
 | **M** | Menu (how to play, plates, stats, settings) |
 | **◀ ▶** | Change who you watch after you are out |
 
-On a phone or tablet: tap the buttons in the gadget bar, the GUESS button and the on-screen keypad. On a controller: X guess, R2 photo, hold L2 for binoculars, Y notebook, L1/R1 choose a gadget and A to use it, Start for the menu.
+On a phone or tablet: tap a player, then the on-screen number pad; tap the F and G slots to use the camera, the binoculars or a grenade straight away. On a controller: X guess, R2 photo, hold L2 for binoculars, Y notebook, L1/R1 choose a gadget and A to use it, Start for the menu.
+
+## The screen (like the video)
+
+Top centre: a **red box and a blue box** with the team scores and a small "-" between them, the **timer** under them (25:00 counting down), three **X marks** for your strikes, and a small **flag icon** beside a box when that team's flag has been taken. Bottom centre: the **F and G slots** (a white slot is the one in your hands). In the middle: a small dot. Under the dot while you type: the **big white digits** with underscores for the missing ones. A short white line at the bottom says "You killed Michael". On the left: your own number on a small sign. Names above heads are small, white and see-through; there are no floating numbers.
 
 ## Six maps, and you vote for the next one
 
-From the moment a match ends until the next one starts (the results screen plus the 10-second lobby wait) six cards appear along the bottom of everybody's screen. **Tap a map to vote** (tap another to change your mind; the number on a card is its votes and the leader glows gold). **The map with the most votes is played. If maps are tied, one of the tied maps is picked at random** (and with no votes at all, any of the six can come up). The very first match, which starts the moment the first player arrives, uses the starter map (Waterfall Canyon). Switch voting off with `Config.Vote.Enabled = false` (the game then stays on one map). The arena is rebuilt for the winning map while everybody is on the lobby island; each map also tints the colour grade and the sky a little.
+From the moment a match ends until the next one starts (the results screen plus the 10-second lobby wait) six cards appear along the bottom of everybody's screen. **Tap a map to vote** (tap another to change your mind; the number on a card is its votes and the leader glows gold). **The map with the most votes is played. If maps are tied, one of the tied maps is picked at random** (and with no votes at all, any of the six can come up). The very first match, which starts the moment the first player arrives, uses the starter map (the School Yard). Plaza Park, the old city map, is still built into the game (`Config.Map.use("city")`) but is not on the cards. Switch voting off with `Config.Vote.Enabled = false` (the game then stays on one map). The arena is rebuilt for the winning map while everybody is on the lobby island; each map also tints the colour grade and the sky a little.
 
 | Map | What it is |
 |---|---|
 | 🌊 **Waterfall Canyon** | waterfalls, a river that pushes you, a lake, planes overhead (see below) |
-| 🏙️ **Plaza Park** | streets, four buildings with balconies and roofs, courtyards, a park in the middle |
+| 🏫 **School Yard** | the courtyard from the video: cream walls with an orange band, a blue basketball court, wooden decks with stairs, hedges, planters, log stacks, lockers and yellow chests (the first map) |
 | ❄️ **Frosty Peaks** | snow, igloos, snowmen, pines, ice blocks, a frozen pond with an ice spire |
 | 🍭 **Candy Kingdom** | lollipops, cupcakes, gumdrops, candy canes, donuts and a giant layered cake |
 | 🏜️ **Desert Ruins** | sandstone pillars and ruins, cacti, palms, obelisks and a stepped pyramid |

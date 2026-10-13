@@ -134,6 +134,10 @@ function State.writeEntity(e)
 		for _, id in Config.CarriedItems do
 			p:SetAttribute("It_" .. id, (e.items and e.items[id]) or 0)
 		end
+		-- the two item slots (F and G) and the strikes for covering your number or camping (shown as X marks)
+		p:SetAttribute("SlotF", e.slots and e.slots.F.id or "")
+		p:SetAttribute("SlotG", e.slots and e.slots.G.id or "")
+		p:SetAttribute("Strikes", math.min(3, (e.violations or 0) + (e.campViolations or 0)))
 		local stats = p:FindFirstChild("leaderstats")
 		if stats and stats:FindFirstChild("Kills") then
 			stats.Kills.Value = e.kills or 0

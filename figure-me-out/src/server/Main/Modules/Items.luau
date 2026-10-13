@@ -31,11 +31,58 @@ end
 --------------------------------------------------------------------------------
 -- Carrying and cooldowns
 --------------------------------------------------------------------------------
+-- The two item slots (F and G): each holds the camera or the binoculars until a crate item takes it over.
+local function baseOf(key)
+	return key == "F" and Config.Loadout.F or Config.Loadout.G
+end
+
+-- Which slot ("F" or "G") holds this item right now, or nil.
+function Items.slotOf(e, id)
+	if not Config.Loadout.Enabled or not e.slots then
+		return nil
+	end
+	for _, key in { "F", "G" } do
+		if e.slots[key].id == id then
+			return key
+		end
+	end
+	return nil
+end
+
+-- A crate item goes into the slot that still holds its starting item (G first); when both are busy it replaces G's.
+local function assign(e, id)
+	if not e.slots or Items.slotOf(e, id) then
+		return
+	end
+	for _, key in { "G", "F" } do
+		if e.slots[key].id == baseOf(key) then
+			e.slots[key].id = id
+			return
+		end
+	end
+	local old = e.slots.G.id
+	e.items[old] = 0
+	e.slots.G.id = id
+end
+
+-- A used-up item gives its slot back to the camera or the binoculars.
+local function release(e, id)
+	if not e.slots or (e.items[id] or 0) > 0 then
+		return
+	end
+	for _, key in { "F", "G" } do
+		if e.slots[key].id == id then
+			e.slots[key].id = baseOf(key)
+		end
+	end
+end
+
 function Items.reset(e)
 	e.items = {}
 	for _, id in Config.CarriedItems do
-		e.items[id] = Config.Features.Gadgets and (Config.ItemById[id].Start or 0) or 0
+		e.items[id] = Config.Features.Gadgets and not Config.Loadout.Enabled and (Config.ItemById[id].Start or 0) or 0
 	end
+	e.slots = Config.Loadout.Enabled and { F = { id = Config.Loadout.F }, G = { id = Config.Loadout.G } } or nil
 	e.cooldowns = {}
 	e.sprintUntil = 0
 	e.blindUntil = 0
@@ -51,6 +98,9 @@ function Items.give(e, id, count)
 	local have = e.items[id] or 0
 	local added = math.max(0, math.min(count or 1, def.Max - have))
 	e.items[id] = have + added
+	if added > 0 then
+		assign(e, id)
+	end
 	State.writeEntity(e)
 	return added
 end
@@ -334,6 +384,9 @@ function Items.use(e, id, look)
 	if not def or def.Permanent or (e.items[id] or 0) < 1 then
 		return false
 	end
+	if Config.Loadout.Enabled and not Items.slotOf(e, id) then
+		return false
+	end
 	local now = State.now()
 	if (e.stunUntil or 0) > now or Items.cooldownLeft(e, id) > 0 or now - (e.lastUse or -100) < 0.4 then
 		return false
@@ -362,6 +415,7 @@ function Items.use(e, id, look)
 	end
 	if used then
 		e.items[id] -= 1
+		release(e, id)
 		e.lastUse = now
 		Items.startCooldown(e, id, def.Cooldown)
 		State.writeEntity(e)

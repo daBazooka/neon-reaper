@@ -35,7 +35,7 @@ function Guess.attempt(e, targetId, text)
 	end
 	local digits = Rules.parseGuess(text)
 	if not digits then
-		return fail(e, "Type all 3 digits")
+		return fail(e, "Type all " .. Config.Number.Digits .. " digits")
 	end
 	local target = State.entities[targetId] or State.decoys[targetId]
 	if not target or target == e or (not target.model and not target.alive) then

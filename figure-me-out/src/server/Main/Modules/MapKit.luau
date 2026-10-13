@@ -395,11 +395,107 @@ local function stationCenter(f)
 end
 
 --------------------------------------------------------------------------------
+-- School Yard (the courtyard of the original game: cream walls with an orange band, teal and yellow wooden boxes, a blue
+-- basketball court, wooden decks, hedges, planters, log stacks, lockers and round trees)
+--------------------------------------------------------------------------------
+local PLASTER, ORANGE, TEAL, YELLOW = C(238, 228, 208), C(226, 110, 40), C(40, 150, 150), C(230, 190, 70)
+local PLANK, PLANK2, LEAF = C(166, 112, 60), C(132, 88, 46), C(70, 150, 70)
+local schoolProps = {}
+function schoolProps.bench(f, x, z, rot, s)
+	local c, sn = math.cos(math.rad(rot)), -math.sin(math.rad(rot))
+	box(f, "BenchSeat", x, z, 6 * s, 0.6, 2 * s, 1.6 * s, rot, PLANK, M.Wood)
+	box(f, "BenchBack", x - sn * 0.9 * s, z - c * 0.9 * s, 6 * s, 1.6 * s, 0.4, 2.2 * s, rot, PLANK2, M.Wood)
+	for _, side in { -1, 1 } do
+		box(f, "BenchLeg", x + c * side * 2.4 * s, z + sn * side * 2.4 * s, 0.5, 1.6 * s, 1.8 * s, 0, rot, C(60, 60, 66), M.Metal)
+	end
+end
+function schoolProps.hedge(f, x, z, rot, s)
+	box(f, "Hedge", x, z, 9 * s, 3.4 * s, 2.6 * s, 0, rot, LEAF, M.Grass)
+	local c, sn = math.cos(math.rad(rot)), -math.sin(math.rad(rot))
+	for i = -2, 2 do
+		ball(f, "HedgeTop", x + c * i * 1.8 * s, 3.5 * s, z + sn * i * 1.8 * s, 2.8 * s, C(92, 168, 84), M.Grass, true)
+	end
+end
+function schoolProps.planter(f, x, z, rot, s)
+	box(f, "Planter", x, z, 5 * s, 2.2 * s, 3.2 * s, 0, rot, PLANK, M.Wood)
+	box(f, "PlanterSoil", x, z, 4.4 * s, 0.3, 2.6 * s, 2.2 * s, rot, C(80, 56, 38), M.Ground, true)
+	for i = -1, 1 do
+		ball(f, "PlanterBush", x + i * 1.3 * s, 3.2 * s, z, 2.2 * s, i == 0 and LEAF or C(96, 172, 88), M.Grass, true)
+	end
+end
+function schoolProps.logs(f, x, z, rot, s)
+	local c, sn = math.cos(math.rad(rot)), -math.sin(math.rad(rot))
+	for row = 0, 2 do
+		for i = 0, 3 - row do
+			local off = (i - (3 - row) / 2) * 1.25 * s
+			pipe(f, "Log", x - sn * off, (0.6 + row * 1.05) * s, z + c * off, 5 * s, 1.15 * s, rot, row % 2 == 0 and PLANK or PLANK2, M.Wood)
+		end
+	end
+	for _, side in { -1, 1 } do
+		box(f, "LogPost", x + c * side * 2.7 * s, z + sn * side * 2.7 * s, 0.4, 3.4 * s, 0.4, 0, rot, PLANK2, M.Wood, true)
+	end
+end
+function schoolProps.locker(f, x, z, rot, s, variant)
+	local col = pick({ TEAL, ORANGE, C(120, 126, 140) }, variant)
+	local c, sn = math.cos(math.rad(rot)), -math.sin(math.rad(rot))
+	box(f, "Lockers", x, z, 8 * s, 7 * s, 2.4 * s, 0, rot, col, M.Metal)
+	for i = -1, 1 do
+		box(f, "LockerDoor", x + c * i * 2.6 * s, z + sn * i * 2.6 * s, 2.4 * s, 6 * s, 2.5 * s, 0.5, rot, col:Lerp(C(0, 0, 0), 0.18), M.Metal, true)
+	end
+end
+function schoolProps.tree(f, x, z, rot, s)
+	cyl(f, "TreeTrunk", x, z, 1.7 * s, 6.5 * s, 0, C(120, 84, 52), M.Wood)
+	ball(f, "TreeCanopy", x, 11 * s, z, 11 * s, C(66, 150, 70), M.Grass)
+	ball(f, "TreeCanopy", x + 2.6 * s, 9 * s, z + 1.5 * s, 7.5 * s, C(82, 168, 80), M.Grass)
+	ball(f, "TreeCanopy", x - 2.4 * s, 9.6 * s, z - 1.4 * s, 7 * s, C(58, 138, 64), M.Grass)
+end
+function schoolProps.stack(f, x, z, rot, s, variant)
+	-- teal and yellow wooden boxes, stacked
+	local a, b = pick({ TEAL, YELLOW }, variant), pick({ YELLOW, TEAL }, variant)
+	box(f, "CrateBox", x, z, 4.6 * s, 3.6 * s, 4.6 * s, 0, rot, a, M.Wood)
+	box(f, "CrateTrim", x, z, 4.8 * s, 0.4, 4.8 * s, 3.4 * s, rot, PLANK2, M.Wood, true)
+	box(f, "CrateBox", x + 0.4 * s, z - 0.2 * s, 4 * s, 3.2 * s, 4 * s, 3.6 * s, rot + 12, b, M.Wood)
+end
+function schoolProps.fence(f, x, z, rot, s)
+	local c, sn = math.cos(math.rad(rot)), -math.sin(math.rad(rot))
+	box(f, "FenceBoards", x, z, 9 * s, 4.4 * s, 0.4, 0, rot, PLANK, M.Wood)
+	for i = -2, 2 do
+		box(f, "FencePost", x + c * i * 2.2 * s, z + sn * i * 2.2 * s, 0.5, 5 * s, 0.7, 0, rot, PLANK2, M.Wood, true)
+	end
+	box(f, "FenceRail", x, z, 9.2 * s, 0.4, 0.7, 3 * s, rot, PLANK2, M.Wood, true)
+end
+function schoolProps.bush(f, x, z, rot, s)
+	ball(f, "Bush", x, 1.6 * s, z, 4.6 * s, LEAF, M.Grass, false, 0.8)
+	ball(f, "BushFlower", x + 1 * s, 3 * s, z + 0.5 * s, 0.8 * s, C(255, 130, 170), M.SmoothPlastic, true)
+end
+
+local function schoolCenter(f)
+	-- the basketball court: a blue slab with white lines and a hoop at each end
+	box(f, "Court", 0, 0, 38, 0.3, 22, 0, 0, C(54, 116, 188), M.SmoothPlastic)
+	box(f, "CourtEdge", 0, 0, 40, 0.2, 24, 0, 0, C(226, 120, 60), M.SmoothPlastic, true)
+	local function line(x, z, w, d)
+		box(f, "CourtLine", x, z, w, 0.06, d, 0.32, 0, WHITE, M.SmoothPlastic, true)
+	end
+	line(0, -10.5, 36, 0.4); line(0, 10.5, 36, 0.4); line(-18, 0, 0.4, 21); line(18, 0, 0.4, 21); line(0, 0, 0.4, 21)
+	cyl(f, "CourtCircle", 0, 0, 8, 0.06, 0.32, WHITE, M.SmoothPlastic, true)
+	cyl(f, "CourtCircleInner", 0, 0, 7.2, 0.07, 0.33, C(54, 116, 188), M.SmoothPlastic, true)
+	for _, side in { -1, 1 } do
+		line(side * 13, 0, 0.4, 9); line(side * 15.5, -4.5, 5, 0.4); line(side * 15.5, 4.5, 5, 0.4)
+		local hx = side * 19.2
+		cyl(f, "HoopPole", hx + side * 1.4, 0, 0.7, 10, 0, C(70, 74, 82), M.Metal)
+		box(f, "HoopBoard", hx, 0, 0.4, 4, 6, 8, 0, WHITE, M.SmoothPlastic)
+		cyl(f, "HoopRim", hx - side * 1.1, 0, 2.2, 0.2, 8.6, C(255, 110, 40), M.Neon, true)
+		box(f, "HoopSquare", hx - side * 0.25, 0, 0.1, 2, 2.6, 8.4, 0, C(40, 40, 46), M.SmoothPlastic, true)
+	end
+end
+
+--------------------------------------------------------------------------------
 -- The shared parts: ground, decks, walls
 --------------------------------------------------------------------------------
-local PROPS = { frost = frostProps, candy = candyProps, desert = desertProps, station = stationProps }
-local CENTERS = { frost = frostCenter, candy = candyCenter, desert = desertCenter, station = stationCenter }
+local PROPS = { school = schoolProps, frost = frostProps, candy = candyProps, desert = desertProps, station = stationProps }
+local CENTERS = { school = schoolCenter, frost = frostCenter, candy = candyCenter, desert = desertCenter, station = stationCenter }
 local DECKS = {
+	school = { Body = PLANK, Mat = M.Wood, Trim = PLANK2, Stair = C(190, 134, 76), Light = nil },
 	frost = { Body = ICE, Mat = M.Ice, Trim = WHITE, Stair = SNOW, Light = C(160, 240, 255) },
 	candy = { Body = C(255, 150, 200), Mat = M.SmoothPlastic, Trim = WHITE, Stair = C(255, 226, 120), Light = C(255, 255, 255) },
 	desert = { Body = STONE, Mat = M.Sandstone, Trim = DARKSTONE, Stair = SAND, Light = C(255, 190, 70) },
@@ -418,7 +514,9 @@ local function deck(parent, id, d)
 	end
 	box(parent, "DeckRim", x, z - sgn * (size / 2 - 0.4), size, 1.6, 0.8, h + 0.6, 0, pal.Trim, pal.Mat)
 	stairs(parent, x, z + sgn * size / 2, sgn, 6, h, 1, 2, pal.Stair)
-	box(parent, "DeckGlow", x, z, size - 2, 0.2, size - 2, h + 0.6, 0, pal.Light, M.Neon, true)
+	if pal.Light then
+		box(parent, "DeckGlow", x, z, size - 2, 0.2, size - 2, h + 0.6, 0, pal.Light, M.Neon, true)
+	end
 end
 
 local function walls(parent, id, spec)
@@ -464,6 +562,22 @@ local function decorGround(parent, id, spec)
 		end
 		return
 	end
+	if id == "school" then
+		-- a stone path from each base to the court, tan paving patches and white painted lines
+		for _, side in { -1, 1 } do
+			for k = 0, 9 do
+				box(parent, "StoneTile", side * (30 + k * 6.2), (k % 2) * 1.2 - 0.6, 5, 0.14, 4.2, 0.04, k * 7, C(168, 164, 160), M.Slate, true)
+			end
+		end
+		for _ = 1, 36 do
+			local x, z = (rnd() * 2 - 1) * 120, (rnd() * 2 - 1) * 120
+			box(parent, "PavingPatch", x, z, 8 + rnd() * 14, 0.06, 6 + rnd() * 10, 0.04, rnd() * 90, spec.Patch, M.Concrete, true)
+		end
+		for _, z in { -64, 64 } do
+			box(parent, "PaintedLine", 0, z, 150, 0.06, 0.5, 0.06, 0, WHITE, M.SmoothPlastic, true)
+		end
+		return
+	end
 	for _ = 1, 70 do
 		local x, z = (rnd() * 2 - 1) * 126, (rnd() * 2 - 1) * 126
 		if id == "candy" then
@@ -481,6 +595,23 @@ end
 
 local function wallDetail(parent, id, spec)
 	local half = Maps.Half + 2
+	if id == "school" then
+		-- an orange band along the bottom of every wall, rows of windows, teal doors and a dark roof line
+		for _, def in { { 0, -half + 2.05, 0 }, { 0, half - 2.05, 0 }, { -half + 2.05, 0, 90 }, { half - 2.05, 0, 90 } } do
+			local along = def[3] == 0
+			box(parent, "WallBand", def[1], def[2], along and 264 or 0.3, 7, along and 0.3 or 264, 0, 0, ORANGE, M.SmoothPlastic, true)
+			for i = -4, 4 do
+				local off = i * 28 + 8
+				local wx, wz = along and off or def[1], along and def[2] or off
+				box(parent, "Window", wx, wz, along and 9 or 0.3, 6, along and 0.3 or 9, 17, 0, C(40, 70, 110), M.Glass, true).Transparency = 0.25
+				box(parent, "WindowFrame", wx, wz, along and 10 or 0.2, 7, along and 0.2 or 10, 16.5, 0, C(250, 246, 236), M.SmoothPlastic, true)
+				if i % 3 == 0 then
+					box(parent, "Door", wx + (along and 14 or 0), wz + (along and 0 or 14), along and 6 or 0.3, 10, along and 0.3 or 6, 0, 0, TEAL, M.Wood, true)
+				end
+			end
+		end
+		return
+	end
 	if id == "candy" then
 		for i = -5, 5 do
 			local off = i * 24
@@ -524,7 +655,7 @@ function MapKit.build(arena, ground, id)
 	local g = spec.Ground
 	part(ground, "Floor", Vector3.new(280, 2, 280), CFrame.new(0, -1, 0), g.Color, g.Material)
 	decorGround(ground, id, g)
-	walls(arena, id, { Color = spec.Wall.Color, Alt = id == "candy" and WHITE or nil, Material = spec.Wall.Material, Trim = spec.Wall.Trim, Height = spec.Wall.Height, Cap = id == "frost" and M.Ice or nil })
+	walls(arena, id, { Color = spec.Wall.Color, Alt = id == "candy" and WHITE or nil, Material = spec.Wall.Material, Trim = spec.Wall.Trim, Height = spec.Wall.Height, Cap = id == "frost" and M.Ice or spec.Wall.Cap })
 	wallDetail(arena, id, spec.Wall)
 	CENTERS[id](arena)
 	for _, d in layout.Decks do

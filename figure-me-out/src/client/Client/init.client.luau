@@ -16,7 +16,8 @@ local Notify = Net:WaitForChild("Notify")
 local Modules = script:WaitForChild("Modules")
 local Fx = require(Modules.Fx)
 local Toasts = require(Modules.Toasts)
-local Hud = require(Modules.Hud)
+local VIDEO = Config.Hud.Style == "video" -- the screen of the original game (Config.Hud.Style)
+local Hud = require(VIDEO and Modules.HudVideo or Modules.Hud)
 local Keypad = require(Modules.Keypad)
 local Scope = require(Modules.Scope)
 local Album = require(Modules.Album)
@@ -186,6 +187,10 @@ function handlers.phase(phase)
 end
 
 function handlers.kill(victim, killer, how)
+	if VIDEO then
+		Audio.kill() -- (the original shows only your own hits: "You killed Michael")
+		return
+	end
 	if how == "life" then
 		Hud.feed(killer .. "  ➜  " .. victim .. "  (-1 ❤)", C.Gold)
 	elseif how == "left" then
@@ -199,12 +204,21 @@ function handlers.kill(victim, killer, how)
 end
 
 function handlers.gotKill(code, icon, lives, points)
+	if VIDEO then
+		Hud.youKilled(code)
+		Audio.hit()
+		Fx.punch(6)
+		return
+	end
 	Fx.announce("HIT!  +" .. points, icon .. " " .. code .. " has " .. lives .. " " .. (lives == 1 and "life" or "lives") .. " left", C.Good, 0.24)
 	Audio.hit()
 	Fx.punch(6)
 end
 
 function handlers.lifeLost(killer, lives, delay)
+	if VIDEO and type(killer) == "string" and killer ~= "" then
+		Hud.say(killer .. " killed you")
+	end
 	Alerts.lifeLost(killer, lives, delay)
 end
 

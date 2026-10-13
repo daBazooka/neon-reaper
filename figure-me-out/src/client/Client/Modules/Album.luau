@@ -266,8 +266,49 @@ function Album.toggle()
 	end
 end
 
+-- The original game's photo: a white polaroid drops in on the left. The picture shows the person's sign (what you could read of the
+-- number, "?" for what was too blurry or too far) over their name.
+local function showPolaroid(entries)
+	if popup then
+		popup:Destroy()
+	end
+	local card = UI.new("Frame", { Name = "Polaroid", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, -300, 0.5, 0), Size = UDim2.fromOffset(250, 300), BackgroundColor3 = Color3.fromRGB(250, 250, 248), BorderSizePixel = 0, Rotation = -5, ZIndex = 24 }, gui)
+	UI.corner(card, 6)
+	UI.stroke(card, Color3.fromRGB(205, 205, 200), 2, 0)
+	local picture = UI.new("Frame", { Position = UDim2.fromOffset(14, 14), Size = UDim2.fromOffset(222, 218), BackgroundColor3 = Color3.fromRGB(150, 205, 235), BorderSizePixel = 0, ZIndex = 25 }, card)
+	UI.gradient(picture, Color3.fromRGB(190, 225, 245), Color3.fromRGB(110, 170, 120), 90)
+	local first = entries[1]
+	if first then
+		local sign = UI.new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 62), Size = UDim2.fromOffset(190, 70), BackgroundColor3 = Color3.fromRGB(226, 178, 34), BorderSizePixel = 0, ZIndex = 26 }, picture)
+		UI.corner(sign, 6)
+		UI.label(sign, { Size = UDim2.fromScale(1, 1), Font = UI.Fonts.Title, TextSize = 52, TextColor3 = Color3.fromRGB(22, 20, 16), TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 1, Text = first[4], ZIndex = 27 })
+		UI.new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 132), Size = UDim2.fromOffset(110, 96), BackgroundColor3 = Color3.fromRGB(240, 196, 150), BorderSizePixel = 0, ZIndex = 25 }, picture)
+		UI.label(card, { Position = UDim2.fromOffset(10, 244), Size = UDim2.new(1, -20, 0, 40), Font = UI.Fonts.Bold, TextSize = 22, TextColor3 = Color3.fromRGB(60, 56, 50), TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 1, Text = first[2] .. (first[5] and ("  •  " .. first[5] .. " m") or ""), ZIndex = 25 })
+	else
+		UI.label(picture, { Size = UDim2.fromScale(1, 1), Font = UI.Fonts.Bold, TextSize = 22, TextColor3 = Color3.fromRGB(60, 80, 100), TextXAlignment = Enum.TextXAlignment.Center, Text = "nobody in the picture", ZIndex = 26 })
+	end
+	popup = card
+	UI.tween(card, 0.35, { Position = UDim2.new(0, 28, 0.5, 0), Rotation = -4 }, Enum.EasingStyle.Back)
+	local mine = card
+	task.delay(4.5, function()
+		if popup == mine then
+			UI.tween(card, 0.3, { Position = UDim2.new(0, -300, 0.5, 0) })
+			task.delay(0.35, function()
+				card:Destroy()
+				if popup == mine then
+					popup = nil
+				end
+			end)
+		end
+	end)
+end
+
 -- A little photo card slides in after every shot.
 local function showPopup(entries)
+	if Config.Hud.Style == "video" then
+		showPolaroid(entries)
+		return
+	end
 	if popup then
 		popup:Destroy()
 	end
@@ -329,7 +370,7 @@ function Album.add(entries)
 		local id, code, icon, text = e[1], e[2], e[3], e[4]
 		local n = notebook[id]
 		if not n then
-			n = { id = id, code = code, icon = icon, digits = { "?", "?", "?" }, seen = now, count = 0 }
+			n = { id = id, code = code, icon = icon, digits = table.create(Config.Number.Digits, "?"), seen = now, count = 0 }
 			notebook[id] = n
 		end
 		n.count += 1

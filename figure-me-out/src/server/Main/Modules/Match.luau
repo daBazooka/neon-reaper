@@ -569,6 +569,9 @@ function Match.setScope(p, on)
 		return
 	end
 	on = on == true
+	if on and Config.Loadout.Enabled and not Items.slotOf(e, "binos") then
+		return -- (a crate item is in the binoculars' slot right now)
+	end
 	if on and (Items.cooldownLeft(e, "binos") > 0 or State.phase ~= "play" or (e.blindUntil or 0) > State.now()) then
 		return
 	end
@@ -658,7 +661,7 @@ function Match.run()
 			return State.now() >= State.phaseEnd
 		end)
 
-		State.setPhase("play", State.now() + Config.Match.Length)
+		State.setPhase("play", State.now() + (State.mode.Length or Config.Match.Length))
 		Match.tellNumbers()
 		for _, e in State.list() do
 			Combat.applySpeed(e)

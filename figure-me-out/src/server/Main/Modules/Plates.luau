@@ -41,9 +41,9 @@ function Plates.attachPlate(char, style, text)
 		old:Destroy()
 	end
 	local size = head.Size
-	local w = size.X * 1.5 -- a bold headband: wider than the head so the digits can be read from a distance
-	local h = w * 0.5
-	local y = size.Y * 0.2
+	local w = size.X * Config.Plate.Width -- a sign a little wider than the head, so the digits can be read from a distance
+	local h = w * Config.Plate.Height
+	local y = size.Y * Config.Plate.Up
 	local z = -(size.Z / 2) - 0.05
 	local plate = Instance.new("Part")
 	plate.Name = PLATE_NAME
@@ -54,19 +54,20 @@ function Plates.attachPlate(char, style, text)
 	plate.CanQuery = false
 	plate.CanTouch = false
 	plate.Massless = true
-	plate.CFrame = head.CFrame * CFrame.new(0, y, z)
+	local tilt = math.rad(Config.Plate.Tilt * (math.random() * 2 - 1)) -- stuck on a little crooked, like in the original
+	plate.CFrame = head.CFrame * CFrame.new(0, y, z) * CFrame.Angles(0, 0, tilt)
 	plate.Parent = head
 	weld(head, plate)
 	local rim = Instance.new("Part")
 	rim.Name = "PlateRim"
 	rim.Size = Vector3.new(w + 0.12, h + 0.12, 0.08)
 	rim.Color = style.Rim
-	rim.Material = Enum.Material.Neon
+	rim.Material = Enum.Material.SmoothPlastic
 	rim.CanCollide = false
 	rim.CanQuery = false
 	rim.CanTouch = false
 	rim.Massless = true
-	rim.CFrame = head.CFrame * CFrame.new(0, y, z + 0.03)
+	rim.CFrame = head.CFrame * CFrame.new(0, y, z + 0.03) * CFrame.Angles(0, 0, tilt)
 	rim.Parent = head
 	weld(head, rim)
 	-- detail: four little bolts at the corners and a glossy highlight strip across the top edge
@@ -81,29 +82,31 @@ function Plates.attachPlate(char, style, text)
 		d.CanQuery = false
 		d.CanTouch = false
 		d.Massless = true
-		d.CFrame = head.CFrame * CFrame.new(offset.X, y + offset.Y, z + offset.Z)
+		d.CFrame = head.CFrame * CFrame.new(0, y, z) * CFrame.Angles(0, 0, tilt) * CFrame.new(offset.X, offset.Y, offset.Z)
 		d.Parent = head
 		weld(head, d)
 		table.insert(extras, d)
 		return d
 	end
-	for _, bx in { -1, 1 } do
-		for _, by in { -1, 1 } do
-			detail("PlateBolt", Vector3.new(0.09, 0.09, 0.05), Vector3.new(bx * (w / 2 - 0.1), by * (h / 2 - 0.1), -0.07), Color3.fromRGB(200, 205, 215), Enum.Material.Metal)
+	if Config.Plate.Detail then
+		for _, bx in { -1, 1 } do
+			for _, by in { -1, 1 } do
+				detail("PlateBolt", Vector3.new(0.09, 0.09, 0.05), Vector3.new(bx * (w / 2 - 0.1), by * (h / 2 - 0.1), -0.07), Color3.fromRGB(200, 205, 215), Enum.Material.Metal)
+			end
 		end
+		local shine = detail("PlateShine", Vector3.new(w - 0.34, 0.05, 0.05), Vector3.new(0, h / 2 - 0.07, -0.07), Color3.fromRGB(255, 255, 255), Enum.Material.Neon)
+		shine.Transparency = 0.55
 	end
-	local shine = detail("PlateShine", Vector3.new(w - 0.34, 0.05, 0.05), Vector3.new(0, h / 2 - 0.07, -0.07), Color3.fromRGB(255, 255, 255), Enum.Material.Neon)
-	shine.Transparency = 0.55
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "PlateGui"
 	gui.Face = Enum.NormalId.Front
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
-	gui.CanvasSize = Vector2.new(330, 175)
+	gui.CanvasSize = Vector2.new(400, 160)
 	gui.LightInfluence = 0
 	gui.Brightness = 1.4
 	gui.MaxDistance = 500
 	gui.Parent = plate
-	local text3 = label(gui, { Text = text, TextColor3 = style.Text, Name = "Digits" })
+	local text3 = label(gui, { Text = text, TextColor3 = style.Text, Name = "Digits", Font = Enum.Font.FredokaOne })
 	local glow = Instance.new("PointLight")
 	glow.Range = 10
 	glow.Brightness = 2
@@ -136,14 +139,19 @@ function Plates.attachTag(char, text, color)
 	end
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "CodeTag"
-	gui.Size = UDim2.fromOffset(190, 30)
-	gui.StudsOffset = Vector3.new(0, 2.4, 0)
-	gui.MaxDistance = 130
+	gui.Size = UDim2.fromOffset(190, 26)
+	gui.StudsOffset = Vector3.new(0, 2.2, 0)
+	gui.MaxDistance = Config.Plate.NameRange
 	gui.AlwaysOnTop = false
 	gui.LightInfluence = 0
 	gui.Adornee = head
 	gui.Parent = head
-	label(gui, { Text = text, TextColor3 = color, TextStrokeTransparency = 0.3, TextScaled = false, TextSize = 18 })
+	-- small, white and a little see-through, like the names in the original game (the plain `color` is the old coloured tag)
+	if Config.Plate.WhiteNames then
+		label(gui, { Text = text, TextColor3 = Color3.new(1, 1, 1), TextTransparency = 0.12, TextStrokeTransparency = 0.7, TextScaled = false, TextSize = 16, Font = Enum.Font.GothamBold })
+	else
+		label(gui, { Text = text, TextColor3 = color, TextStrokeTransparency = 0.3, TextScaled = false, TextSize = 18 })
+	end
 	return gui
 end
 
@@ -383,8 +391,10 @@ function Plates.dress(char, color)
 	colors.TorsoColor3 = color
 	colors.LeftArmColor3 = color
 	colors.RightArmColor3 = color
-	colors.LeftLegColor3 = color:Lerp(Color3.new(0, 0, 0), 0.25)
-	colors.RightLegColor3 = color:Lerp(Color3.new(0, 0, 0), 0.25)
+	-- team shirt over dark trousers, like the original (the older look: trousers a shade darker than the shirt)
+	local legs = Config.Plate.DarkTrousers and Color3.fromRGB(36, 38, 46) or color:Lerp(Color3.new(0, 0, 0), 0.25)
+	colors.LeftLegColor3 = legs
+	colors.RightLegColor3 = legs
 end
 
 -- Everything for one entity. e needs char, code, icon, color, number and style.

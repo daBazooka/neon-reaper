@@ -144,7 +144,7 @@ class Canvas:
         self.paste(l)
 
     # ---- the blocky character (a stand-in in the game's style, not a Roblox avatar) -------------------------------------
-    def avatar(self, cx, base, s, shirt="#0d69ac", pants="#a3c429", skin="#f5cd30", number=None, tag=True, plate=True, mood="smile", flip=False, arm_up=None, hair=None):
+    def avatar(self, cx, base, s, shirt="#0d69ac", pants="#a3c429", skin="#f5cd30", number=None, tag=False, plate=True, mood="smile", flip=False, arm_up=None, hair=None):
         """Classic Roblox (R6) figure: 2x2 torso, 1x2 arms and legs, rounded head with the classic smile.
         cx = centre x, base = y of the feet, s = height of the whole figure in px."""
         l, d = self.layer()
@@ -192,10 +192,10 @@ class Canvas:
             d.arc([self.S(cx - 0.34 * u), self.S(ey - 0.02 * u), self.S(cx + 0.34 * u), self.S(ey + 0.42 * u)], 15, 165, fill=(25, 25, 30, 255), width=sw)
         # forehead number plate sits across the top of the head
         if plate and number:
-            d.rounded_rectangle([self.S(cx - 0.6 * u), self.S(hy0 + 0.06 * u), self.S(cx + 0.6 * u), self.S(hy0 + 0.4 * u)], radius=self.S(u * 0.06), fill=(16, 26, 56, 255), outline=(255, 214, 60, 255), width=max(1, self.S(u * 0.025)))
+            d.rounded_rectangle([self.S(cx - 0.6 * u), self.S(hy0 + 0.06 * u), self.S(cx + 0.6 * u), self.S(hy0 + 0.4 * u)], radius=self.S(u * 0.06), fill=(226, 178, 34, 255), outline=(150, 108, 14, 255), width=max(1, self.S(u * 0.025)))
         self.paste(l)
         if plate and number:
-            self.text((cx, hy0 + 0.235 * u), number, u * 0.3, fill="#ffe45a", stroke="#10325a", sw=0.05, shadow=False)
+            self.text((cx, hy0 + 0.235 * u), number, u * 0.3, fill="#16140f", stroke="#16140f", sw=0.0, shadow=False)
         if tag and number:
             self.text((cx, hy0 - 0.6 * u), number, u * 0.95, fill="#ffe45a", stroke="#10325a", sw=0.11)
 

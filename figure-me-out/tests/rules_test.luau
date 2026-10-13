@@ -26,6 +26,16 @@ local function load(name)
 end
 local Util, Config, Rules = load("Util"), load("Config"), load("Rules")
 local Canyon = load("Canyon")
+do local C0 = Config
+C0.Number.Digits = 3; C0.Number.Min = 1; C0.Number.Max = 999
+C0.Loadout.Enabled = false
+C0.CarriedItems = { "flash", "smoke", "distraction", "scanner", "sprint", "decoy" }
+C0.Match.Length = 90
+C0.Modes.Rotation = { "deathmatch", "team", "ctf" }
+for _, m in C0.Modes.List do m.Length = nil end
+C0.Modes.List.team.ScoreLimit = 15
+C0.Modes.List.ctf.CaptureLimit = 2
+C0.Map.use("canyon") end
 Config.Map.use("city") -- the checks below were written for Plaza Park; the canyon has its own section at the end
 
 local function lcg(seed)

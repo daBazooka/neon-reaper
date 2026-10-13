@@ -18,6 +18,7 @@ local blindUntil, stunUntil = 0, 0
 local snitch -- { pos, until }
 local glitchUntil = 0
 local eventState = nil -- { name, icon, text, untilT, stage }
+local VIDEO = Config.Hud.Style == "video" -- the original game's warning: a red triangle, a bar that fills, "don't cover your number"
 
 function Alerts.isBlind()
 	return View.now() < blindUntil
@@ -60,34 +61,52 @@ function Alerts.init(gui, d)
 		Visible = false,
 		ZIndex = 41,
 	})
+	if VIDEO then
+		refs.cover = UI.new("Frame", { Name = "CoverWarning", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.56, 0), Size = UDim2.fromOffset(340, 110), BackgroundTransparency = 1, Visible = false, ZIndex = 45 }, gui)
+		-- a red warning triangle with a white "!" ...
+		refs.coverTitle = UI.label(refs.cover, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 0), Size = UDim2.fromOffset(40, 34), Font = UI.Fonts.Title, TextSize = 36, TextColor3 = Color3.fromRGB(240, 70, 84), TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeColor3 = Color3.new(1, 1, 1), TextStrokeTransparency = 0.2, Text = "▲", ZIndex = 46 })
+		UI.label(refs.coverTitle, { Size = UDim2.fromScale(1, 1), Position = UDim2.fromOffset(0, 5), Font = UI.Fonts.Title, TextSize = 16, TextColor3 = Color3.new(1, 1, 1), TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 1, Text = "!", ZIndex = 47 })
+		-- ... a dark segmented bar that fills red from the left ...
+		local track = UI.new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 38), Size = UDim2.fromOffset(300, 24), BackgroundColor3 = Color3.fromRGB(40, 38, 40), BorderSizePixel = 0, ZIndex = 46 }, refs.cover)
+		UI.corner(track, 9)
+		UI.stroke(track, Color3.new(1, 1, 1), 2.5, 0.05)
+		refs.coverFill = UI.new("Frame", { Position = UDim2.fromOffset(3, 3), Size = UDim2.new(0, 0, 1, -6), BackgroundColor3 = Color3.fromRGB(240, 70, 84), BorderSizePixel = 0, ZIndex = 47 }, track)
+		UI.corner(refs.coverFill, 6)
+		for i = 1, 17 do
+			UI.new("Frame", { Position = UDim2.new(i / 18, -1, 0, 4), Size = UDim2.new(0, 2, 1, -8), BackgroundColor3 = Color3.fromRGB(20, 18, 20), BackgroundTransparency = 0.3, BorderSizePixel = 0, ZIndex = 48 }, track)
+		end
+		-- ... and the words
+		refs.coverSub = UI.label(refs.cover, { Position = UDim2.fromOffset(0, 68), Size = UDim2.new(1, 0, 0, 30), Font = UI.Fonts.Bold, TextSize = 24, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 0.4, Text = "", ZIndex = 46 })
+	else
 	refs.cover = UI.panel(gui, {
-		Name = "CoverWarning",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 86),
-		Size = UDim2.fromOffset(420, 58),
-		BackgroundColor3 = Color3.fromRGB(70, 14, 22),
-		Visible = false,
-		ZIndex = 45,
-	})
-	refs.coverTitle = UI.label(refs.cover, {
-		Position = UDim2.fromOffset(0, 5),
-		Size = UDim2.new(1, 0, 0, 26),
-		Font = UI.Fonts.Title,
-		TextSize = 20,
-		TextColor3 = C.Danger,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		Text = "",
-		ZIndex = 46,
-	})
-	refs.coverSub = UI.label(refs.cover, {
-		Position = UDim2.fromOffset(0, 32),
-		Size = UDim2.new(1, 0, 0, 20),
-		Font = UI.Fonts.Bold,
-		TextSize = 13,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		Text = "",
-		ZIndex = 46,
-	})
+			Name = "CoverWarning",
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, 86),
+			Size = UDim2.fromOffset(420, 58),
+			BackgroundColor3 = Color3.fromRGB(70, 14, 22),
+			Visible = false,
+			ZIndex = 45,
+		})
+		refs.coverTitle = UI.label(refs.cover, {
+			Position = UDim2.fromOffset(0, 5),
+			Size = UDim2.new(1, 0, 0, 26),
+			Font = UI.Fonts.Title,
+			TextSize = 20,
+			TextColor3 = C.Danger,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Text = "",
+			ZIndex = 46,
+		})
+		refs.coverSub = UI.label(refs.cover, {
+			Position = UDim2.fromOffset(0, 32),
+			Size = UDim2.new(1, 0, 0, 20),
+			Font = UI.Fonts.Bold,
+			TextSize = 13,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Text = "",
+			ZIndex = 46,
+		})
+	end
 	refs.arrowHolder = UI.new("Frame", { Name = "Snitch", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false, ZIndex = 50 }, gui)
 	refs.arrow = UI.label(refs.arrowHolder, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -142,8 +161,13 @@ end
 function Alerts.camp(stage, value, violations)
 	if stage == "warn" then
 		refs.cover.Visible = true
-		refs.coverTitle.Text = "⚠️ KEEP MOVING!"
-		refs.coverSub.Text = "No camping! Move to a new spot or your position is revealed in " .. math.ceil(value) .. "s"
+		if VIDEO then
+			refs.coverFill.Size = UDim2.new(math.clamp(1 - value / Config.Camp.Limit, 0, 1), -6, 1, -6)
+			refs.coverSub.Text = "don't stay in one spot"
+		else
+			refs.coverTitle.Text = "⚠️ KEEP MOVING!"
+			refs.coverSub.Text = "No camping! Move to a new spot or your position is revealed in " .. math.ceil(value) .. "s"
+		end
 		if (refs.lastWarnBeep or 0) + 1.5 < os.clock() then
 			refs.lastWarnBeep = os.clock()
 			Audio.warn()
@@ -154,7 +178,11 @@ function Alerts.camp(stage, value, violations)
 		refs.cover.Visible = false
 		Audio.siren()
 		deps.Fx.flash(C.Danger, 0.5, 0.6)
-		deps.Fx.announce("CAMPER REVEALED!", "You stayed in one spot. Your plate glows red for " .. value .. "s" .. ((violations or 1) > 1 and ("  •  violation #" .. violations) or ""), C.Danger, 0.28)
+		if VIDEO then
+			deps.Hud.say("Your number is showing for " .. value .. "s", C.Danger, 4)
+		else
+			deps.Fx.announce("CAMPER REVEALED!", "You stayed in one spot. Your plate glows red for " .. value .. "s" .. ((violations or 1) > 1 and ("  •  violation #" .. violations) or ""), C.Danger, 0.28)
+		end
 	end
 end
 
@@ -162,8 +190,13 @@ end
 function Alerts.cover(stage, value, violations)
 	if stage == "warn" then
 		refs.cover.Visible = true
-		refs.coverTitle.Text = "⚠️ NUMBER OBSTRUCTED!"
-		refs.coverSub.Text = "STOP HIDING YOUR NUMBER! Your position is revealed in " .. string.format("%.1f", value) .. "s"
+		if VIDEO then
+			refs.coverFill.Size = UDim2.new(math.clamp(1 - value / Config.Cover.Limit, 0, 1), -6, 1, -6)
+			refs.coverSub.Text = "don't cover your number"
+		else
+			refs.coverTitle.Text = "⚠️ NUMBER OBSTRUCTED!"
+			refs.coverSub.Text = "STOP HIDING YOUR NUMBER! Your position is revealed in " .. string.format("%.1f", value) .. "s"
+		end
 		if (refs.lastWarnBeep or 0) + 0.8 < os.clock() then
 			refs.lastWarnBeep = os.clock()
 			Audio.warn()
@@ -174,7 +207,11 @@ function Alerts.cover(stage, value, violations)
 		refs.cover.Visible = false
 		Audio.siren()
 		deps.Fx.flash(C.Danger, 0.5, 0.6)
-		deps.Fx.announce("YOUR POSITION HAS BEEN REVEALED!", "Your plate glows red for " .. value .. "s" .. ((violations or 1) > 1 and ("  •  violation #" .. violations) or ""), C.Danger, 0.28)
+		if VIDEO then
+			deps.Hud.say("Your number is showing for " .. value .. "s", C.Danger, 4)
+		else
+			deps.Fx.announce("YOUR POSITION HAS BEEN REVEALED!", "Your plate glows red for " .. value .. "s" .. ((violations or 1) > 1 and ("  •  violation #" .. violations) or ""), C.Danger, 0.28)
+		end
 	end
 end
 

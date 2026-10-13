@@ -1,8 +1,9 @@
 -- FIGURE ME OUT: the guess panel. Press G (or tap GUESS): pick who you mean from the list of people you can see (the one under
--- the crosshair is chosen for you) and type their three digits: the guess goes in by itself on the third digit (with
+-- the crosshair is chosen for you) and type their digits: the guess goes in by itself on the third digit (with
 -- Config.Guess.AutoSubmit off you press CONFIRM or Enter instead). The panel tells you what a wrong
 -- guess costs before you commit, and shows the cooldown. Nothing here ever shows a number: you have to find it yourself.
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -22,6 +23,8 @@ local typed = ""
 local target = nil
 local lastGuessAt = -100
 local chips = {}
+local VIDEO = Config.Hud.Style == "video" -- the original game: no panel, just big digits where you look
+local lastKeyAt = -100
 
 local DIGIT_KEYS = {}
 for i = 0, 9 do
@@ -47,11 +50,15 @@ local function redraw()
 		local ch = string.sub(typed, i, i)
 		l.Text = ch ~= "" and ch or "_"
 		l.TextColor3 = ch ~= "" and C.Text or C.Muted
+		if VIDEO then
+			l.TextColor3 = Color3.new(1, 1, 1)
+			l.TextTransparency = ch ~= "" and 0 or 0.35
+		end
 	end
 	if not Config.Guess.AutoSubmit then
 		local ready = #typed == Config.Number.Digits and target ~= nil
 		confirm.BackgroundColor3 = ready and C.Good or C.Disabled
-		confirm.Text = ready and "CONFIRM" or "TYPE 3 DIGITS"
+		confirm.Text = ready and "CONFIRM" or ("TYPE " .. Config.Number.Digits .. " DIGITS")
 	end
 end
 
@@ -79,10 +86,12 @@ end
 
 local function setTarget(entity)
 	target = entity
-	if entity then
+	if entity and VIDEO then
+		title.Text = entity.code
+	elseif entity then
 		title.Text = "WHO IS " .. entity.icon .. " " .. string.upper(entity.code) .. "?"
 	else
-		title.Text = "AIM AT SOMEONE"
+		title.Text = VIDEO and "" or "AIM AT SOMEONE"
 	end
 	for id, chip in chips do
 		chip.stroke.Transparency = (entity and id == entity.id) and 0 or 1
@@ -107,7 +116,7 @@ local function refreshChips()
 			end
 		end
 	end
-	for i = 1, math.min(5, #list) do
+	for i = 1, VIDEO and 0 or math.min(5, #list) do
 		local e = list[i]
 		local b = UI.button(chipRow, {
 			LayoutOrder = i,
@@ -129,8 +138,58 @@ local function refreshChips()
 	return list
 end
 
+-- The original game's version: nothing but the digits you type, big and white, with underscores for the ones still missing, in the
+-- lower middle of the screen. (Phones also get a number pad.)
+local function initVideo(gui)
+	panel = UI.new("Frame", { Name = "Keypad", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.74, 0), Size = UDim2.fromOffset(520, 130), BackgroundTransparency = 1, Visible = false, ZIndex = 30 }, gui)
+	title = UI.label(panel, { Position = UDim2.fromOffset(0, 0), Size = UDim2.new(1, 0, 0, 26), Font = UI.Fonts.Bold, TextSize = 20, TextTransparency = 0.2, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "", ZIndex = 31 })
+	local row = UI.new("Frame", { Name = "Digits", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 26), Size = UDim2.fromOffset(Config.Number.Digits * 84, 96), BackgroundTransparency = 1, ZIndex = 31 }, panel)
+	UI.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder }, row)
+	slotLabels = {}
+	for i = 1, Config.Number.Digits do
+		slotLabels[i] = UI.label(row, { LayoutOrder = i, Size = UDim2.fromOffset(84, 96), Font = UI.Fonts.Title, TextSize = 92, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeColor3 = Color3.fromRGB(30, 26, 20), TextStrokeTransparency = 0.35, Text = "_", ZIndex = 32 })
+	end
+	cooldownLabel = UI.label(panel, { Position = UDim2.fromOffset(0, 112), Size = UDim2.new(1, 0, 0, 18), Font = UI.Fonts.Bold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Orange, Text = "", ZIndex = 31 })
+	-- not used in this version, but the shared code writes to them
+	chipRow = UI.new("Frame", { Size = UDim2.fromOffset(1, 1), BackgroundTransparency = 1, Visible = false }, panel)
+	confirm = UI.new("TextButton", { Size = UDim2.fromOffset(1, 1), BackgroundTransparency = 1, Visible = false, Text = "" }, panel)
+	if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+		local pad = UI.new("Frame", { Name = "NumberPad", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -16, 1, -120), Size = UDim2.fromOffset(190, 250), BackgroundTransparency = 1, ZIndex = 33 }, gui)
+		local function key(text, x, y, onClick, color)
+			local b = UI.button(pad, { Position = UDim2.fromOffset(x * 64, y * 62), Size = UDim2.fromOffset(58, 56), Text = text, TextSize = 24, BackgroundColor3 = color or C.Card, ZIndex = 34 }, "card")
+			b.MouseButton1Click:Connect(onClick)
+		end
+		for n = 1, 9 do
+			key(tostring(n), (n - 1) % 3, math.floor((n - 1) / 3), function() Keypad.press(tostring(n)) end)
+		end
+		key("⌫", 0, 3, function() Keypad.back() end)
+		key("0", 1, 3, function() Keypad.press("0") end)
+		key("✕", 2, 3, function() Keypad.close() end, C.Danger)
+		panel:GetPropertyChangedSignal("Visible"):Connect(function()
+			pad.Visible = panel.Visible
+		end)
+		pad.Visible = false
+	end
+	task.spawn(function()
+		while true do
+			task.wait(0.2)
+			if panel.Visible then
+				Keypad.update()
+				-- a half-typed number is forgotten after a few seconds, so the pad never lingers
+				if View.now() - lastKeyAt > 6 then
+					Keypad.close()
+				end
+			end
+		end
+	end)
+end
+
 function Keypad.init(gui, d)
 	deps = d
+	if VIDEO then
+		initVideo(gui)
+		return
+	end
 	panel = UI.panel(gui, {
 		Name = "Keypad",
 		AnchorPoint = Vector2.new(0.5, 1),
@@ -198,7 +257,16 @@ end
 function Keypad.update()
 	local now = View.now()
 	local wait = lastGuessAt + Config.Guess.Cooldown - now
-	if player:GetAttribute("Stunned") == true then
+	if VIDEO then
+		if player:GetAttribute("Stunned") == true then
+			cooldownLabel.Text = "FROZEN"
+			cooldownLabel.TextColor3 = C.Danger
+		elseif wait > 0 then
+			cooldownLabel.Text = "wait " .. string.format("%.1f", wait) .. "s"
+		else
+			cooldownLabel.Text = ""
+		end
+	elseif player:GetAttribute("Stunned") == true then
 		cooldownLabel.Text = "FROZEN"
 		cooldownLabel.TextColor3 = C.Danger
 	elseif wait > 0 then
@@ -227,6 +295,7 @@ function Keypad.open(entity)
 		return false
 	end
 	typed = ""
+	lastKeyAt = View.now()
 	local list = refreshChips()
 	entity = entity or View.aimed() or list[1]
 	if not entity then
@@ -261,6 +330,7 @@ function Keypad.press(ch)
 		return
 	end
 	typed ..= ch
+	lastKeyAt = View.now()
 	Audio.play("Click", 1 + #typed * 0.12, 0.5)
 	redraw()
 	if #typed == Config.Number.Digits and Config.Guess.AutoSubmit then

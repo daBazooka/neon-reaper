@@ -24,8 +24,8 @@ local cosmeticCards = {}
 local profileLabel
 
 local STEPS = {
-	{ "🪪", "Look at heads", "Everybody has a 3-digit number on their forehead and floating over their head. Yours is shown on your screen, so you know what to hide. You have 3 lives." },
-	{ "🎯", "Type their number", "Look at someone and just type their 3 digits (or press G / Enter, or tap them). It goes in by itself. Right = they lose a life. Wrong = you freeze for a moment." },
+	{ "🪪", "Look at heads", "Everybody has a " .. Config.Number.Digits .. "-digit number on a sign on their forehead. Yours is shown on your screen, so you know what to hide." },
+	{ "🎯", "Type their number", Config.Loadout.Enabled and ("Put the dot on someone's head and just type their " .. Config.Number.Digits .. " digits. It goes in by itself. Right = they are out. Wrong = you freeze for a moment.") or ("Look at someone and just type their " .. Config.Number.Digits .. " digits (or press G / Enter, or tap them). It goes in by itself. Right = they lose a life. Wrong = you freeze for a moment.") },
 	{ "🏆", "Be the last one standing", "Rounds are short. In Team and Flag matches you respawn and your team scores. Don't sit still: campers get exposed!" },
 }
 -- the optional extras (all switched off in Config.Features unless you turn them on)
@@ -37,8 +37,12 @@ local EXTRAS = {
 	{ "Bounty", "🎯", "Bounty", "Hit the gold bounty target for bonus points." },
 	{ "Alliances", "🤝", "Alliances", "Press T to offer an alliance, and watch your back." },
 }
+if Config.Loadout.Enabled then
+	table.insert(STEPS, { "🎒", "Two item slots: F and G", "F holds the camera, G the binoculars. Press the key to take it out, click to use it: a photo (it drops in as a polaroid), or look through the binoculars. Yellow chests give a flashbang ⚡, a smoke bottle 🧪 or a sound grenade 🔊 that take over a slot until you use them." })
+	table.insert(STEPS, { "⚠️", "Don't hide your number", "Facing a wall or sitting still fills the red bar. Each strike is an X, and your number shows for longer every time." })
+end
 for _, x in EXTRAS do
-	if Config.Features[x[1]] then
+	if Config.Features[x[1]] and not Config.Loadout.Enabled then
 		table.insert(STEPS, { x[2], x[3], x[4] })
 	end
 end

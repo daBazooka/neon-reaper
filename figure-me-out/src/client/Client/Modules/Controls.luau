@@ -16,9 +16,12 @@ local deps
 local lastSnap = -100
 local padSelected = 3 -- the gadget a controller player has selected (hotbar slot)
 
+-- The older screen: gadgets on the number keys 1 to 8. (With the two item slots the number keys are for typing the number.)
 local HOTKEYS = {}
-for i, name in { "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight" } do
-	HOTKEYS[Enum.KeyCode[name]] = Config.Items[i].Id
+if not Config.Loadout.Enabled then
+	for i, name in { "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight" } do
+		HOTKEYS[Enum.KeyCode[name]] = Config.Items[i].Id
+	end
 end
 
 local function canAct()
@@ -110,7 +113,17 @@ function Controls.init(d)
 		local kc = input.KeyCode
 		local kind = input.UserInputType
 		local F = Config.Features
-		if kc == Enum.KeyCode.G then
+		local loadout = Config.Loadout.Enabled
+		if loadout and (kc == Enum.KeyCode.F or kc == Enum.KeyCode.G) then
+			-- the two item slots: F holds the camera, G the binoculars (until a crate item takes over)
+			deps.Hud.pressSlot(kc == Enum.KeyCode.F and "F" or "G", false)
+		elseif loadout and (kc == Enum.KeyCode.ButtonL1 or kc == Enum.KeyCode.ButtonR1) then
+			deps.Hud.pressSlot(kc == Enum.KeyCode.ButtonL1 and "F" or "G", true)
+		elseif loadout and kc == Enum.KeyCode.ButtonA then
+			if not deps.Hud.useHeld() then
+				Controls.guess()
+			end
+		elseif kc == Enum.KeyCode.G then
 			Controls.guess()
 		elseif kc == Enum.KeyCode.F then
 			if F.Photos then
@@ -160,7 +173,7 @@ function Controls.init(d)
 		elseif kc == Enum.KeyCode.M then
 			deps.Menu.toggle()
 		elseif kc == Enum.KeyCode.Z or kind == Enum.UserInputType.MouseButton2 then
-			if F.Binoculars then
+			if F.Binoculars and (not Config.Loadout.Enabled or deps.Hud.slotOf("binos")) then
 				deps.Scope.set(true)
 			end
 		elseif kc == Enum.KeyCode.Left then
@@ -169,13 +182,15 @@ function Controls.init(d)
 			deps.Spectate.cycle(1)
 		elseif HOTKEYS[kc] and (F.Gadgets or HOTKEYS[kc] == "binos" and F.Binoculars or HOTKEYS[kc] == "camera" and F.Photos) then
 			deps.Hud.activate(HOTKEYS[kc])
-		elseif kc == Enum.KeyCode.Return or kc == Enum.KeyCode.KeypadEnter then
+		elseif (kc == Enum.KeyCode.Return or kc == Enum.KeyCode.KeypadEnter) and not Config.Loadout.Enabled then
 			Controls.guess() -- Enter opens the number pad too
 		elseif deps.Keypad.digitOf(kc) and View.phase() == "play" and not deps.Menu.isOpen() and not deps.Album.isOpen() then
 			-- just start typing the number: the pad opens on whoever you are looking at, and the digit goes in
 			if Controls.guess() then
 				deps.Keypad.press(deps.Keypad.digitOf(kc))
 			end
+		elseif kind == Enum.UserInputType.MouseButton1 and not deps.Menu.isOpen() and not deps.Album.isOpen() and Config.Loadout.Enabled then
+			deps.Hud.useHeld() -- click: take the photo, throw the grenade, zoom the binoculars
 		elseif kind == Enum.UserInputType.MouseButton1 and not deps.Menu.isOpen() and not deps.Album.isOpen() then
 			if F.Photos then
 				Controls.snap()

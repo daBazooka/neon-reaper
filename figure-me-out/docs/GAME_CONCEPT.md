@@ -1,6 +1,8 @@
 # FIGURE ME OUT: game concept
 
-> **One line:** everybody wears a 3-digit number on their forehead and over their head. Yours is on your screen so you know
+> **Note:** the game was later matched to the reference trailer (4-digit numbers on a mustard sign, F/G item slots, red/blue score boxes, 25-minute matches, School Yard map). Read [VIDEO_SPEC.md](VIDEO_SPEC.md) first: where this older document disagrees (3 digits, the guess panel, G to guess), VIDEO_SPEC.md and the README are right.
+
+> **One line:** everybody wears a 4-digit number on a mustard sign on their forehead. Yours is on your screen so you know
 > what to hide. Read theirs, type it, take their lives, and be the last one standing. Real players only.
 
 ## A match (about 5 minutes)

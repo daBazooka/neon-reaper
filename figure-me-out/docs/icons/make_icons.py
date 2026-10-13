@@ -51,7 +51,7 @@ def icon_hero():
     c = Canvas(1024, 1024, "#59c4ff", "#dff6ff")
     scenery(c, 1024, 1024, 700)
     bubbles(c, 1024, 1024, 10, 4, 12, 44)
-    c.avatar(512, 975, 520, number="472", shirt=SHIRTS[0], pants=PANTS[0], arm_up=True)
+    c.avatar(512, 975, 520, number="4722", shirt=SHIRTS[0], pants=PANTS[0], arm_up=True)
     title(c, 512, 150, 140, stack=True)
     return c.done(os.path.join(HERE, "icons", "game_icon_1_hero.png"))
 
@@ -64,7 +64,7 @@ def icon_number():
     l, d = c.layer()
     d.rounded_rectangle([c.S(110), c.S(225), c.S(914), c.S(590)], radius=c.S(110), fill=(16, 38, 84, 245), outline=rgb("#ffe45a"), width=c.S(16))
     c.paste(l)
-    c.text((512, 400), "4?2", 300, fill="#ffe45a", stroke="#0a1f4a", sw=0.05, tracking=14, shadow=False)
+    c.text((512, 400), "4?2?", 300, fill="#ffe45a", stroke="#0a1f4a", sw=0.05, tracking=14, shadow=False)
     c.avatar(512, 1085, 470, number=None, shirt=SHIRTS[3], pants=PANTS[1], mood="wow", plate=False, tag=False)
     c.text((512, 135), "FIGURE ME OUT", 112, tracking=3)
     return c.done(os.path.join(HERE, "icons", "game_icon_2_number.png"))
@@ -80,7 +80,7 @@ def icon_canyon():
     c.rainbow(512, 700, 380, 36, alpha=190)
     c.hill(512, 960, 760, 260, art.rgb("#6ccf62"))
     c.tree(130, 860, 260); c.tree(900, 880, 300)
-    c.avatar(512, 1000, 520, number="805", shirt=SHIRTS[1], pants=PANTS[3])
+    c.avatar(512, 1000, 520, number="8052", shirt=SHIRTS[1], pants=PANTS[3])
     title(c, 512, 110, 130, stack=False)
     return c.done(os.path.join(HERE, "icons", "game_icon_3_canyon.png"))
 
@@ -90,7 +90,7 @@ def icon_crowd():
     c.glow(512, 520, 420, (255, 255, 255, 255), 0.25)
     bubbles(c, 1024, 1024, 12, 21, 12, 46)
     spots = [(170, 3), (394, 1), (630, 2), (854, 0)]
-    ns = ["318", "905", "472", "640"]
+    ns = ["3184", "9059", "4722", "6408"]
     for k, (x, i) in enumerate(spots):
         c.avatar(x, 930 + (k % 2) * 40, 400 + (k % 2) * 40, number=ns[i], shirt=SHIRTS[(i * 2 + 1) % 8], pants=PANTS[i % 6], skin=SKINS[i % 5], mood=["smile", "wow", "smirk", "smile"][i], arm_up=(k == 2))
     c.text((512, 120), "GUESS", 170, fill="#ffe45a", tracking=6)
@@ -104,10 +104,10 @@ def thumb_hero():
     scenery(c, W, H, 700)
     bubbles(c, W, H, 18, 2, 14, 64)
     c.tree(110, 960, 380); c.tree(1810, 970, 420)
-    cast = [(330, 1040, 430, 1, "237"), (1590, 1040, 430, 3, "343"), (620, 1060, 480, 4, "341"), (1300, 1060, 480, 5, "907")]
+    cast = [(330, 1040, 430, 1, "2374"), (1590, 1040, 430, 3, "3438"), (620, 1060, 480, 4, "3413"), (1300, 1060, 480, 5, "9075")]
     for x, y, s, i, n in cast:
         c.avatar(x, y, s, number=n, shirt=SHIRTS[i], pants=PANTS[i % 6], skin=SKINS[i % 5], mood=["smile", "smirk", "wow", "smile", "smirk", "wow"][i % 6])
-    c.avatar(960, 1070, 600, number="472", shirt=SHIRTS[0], pants=PANTS[0], arm_up=True)
+    c.avatar(960, 1070, 600, number="4722", shirt=SHIRTS[0], pants=PANTS[0], arm_up=True)
     c.text((960, 120), "FIGURE ME OUT", 190, tracking=6)
     c.text((960, 262), "Read their number. Hide yours. Be the last one standing!", 56, fill="#ffffff", sw=0.09)
     return c.done(os.path.join(HERE, "thumbnails", "thumbnail_1_hero.png"))
@@ -140,14 +140,14 @@ def thumb_guess():
     scenery(c, W, H, 760, rainbow=False)
     bubbles(c, W, H, 12, 7, 14, 54)
     c.tree(80, 960, 380)
-    c.avatar(520, 1060, 590, number="472", shirt=SHIRTS[1], pants=PANTS[2], mood="smirk")
-    keypad(c, 1190, 300, 500, typed="47")
+    c.avatar(520, 1060, 590, number="4722", shirt=SHIRTS[1], pants=PANTS[2], mood="smirk")
+    c.text((1290, 560), "47__", 250, tracking=8)
     starburst(c, 1010, 760, 150, "#5ad26e", 14, 0.35)
     c.text((1010, 760), "+150", 84, fill="#ffffff", stroke="#0b5a1a", angle=-6)
     starburst(c, 1640, 930, 130, "#ff5a5a", 12, 0.1)
     c.text((1640, 930), "FREEZE!", 52, fill="#ffffff", stroke="#7a1010", angle=8)
     c.text((960, 105), "TYPE THEIR NUMBER!", 128, tracking=3)
-    c.text((960, 220), "Look at a player. Type 3 digits. It sends by itself!", 48, sw=0.09)
+    c.text((960, 220), "Look at a player. Type 4 digits. It sends by itself!", 48, sw=0.09)
     return c.done(os.path.join(HERE, "thumbnails", "thumbnail_2_guess.png"))
 
 def thumb_canyon():
@@ -166,8 +166,8 @@ def thumb_canyon():
     d.polygon([(c.S(880), c.S(780)), (c.S(1040), c.S(780)), (c.S(1250), c.S(1080)), (c.S(670), c.S(1080))], fill=(70, 180, 245, 255))
     c.paste(l)
     c.tree(160, 960, 420); c.tree(1790, 980, 460); c.tree(380, 1000, 300); c.tree(1560, 1010, 320)
-    c.avatar(1330, 1050, 560, number="581", shirt=SHIRTS[4], pants=PANTS[4], skin=SKINS[1], mood="wow")
-    c.avatar(590, 1060, 600, number="226", shirt=SHIRTS[5], pants=PANTS[5], skin=SKINS[2])
+    c.avatar(1330, 1050, 560, number="5819", shirt=SHIRTS[4], pants=PANTS[4], skin=SKINS[1], mood="wow")
+    c.avatar(590, 1060, 600, number="2268", shirt=SHIRTS[5], pants=PANTS[5], skin=SKINS[2])
     c.text((960, 115), "WATERFALL CANYON", 170, tracking=4)
     c.text((960, 235), "Waterfalls. A river that pushes you. Planes in the sky.", 56, sw=0.09)
     return c.done(os.path.join(HERE, "thumbnails", "thumbnail_3_canyon.png"))
@@ -187,13 +187,13 @@ def thumb_modes():
         c.text((x + 260, 400), name, 54 if len(name) < 14 else 44, sw=0.09, shadow=False)
         c.text((x + 260, 505), sub, 38, fill="#16408a", stroke="#ffffff", sw=0.0, shadow=False)
         if i == 0:
-            for k, (dx, ny) in enumerate([(-160, "318"), (0, "905"), (160, "274")]):
-                c.avatar(x + 260 + dx, 940, 250, number=ny, shirt=SHIRTS[(k * 3) % 8], pants=PANTS[k], skin=SKINS[k], tag=True, plate=False)
+            for k, (dx, ny) in enumerate([(-160, "3184"), (0, "9059"), (160, "2742")]):
+                c.avatar(x + 260 + dx, 940, 250, number=ny, shirt=SHIRTS[(k * 3) % 8], pants=PANTS[k], skin=SKINS[k], tag=False, plate=False)
         elif i == 1:
-            for k, (dx, ny, shirt) in enumerate([(-195, "611", "#ff5a5a"), (-65, "202", "#ff5a5a"), (65, "874", "#4aa3ff"), (195, "435", "#4aa3ff")]):
-                c.avatar(x + 260 + dx, 940, 210, number=ny, shirt=shirt, pants=PANTS[k], skin=SKINS[k], tag=True, plate=False)
+            for k, (dx, ny, shirt) in enumerate([(-195, "6113", "#ff5a5a"), (-65, "2022", "#ff5a5a"), (65, "8748", "#4aa3ff"), (195, "4354", "#4aa3ff")]):
+                c.avatar(x + 260 + dx, 940, 210, number=ny, shirt=shirt, pants=PANTS[k], skin=SKINS[k], tag=False, plate=False)
         else:
-            c.avatar(x + 150, 940, 270, number="753", shirt="#ff5a5a", pants=PANTS[0], plate=False)
+            c.avatar(x + 150, 940, 270, number="7537", shirt="#ff5a5a", pants=PANTS[0], plate=False)
             l, d = c.layer()
             d.rectangle([c.S(x + 330), c.S(560), c.S(x + 350), c.S(940)], fill=rgb("#5a5f73"))
             d.polygon([(c.S(x + 350), c.S(570)), (c.S(x + 470), c.S(620)), (c.S(x + 350), c.S(680))], fill=rgb("#4aa3ff"), outline=rgb("#10325a"))
@@ -227,7 +227,7 @@ def thumb_lobby():
         c.bubble(960 + dx, 620 - abs(dx) * 0.3, 22, 120)
     c.tree(430, 850, 300); c.tree(1500, 850, 320)
     for x, i in [(640, 2), (1270, 3), (820, 5), (1110, 1)]:
-        c.avatar(x, 900 + (i % 2) * 40, 330, number=str(random.Random(i * 5).randint(100, 999)), shirt=SHIRTS[i], pants=PANTS[i % 6], skin=SKINS[i % 5], tag=True, plate=False)
+        c.avatar(x, 900 + (i % 2) * 40, 330, number=str(random.Random(i * 5).randint(1000, 9999)), shirt=SHIRTS[i], pants=PANTS[i % 6], skin=SKINS[i % 5], tag=False, plate=False)
     c.text((960, 125), "FIGURE ME OUT", 180, tracking=5)
     c.text((960, 255), "Your number is on your screen. Keep it hidden!", 60, sw=0.09)
     # countdown pill
@@ -309,7 +309,7 @@ def g_falls(c):
     c.rainbow(256, 300, 110, 10, alpha=210)
 
 def g_welcome(c):
-    c.avatar(256, 345, 250, number="777", shirt="#ff6b8b", pants="#3b5bdb", arm_up=True, plate=False, tag=False)
+    c.avatar(256, 345, 250, number="7774", shirt="#ff6b8b", pants="#3b5bdb", arm_up=True, plate=False, tag=False)
     starburst(c, 395, 150, 55, "#ffe45a", 10)
 
 def g_wave(c):

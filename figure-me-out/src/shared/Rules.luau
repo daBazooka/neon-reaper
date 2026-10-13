@@ -139,15 +139,16 @@ end
 -- to the camera (1 = looking straight at you, -1 = back turned); rolls = three random numbers in [0, 1).
 function Rules.photoReadable(distance, facing, rolls)
 	local p = Config.Photo
-	if facing < math.cos(math.rad(p.FaceAngle)) or distance > p.FuzzyDistance then
-		return { false, false, false }
-	end
-	if distance <= p.ClearDistance then
-		return { true, true, true }
-	end
 	local out = {}
+	local unreadable = facing < math.cos(math.rad(p.FaceAngle)) or distance > p.FuzzyDistance
 	for i = 1, Config.Number.Digits do
-		out[i] = (rolls[i] or 1) < p.FuzzyChance
+		if unreadable then
+			out[i] = false
+		elseif distance <= p.ClearDistance then
+			out[i] = true
+		else
+			out[i] = (rolls[i] or 1) < p.FuzzyChance
+		end
 	end
 	return out
 end

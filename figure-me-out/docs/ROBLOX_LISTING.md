@@ -20,17 +20,18 @@ The art is stylised, drawn by script — classic Roblox-style blocky avatars (R6
 Figure Me Out · Figure Me Out: Guess the Number · Number Hunters
 
 ## Short description
-Everyone has a secret 3-digit number on their forehead. Spot a player, type their number, and take them down — but hide your own!
+Everyone has a secret 4-digit number on a sign on their forehead. Put the dot on a player, type their number, and take them out — but hide your own!
 
 ## Long description
 Your number is on your forehead and on your screen. Everyone else can read it. Hide it, run, dodge — and figure out theirs first.
 
 HOW TO PLAY
-- Everyone gets a random 3-digit number shown on a plate on their forehead and a floating tag.
+- Everyone gets a random 4-digit number shown on a mustard sign on their forehead.
 - You can see your own number on your screen, so you know what to hide.
 - Players show by their real Roblox name
-- Look at a player and type their 3 digits (press Enter or G, or tap). It submits by itself.
-- Right number: they lose a life. Wrong number: you freeze for 1.5 seconds.
+- Put the dot on a player and type their 4 digits (press Enter or G, or tap). It submits by itself.
+- Right number: they are out. Wrong number: you freeze for 1.5 seconds.
+- Camera (F), binoculars (G) and chest items (flashbang, smoke, sound grenade) share two item slots.
 
 FEATURES
 - Up to 20 real players, no bots
