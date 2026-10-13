@@ -27,6 +27,9 @@ local aimAt, aimTarget, aimDistance = 0, nil, 0
 local bounty = nil -- { id, label, reward }
 local allyUntil, allyLabel = 0, ""
 local finalShown = false
+local uiScale = 1
+local scaleObjects = {}
+local scaleAt = -10
 
 function Hud.init(screen, d)
 	gui = screen
@@ -139,6 +142,7 @@ function Hud.init(screen, d)
 	cornerButton("☰", 0, function() deps.Menu.toggle() end)
 	cornerButton("📒", 52, function() deps.Album.toggle() end)
 	cornerButton("?", 104, function() deps.Menu.open("How to play") end)
+	cornerButton("⚙", 156, function() deps.Menu.open("Settings") end)
 
 	-- kill feed (right side)
 	refs.feed = UI.new("Frame", { Name = "Feed", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 70), Size = UDim2.fromOffset(330, 160), BackgroundTransparency = 1 }, root)
@@ -196,6 +200,10 @@ function Hud.init(screen, d)
 	})
 	refs.tips = UI.label(root, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 14, 1, -14), Size = UDim2.fromOffset(300, 60), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "G guess   T ally   RMB hold: binoculars   click / F: photo   V notebook   I gadgets   1-8 gadgets" })
 
+	-- everything important can shrink on small screens (phones, small windows)
+	for _, thing in { me, profile, refs.quick, bar, guess, refs.feed } do
+		table.insert(scaleObjects, UI.new("UIScale", {}, thing))
+	end
 	RunService.RenderStepped:Connect(function()
 		Hud.update()
 	end)
@@ -276,9 +284,33 @@ end
 
 local PHASE_TEXT = { lobby = "NEXT MATCH IN", countdown = "GET READY", play = "MATCH TIME", results = "RESULTS" }
 
+-- The size everything is drawn at for this screen: 1 is the normal size, smaller on small screens.
+function Hud.uiScale()
+	return uiScale
+end
+
+local function updateScale()
+	local camera = View.camera()
+	local vp = camera and camera.ViewportSize
+	if not vp or type(vp.X) ~= "number" then
+		return
+	end
+	local want = math.clamp(math.min(vp.X / 1100, vp.Y / 650), 0.62, 1.1)
+	if math.abs(want - uiScale) > 0.01 then
+		uiScale = want
+		for _, obj in scaleObjects do
+			obj.Scale = want
+		end
+	end
+end
+
 function Hud.update()
 	if not refs.root then
 		return
+	end
+	if os.clock() - scaleAt > 1 then
+		scaleAt = os.clock()
+		updateScale()
 	end
 	local phase = View.phase()
 	local left = View.timeLeft()
@@ -292,14 +324,14 @@ function Hud.update()
 	local final = phase == "play" and left <= Config.Match.RevealAt
 	refs.timer.TextColor3 = final and C.Danger or C.Text
 	if final then
-		refs.topScale.Scale = 1 + 0.05 * math.abs(math.sin(os.clock() * 5))
+		refs.topScale.Scale = uiScale * (1 + 0.05 * math.abs(math.sin(os.clock() * 5)))
 		if not finalShown then
 			finalShown = true
 			deps.Fx.announce("30 SECONDS LEFT!", "Every plate glows. Make it count!", C.Danger, 0.2)
 			Audio.setIntensity(true)
 		end
 	else
-		refs.topScale.Scale = 1
+		refs.topScale.Scale = uiScale
 		if finalShown and phase ~= "play" then
 			finalShown = false
 			Audio.setIntensity(false)

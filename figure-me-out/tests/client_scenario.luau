@@ -415,6 +415,16 @@ local eb = fired("Emote")
 check(X.click("😂") and fired("Emote") == eb + 1 and lastFired("Emote")[2] == "laugh", "tapping an emote sends it")
 a.Alive = false; attrsWS.Phase = "lobby"; frames(3)
 
+-- ===== the HUD fits small screens =====
+do
+	local Hud2 = require(ModN.children.Hud)
+	check(Hud2.uiScale() > 1, "a big screen draws the HUD at full size (" .. string.format("%.2f", Hud2.uiScale()) .. ")")
+	X.camera.ViewportSize = {X = 640, Y = 360}
+	advance(1.2); fireAll("RenderStepped", 0.016)
+	check(Hud2.uiScale() < 0.7, "a phone-sized screen shrinks it (" .. string.format("%.2f", Hud2.uiScale()) .. ")")
+	X.camera.ViewportSize = {X = 1920, Y = 1080}
+	advance(1.2); fireAll("RenderStepped", 0.016)
+end
 -- ===== menu =====
 local Menu = require(ModN.children.Menu)
 press(KC.M)
@@ -457,6 +467,7 @@ press(KC.M)
 check(not Menu.isOpen(), "M closes the menu")
 X.click("☰"); check(Menu.isOpen(), "menu button"); X.click("✕"); check(not Menu.isOpen(), "close button")
 X.click("?"); check(Menu.isOpen() and X.seen("LET'S GO"), "? button opens how to play"); Menu.close()
+X.click("⚙"); check(Menu.isOpen() and X.seen("Sound effects"), "the settings button opens the settings"); Menu.close()
 X.click("📒"); check(Album.isOpen(), "notebook button"); Album.close()
 
 -- ===== own plate is hidden on my screen only =====

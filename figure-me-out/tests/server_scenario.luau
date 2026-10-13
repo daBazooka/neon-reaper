@@ -49,6 +49,10 @@ TICKHOOK = function(now)
 	end
 end
 
+local parts = (X.made.Part or 0) + (X.made.TrussPart or 0)
+print("INFO  the world is made of " .. parts .. " parts")
+check(parts > 600 and parts < 2600, "the map has a sensible number of parts (" .. parts .. ")")
+check(attrsWS.BootErrors == nil, "the world builds without any error")
 check(attrsWS.Phase == "lobby", "starts in the lobby (" .. tostring(attrsWS.Phase) .. ")")
 advance(20)
 check(attrsWS.Phase == "lobby", "waits in the lobby while nobody is online")

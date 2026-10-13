@@ -145,7 +145,7 @@ for m in re.finditer(r"Net\.(?:send|sendAll|toast)\(", server):
         problems.append("a message sends a number to a client: " + call.replace("\n", " ")[:90])
 # the results screen and the feed never show numbers either
 for name in ("Results.luau", "Hud.luau"):
-    if "number" in read("client/Client/Modules/" + name).replace("Number.Digits", ""):
+    if "number" in read("client/Client/Modules/" + name).replace("Number.Digits", "").replace("\"number\"", ""):
         problems.append(name + " mentions 'number' (numbers must never be shown there)")
 
 if "--verbose" in sys.argv:

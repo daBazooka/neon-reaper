@@ -165,3 +165,11 @@ do
 	end, BindToClose = function() end}
 	rawset(workspace, "Terrain", terrain)
 end
+
+-- counts every instance the code creates (to keep the map within a part budget)
+X.made = {}
+do
+	local made = Instance.new
+	X.parts = {}
+	Instance.new = function(c) X.made[c] = (X.made[c] or 0) + 1; local o = made(c); if c == "Part" or c == "TrussPart" then table.insert(X.parts, o) end return o end
+end

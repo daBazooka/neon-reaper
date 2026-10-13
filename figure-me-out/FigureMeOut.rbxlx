@@ -550,19 +550,37 @@ Config.Map = {
 	Half = 134, -- the arena is this big in each direction from the middle
 	Block = 60,
 	Street = 26,
-	BuildingHeight = 16,
 	BlockCenters = { -86, 0, 86 },
 	Lobby = Vector3.new(0, 0, 420), -- the lobby island is far away from the arena
 }
--- The 8 outer blocks: { x, z } of the block's middle. Each holds a 44x44 building in the middle of the block.
-Config.Map.Buildings = {}
-for _, bx in Config.Map.BlockCenters do
-	for _, bz in Config.Map.BlockCenters do
-		if not (bx == 0 and bz == 0) then
-			table.insert(Config.Map.Buildings, { X = bx, Z = bz, Size = 44 })
-		end
-	end
-end
+-- The 4 corner blocks each hold a hollow 44x44 building you can walk into (doors, a staircase up to a balcony, a ladder to the roof).
+-- The 4 middle-edge blocks are open courtyards with container cover and an elevated walkway.
+Config.Map.Plan = {
+	Height = 18, -- walls and roof of the buildings
+	Wall = 2,
+	Door = 10, -- doorway width and height (a character is about 2 wide and 5 tall)
+	DoorHeight = 10,
+	Mezz = 9, -- height of the balcony floor
+	MezzDepth = 12, -- how far the balcony reaches into the room, and how long the staircase is
+	Steps = 9, -- the staircase has this many steps, each Rise high (so Steps * Rise = Mezz)
+	Rise = 1,
+	StairWidth = 6,
+	DeckHeight = 9, -- the courtyards' elevated walkway
+	DeckLength = 32,
+	DeckWidth = 6,
+}
+Config.Map.Buildings = {
+	{ X = -86, Z = -86, Size = 44, Name = "ARCADE", Color = C(255, 70, 150), Trim = C(90, 230, 255) },
+	{ X = -86, Z = 86, Size = 44, Name = "PIZZA", Color = C(255, 150, 40), Trim = C(255, 245, 120) },
+	{ X = 86, Z = -86, Size = 44, Name = "BOWL", Color = C(40, 180, 230), Trim = C(255, 120, 200) },
+	{ X = 86, Z = 86, Size = 44, Name = "SYNTH", Color = C(140, 90, 255), Trim = C(120, 255, 190) },
+}
+Config.Map.Courtyards = {
+	{ X = -86, Z = 0, Name = "MARKET WEST" },
+	{ X = 86, Z = 0, Name = "MARKET EAST" },
+	{ X = 0, Z = -86, Name = "DOCKS NORTH" },
+	{ X = 0, Z = 86, Name = "DOCKS SOUTH" },
+}
 -- 20 spawn points along the streets (never inside a building).
 Config.Map.Spawns = {}
 for _, z in { -100, -70, -20, 20, 70, 100 } do
@@ -4774,7 +4792,7 @@ local Terminals = require(script.Parent.Terminals)
 local World = {}
 
 local C = Color3.fromRGB
-local AQUA, LIME, WHITE = C(90, 215, 255), C(130, 225, 90), C(244, 250, 255)
+local AQUA, WHITE = C(90, 215, 255), C(244, 250, 255)
 
 local function part(parent, name, size, position, color, material)
 	local p = Instance.new("Part")
@@ -4827,48 +4845,195 @@ local function lamp(parent, x, z)
 	bulb.CanCollide = false
 end
 
-local function building(parent, b, index)
-	local h = Config.Map.BuildingHeight
-	local s = b.Size
-	local palette = { C(140, 214, 232), C(160, 228, 186), C(160, 196, 244), C(250, 238, 160), C(255, 204, 176), C(208, 188, 242), C(244, 248, 252), C(255, 182, 176) }
-	local color = palette[(index - 1) % #palette + 1]
-	part(parent, "Building", Vector3.new(s, h, s), Vector3.new(b.X, h / 2, b.Z), color, Enum.Material.SmoothPlastic)
-	-- glowing roof edge and window bands (they are decoration, so they can't be hit by guesses or block sight)
-	local trim = index % 2 == 0 and AQUA or LIME
-	neon(parent, "RoofGlowN", Vector3.new(s + 0.6, 0.5, 0.5), Vector3.new(b.X, h + 0.25, b.Z - s / 2), trim)
-	neon(parent, "RoofGlowS", Vector3.new(s + 0.6, 0.5, 0.5), Vector3.new(b.X, h + 0.25, b.Z + s / 2), trim)
-	neon(parent, "RoofGlowE", Vector3.new(0.5, 0.5, s + 0.6), Vector3.new(b.X + s / 2, h + 0.25, b.Z), trim)
-	neon(parent, "RoofGlowW", Vector3.new(0.5, 0.5, s + 0.6), Vector3.new(b.X - s / 2, h + 0.25, b.Z), trim)
-	for _, y in { 5, 10 } do
-		local band = part(parent, "Windows", Vector3.new(s + 0.2, 2.2, s + 0.2), Vector3.new(b.X, y, b.Z), C(110, 200, 245), Enum.Material.Glass)
-		band.Transparency = 0.4
-		band.CanCollide = false
-		band.CanQuery = false
+-- Decoration: never blocks sight, hits or movement.
+local function deco(parent, name, size, position, color, material)
+	local p = part(parent, name, size, position, color, material)
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CastShadow = false
+	return p
+end
+
+-- A solid box between two corners.
+local function box(parent, name, a, b, color, material)
+	local lo = Vector3.new(math.min(a.X, b.X), math.min(a.Y, b.Y), math.min(a.Z, b.Z))
+	local hi = Vector3.new(math.max(a.X, b.X), math.max(a.Y, b.Y), math.max(a.Z, b.Z))
+	return part(parent, name, hi - lo, (hi + lo) / 2, color, material)
+end
+
+-- A lit sign: text on a flat board. facing = "+x" | "-x" | "+z" | "-z" (the direction the writing faces).
+local function sign(parent, text, w, h, position, facing, bg, fg)
+	local alongX = facing == "+x" or facing == "-x"
+	local p = deco(parent, "Sign", alongX and Vector3.new(0.6, h, w) or Vector3.new(w, h, 0.6), position, bg, Enum.Material.SmoothPlastic)
+	local face = ({ ["+x"] = Enum.NormalId.Right, ["-x"] = Enum.NormalId.Left, ["+z"] = Enum.NormalId.Back, ["-z"] = Enum.NormalId.Front })[facing]
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = face
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
+	gui.CanvasSize = Vector2.new(w * 24, h * 24)
+	gui.LightInfluence = 0
+	gui.Parent = p
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBlack
+	label.TextScaled = true
+	label.Text = text
+	label.TextColor3 = fg or WHITE
+	label.Parent = gui
+	return p
+end
+
+-- A staircase of `count` steps, each `rise` high, climbing along `dir` ("x" or "z") with sign `sgn` (+1 / -1) from `start`.
+-- The bottom step starts at `start` (a point on the floor) and the top step ends `count * run` further on.
+local function stairs(parent, name, start, dir, sgn, width, count, rise, run, color)
+	for k = 1, count do
+		local from = (k - 1) * run
+		local lo, hi
+		if dir == "z" then
+			local z1, z2 = start.Z + sgn * from, start.Z + sgn * (from + run)
+			lo = Vector3.new(start.X - width / 2, 0, math.min(z1, z2))
+			hi = Vector3.new(start.X + width / 2, k * rise, math.max(z1, z2))
+		else
+			local x1, x2 = start.X + sgn * from, start.X + sgn * (from + run)
+			lo = Vector3.new(math.min(x1, x2), 0, start.Z - width / 2)
+			hi = Vector3.new(math.max(x1, x2), k * rise, start.Z + width / 2)
+		end
+		box(parent, name, lo, hi, color, Enum.Material.SmoothPlastic)
 	end
-	-- sniper roof: low walls on three sides, and a ladder up the fourth (the side facing the middle of the map)
+end
+
+-- A hollow building: two doorways facing the plaza, windows, a balcony with a staircase, a roof you reach by ladder.
+local function building(parent, b)
+	local P = Config.Map.Plan
+	local h, t, half = P.Height, P.Wall, b.Size / 2
+	local sx = b.X > 0 and -1 or 1 -- toward the plaza
+	local sz = b.Z > 0 and -1 or 1
+	local wallColor, trim = b.Color, b.Trim
+	local doorHalf = P.Door / 2
+	local function wallBox(x1, x2, y1, y2, z1, z2, name)
+		return box(parent, name or "Wall", Vector3.new(x1, y1, z1), Vector3.new(x2, y2, z2), wallColor, Enum.Material.SmoothPlastic)
+	end
+	-- the two solid walls (the sides away from the plaza)
+	local farZ = b.Z - sz * (half - t / 2)
+	wallBox(b.X - half, b.X + half, 0, h, farZ - t / 2, farZ + t / 2)
+	local farX = b.X - sx * (half - t / 2)
+	wallBox(farX - t / 2, farX + t / 2, 0, h, b.Z - half, b.Z + half)
+	-- the two walls with a doorway in the middle (the sides toward the plaza)
+	local doorZ = b.Z + sz * (half - t / 2)
+	wallBox(b.X - half, b.X - doorHalf, 0, h, doorZ - t / 2, doorZ + t / 2)
+	wallBox(b.X + doorHalf, b.X + half, 0, h, doorZ - t / 2, doorZ + t / 2)
+	wallBox(b.X - doorHalf, b.X + doorHalf, P.DoorHeight, h, doorZ - t / 2, doorZ + t / 2, "Lintel")
+	local doorX = b.X + sx * (half - t / 2)
+	wallBox(doorX - t / 2, doorX + t / 2, 0, h, b.Z - half, b.Z - doorHalf)
+	wallBox(doorX - t / 2, doorX + t / 2, 0, h, b.Z + doorHalf, b.Z + half)
+	wallBox(doorX - t / 2, doorX + t / 2, P.DoorHeight, h, b.Z - doorHalf, b.Z + doorHalf, "Lintel")
+	-- roof
+	box(parent, "Roof", Vector3.new(b.X - half, h - 1, b.Z - half), Vector3.new(b.X + half, h, b.Z + half), wallColor:Lerp(WHITE, 0.25), Enum.Material.SmoothPlastic)
+
+	-- inside: a balcony along the far wall and a staircase up to it
+	local inner = half - t
+	local xFar = b.X - sx * inner
+	local mezzLo = Vector3.new(math.min(xFar, xFar + sx * P.MezzDepth), P.Mezz - 1, b.Z - inner)
+	local mezzHi = Vector3.new(math.max(xFar, xFar + sx * P.MezzDepth), P.Mezz, b.Z + inner - P.MezzDepth)
+	box(parent, "Balcony", mezzLo, mezzHi, WHITE, Enum.Material.SmoothPlastic)
+	-- a low rail on the open edge of the balcony
+	local railX = xFar + sx * (P.MezzDepth - 0.25)
+	box(parent, "Rail", Vector3.new(railX - 0.25, P.Mezz, b.Z - inner), Vector3.new(railX + 0.25, P.Mezz + 3, b.Z + inner - P.MezzDepth), trim, Enum.Material.SmoothPlastic)
+	-- the staircase starts at the +z end of the room and climbs toward -z until it meets the balcony
+	stairs(parent, "Step", Vector3.new(xFar + sx * (P.StairWidth / 2), 0, b.Z + inner), "z", -1, P.StairWidth, P.Steps, P.Rise, P.MezzDepth / P.Steps, WHITE)
+
+	-- inside lighting (the roof blocks the sun)
+	for _, o in { { -8, -8 }, { 8, 8 }, { -8, 8 }, { 8, -8 } } do
+		local lamp = deco(parent, "CeilingLight", Vector3.new(4, 0.3, 4), Vector3.new(b.X + o[1], h - 1.2, b.Z + o[2]), C(255, 250, 235), Enum.Material.Neon)
+		local light = Instance.new("PointLight")
+		light.Range = 24
+		light.Brightness = 1.2
+		light.Parent = lamp
+	end
+	-- facade: windows on the solid walls, neon on the door frames and along the roof edge
+	for _, y in { 5, 12 } do
+		for off = -14, 14, 14 do
+			local w1 = deco(parent, "Window", Vector3.new(7, 4, 0.4), Vector3.new(b.X + off, y, farZ - sz * (t / 2 + 0.1)), C(120, 215, 255), Enum.Material.Glass)
+			w1.Transparency = 0.35
+			local w2 = deco(parent, "Window", Vector3.new(0.4, 4, 7), Vector3.new(farX - sx * (t / 2 + 0.1), y, b.Z + off), C(120, 215, 255), Enum.Material.Glass)
+			w2.Transparency = 0.35
+		end
+	end
+	for _, side in { -1, 1 } do
+		deco(parent, "DoorGlow", Vector3.new(0.6, P.DoorHeight, 0.6), Vector3.new(b.X + side * (doorHalf + 0.3), P.DoorHeight / 2, doorZ + sz * (t / 2 + 0.3)), trim, Enum.Material.Neon)
+		deco(parent, "DoorGlow", Vector3.new(0.6, P.DoorHeight, 0.6), Vector3.new(doorX + sx * (t / 2 + 0.3), P.DoorHeight / 2, b.Z + side * (doorHalf + 0.3)), trim, Enum.Material.Neon)
+	end
+	deco(parent, "RoofGlow", Vector3.new(b.Size + 0.6, 0.6, 0.6), Vector3.new(b.X, h + 0.3, b.Z + sz * half), trim, Enum.Material.Neon)
+	deco(parent, "RoofGlow", Vector3.new(b.Size + 0.6, 0.6, 0.6), Vector3.new(b.X, h + 0.3, b.Z - sz * half), trim, Enum.Material.Neon)
+	deco(parent, "RoofGlow", Vector3.new(0.6, 0.6, b.Size + 0.6), Vector3.new(b.X + sx * half, h + 0.3, b.Z), trim, Enum.Material.Neon)
+	deco(parent, "RoofGlow", Vector3.new(0.6, 0.6, b.Size + 0.6), Vector3.new(b.X - sx * half, h + 0.3, b.Z), trim, Enum.Material.Neon)
+	-- a big sign on the roof facing each doorway, and a skirting stripe so no wall is a blank slab
+	sign(parent, b.Name, 26, 7, Vector3.new(b.X, h + 4.5, b.Z + sz * (half - 1)), sz > 0 and "+z" or "-z", C(20, 28, 60), trim)
+	sign(parent, b.Name, 26, 7, Vector3.new(b.X + sx * (half - 1), h + 4.5, b.Z), sx > 0 and "+x" or "-x", C(20, 28, 60), trim)
+	deco(parent, "Skirting", Vector3.new(b.Size + 0.4, 1.2, b.Size + 0.4), Vector3.new(b.X, 0.8, b.Z), trim:Lerp(wallColor, 0.5), Enum.Material.SmoothPlastic)
+	-- low parapet on the roof (cover for rooftop players) and the ladder on the plaza side
 	local lip = 2.6
-	part(parent, "Parapet", Vector3.new(s, lip, 1), Vector3.new(b.X, h + lip / 2, b.Z - s / 2 + 0.5), color:Lerp(C(255, 255, 255), 0.4))
-	part(parent, "Parapet", Vector3.new(s, lip, 1), Vector3.new(b.X, h + lip / 2, b.Z + s / 2 - 0.5), color:Lerp(C(255, 255, 255), 0.4))
-	local towardX = b.X == 0 and 0 or (b.X > 0 and -1 or 1)
-	if towardX ~= 0 then
-		part(parent, "Parapet", Vector3.new(1, lip, s), Vector3.new(b.X - towardX * (s / 2 - 0.5), h + lip / 2, b.Z), color:Lerp(C(255, 255, 255), 0.4))
-		local truss = Instance.new("TrussPart")
-		truss.Name = "Ladder"
-		truss.Size = Vector3.new(2, h + 1, 2)
-		truss.Position = Vector3.new(b.X + towardX * (s / 2 + 1), (h + 1) / 2, b.Z)
-		truss.Anchored = true
-		truss.Color = C(255, 205, 70)
-		truss.Parent = parent
-	else
-		part(parent, "Parapet", Vector3.new(1, lip, s), Vector3.new(b.X - (s / 2 - 0.5), h + lip / 2, b.Z), color:Lerp(C(255, 255, 255), 0.4))
-		local truss = Instance.new("TrussPart")
-		truss.Name = "Ladder"
-		truss.Size = Vector3.new(2, h + 1, 2)
-		truss.Position = Vector3.new(b.X + (s / 2 + 1), (h + 1) / 2, b.Z)
-		truss.Anchored = true
-		truss.Color = C(255, 205, 70)
-		truss.Parent = parent
+	box(parent, "Parapet", Vector3.new(b.X - half, h, b.Z - sz * half), Vector3.new(b.X + half, h + lip, b.Z - sz * half + sz * 1), WHITE, Enum.Material.SmoothPlastic)
+	box(parent, "Parapet", Vector3.new(b.X - sx * half, h, b.Z - half), Vector3.new(b.X - sx * half + sx * 1, h + lip, b.Z + half), WHITE, Enum.Material.SmoothPlastic)
+	local truss = Instance.new("TrussPart")
+	truss.Name = "Ladder"
+	truss.Size = Vector3.new(2, h + 1, 2)
+	truss.Position = Vector3.new(b.X + sx * (half + 1), (h + 1) / 2, b.Z + sz * (half - 6))
+	truss.Anchored = true
+	truss.Color = C(255, 205, 70)
+	truss.Parent = parent
+end
+
+local CONTAINER_COLORS = { C(235, 70, 60), C(40, 185, 175), C(250, 200, 40), C(70, 120, 235) }
+
+-- An open courtyard: container cover forming alleys, and an elevated walkway with a staircase at each end.
+local function courtyard(parent, cy)
+	local P = Config.Map.Plan
+	local cx, cz = cy.X, cy.Z
+	local function container(i, x, y, z, alongX)
+		local size = alongX and Vector3.new(12, 5, 5) or Vector3.new(5, 5, 12)
+		local c = part(parent, "Container", size, Vector3.new(x, y + 2.5, z), CONTAINER_COLORS[(i - 1) % #CONTAINER_COLORS + 1], Enum.Material.Metal)
+		deco(parent, "ContainerStripe", alongX and Vector3.new(12.2, 0.6, 5.2) or Vector3.new(5.2, 0.6, 12.2), Vector3.new(x, y + 4.4, z), WHITE, Enum.Material.SmoothPlastic)
+		return c
 	end
+	-- two rows of containers either side of a central lane, with gaps to run through
+	local n = 0
+	for _, row in { -17, 17 } do
+		for _, off in { -19, 19 } do
+			n += 1
+			container(n, cx + off, 0.4, cz + row, true)
+		end
+	end
+	-- a few stacked on top: a second level you can reach from the walkway
+	container(5, cx - 19, 5.4, cz - 17, true)
+	container(6, cx + 19, 5.4, cz + 17, true)
+	-- cross containers closing the ends of the alley, with a gap in the middle
+	container(7, cx - 27, 0.4, cz - 6, false)
+	container(8, cx + 27, 0.4, cz + 6, false)
+
+	-- the elevated walkway down the middle: on pillars, with rails, and a staircase at each end
+	local half = P.DeckLength / 2
+	box(parent, "Walkway", Vector3.new(cx - half, P.DeckHeight - 1, cz - P.DeckWidth / 2), Vector3.new(cx + half, P.DeckHeight, cz + P.DeckWidth / 2), WHITE, Enum.Material.SmoothPlastic)
+	for _, ex in { -half + 1, half - 1 } do
+		for _, ez in { -P.DeckWidth / 2 + 0.5, P.DeckWidth / 2 - 0.5 } do
+			box(parent, "Pillar", Vector3.new(cx + ex - 0.5, 0, cz + ez - 0.5), Vector3.new(cx + ex + 0.5, P.DeckHeight - 1, cz + ez + 0.5), C(60, 70, 110), Enum.Material.Metal)
+		end
+	end
+	for _, side in { -1, 1 } do
+		box(parent, "Rail", Vector3.new(cx - half, P.DeckHeight, cz + side * P.DeckWidth / 2 - 0.25), Vector3.new(cx + half, P.DeckHeight + 2.8, cz + side * P.DeckWidth / 2 + 0.25), C(255, 120, 200), Enum.Material.SmoothPlastic)
+	end
+	local run = 12 / P.Steps
+	-- each staircase starts on the ground 12 studs out and climbs toward the walkway, its top step meeting the walkway's end
+	stairs(parent, "Step", Vector3.new(cx - half - 12, 0, cz), "x", 1, P.StairWidth, P.Steps, P.Rise, run, WHITE)
+	stairs(parent, "Step", Vector3.new(cx + half + 12, 0, cz), "x", -1, P.StairWidth, P.Steps, P.Rise, run, WHITE)
+	deco(parent, "WalkwayGlow", Vector3.new(P.DeckLength, 0.3, 0.4), Vector3.new(cx, P.DeckHeight - 0.9, cz - P.DeckWidth / 2 - 0.1), C(90, 230, 255), Enum.Material.Neon)
+	-- landmark: a neon gate at each end of the block, and the name on a board
+	for _, gz in { -29, 29 } do
+		deco(parent, "GatePost", Vector3.new(1, 12, 1), Vector3.new(cx - 8, 6, cz + gz), C(255, 120, 200), Enum.Material.Neon)
+		deco(parent, "GatePost", Vector3.new(1, 12, 1), Vector3.new(cx + 8, 6, cz + gz), C(255, 120, 200), Enum.Material.Neon)
+		deco(parent, "GateBar", Vector3.new(17, 1, 1), Vector3.new(cx, 12, cz + gz), C(90, 230, 255), Enum.Material.Neon)
+	end
+	sign(parent, cy.Name, 12, 3.5, Vector3.new(cx - 29.8, 7, cz - 6), "-x", C(20, 28, 60), C(255, 226, 90))
 end
 
 local function buildArena()
@@ -4876,38 +5041,61 @@ local function buildArena()
 	local ground = folder("Ground")
 	local m = Config.Map
 	local full = (m.Half + 4) * 2
-	part(ground, "Floor", Vector3.new(full, 2, full), Vector3.new(0, -1, 0), C(186, 204, 220), Enum.Material.Concrete)
-	-- sidewalk slabs, one per city block (the middle one is the park)
+	part(ground, "Floor", Vector3.new(full, 2, full), Vector3.new(0, -1, 0), C(84, 96, 124), Enum.Material.Concrete)
+	-- sidewalk slabs, one per city block; the middle one is the plaza
 	for _, bx in m.BlockCenters do
 		for _, bz in m.BlockCenters do
-			local park = bx == 0 and bz == 0
-			part(ground, park and "Park" or "Block", Vector3.new(m.Block, 0.4, m.Block), Vector3.new(bx, 0.2, bz), park and C(104, 204, 72) or C(238, 244, 250), park and Enum.Material.Grass or Enum.Material.SmoothPlastic)
+			local plaza = bx == 0 and bz == 0
+			part(ground, plaza and "Plaza" or "Block", Vector3.new(m.Block, 0.4, m.Block), Vector3.new(bx, 0.2, bz), plaza and C(40, 52, 104) or C(226, 234, 246), Enum.Material.SmoothPlastic)
+		end
+	end
+	-- the plaza floor: a neon tile grid
+	for tx = -2, 2 do
+		for tz = -2, 2 do
+			if (tx + tz) % 2 == 0 then
+				deco(ground, "Tile", Vector3.new(11, 0.1, 11), Vector3.new(tx * 12, 0.45, tz * 12), C(70, 100, 190), Enum.Material.SmoothPlastic)
+			end
 		end
 	end
 	-- dashed lane lines down every street
 	local L = (m.Block + m.Street) / 2
 	for _, line in { -L, L } do
 		for t = -m.Half + 6, m.Half - 6, 12 do
-			neon(ground, "Lane", Vector3.new(0.5, 0.05, 5), Vector3.new(line, 0.03, t), C(255, 255, 255)).CanQuery = false
-			neon(ground, "Lane", Vector3.new(5, 0.05, 0.5), Vector3.new(t, 0.03, line), C(255, 255, 255)).CanQuery = false
+			neon(ground, "Lane", Vector3.new(0.5, 0.05, 5), Vector3.new(line, 0.03, t), C(255, 255, 255))
+			neon(ground, "Lane", Vector3.new(5, 0.05, 0.5), Vector3.new(t, 0.03, line), C(255, 255, 255))
 		end
 	end
-	for i, b in m.Buildings do
-		building(arena, b, i)
+	for _, b in m.Buildings do
+		building(arena, b)
 	end
-	-- boundary walls
+	for _, cy in m.Courtyards do
+		courtyard(arena, cy)
+	end
+
+	-- the boundary: tall navy walls with a colourful banner every few steps and a neon cap, so no wall is a blank slab
 	local wall = m.Half + 2
-	local height = 40
-	part(arena, "WallN", Vector3.new(wall * 2 + 4, height, 4), Vector3.new(0, height / 2, -wall), C(160, 224, 248), Enum.Material.Glass)
-	part(arena, "WallS", Vector3.new(wall * 2 + 4, height, 4), Vector3.new(0, height / 2, wall), C(160, 224, 248), Enum.Material.Glass)
-	part(arena, "WallE", Vector3.new(4, height, wall * 2), Vector3.new(wall, height / 2, 0), C(160, 224, 248), Enum.Material.Glass)
-	part(arena, "WallW", Vector3.new(4, height, wall * 2), Vector3.new(-wall, height / 2, 0), C(160, 224, 248), Enum.Material.Glass)
-	for _, w in arena:GetChildren() do
-		if string.sub(w.Name, 1, 4) == "Wall" then
-			w.Transparency = 0.45
-		end
+	local height = 30
+	local navy = C(30, 42, 92)
+	part(arena, "WallN", Vector3.new(wall * 2 + 4, height, 4), Vector3.new(0, height / 2, -wall), navy)
+	part(arena, "WallS", Vector3.new(wall * 2 + 4, height, 4), Vector3.new(0, height / 2, wall), navy)
+	part(arena, "WallE", Vector3.new(4, height, wall * 2), Vector3.new(wall, height / 2, 0), navy)
+	part(arena, "WallW", Vector3.new(4, height, wall * 2), Vector3.new(-wall, height / 2, 0), navy)
+	local banners = { C(255, 70, 150), C(40, 180, 230), C(255, 150, 40), C(140, 90, 255), C(70, 210, 120) }
+	local n = 0
+	for off = -112, 112, 28 do
+		n += 1
+		local color = banners[n % #banners + 1]
+		deco(arena, "Banner", Vector3.new(22, 14, 0.4), Vector3.new(off, 13, -m.Half + 0.1), color, Enum.Material.SmoothPlastic)
+		deco(arena, "Banner", Vector3.new(22, 14, 0.4), Vector3.new(off, 13, m.Half - 0.1), color, Enum.Material.SmoothPlastic)
+		deco(arena, "Banner", Vector3.new(0.4, 14, 22), Vector3.new(-m.Half + 0.1, 13, off), color, Enum.Material.SmoothPlastic)
+		deco(arena, "Banner", Vector3.new(0.4, 14, 22), Vector3.new(m.Half - 0.1, 13, off), color, Enum.Material.SmoothPlastic)
 	end
-	-- the park: fountain, trees, benches, hedges
+	deco(arena, "WallCap", Vector3.new(wall * 2, 0.8, 0.8), Vector3.new(0, height - 0.4, -m.Half + 0.4), C(90, 230, 255), Enum.Material.Neon)
+	deco(arena, "WallCap", Vector3.new(wall * 2, 0.8, 0.8), Vector3.new(0, height - 0.4, m.Half - 0.4), C(90, 230, 255), Enum.Material.Neon)
+	deco(arena, "WallCap", Vector3.new(0.8, 0.8, wall * 2), Vector3.new(-m.Half + 0.4, height - 0.4, 0), C(90, 230, 255), Enum.Material.Neon)
+	deco(arena, "WallCap", Vector3.new(0.8, 0.8, wall * 2), Vector3.new(m.Half - 0.4, height - 0.4, 0), C(90, 230, 255), Enum.Material.Neon)
+
+	-- the plaza: fountain, a landmark tower with neon rings, trees, hedges and benches for cover
 	local pool = part(arena, "Fountain", Vector3.new(1.4, 12, 12), Vector3.new(0, 0.7, 0), C(246, 250, 255), Enum.Material.Marble)
 	pool.Shape = Enum.PartType.Cylinder
 	pool.CFrame = CFrame.new(0, 0.7, 0) * CFrame.Angles(0, 0, math.pi / 2)
@@ -4916,7 +5104,15 @@ local function buildArena()
 	water.Transparency = 0.25
 	water.Shape = Enum.PartType.Cylinder
 	water.CFrame = CFrame.new(0, 1.5, 0) * CFrame.Angles(0, 0, math.pi / 2)
-	water.CanCollide = false
+	part(arena, "Landmark", Vector3.new(3, 34, 3), Vector3.new(0, 17, 0), WHITE, Enum.Material.SmoothPlastic)
+	for i, y in { 10, 20, 30 } do
+		local ring = deco(arena, "LandmarkRing", Vector3.new(0.8, 10, 10), Vector3.new(0, y, 0), banners[i], Enum.Material.Neon)
+		ring.Shape = Enum.PartType.Cylinder
+		ring.CFrame = CFrame.new(0, y, 0) * CFrame.Angles(0, 0, math.pi / 2)
+	end
+	for _, o in { { 0, -2.1, "-z" }, { 0, 2.1, "+z" }, { -2.1, 0, "-x" }, { 2.1, 0, "+x" } } do
+		sign(arena, "FIGURE ME OUT", 3, 12, Vector3.new(o[1], 25, o[2]), o[3], C(20, 28, 60), C(90, 230, 255))
+	end
 	for _, t in { { -20, -18 }, { 20, -18 }, { -20, 18 }, { 20, 18 }, { 0, -24 }, { 0, 24 }, { -26, 0 }, { 26, 0 } } do
 		tree(arena, t[1], t[2])
 	end
@@ -4924,11 +5120,11 @@ local function buildArena()
 		part(arena, "Hedge", Vector3.new(h[3], 3.5, h[4]), Vector3.new(h[1], 1.75, h[2]), C(60, 168, 70), Enum.Material.Grass)
 	end
 	for _, bn in { { -9, -9 }, { 9, 9 }, { -9, 9 }, { 9, -9 } } do
-		part(arena, "Bench", Vector3.new(6, 1.2, 2), Vector3.new(bn[1], 0.8, bn[2]), C(120, 85, 55), Enum.Material.Wood)
+		part(arena, "Bench", Vector3.new(6, 1.2, 2), Vector3.new(bn[1], 0.8, bn[2]), C(255, 150, 40), Enum.Material.Wood)
 	end
 	-- crates and bus-stop style cover scattered on the streets
 	for i, p in { { 43, 0 }, { -43, 0 }, { 0, 43 }, { 0, -43 }, { 43, 60 }, { -43, -60 }, { 60, -43 }, { -60, 43 } } do
-		part(arena, "Crate" .. i, Vector3.new(5, 4, 5), Vector3.new(p[1], 2, p[2]), C(150, 105, 60), Enum.Material.Wood)
+		part(arena, "Crate" .. i, Vector3.new(5, 4, 5), Vector3.new(p[1], 2, p[2]), C(255, 190, 60), Enum.Material.Wood)
 	end
 	-- street lamps
 	local lamps = folder("Lamps")
@@ -6806,6 +7002,9 @@ local aimAt, aimTarget, aimDistance = 0, nil, 0
 local bounty = nil -- { id, label, reward }
 local allyUntil, allyLabel = 0, ""
 local finalShown = false
+local uiScale = 1
+local scaleObjects = {}
+local scaleAt = -10
 
 function Hud.init(screen, d)
 	gui = screen
@@ -6918,6 +7117,7 @@ function Hud.init(screen, d)
 	cornerButton("☰", 0, function() deps.Menu.toggle() end)
 	cornerButton("📒", 52, function() deps.Album.toggle() end)
 	cornerButton("?", 104, function() deps.Menu.open("How to play") end)
+	cornerButton("⚙", 156, function() deps.Menu.open("Settings") end)
 
 	-- kill feed (right side)
 	refs.feed = UI.new("Frame", { Name = "Feed", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 70), Size = UDim2.fromOffset(330, 160), BackgroundTransparency = 1 }, root)
@@ -6975,6 +7175,10 @@ function Hud.init(screen, d)
 	})
 	refs.tips = UI.label(root, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 14, 1, -14), Size = UDim2.fromOffset(300, 60), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "G guess   T ally   RMB hold: binoculars   click / F: photo   V notebook   I gadgets   1-8 gadgets" })
 
+	-- everything important can shrink on small screens (phones, small windows)
+	for _, thing in { me, profile, refs.quick, bar, guess, refs.feed } do
+		table.insert(scaleObjects, UI.new("UIScale", {}, thing))
+	end
 	RunService.RenderStepped:Connect(function()
 		Hud.update()
 	end)
@@ -7055,9 +7259,33 @@ end
 
 local PHASE_TEXT = { lobby = "NEXT MATCH IN", countdown = "GET READY", play = "MATCH TIME", results = "RESULTS" }
 
+-- The size everything is drawn at for this screen: 1 is the normal size, smaller on small screens.
+function Hud.uiScale()
+	return uiScale
+end
+
+local function updateScale()
+	local camera = View.camera()
+	local vp = camera and camera.ViewportSize
+	if not vp or type(vp.X) ~= "number" then
+		return
+	end
+	local want = math.clamp(math.min(vp.X / 1100, vp.Y / 650), 0.62, 1.1)
+	if math.abs(want - uiScale) > 0.01 then
+		uiScale = want
+		for _, obj in scaleObjects do
+			obj.Scale = want
+		end
+	end
+end
+
 function Hud.update()
 	if not refs.root then
 		return
+	end
+	if os.clock() - scaleAt > 1 then
+		scaleAt = os.clock()
+		updateScale()
 	end
 	local phase = View.phase()
 	local left = View.timeLeft()
@@ -7071,14 +7299,14 @@ function Hud.update()
 	local final = phase == "play" and left <= Config.Match.RevealAt
 	refs.timer.TextColor3 = final and C.Danger or C.Text
 	if final then
-		refs.topScale.Scale = 1 + 0.05 * math.abs(math.sin(os.clock() * 5))
+		refs.topScale.Scale = uiScale * (1 + 0.05 * math.abs(math.sin(os.clock() * 5)))
 		if not finalShown then
 			finalShown = true
 			deps.Fx.announce("30 SECONDS LEFT!", "Every plate glows. Make it count!", C.Danger, 0.2)
 			Audio.setIntensity(true)
 		end
 	else
-		refs.topScale.Scale = 1
+		refs.topScale.Scale = uiScale
 		if finalShown and phase ~= "play" then
 			finalShown = false
 			Audio.setIntensity(false)

@@ -73,9 +73,15 @@ Loading screen, lobby (level, coins, waiting players), HUD (timer, alive count, 
 
 A sunny early-2000s "Windows XP hills" afternoon with a Frutiger Aero feel: glossy aqua glass screens, pastel glass buildings, bubbles, a glass boundary wall and rolling green hills. Numbers appear only on the forehead plate.
 
-## Map: "Plaza Park"
+## Map: "Neon Arcade Plaza"
 
-A park with a fountain in the middle (4 information terminals in its corners), 8 pastel buildings with ladders to sniper roofs, streets between them, lamps, hedges, benches and crates for cover, 20 glowing spawn pads, 16 gadget crates. A separate floating lobby island with a how-to-play board and a top-winners board.
+A compact 3x3 city grid, bright but not washed out (slate streets, white sidewalks, saturated buildings, navy boundary walls with colourful banners):
+
+* **Central plaza:** a neon-tile floor, a fountain and a tall landmark tower with neon rings and "FIGURE ME OUT" signs (you can see it from everywhere), trees, hedges and benches for cover, and the four information terminals in its corners.
+* **Four corner buildings (ARCADE, PIZZA, BOWL, SYNTH):** hollow, each with two doorways facing the plaza, windows, a balcony reached by a staircase, a ladder to a roof with parapet cover, and a big roof sign so you always know where you are.
+* **Four courtyards (MARKET WEST/EAST, DOCKS NORTH/SOUTH):** shipping-container cover forming alleys, a second level of containers, and an elevated walkway with a staircase at each end. The two MARKET courtyards are reserved as the team bases for Capture the Flag.
+* Streets with lamps, crates for cover, 20 glowing spawn pads and 16 gadget crates.
+* A separate floating lobby island with a how-to-play board and a top-winners board.
 
 ## What is next
 

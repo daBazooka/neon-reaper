@@ -223,19 +223,37 @@ Config.Map = {
 	Half = 134, -- the arena is this big in each direction from the middle
 	Block = 60,
 	Street = 26,
-	BuildingHeight = 16,
 	BlockCenters = { -86, 0, 86 },
 	Lobby = Vector3.new(0, 0, 420), -- the lobby island is far away from the arena
 }
--- The 8 outer blocks: { x, z } of the block's middle. Each holds a 44x44 building in the middle of the block.
-Config.Map.Buildings = {}
-for _, bx in Config.Map.BlockCenters do
-	for _, bz in Config.Map.BlockCenters do
-		if not (bx == 0 and bz == 0) then
-			table.insert(Config.Map.Buildings, { X = bx, Z = bz, Size = 44 })
-		end
-	end
-end
+-- The 4 corner blocks each hold a hollow 44x44 building you can walk into (doors, a staircase up to a balcony, a ladder to the roof).
+-- The 4 middle-edge blocks are open courtyards with container cover and an elevated walkway.
+Config.Map.Plan = {
+	Height = 18, -- walls and roof of the buildings
+	Wall = 2,
+	Door = 10, -- doorway width and height (a character is about 2 wide and 5 tall)
+	DoorHeight = 10,
+	Mezz = 9, -- height of the balcony floor
+	MezzDepth = 12, -- how far the balcony reaches into the room, and how long the staircase is
+	Steps = 9, -- the staircase has this many steps, each Rise high (so Steps * Rise = Mezz)
+	Rise = 1,
+	StairWidth = 6,
+	DeckHeight = 9, -- the courtyards' elevated walkway
+	DeckLength = 32,
+	DeckWidth = 6,
+}
+Config.Map.Buildings = {
+	{ X = -86, Z = -86, Size = 44, Name = "ARCADE", Color = C(255, 70, 150), Trim = C(90, 230, 255) },
+	{ X = -86, Z = 86, Size = 44, Name = "PIZZA", Color = C(255, 150, 40), Trim = C(255, 245, 120) },
+	{ X = 86, Z = -86, Size = 44, Name = "BOWL", Color = C(40, 180, 230), Trim = C(255, 120, 200) },
+	{ X = 86, Z = 86, Size = 44, Name = "SYNTH", Color = C(140, 90, 255), Trim = C(120, 255, 190) },
+}
+Config.Map.Courtyards = {
+	{ X = -86, Z = 0, Name = "MARKET WEST" },
+	{ X = 86, Z = 0, Name = "MARKET EAST" },
+	{ X = 0, Z = -86, Name = "DOCKS NORTH" },
+	{ X = 0, Z = 86, Name = "DOCKS SOUTH" },
+}
 -- 20 spawn points along the streets (never inside a building).
 Config.Map.Spawns = {}
 for _, z in { -100, -70, -20, 20, 70, 100 } do

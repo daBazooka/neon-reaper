@@ -149,7 +149,28 @@ check(spawnApart, "spawn points are at least 15 studs apart")
 local cratesOk = #Config.Map.Crates == 16
 for _, c in Config.Map.Crates do if insideBuilding(c, 1) then cratesOk = false end end
 check(cratesOk, "16 item crates, none inside a building")
-check(#Config.Map.Buildings == 8, "8 buildings around the plaza")
+check(#Config.Map.Buildings == 4 and #Config.Map.Courtyards == 4, "4 hollow corner buildings and 4 courtyards around the plaza")
+local P = Config.Map.Plan
+check(P.Steps * P.Rise == P.Mezz and P.Rise <= 1.2, "the staircase (" .. P.Steps .. " steps of " .. P.Rise .. ") reaches the balcony floor exactly and each step is easy to climb")
+check(P.DeckHeight == P.Steps * P.Rise, "the courtyard staircases reach the walkway exactly")
+check(P.Door >= 8 and P.DoorHeight >= 8, "doorways are wide and tall enough for a character")
+check(P.Height - P.Mezz >= 6, "there is head room above the balcony")
+check(P.DeckLength / 2 + P.MezzDepth <= Config.Map.Block / 2, "a courtyard walkway and its stairs fit inside the block")
+check(P.MezzDepth + 8 < Config.Map.Buildings[1].Size - 2 * P.Wall, "the balcony leaves room on the floor below it and to walk around")
+local free = true
+for _, list in { Config.Map.Spawns, Config.Map.Crates, Config.Map.Terminals, Config.Map.DropSpots } do
+	for _, pos in list do
+		for _, cy in Config.Map.Courtyards do
+			if math.abs(pos.X - cy.X) < 30 and math.abs(pos.Z - cy.Z) < 30 then free = false end
+		end
+		if insideBuilding(pos, 0) then free = false end
+	end
+end
+check(free, "no spawn point, crate, terminal or drop spot is inside a building or courtyard")
+for _, b in Config.Map.Buildings do
+	if not (b.Name and b.Color and b.Trim) then free = false end
+end
+check(free, "every building has a name, a colour and a trim colour (the roof sign and landmark)")
 local weight = 0
 for _, id in Config.CarriedItems do weight += Config.ItemById[id].Weight end
 check(weight > 0 and Config.ItemById.flash.Start == 2 and Config.ItemById.smoke.Start == 2, "you start with 2 flashbangs and 2 smoke grenades")
