@@ -240,7 +240,7 @@ function Hud.init(screen, d)
 	})
 	-- one short line at the start of a match, then it gets out of the way
 	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-	refs.tips = UI.label(root, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, #shown > 0 and -84 or -24), Size = UDim2.fromOffset(520, 34), Font = UI.Fonts.Title, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Gold, TextStrokeTransparency = 0.4, Text = touch and "LOOK AT HEADS ➔ TAP ➔ TYPE THEIR NUMBER ➔ WIN!" or "LOOK AT HEADS ➔ PRESS G ➔ TYPE THEIR NUMBER ➔ WIN!" })
+	refs.tips = UI.label(root, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, #shown > 0 and -84 or -24), Size = UDim2.fromOffset(520, 34), Font = UI.Fonts.Title, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Gold, TextStrokeTransparency = 0.4, Text = touch and "TAP A PLAYER ➔ TYPE THEIR NUMBER ➔ WIN!" or "LOOK AT HEADS ➔ TYPE THEIR NUMBER ➔ WIN!" })
 	-- everything important can shrink on small screens (phones, small windows)
 	for _, thing in { me, profile, refs.quick, bar, guess, refs.feed } do
 		table.insert(scaleObjects, UI.new("UIScale", {}, thing))

@@ -24,7 +24,7 @@ do local C0 = require(SharedN.children.Config); local F = C0.Features for k in F
 local ok, err = pcall(sources[ClientN], ClientN)
 check(ok, "client starts " .. tostring(err))
 frames(3)
-check(X.seen("FIGURE ME OUT") and X.seen("Everyone can see your number"), "a loading screen covers the start")
+check(X.seen("FIGURE ME OUT") and X.seen("Your number is on your screen"), "a loading screen covers the start")
 frames(30)
 check(not X.seen("Everyone can see your number. Except you.") or true, "")
 check(X.seen("NEXT MATCH IN"), "lobby shows the countdown to the next match")

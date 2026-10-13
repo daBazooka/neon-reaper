@@ -19,8 +19,12 @@ All round settings (4-minute matches, 3 lives, cooldowns, charges, rewards, even
 
 ## 2. Test with several players
 
+The game is for **real players only**: there are no bots, and a match needs **at least 2 players** (the lobby shows "WAITING FOR PLAYERS 1/2" until then).
+
 1. In Studio go to the **Test** tab, choose **Clients and Servers**, set **Players** to 2 or more, and press **Start**. Each extra window is another player.
-2. Everyone joins the lobby. After the countdown they are all in the same match.
+2. Everyone joins the lobby. After the 10-second countdown they are all in the same match.
+
+Testing alone? In `Config.luau` set `Config.Match.MinHumans = 1` (a lone player then gets a practice match that runs until the clock ends) or also `Config.Match.MinTotal = 10` to add bots as opponents. Put them back to 2 and 0 before publishing.
 
 ## 3. Saving (coins, XP, cosmetics, wins)
 
@@ -41,9 +45,9 @@ Only use sounds you are allowed to use. If an id can't load, the game skips it s
 
 | Check | Expected |
 |---|---|
-| Press Play alone | Lobby, countdown, a match with 9 bots. |
-| Your screen | You can see other players' forehead plates but never your own. |
-| Aim at a bot, press G, type 3 digits, CONFIRM | Wrong: -1 bullet, frozen 3 s. Right: the bot loses a life, you get points. |
+| Press Play alone | Lobby says WAITING FOR PLAYERS 1/2 (no match, no bots). With 2+ players: countdown, then a match. |
+| Your screen | Your own number is shown big in the top-left box; others' numbers float over their heads (and sit on their foreheads). |
+| Look at a player and type 3 digits (or G / Enter / tap first) | The guess goes in by itself on the third digit. Wrong: -1 bullet, frozen 1.5 s. Right: they lose a life, you get points. |
 | Hit the same bot again quickly | Refused (protected, then anti-farm pause). |
 | Stand facing a wall for 7+ seconds | Warning after 1 s, then "POSITION REVEALED". Smoke never triggers it. |
 | Use each gadget (1 to 8) | It works, shows a cooldown on its slot and a charge count. |

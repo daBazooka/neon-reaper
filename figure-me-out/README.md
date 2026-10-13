@@ -46,6 +46,13 @@ The arena is **Waterfall Canyon**: a tall cliff along one side with three waterf
 * The whole layout is plain data in `src/shared/Canyon.luau` (waterfall positions, river boxes, spawns, bases, trees...). The old city map ("Plaza Park") is still in the code: put `Config.Map.use("city")` instead of `Config.Map.use("canyon")` at the end of the map section in `Config.luau` to get it back.
 * `docs/maps/` has the picture of what the world builder really makes (`built_canyon.png`) next to the six other map ideas.
 
+## Real players, your own number, instant guesses
+
+* **Real players only.** No bots: a match needs at least 2 players and the lobby waits ("WAITING FOR PLAYERS 1/2") until they are there. Up to 20 can play. If everybody on a team leaves, or only one player is left, the match ends and the ones still there win.
+* **You can see your own number** (big, top-left of the screen, and on your own plate and floating tag) so you know what to hide. Only you are told yours; the server never sends anybody else's.
+* **No Enter, no CONFIRM.** Look at somebody and just type their three digits (or press G / Enter, or tap them on a phone first): the guess goes in by itself on the third digit and you see right or wrong at once. `Config.Guess.AutoSubmit = false` brings the CONFIRM button back.
+* **Colour grading** follows the moment (warm golden lobby, bright vivid match, punchy pulsing last seconds, celebratory results). Tune it in `Config.Look`.
+
 ## Quick-and-simple mode (the default)
 
 The game ships as: **look at heads, type their number, win.** Matches are 90 seconds, a wrong guess freezes you for 1.5 seconds, there is no tutorial wall (one line of hint at the start of each match), and the screen only shows hearts, points, bullets, the big GUESS button and the timer. Click or tap somebody to open the number pad; on a phone just tap.

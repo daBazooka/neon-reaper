@@ -1,7 +1,7 @@
 # FIGURE ME OUT: game concept
 
-> **One line:** everybody wears a secret 3-digit number on their forehead. You can't see yours. Read theirs, take their lives,
-> hide yours, and be the last one standing.
+> **One line:** everybody wears a 3-digit number on their forehead and over their head. Yours is on your screen so you know
+> what to hide. Read theirs, type it, take their lives, and be the last one standing. Real players only.
 
 ## A match (about 5 minutes)
 

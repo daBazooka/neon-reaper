@@ -108,10 +108,10 @@ local function loadingScreen()
 	bar.fill.ZIndex = 202
 	task.spawn(function()
 		local tips = {
-			"Everyone can see your number. Except you.",
-			"Hold right mouse for binoculars.",
-			"Smoke blocks sight. Flashbangs blind. Use them!",
+			"Your number is on your screen: keep it hidden.",
+			"Look at someone and just type their number.",
 			"Don't stare at walls or sit still: the game exposes campers.",
+			"The river carries you. Waterfalls hide what is behind them.",
 			"Someone is always watching.",
 		}
 		local waited = 0

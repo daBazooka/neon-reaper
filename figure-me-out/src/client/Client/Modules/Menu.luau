@@ -24,8 +24,8 @@ local cosmeticCards = {}
 local profileLabel
 
 local STEPS = {
-	{ "🪪", "Look at heads", "Everybody has a secret 3-digit number on their forehead. You can't see yours, but everybody else can. You have 3 lives." },
-	{ "🎯", "Type their number", "Look at someone and press G (or tap them). Type THEIR number and press CONFIRM. Right = they lose a life. Wrong = you freeze for a moment." },
+	{ "🪪", "Look at heads", "Everybody has a 3-digit number on their forehead and floating over their head. Yours is shown on your screen, so you know what to hide. You have 3 lives." },
+	{ "🎯", "Type their number", "Look at someone and just type their 3 digits (or press G / Enter, or tap them). It goes in by itself. Right = they lose a life. Wrong = you freeze for a moment." },
 	{ "🏆", "Be the last one standing", "Rounds are short. In Team and Flag matches you respawn and your team scores. Don't sit still: campers get exposed!" },
 }
 -- the optional extras (all switched off in Config.Features unless you turn them on)

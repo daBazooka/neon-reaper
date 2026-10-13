@@ -49,7 +49,7 @@ local ownPlate, ownGui, ownTag = {Name = "NumberPlate", Transparency = 0}, {Name
 me.Character:addPart(ownPlate); me.Character:addPart(ownGui); me.Character:addPart(ownTag)
 check(ownPlate.Transparency == 0 and ownGui.Enabled == true and ownTag.Enabled == true, "your own plate and floating number are not hidden from you")
 check(fired("Seen") == 1, "the server is told the player has seen the game (no pop-up needed)")
-check(X.seen("LOOK AT HEADS") and X.seen("PRESS G") and X.seen("TYPE THEIR NUMBER"), "one short line explains the game")
+check(X.seen("LOOK AT HEADS") and X.seen("TYPE THEIR NUMBER"), "one short line explains the game")
 check(X.seen("GUESS"), "a big GUESS button is on screen")
 check(not X.seen("x2") and not X.seen("COOLDOWN"), "no gadget bar")
 attrsWS.Phase = "play"; attrsWS.PhaseEnd = clock + 90

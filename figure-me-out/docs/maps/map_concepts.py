@@ -102,7 +102,7 @@ class Scene:
     def spawn_ring(self, pts):
         self.spawns = pts
 
-def render(scene, path, w=1500, h=1050):
+def render(scene, path, w=1500, h=1050, region=None, elev=38, azim=-52, floor_h=0.0):
     fig = plt.figure(figsize=(w / 100, h / 100), dpi=100)
     fig.patch.set_facecolor(scene.sky)
     ax = fig.add_axes([0, 0.08, 1, 0.80], projection="3d")
@@ -111,7 +111,8 @@ def render(scene, path, w=1500, h=1050):
     ax.computed_zorder = False  # draw in the order we say: floor, then things, then spawn pads
     # floor
     H = HALF + 6
-    floor = Poly3DCollection([[(-H, -H, 0), (H, -H, 0), (H, H, 0), (-H, H, 0)]], facecolors=[scene.floor + (1,)], edgecolors=[shade(scene.floor, 0.8)], linewidths=0.6)
+    cx0, cz0, rr = region if region else (0, 0, H)
+    floor = Poly3DCollection([[(cx0 - rr, cz0 - rr, 0), (cx0 + rr, cz0 - rr, 0), (cx0 + rr, cz0 + rr, 0), (cx0 - rr, cz0 + rr, 0)]], facecolors=[scene.floor + (1,)], edgecolors=[shade(scene.floor, 0.8)], linewidths=0.6)
     floor.set_zorder(1); ax.add_collection3d(floor)
     pc = Poly3DCollection(scene.faces, facecolors=scene.colors, edgecolors=[(0, 0, 0, 0.12)], linewidths=0.25)
     pc.set_zorder(2); ax.add_collection3d(pc)
@@ -120,9 +121,9 @@ def render(scene, path, w=1500, h=1050):
         sp = Poly3DCollection([t], facecolors=[(0.25, 0.95, 1.0, 1)], edgecolors=[(1, 1, 1, 1)], linewidths=0.8); sp.set_zorder(1.5); ax.add_collection3d(sp)
     for pts, col, lw, st in scene.lines:
         ax.plot([p[0] for p in pts], [p[1] for p in pts], [p[2] for p in pts], color=col, linewidth=lw, linestyle=st, zorder=3)
-    ax.set_xlim(-H, H); ax.set_ylim(-H, H); ax.set_zlim(0, 2 * H * 0.62)
+    ax.set_xlim(cx0 - rr, cx0 + rr); ax.set_ylim(cz0 - rr, cz0 + rr); ax.set_zlim(0, 2 * rr * 0.62)
     ax.set_box_aspect((1, 1, 0.62), zoom=1.12)
-    ax.view_init(elev=38, azim=-52)
+    ax.view_init(elev=elev, azim=azim)
     ax.dist = 7.4
     fig.text(0.5, 0.945, scene.name, ha="center", va="center", fontsize=40, fontweight="bold", color="white",
              path_effects=[__import__("matplotlib.patheffects", fromlist=["x"]).withStroke(linewidth=6, foreground="#10325a")])

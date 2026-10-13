@@ -496,7 +496,7 @@ local function buildLobby()
 	local how = board:Clone()
 	how.Name = "Lines"
 	how.TextSize = 25
-	how.Text = "• Everyone has a secret 3-digit number on their forehead.\n• Aim at someone, press G and type THEIR number: they are out!\n• Hide yours, but don't stare at walls: you'll be exposed.\n• 🔭 zoom  📷 photo  💥 flash  💨 smoke\n• Last one standing wins."
+	how.Text = "• Everyone has a 3-digit number over their head.\n• Yours is on your screen: keep it hidden!\n• Look at someone and type THEIR number: it goes in by itself.\n• Right = they lose a life. Wrong = you freeze.\n• Last one standing wins."
 	how.Parent = hgui
 
 	for i = 1, Config.Match.MaxPlayers do
