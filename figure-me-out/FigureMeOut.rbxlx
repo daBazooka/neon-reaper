@@ -2,6 +2,7 @@
   <Item class="Lighting" referent="0">
     <Properties>
       <string name="Name">Lighting</string>
+      <token name="Technology">4</token>
     </Properties>
   </Item>
   <Item class="ReplicatedStorage" referent="1">
@@ -349,15 +350,27 @@ Config.GameName = "Figure Me Out"
 -- The idea: everybody wears a secret 3-digit number on their forehead that they cannot see.
 -- Type someone else's number correctly and they are out. Read numbers, hide yours, last one standing wins.
 --------------------------------------------------------------------------------
+-- QUICK-AND-SIMPLE MODE. The core game is: look at a head, type the number, win. Everything else is an optional extra
+-- that is switched OFF by default so the game stays easy to read and play. Set any of these to true to bring it back.
+Config.Features = {
+	Gadgets = false, -- the hotbar: flashbang, smoke, distraction, scanner, sprint, decoy (and the crates / supply drops that refill them)
+	Photos = false, -- the camera and the notebook
+	Binoculars = false, -- hold to zoom
+	Terminals = false, -- hack a terminal for a clue
+	Bounty = false, -- a gold-tagged target with a prize
+	Alliances = false, -- ask somebody to team up
+	Events = false, -- double points, low gravity, blackout...
+}
+
 Config.Match = {
 	MaxPlayers = 20,
 	MinHumans = 1, -- real players needed before a match starts (bots fill the rest up to MinTotal)
 	MinTotal = 10, -- bots fill the match up to this many players, so there is always a game (and 2 "players" is the minimum)
-	Intermission = 14, -- lobby wait between matches (seconds)
-	Countdown = 8, -- before the start whistle
-	Length = 240, -- the match: four minutes
-	RevealAt = 30, -- the final stretch: every plate glows, the timer turns red, the music speeds up
-	ResultsTime = 12,
+	Intermission = 10, -- lobby wait between matches (seconds)
+	Countdown = 5, -- before the start whistle
+	Length = 90, -- the match: a minute and a half
+	RevealAt = 20, -- the final stretch: every plate glows, the timer turns red, the music speeds up
+	ResultsTime = 8,
 }
 
 -- Game modes. Matches rotate through them (or set Mode to one id to always play that mode).
@@ -369,8 +382,8 @@ Config.Modes = {
 	Mode = "rotate", -- "rotate" or one of the ids above
 	List = {
 		deathmatch = { Id = "deathmatch", Name = "DEATHMATCH", Icon = "💀", Teams = false, Respawn = false, Tip = "Everybody for themselves. 3 lives." },
-		team = { Id = "team", Name = "TEAM DEATHMATCH", Icon = "⚔️", Teams = true, Respawn = true, ScoreLimit = 25, Tip = "Two teams. Every hit on the other team scores. First to 25." },
-		ctf = { Id = "ctf", Name = "CAPTURE THE FLAG", Icon = "🚩", Teams = true, Respawn = true, CaptureLimit = 3, Tip = "Grab the enemy flag and bring it home. First to 3 captures." },
+		team = { Id = "team", Name = "TEAM DEATHMATCH", Icon = "⚔️", Teams = true, Respawn = true, ScoreLimit = 15, Tip = "Two teams. Every hit on the other team scores. First to 15." },
+		ctf = { Id = "ctf", Name = "CAPTURE THE FLAG", Icon = "🚩", Teams = true, Respawn = true, CaptureLimit = 2, Tip = "Grab the enemy flag and bring it home. First to 2 captures." },
 	},
 }
 Config.Teams = {
@@ -416,7 +429,7 @@ Config.Score = {
 Config.Guess = {
 	Cooldown = 1.0,
 	MaxDistance = 170, -- you must be able to see them, and be this close
-	Stun = 3,
+	Stun = 1.5, -- a wrong guess freezes you for this long
 	Bullets = 5,
 	BulletRegen = 25, -- seconds to get one bullet back
 	KillBullets = 2, -- bullets back for a successful guess
@@ -535,7 +548,7 @@ Config.Events = {
 --------------------------------------------------------------------------------
 -- Progression: coins and XP after every match, levels, and cosmetics. Nothing here changes how strong you are.
 --------------------------------------------------------------------------------
-Config.Rewards = { Coins = { Play = 15, PerPoint = 0.1, Win = 60 }, XP = { Play = 20, PerPoint = 0.15, Win = 50 } }
+Config.Rewards = { Coins = { Play = 15, PerPoint = 0.1, Win = 60 }, XP = { Play = 20, PerPoint = 0.15, Win = 50 }, Streak = { Step = 0.25, Max = 4 } } -- win streak: each extra win in a row adds Step to the reward multiplier (up to Max extra)
 Config.Levels = { First = 100, Step = 40, Max = 99 } -- XP needed for level n = First + Step * (n - 1)
 
 -- Trail left behind you, elimination effect (the cartoon burst when you lose a life) and quick emotes.
@@ -1032,6 +1045,12 @@ function Rules.matchRewards(score, won)
 	return coins, xp
 end
 
+-- Win-streak multiplier for the match rewards: 1 for the first win, then +Step for every win in a row (up to Max steps).
+function Rules.streakMultiplier(streak)
+	local s = Config.Rewards.Streak
+	return 1 + s.Step * math.clamp((streak or 0) - 1, 0, s.Max)
+end
+
 -- Can this player have this cosmetic yet? Returns (true) or (false, reason).
 function Rules.canBuy(item, level, coins)
 	if level < item.Level then
@@ -1210,8 +1229,8 @@ UI.Colors = {
 }
 
 UI.Fonts = {
-	Title = Enum.Font.GothamBlack,
-	Bold = Enum.Font.GothamBold,
+	Title = Enum.Font.FredokaOne,
+	Bold = Enum.Font.FredokaOne,
 	Body = Enum.Font.GothamMedium,
 }
 
@@ -1543,16 +1562,20 @@ function handlers.Guess(p, targetId, text)
 	Guess.handle(p, targetId, text)
 end
 function handlers.Snap(p, origin, look)
-	Photos.snap(p, origin, look)
+	if Config.Features.Photos then
+		Photos.snap(p, origin, look)
+	end
 end
 function handlers.Use(p, id, look)
 	local e = State.byPlayer(p)
-	if e and type(id) == "string" then
+	if e and Config.Features.Gadgets and type(id) == "string" then
 		Items.use(e, id, look)
 	end
 end
 function handlers.Scope(p, on)
-	Match.setScope(p, on == true)
+	if Config.Features.Binoculars then
+		Match.setScope(p, on == true)
+	end
 end
 function handlers.Style(p, id)
 	if type(id) == "string" then
@@ -1577,13 +1600,13 @@ function handlers.Equip(p, kind, id)
 end
 function handlers.AllyAsk(p, targetId)
 	local e = State.byPlayer(p)
-	if e and type(targetId) == "number" then
+	if e and Config.Features.Alliances and type(targetId) == "number" then
 		Alliance.propose(e, targetId)
 	end
 end
 function handlers.AllyReply(p, fromId, yes)
 	local e = State.byPlayer(p)
-	if e and type(fromId) == "number" then
+	if e and Config.Features.Alliances and type(fromId) == "number" then
 		Alliance.respond(e, fromId, yes == true)
 	end
 end
@@ -1595,7 +1618,7 @@ function handlers.AllyEnd(p)
 end
 function handlers.Share(p, entries)
 	local e = State.byPlayer(p)
-	if e then
+	if e and Config.Features.Alliances then
 		Alliance.share(e, entries)
 	end
 end
@@ -2375,7 +2398,8 @@ function Combat.strike(victim, killer, how)
 		victim.lives -= 1
 	end
 	local delay = Config.Lives.RespawnDelay
-	victim.stunUntil = State.now() + delay
+	-- (frozen a moment longer than the delay: the respawn below ends the freeze, so nothing can happen in between)
+	victim.stunUntil = State.now() + delay + 0.5
 	victim.scoped = false
 	Combat.protect(victim, delay + Config.Lives.Protect)
 	Combat.applySpeed(victim)
@@ -3299,7 +3323,7 @@ end
 function Items.reset(e)
 	e.items = {}
 	for _, id in Config.CarriedItems do
-		e.items[id] = Config.ItemById[id].Start or 0
+		e.items[id] = Config.Features.Gadgets and (Config.ItemById[id].Start or 0) or 0
 	end
 	e.cooldowns = {}
 	e.sprintUntil = 0
@@ -3980,11 +4004,17 @@ function Match.tick(dt)
 		State.writeEntity(e)
 	end
 	Items.tick(now)
-	Pickups.tick(now)
+	if Config.Features.Gadgets then
+		Pickups.tick(now)
+	end
 	Bots.tick(now)
 	Alliance.tick(now)
-	Bounty.tick(now)
-	Events.tick(now)
+	if Config.Features.Bounty then
+		Bounty.tick(now)
+	end
+	if Config.Features.Events then
+		Events.tick(now)
+	end
 	Flags.tick(now)
 	if not State.revealing and State.phaseEnd - now <= Config.Match.RevealAt then
 		Match.reveal()
@@ -4265,8 +4295,12 @@ function Match.run()
 			Combat.applySpeed(e)
 		end
 		Bots.startPlay(State.now())
-		Bounty.reset()
-		Events.reset(State.now())
+		if Config.Features.Bounty then
+			Bounty.reset()
+		end
+		if Config.Features.Events then
+			Events.reset(State.now())
+		end
 		Net.sendAll("phase", "play", State.phaseEnd)
 		local over = false
 		while not over do
@@ -4563,6 +4597,9 @@ local function setReady(c, on)
 end
 
 function Pickups.build(parent)
+	if not Config.Features.Gadgets then
+		return
+	end
 	crates = {}
 	drops = {}
 	dropParent = parent
@@ -5162,6 +5199,12 @@ function Progress.award(p, score, won, matchId, extraCoins)
 	data.LastRewardMatch = matchId
 	local before = Rules.levelFor(data.XP)
 	local coins, xp = Rules.matchRewards(score, won)
+	local mult = won and Rules.streakMultiplier(data.Streak) or 1
+	coins = math.floor(coins * mult)
+	xp = math.floor(xp * mult)
+	if mult > 1 then
+		Net.toast(p, "🔥 " .. data.Streak .. " wins in a row: rewards x" .. string.format("%.2f", mult), "gold")
+	end
 	coins += extraCoins or 0
 	data.Coins += coins
 	data.XP += xp
@@ -5403,6 +5446,9 @@ local parts = {}
 
 -- Builds the terminal props under `parent` (each one gets a ProximityPrompt).
 function Terminals.build(parent)
+	if not Config.Features.Terminals then
+		return
+	end
 	parts = {}
 	for i, pos in Config.Map.Terminals do
 		local base = Instance.new("Part")
@@ -6337,9 +6383,12 @@ end
 
 function handlers.phase(phase)
 	if phase == "countdown" then
+		if player:GetAttribute("Seen") == false then
+			deps.send("Seen") -- (no tutorial pop-up: the one-line hint on screen is enough)
+		end
 		Album.reset()
 		Inventory.resetClues()
-		Fx.announce("GET READY", "Hide your number. Find theirs.", C.Accent, 0.22)
+		Fx.announce("GET READY", "Look at heads. Type their number.", C.Accent, 0.22)
 		Audio.reveal()
 	elseif phase == "play" then
 		Fx.announce("GO!", "Someone is always watching", C.Good, 0.22)
@@ -6573,19 +6622,6 @@ Notify.OnClientEvent:Connect(function(kind, ...)
 	end
 end)
 
--- First visit: show the how-to-play card once the server has told us we have not seen it.
-task.spawn(function()
-	for _ = 1, 40 do
-		if player:GetAttribute("Seen") ~= nil then
-			break
-		end
-		task.wait(0.25)
-	end
-	if player:GetAttribute("Seen") == false then
-		task.wait(1.5)
-		Menu.open("How to play")
-	end
-end)
 ]]></string>
         </Properties>
         <Item class="Folder" referent="35">
@@ -7453,47 +7489,76 @@ function Controls.init(d)
 		end
 		local kc = input.KeyCode
 		local kind = input.UserInputType
+		local F = Config.Features
 		if kc == Enum.KeyCode.G then
 			Controls.guess()
 		elseif kc == Enum.KeyCode.F then
-			Controls.snap()
+			if F.Photos then
+				Controls.snap()
+			end
 		elseif kc == Enum.KeyCode.V then
-			deps.Album.toggle()
+			if F.Photos then
+				deps.Album.toggle()
+			end
 		elseif kc == Enum.KeyCode.T then
-			Controls.ally()
+			if F.Alliances then
+				Controls.ally()
+			end
 		elseif kc == Enum.KeyCode.I then
-			deps.Inventory.toggle()
+			if F.Gadgets then
+				deps.Inventory.toggle()
+			end
 		elseif kc == Enum.KeyCode.B then
 			deps.Emotes.toggle()
 		-- game controller: X guess, R2 photo, L2 hold for binoculars, Y notebook, L1/R1 choose a gadget, A use it
 		elseif kc == Enum.KeyCode.ButtonX then
 			Controls.guess()
 		elseif kc == Enum.KeyCode.ButtonR2 then
-			Controls.snap()
+			if F.Photos then
+				Controls.snap()
+			end
 		elseif kc == Enum.KeyCode.ButtonL2 then
-			deps.Scope.set(true)
+			if F.Binoculars then
+				deps.Scope.set(true)
+			end
 		elseif kc == Enum.KeyCode.ButtonY then
-			deps.Album.toggle()
-		elseif kc == Enum.KeyCode.ButtonL1 or kc == Enum.KeyCode.ButtonR1 then
+			if F.Photos then
+				deps.Album.toggle()
+			end
+		elseif (kc == Enum.KeyCode.ButtonL1 or kc == Enum.KeyCode.ButtonR1) and F.Gadgets then
 			local step = kc == Enum.KeyCode.ButtonR1 and 1 or -1
 			padSelected = (padSelected - 3 + step) % #Config.CarriedItems + 3
 			deps.Toasts.push(Config.Items[padSelected].Icon .. " " .. Config.Items[padSelected].Name .. " ready (press A)", "info")
 		elseif kc == Enum.KeyCode.ButtonA and View.phase() == "play" and not deps.Keypad.isOpen() then
-			deps.Hud.activate(Config.Items[padSelected].Id)
+			if F.Gadgets then
+				deps.Hud.activate(Config.Items[padSelected].Id)
+			else
+				Controls.guess()
+			end
 		elseif kc == Enum.KeyCode.ButtonStart then
 			deps.Menu.toggle()
 		elseif kc == Enum.KeyCode.M then
 			deps.Menu.toggle()
 		elseif kc == Enum.KeyCode.Z or kind == Enum.UserInputType.MouseButton2 then
-			deps.Scope.set(true)
+			if F.Binoculars then
+				deps.Scope.set(true)
+			end
 		elseif kc == Enum.KeyCode.Left then
 			deps.Spectate.cycle(-1)
 		elseif kc == Enum.KeyCode.Right then
 			deps.Spectate.cycle(1)
 		elseif HOTKEYS[kc] then
-			deps.Hud.activate(HOTKEYS[kc])
+			if F.Gadgets or HOTKEYS[kc] == "binos" and F.Binoculars or HOTKEYS[kc] == "camera" and F.Photos then
+				deps.Hud.activate(HOTKEYS[kc])
+			end
 		elseif kind == Enum.UserInputType.MouseButton1 and not deps.Menu.isOpen() and not deps.Album.isOpen() then
-			Controls.snap()
+			if F.Photos then
+				Controls.snap()
+			elseif View.phase() == "play" and not deps.Keypad.isOpen() then
+				Controls.guess() -- click or tap on somebody: the number pad opens
+			end
+		elseif kind == Enum.UserInputType.Touch and not deps.Menu.isOpen() and not deps.Album.isOpen() and View.phase() == "play" and not deps.Keypad.isOpen() then
+			Controls.guess()
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input)
@@ -7988,8 +8053,12 @@ function Hud.init(screen, d)
 		return b
 	end
 	quick("💬", 1, function() deps.Emotes.toggle() end)
-	refs.allyButton = quick("🤝", 2, function() deps.Controls.ally() end)
-	quick("🎒", 3, function() deps.Inventory.toggle() end)
+	if Config.Features.Alliances then
+		refs.allyButton = quick("🤝", 2, function() deps.Controls.ally() end)
+	end
+	if Config.Features.Gadgets then
+		quick("🎒", 3, function() deps.Inventory.toggle() end)
+	end
 
 	-- top right: small buttons
 	local function cornerButton(text, x, onClick)
@@ -8000,10 +8069,17 @@ function Hud.init(screen, d)
 		end)
 		return b
 	end
-	cornerButton("☰", 0, function() deps.Menu.toggle() end)
-	cornerButton("📒", 52, function() deps.Album.toggle() end)
-	cornerButton("?", 104, function() deps.Menu.open("How to play") end)
-	cornerButton("⚙", 156, function() deps.Menu.open("Settings") end)
+	local slot = 0
+	local function nextSlot()
+		slot += 52
+		return slot - 52
+	end
+	cornerButton("☰", nextSlot(), function() deps.Menu.toggle() end)
+	if Config.Features.Photos then
+		cornerButton("📒", nextSlot(), function() deps.Album.toggle() end)
+	end
+	cornerButton("?", nextSlot(), function() deps.Menu.open("How to play") end)
+	cornerButton("⚙", nextSlot(), function() deps.Menu.open("Settings") end)
 
 	-- kill feed (right side)
 	refs.feed = UI.new("Frame", { Name = "Feed", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 70), Size = UDim2.fromOffset(330, 160), BackgroundTransparency = 1 }, root)
@@ -8016,9 +8092,16 @@ function Hud.init(screen, d)
 	refs.aimLabel = UI.label(root, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.5, 20), Size = UDim2.fromOffset(300, 44), Font = UI.Fonts.Title, TextSize = 18, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Accent, Text = "" })
 
 	-- gadget hotbar
-	local bar = UI.new("Frame", { Name = "Hotbar", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -12), Size = UDim2.fromOffset(#Config.Items * 62, 62), BackgroundTransparency = 1 }, root)
+	local F = Config.Features
+	local shown = {}
+	for _, item in Config.Items do
+		if (item.Id == "binos" and F.Binoculars) or (item.Id == "camera" and F.Photos) or (not item.Permanent and F.Gadgets) then
+			table.insert(shown, item)
+		end
+	end
+	local bar = UI.new("Frame", { Name = "Hotbar", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -12), Size = UDim2.fromOffset(math.max(1, #shown * 62), 62), BackgroundTransparency = 1, Visible = #shown > 0 }, root)
 	UI.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, bar)
-	for i, item in Config.Items do
+	for i, item in shown do
 		local b = UI.button(bar, { LayoutOrder = i, Size = UDim2.fromOffset(58, 58), Text = item.Icon, TextSize = 28, BackgroundColor3 = C.Card }, "card")
 		UI.label(b, { Position = UDim2.fromOffset(5, 2), Size = UDim2.fromOffset(16, 14), Font = UI.Fonts.Title, TextSize = 12, TextColor3 = C.Gold, Text = tostring(item.Key) })
 		local count = UI.label(b, { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -4, 1, -2), Size = UDim2.fromOffset(30, 16), Font = UI.Fonts.Title, TextSize = 15, TextXAlignment = Enum.TextXAlignment.Right, Text = "" })
@@ -8033,14 +8116,27 @@ function Hud.init(screen, d)
 	end
 
 	-- guess button (also G)
-	local guess = UI.button(root, {
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, #Config.Items * 31 + 70, 1, -16),
-		Size = UDim2.fromOffset(92, 50),
-		Text = "GUESS  G",
-		TextSize = 15,
-		BackgroundColor3 = C.Accent2,
-	})
+	local guess
+	if #shown > 0 then
+		guess = UI.button(root, {
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.new(0.5, #shown * 31 + 70, 1, -16),
+			Size = UDim2.fromOffset(92, 50),
+			Text = "GUESS  G",
+			TextSize = 15,
+			BackgroundColor3 = C.Accent2,
+		})
+	else
+		-- nothing else to press: one big friendly button in the thumb corner
+		guess = UI.button(root, {
+			AnchorPoint = Vector2.new(1, 1),
+			Position = UDim2.new(1, -24, 1, -24),
+			Size = UDim2.fromOffset(150, 70),
+			Text = "GUESS",
+			TextSize = 26,
+			BackgroundColor3 = C.Accent2,
+		})
+	end
 	refs.guessButton = guess
 	guess.MouseButton1Click:Connect(function()
 		deps.Controls.guess()
@@ -8059,10 +8155,9 @@ function Hud.init(screen, d)
 		ZIndex = 300,
 		Text = "",
 	})
-	refs.tips = UI.label(root, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 14, 1, -14), Size = UDim2.fromOffset(300, 60), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "G guess   T ally   RMB hold: binoculars   click / F: photo   V notebook   I gadgets   1-8 gadgets" })
-
-	-- the keyboard hints are no use on a phone
-	refs.tips.Visible = UserInputService.KeyboardEnabled
+	-- one short line at the start of a match, then it gets out of the way
+	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	refs.tips = UI.label(root, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, #shown > 0 and -84 or -24), Size = UDim2.fromOffset(520, 34), Font = UI.Fonts.Title, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Gold, TextStrokeTransparency = 0.4, Text = touch and "LOOK AT HEADS ➔ TAP ➔ TYPE THEIR NUMBER ➔ WIN!" or "LOOK AT HEADS ➔ PRESS G ➔ TYPE THEIR NUMBER ➔ WIN!" })
 	-- everything important can shrink on small screens (phones, small windows)
 	for _, thing in { me, profile, refs.quick, bar, guess, refs.feed } do
 		table.insert(scaleObjects, UI.new("UIScale", {}, thing))
@@ -8336,8 +8431,8 @@ function Hud.update()
 	if refs.error.Visible then
 		refs.error.Text = "⚠ SERVER PROBLEM (please screenshot this):\n" .. bootError
 	end
-	-- the key hints only show at the start of a match, then get out of the way
-	refs.tips.Visible = playing and (phase == "countdown" or Config.Match.Length - left < 25)
+	-- the one-line hint only shows at the start of a match, then gets out of the way
+	refs.tips.Visible = playing and (phase == "countdown" or Config.Match.Length - left < 15)
 end
 
 return Hud
@@ -8887,13 +8982,24 @@ local cosmeticCards = {}
 local profileLabel
 
 local STEPS = {
-	{ "🪪", "Everybody has a secret number", "A 3-digit number is on every forehead. You can't see yours, but everybody else can. Each player has 3 lives." },
-	{ "🎯", "Guess to take lives", "Aim at someone, press G, type THEIR number and press CONFIRM. Right = they lose a life. Wrong = you lose a bullet, freeze for 3 seconds and they see an arrow pointing at you." },
-	{ "🔭", "Find the numbers", "Hold the right mouse button for binoculars and read digits from across the map. Click to snap a photo: the notebook (V) joins up digits from several photos." },
-	{ "💥", "Mess with their eyes", "Flashbangs blind, smoke blocks sight, the distraction grenade lures people, the scanner finds them, sprint boost gets you away and the decoy is a fake you. Grab 🎁 crates for more." },
-	{ "🔐", "Clues, bounties and friends", "Hack a terminal in the plaza for a true clue about YOUR number (it shows where you are!). Hit the 🎯 bounty target for bonus points. Press T to offer an alliance, and watch your back." },
-	{ "🚫", "No hiding in corners", "Staring at a wall hides your number, so the game warns you. Ignore it and your plate glows red with a 👁 marker above your head for everyone. Last one standing wins!" },
+	{ "🪪", "Look at heads", "Everybody has a secret 3-digit number on their forehead. You can't see yours, but everybody else can. You have 3 lives." },
+	{ "🎯", "Type their number", "Look at someone and press G (or tap them). Type THEIR number and press CONFIRM. Right = they lose a life. Wrong = you freeze for a moment." },
+	{ "🏆", "Be the last one standing", "Rounds are short. In Team and Flag matches you respawn and your team scores. Don't sit still: campers get exposed!" },
 }
+-- the optional extras (all switched off in Config.Features unless you turn them on)
+local EXTRAS = {
+	{ "Binoculars", "🔭", "Find the numbers", "Hold the right mouse button for binoculars and read digits from across the map." },
+	{ "Photos", "📷", "Photos and notebook", "Click to snap a photo: the notebook (V) joins up digits from several photos." },
+	{ "Gadgets", "💥", "Gadgets", "Flashbangs blind, smoke blocks sight, the distraction grenade lures people, the scanner finds them, sprint boost gets you away and the decoy is a fake you. Grab 🎁 crates for more." },
+	{ "Terminals", "🔐", "Terminals", "Hack a terminal in the plaza for a true clue about YOUR number (it shows where you are!)." },
+	{ "Bounty", "🎯", "Bounty", "Hit the gold bounty target for bonus points." },
+	{ "Alliances", "🤝", "Alliances", "Press T to offer an alliance, and watch your back." },
+}
+for _, x in EXTRAS do
+	if Config.Features[x[1]] then
+		table.insert(STEPS, { x[2], x[3], x[4] })
+	end
+end
 
 local function page(name)
 	local p = UI.new("ScrollingFrame", {
