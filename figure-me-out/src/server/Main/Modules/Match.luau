@@ -23,6 +23,7 @@ local Terminals = require(script.Parent.Terminals)
 local Events = require(script.Parent.Events)
 local Modes = require(script.Parent.Modes)
 local Flags = require(script.Parent.Flags)
+local Water = require(script.Parent.Water)
 
 local Match = {}
 
@@ -270,6 +271,7 @@ function Match.tick(dt)
 		end
 		State.writeEntity(e)
 	end
+	Water.tick()
 	Items.tick(now)
 	if Config.Features.Gadgets then
 		Pickups.tick(now)

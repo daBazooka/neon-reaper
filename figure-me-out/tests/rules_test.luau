@@ -24,6 +24,8 @@ local function load(name)
 	return loaded[name]
 end
 local Util, Config, Rules = load("Util"), load("Config"), load("Rules")
+local Canyon = load("Canyon")
+Config.Map.use("city") -- the checks below were written for Plaza Park; the canyon has its own section at the end
 
 local function lcg(seed)
 	local s = seed
@@ -288,6 +290,81 @@ check(Config.Map.Bases[1].X < 0 and Config.Map.Bases[2].X > 0 and Config.Flag.Ca
 local leftSpawns, rightSpawns = 0, 0
 for _, sp in Config.Map.Spawns do if sp.X < 0 then leftSpawns += 1 elseif sp.X > 0 then rightSpawns += 1 end end
 check(leftSpawns >= 10 and rightSpawns >= 10, "each team has at least 10 spawn points on its own side (" .. leftSpawns .. " / " .. rightSpawns .. ")")
+
+-- ===== Waterfall Canyon =====
+Config.Map.use("canyon")
+check(Config.Map.Theme == "canyon" and #Config.Map.Spawns == 20, "the canyon has 20 spawn points")
+local function inWater(x, z) return Rules.flowAt(x, z, Canyon.Water) ~= nil end
+local function inLake(x, z, pad) return math.abs(x - Canyon.Lake.X) <= Canyon.Lake.Size / 2 + pad and math.abs(z - Canyon.Lake.Z) <= Canyon.Lake.Size / 2 + pad end
+local function nearBlocker(x, z, pad) for _, o in Canyon.Blockers do if (x - o[1]) ^ 2 + (z - o[2]) ^ 2 < (o[3] + pad) ^ 2 then return true end end return false end
+local badSpawn, west, east, seen = 0, 0, 0, {}
+for _, sp in Config.Map.Spawns do
+	if inWater(sp.X, sp.Z) or inLake(sp.X, sp.Z, 4) or nearBlocker(sp.X, sp.Z, 3) or math.abs(sp.X) > 125 or sp.Z > 95 or sp.Z < -120 then badSpawn += 1 end
+	if sp.X < 0 then west += 1 else east += 1 end
+	seen[sp.X .. "," .. sp.Z] = true
+end
+local nSeen = 0 for _ in seen do nSeen += 1 end
+check(badSpawn == 0 and nSeen == 20, "all 20 spawns are different dry places, clear of rocks, trees and the lake")
+check(west == 10 and east == 10, "ten spawns on each side (teams)")
+check(not inWater(Canyon.Bases[1][1], Canyon.Bases[1][2]) and not nearBlocker(Canyon.Bases[1][1], Canyon.Bases[1][2], 14) and not nearBlocker(Canyon.Bases[2][1], Canyon.Bases[2][2], 14) and Canyon.Bases[1][1] == -Canyon.Bases[2][1], "the two flag bases are open, level and opposite each other")
+local bad = 0
+for _, t in Canyon.Terminals do if inWater(t[1], t[2]) or nearBlocker(t[1], t[2], 2) then bad += 1 end end
+for _, t in Canyon.Crates do if inWater(t[1], t[2]) or nearBlocker(t[1], t[2], 2) or inLake(t[1], t[2], 0) then bad += 1 end end
+for _, t in Canyon.DropSpots do if inWater(t[1], t[2]) or nearBlocker(t[1], t[2], 2) then bad += 1 end end
+check(bad == 0 and #Canyon.Crates == 16 and #Canyon.Terminals == 4 and #Canyon.DropSpots == 4, "terminals, crates and drop spots are on open ground")
+check(#Canyon.Trees >= 30 and #Canyon.Rocks >= 8, "the scenery got placed (" .. #Canyon.Trees .. " trees, " .. #Canyon.Rocks .. " boulders)")
+-- walking routes
+local nodeBad = 0
+for _, n in Canyon.Nodes do if nearBlocker(n[1], n[2], 2.5) or math.abs(n[1]) > 125 or n[2] > 95 then nodeBad += 1 end end
+check(nodeBad == 0, "no walking spot is inside a tree, rock or the lake")
+local missing, dirty, longest = 0, 0, 0
+for i, a in Canyon.Nodes do
+	for j, b in Canyon.Nodes do
+		if i ~= j then
+			local r = Rules.route({ X = a[1], Z = a[2] }, { X = b[1], Z = b[2] }, Canyon.Nodes, Canyon.Blockers)
+			if not r then missing += 1
+			else
+				longest = math.max(longest, #r)
+				local from = { X = a[1], Z = a[2] }
+				for _, w in r do
+					if not Rules.segmentClear(from, w, Canyon.Blockers) then dirty += 1 end
+					from = w
+				end
+			end
+		end
+	end
+end
+check(missing == 0, "a walking route exists between every pair of walking spots")
+check(dirty == 0, "no step of any route goes through a tree, rock or the lake (longest route " .. longest .. " steps)")
+check(#Rules.route({ X = -85, Z = 30 }, { X = -30, Z = 30 }, Canyon.Nodes, Canyon.Blockers) == 1, "a clear way is walked straight")
+check(#Rules.route({ X = -75, Z = -100 }, { X = 75, Z = -100 }, Canyon.Nodes, Canyon.Blockers) >= 3, "the lake is walked around")
+-- the river current
+local fx, fz, push = Rules.flowAt(0, 40, Canyon.Water)
+check(fx == 0 and fz == -1 and push > 0, "the river pushes you south")
+local jx = Rules.flowAt(-40, 44, Canyon.Water)
+check(jx == 1, "the side stream flows towards the river")
+check(Rules.flowAt(-100, 30, Canyon.Water) == nil and Rules.flowAt(0, -10, Canyon.Water) ~= nil, "dry ground has no current, the river does")
+local _, _, fall = Rules.flowAt(0, 111.5, Canyon.Water)
+check(fall > push, "the plunge under a waterfall pushes harder than the river")
+-- the waterfalls
+check(#Canyon.Falls == 3 and Canyon.Falls[2].X == 0 and Canyon.Falls[1].X == -Canyon.Falls[3].X, "three waterfalls, one in the middle")
+local wide = true
+for _, f in Canyon.Falls do if f.X - f.Width / 2 < -120 or f.X + f.Width / 2 > 120 then wide = false end end
+check(wide and Canyon.FallGap >= 3, "the falls are on the cliff, with room to walk behind them")
+-- planes
+local minGap, drift, changes = math.huge, 0, 0
+for t = 0, 300, 0.5 do
+	local x1, y1, z1, yaw1 = Rules.planePose(t, Canyon.Planes, 1)
+	local x2, y2, z2 = Rules.planePose(t, Canyon.Planes, 2)
+	minGap = math.min(minGap, math.sqrt((x1 - x2) ^ 2 + (z1 - z2) ^ 2))
+	drift = math.max(drift, math.abs(math.sqrt((x1 - Canyon.Planes.Center.X) ^ 2 + (z1 - Canyon.Planes.Center.Z) ^ 2) - Canyon.Planes.Radius), math.abs(y1 - Canyon.Planes.Height))
+end
+check(drift < 1e-6, "planes fly a perfect circle at a fixed height")
+check(minGap > 100, "the two planes never come near each other (" .. string.format("%.0f", minGap) .. " studs apart at the closest)")
+local xa, _, za = Rules.planePose(0, Canyon.Planes, 1)
+local xb, _, zb = Rules.planePose(1, Canyon.Planes, 1)
+check(math.sqrt((xb - xa) ^ 2 + (zb - za) ^ 2) > 25 and math.sqrt((xb - xa) ^ 2 + (zb - za) ^ 2) < 31, "a plane covers about its speed in a second")
+Config.Map.use("canyon")
 
 print(string.format("RULES TEST: %d passed, %d failed", passes, fails))
 if fails > 0 then error("rules test failed") end

@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Pickups = require(script.Parent.Pickups)
 local Terminals = require(script.Parent.Terminals)
+local CanyonWorld = require(script.Parent.CanyonWorld)
 
 local World = {}
 
@@ -255,9 +256,7 @@ local function courtyard(parent, cy)
 	sign(parent, cy.Name, 12, 3.5, Vector3.new(cx - 29.8, 7, cz - 6), "-x", C(20, 28, 60), C(255, 226, 90))
 end
 
-local function buildArena()
-	local arena = folder("Arena")
-	local ground = folder("Ground")
+local function buildCity(arena, ground)
 	local m = Config.Map
 	local full = (m.Half + 4) * 2
 	part(ground, "Floor", Vector3.new(full, 2, full), Vector3.new(0, -1, 0), C(84, 96, 124), Enum.Material.Concrete)
@@ -354,6 +353,17 @@ local function buildArena()
 			lamp(lamps, 31 * sx, 112 * sz)
 			lamp(lamps, 112 * sx, 31 * sz)
 		end
+	end
+end
+
+local function buildArena()
+	local arena = folder("Arena")
+	local ground = folder("Ground")
+	local m = Config.Map
+	if m.Theme == "canyon" then
+		CanyonWorld.build(arena, ground)
+	else
+		buildCity(arena, ground)
 	end
 	-- Workspace.ArenaSpawns: one SpawnLocation per spawn point (disabled, so they are only used when a round starts).
 	-- Drag them around in Studio and the game uses the new places; add or delete some, there are always at least 10 in use

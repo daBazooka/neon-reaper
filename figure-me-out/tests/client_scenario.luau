@@ -557,4 +557,37 @@ local n0 = #firedLog
 press(KC.G); press(KC.Three); mouse(UT.MouseButton1); mouse(UT.MouseButton2); mouseUp(UT.MouseButton2)
 check(#firedLog == n0, "no actions are sent in the lobby")
 frames(10)
+-- ===== Waterfall Canyon: moving water and planes (all animated on the client) =====
+do
+	local Canyon = require(RS.children.Shared.children.Canyon)
+	local Rules = require(RS.children.Shared.children.Rules)
+	UDim2.fromScale = function(x, y) return {X = x, Y = y} end
+	local scroll = {}
+	local flowGui = {Name = "FlowGui", GetAttribute = function() return -0.25 end, FindFirstChild = function() return scroll end}
+	table.insert(X.folders.Arena.kids, flowGui)
+	local function plane(i)
+		return {Name = "Plane" .. i, GetAttribute = function() return i end, FindFirstChild = function() return nil end,
+			PivotTo = function(self, cf) self.pose = cf end, GetPivot = function(self) return self.pose or CFrame.new(0, 0, 0) end}
+	end
+	local p1, p2 = plane(1), plane(2)
+	table.insert(X.folders.Planes.kids, p1); table.insert(X.folders.Planes.kids, p2)
+	local Ambient = require(ModN.children.Ambient)
+	Ambient.step(90000) -- (a long time later than anything before: the scenery gets looked up again)
+	local y1 = scroll.Position and scroll.Position.Y
+	Ambient.step(90001.5)
+	local y2 = scroll.Position and scroll.Position.Y
+	check(y1 and y2 and y1 ~= y2 and y1 >= -1 and y1 <= 0 and y2 >= -1 and y2 <= 0, "the water ripples slide (" .. tostring(y1) .. " -> " .. tostring(y2) .. ")")
+	check(p1.pose and p2.pose, "both planes are moved")
+	local ax, az = p1.pose.Position.X, p1.pose.Position.Z
+	check(math.abs(math.sqrt(ax * ax + az * az) - Canyon.Planes.Radius) < 1e-6 and math.abs(p1.pose.Position.Y - Canyon.Planes.Height) < 1e-6, "a plane flies the circle at the set height")
+	local bx, bz = p2.pose.Position.X, p2.pose.Position.Z
+	check(math.sqrt((ax - bx) ^ 2 + (az - bz) ^ 2) > 100, "the two planes are far apart")
+	local ex, _, ez = Rules.planePose(90001.5, Canyon.Planes, 1)
+	check(math.abs(ex - ax) < 1e-6 and math.abs(ez - az) < 1e-6, "every player sees a plane in the same place at the same time")
+	Ambient.step(90030)
+	check(p1.pose.Position.X ~= ax or p1.pose.Position.Z ~= az, "planes keep flying")
+	UDim2.fromScale = nil
+	table.remove(X.folders.Arena.kids); table.remove(X.folders.Planes.kids); table.remove(X.folders.Planes.kids)
+end
+
 print("--- client done")

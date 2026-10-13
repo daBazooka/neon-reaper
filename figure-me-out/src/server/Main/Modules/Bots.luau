@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Rules = require(Shared:WaitForChild("Rules"))
+local Canyon = require(Shared:WaitForChild("Canyon"))
 local State = require(script.Parent.State)
 local Vision = require(script.Parent.Vision)
 local Guess = require(script.Parent.Guess)
@@ -105,6 +106,17 @@ function Bots.place(e, spawn)
 end
 
 local function pickDestination(e)
+	if Config.Map.Theme == "canyon" then
+		-- the canyon has no streets: walk from open spot to open spot, round the trees, rocks and the lake
+		local nodes = Canyon.Nodes
+		local s = nodes[rng:NextInteger(1, #nodes)]
+		local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+		local from = root and { X = root.Position.X, Z = root.Position.Z } or e.node or { X = s[1], Z = s[2] }
+		e.route = Rules.route(from, { X = s[1], Z = s[2] }, nodes, Canyon.Blockers) or { { X = s[1], Z = s[2] } }
+		e.node = { X = s[1], Z = s[2] }
+		e.routeIndex = 1
+		return
+	end
 	local spawns = Config.Map.Spawns
 	local s = spawns[rng:NextInteger(1, #spawns)]
 	e.route = Rules.streetRoute(e.node, { X = s.X, Z = s.Z }, rng:NextNumber() < 0.5)

@@ -63,8 +63,8 @@ X.camera = {FieldOfView = 70, ViewportSize = {X = 1920, Y = 1080}, CFrame = {Pos
 rawset(workspace, "CurrentCamera", X.camera)
 rawset(workspace, "WaitForChild", function(_, n) if n == "Camera" then return X.camera end return U(n) end)
 X.folders = {}
-local function folder(n) local f = {Name = n, kids = {}}; function f:GetChildren() return self.kids end; X.folders[n] = f; return f end
-folder("Bots"); folder("Decoys"); folder("Smoke"); folder("Arena")
+local function folder(n) local f = {Name = n, kids = {}}; function f:GetChildren() return self.kids end; function f:GetDescendants() local out = {} local function walk(n) for _, k in (n.kids or n.children or {}) do table.insert(out, k); if type(k) == "table" and (k.kids or k.children) then walk(k) end end end walk(self) return out end; X.folders[n] = f; return f end
+folder("Bots"); folder("Decoys"); folder("Smoke"); folder("Arena"); folder("Water"); folder("Planes")
 rawset(workspace, "FindFirstChild", function(_, n) return X.folders[n] end)
 
 local UIS = {InputBegan = signal("input"), InputEnded = signal("inputEnd"), InputChanged = signal("inputChg"), MouseDeltaSensitivity = 1, TouchEnabled = false, KeyboardEnabled = true}

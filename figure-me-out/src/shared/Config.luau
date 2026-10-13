@@ -347,6 +347,46 @@ for _, sx in { -1, 1 } do
 end
 
 --------------------------------------------------------------------------------
+-- Map themes. The game ships on "canyon" (Waterfall Canyon, see Canyon.luau); "city" is the old Plaza Park. Config.Map.use(theme)
+-- switches the positions that depend on the map (spawns, bases, terminals, drop spots, crates) and the world builder follows.
+--------------------------------------------------------------------------------
+do
+	local Canyon = require(script.Parent:WaitForChild("Canyon"))
+	local function toVectors(list, y)
+		local out = {}
+		for _, p in list do
+			table.insert(out, Vector3.new(p[1], y, p[2]))
+		end
+		return out
+	end
+	Config.Map.Themes = {
+		city = {
+			Spawns = Config.Map.Spawns,
+			Bases = Config.Map.Bases,
+			Terminals = Config.Map.Terminals,
+			DropSpots = Config.Map.DropSpots,
+			Crates = Config.Map.Crates,
+		},
+		canyon = {
+			Spawns = toVectors(Canyon.Spawns, 3.5),
+			Bases = { [1] = Vector3.new(Canyon.Bases[1][1], 0, Canyon.Bases[1][2]), [2] = Vector3.new(Canyon.Bases[2][1], 0, Canyon.Bases[2][2]) },
+			Terminals = toVectors(Canyon.Terminals, 2),
+			DropSpots = toVectors(Canyon.DropSpots, 0),
+			Crates = toVectors(Canyon.Crates, 1.5),
+		},
+	}
+	function Config.Map.use(theme)
+		local t = Config.Map.Themes[theme]
+		assert(t, "unknown map theme " .. tostring(theme))
+		Config.Map.Theme = theme
+		for k, v in t do
+			Config.Map[k] = v
+		end
+	end
+	Config.Map.use("canyon")
+end
+
+--------------------------------------------------------------------------------
 -- Audio (sounds that ship with Roblox; swap any for an asset id from the Creator Store)
 --------------------------------------------------------------------------------
 Config.Sounds = {
@@ -356,6 +396,9 @@ Config.Sounds = {
 	Flash = "rbxasset://sounds/flashbulb.wav",
 	Footsteps = "rbxasset://sounds/action_footsteps_plastic.mp3",
 }
+-- Waterfall Canyon: how fast the ripple patterns slide (screens per second; flip the sign if they run the wrong way).
+Config.Water = { FallSpeed = 0.9, RiverSpeed = -0.25, PushScale = 1, HighAbove = 9 } -- PushScale: how strong the current is (1 = normal, 0 = off). HighAbove: above this height you are on a bridge or rock, not in the water.
+Config.Sounds.Waterfall = "" -- optional looping waterfall sound: put an asset id from the Creator Store here
 Config.MusicTrackId = "" -- optional looping song id; empty = generated music
 Config.MusicVolume = 0.2
 Config.SfxVolume = 0.85

@@ -19,6 +19,7 @@ end
 
 local CFmt = {}
 local function cfNew(pos, look) return setmetatable({Position = pos, LookVector = look or V3new(0, 0, -1)}, CFmt) end
+CFmt.__index = {ToObjectSpace = function(a, b) return b end}
 CFmt.__mul = function(a, b)
 	if getmetatable(b) == CFmt then return cfNew(a.Position + b.Position, a.LookVector) end
 	return a.Position + b
@@ -70,7 +71,7 @@ function X.fakeChar(name, pos, look)
 	local head = {Name = "Head", Size = V3new(1.2, 1.2, 1.2), Position = pos + V3new(0, 2, 0)}
 	head.CFrame = cfNew(head.Position, look or V3new(0, 0, -1))
 	head.FindFirstChild = function() return nil end
-	local root = {Name = "HumanoidRootPart", Position = pos, CFrame = cfNew(pos, look or V3new(0, 0, -1)), FindFirstChild = function() return nil end}
+	local root = {Name = "HumanoidRootPart", AssemblyMass = 20, Position = pos, CFrame = cfNew(pos, look or V3new(0, 0, -1)), FindFirstChild = function() return nil end}
 	local hum = {ClassName = "Humanoid", _h = 100, WalkSpeed = 16, JumpPower = 50, UseJumpPower = true, Jump = false}
 	local died = {}
 	hum.Died = {Connect = function(_, f) table.insert(died, f); return {} end}

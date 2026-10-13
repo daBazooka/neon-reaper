@@ -223,6 +223,103 @@ function Rules.streetRoute(a, b, flip)
 	return { { X = b.X, Z = a.Z }, { X = b.X, Z = b.Z } }
 end
 
+--------------------------------------------------------------------------------
+-- Waterfall Canyon: walking routes, the river current and the planes
+--------------------------------------------------------------------------------
+-- Does the straight line from a to b stay clear of the round blockers { x, z, radius }? (`pad` = how wide the walker is.)
+function Rules.segmentClear(a, b, blockers, pad)
+	pad = pad or 2.5
+	local dx, dz = b.X - a.X, b.Z - a.Z
+	local len2 = dx * dx + dz * dz
+	for _, o in blockers do
+		local t = 0
+		if len2 > 0 then
+			t = math.clamp(((o[1] - a.X) * dx + (o[2] - a.Z) * dz) / len2, 0, 1)
+		end
+		local px, pz = a.X + dx * t, a.Z + dz * t
+		local r = o[3] + pad
+		if (px - o[1]) ^ 2 + (pz - o[2]) ^ 2 < r * r then
+			return false
+		end
+	end
+	return true
+end
+
+-- Waypoints from a to b that go round the blockers: straight when the way is clear, otherwise from open spot to open spot
+-- (`nodes` are { x, z }; the shortest chain of clear hops wins). Returns a list of { X, Z } ending at b, or nil if there is no way.
+function Rules.route(a, b, nodes, blockers)
+	if Rules.segmentClear(a, b, blockers) then
+		return { { X = b.X, Z = b.Z } }
+	end
+	local n = #nodes
+	local function pos(i)
+		return { X = nodes[i][1], Z = nodes[i][2] }
+	end
+	-- shortest path (Dijkstra over the open spots; a and b join the graph through any spot they can see)
+	local dist, prev, done = {}, {}, {}
+	for i = 1, n do
+		if Rules.segmentClear(a, pos(i), blockers) then
+			dist[i] = math.sqrt((a.X - nodes[i][1]) ^ 2 + (a.Z - nodes[i][2]) ^ 2)
+		end
+	end
+	local best, bestCost
+	for _ = 1, n do
+		local u, ud
+		for i = 1, n do
+			if not done[i] and dist[i] and (not ud or dist[i] < ud) then
+				u, ud = i, dist[i]
+			end
+		end
+		if not u then
+			break
+		end
+		done[u] = true
+		if Rules.segmentClear(pos(u), b, blockers) then
+			local total = ud + math.sqrt((b.X - nodes[u][1]) ^ 2 + (b.Z - nodes[u][2]) ^ 2)
+			if not bestCost or total < bestCost then
+				best, bestCost = u, total
+			end
+		end
+		for v = 1, n do
+			if not done[v] then
+				local hop = math.sqrt((nodes[u][1] - nodes[v][1]) ^ 2 + (nodes[u][2] - nodes[v][2]) ^ 2)
+				if (not dist[v] or ud + hop < dist[v]) and Rules.segmentClear(pos(u), pos(v), blockers) then
+					dist[v], prev[v] = ud + hop, u
+				end
+			end
+		end
+	end
+	if not best then
+		return nil
+	end
+	local path = { { X = b.X, Z = b.Z } }
+	local i = best
+	while i do
+		table.insert(path, 1, pos(i))
+		i = prev[i]
+	end
+	return path
+end
+
+-- The push of the water at ground position x, z: returns (fx, fz, strength) or nil when you are on dry ground.
+function Rules.flowAt(x, z, zones)
+	for _, w in zones do
+		if math.abs(x - w.X) <= w.W / 2 and math.abs(z - w.Z) <= w.D / 2 then
+			return w.FX, w.FZ, w.Push
+		end
+	end
+	return nil
+end
+
+-- Where a plane flying circuits is at time t (seconds): returns x, y, z and the direction it faces (yaw, radians).
+function Rules.planePose(t, planes, index)
+	local radius = planes.Radius
+	local angle = planes.Starts[index] + planes.Speed * t / radius
+	local x = planes.Center.X + radius * math.cos(angle)
+	local z = planes.Center.Z + radius * math.sin(angle)
+	return x, planes.Height, z, -angle - math.pi
+end
+
 -- Turns a direction (x, z) by `degrees` around the up axis. Returns the new x, z.
 function Rules.turn(x, z, degrees)
 	local r = math.rad(degrees)

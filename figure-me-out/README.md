@@ -36,6 +36,16 @@ Or run `rojo serve` and click Connect in the Rojo plugin to live-edit.
 
 On a phone or tablet: tap the buttons in the gadget bar, the GUESS button and the on-screen keypad. On a controller: X guess, R2 photo, hold L2 for binoculars, Y notebook, L1/R1 choose a gadget and A to use it, Start for the menu.
 
+## The map: Waterfall Canyon
+
+The arena is **Waterfall Canyon**: a tall cliff along one side with three waterfalls pouring down it (you can walk behind them, and a waterfall blocks sight), a river that runs down the middle into a swimmable lake with an island and a dock, bridges, rock arches, a jungle of trees and boulders, a wrecked plane you can use as cover, a seaplane at the dock, and two planes flying circuits high overhead.
+
+* **The river pushes you.** Wading in the river, the side streams, the pools or under a waterfall carries you the way the water runs (a waterfall shoves hardest). Switch the current off or change its strength with `Config.Water.PushScale`. Bridges and rocks are out of the water.
+* **Everything moves on your own screen.** The ripples on the water and the planes are animated by each player's computer from the server clock, so everybody sees the planes in the same place and it costs no network traffic. The planes are scenery: they can't be ridden, shot or hurt anyone.
+* **Bots know the map.** They walk between open spots and go round trees, rocks, arches and the lake.
+* The whole layout is plain data in `src/shared/Canyon.luau` (waterfall positions, river boxes, spawns, bases, trees...). The old city map ("Plaza Park") is still in the code: put `Config.Map.use("city")` instead of `Config.Map.use("canyon")` at the end of the map section in `Config.luau` to get it back.
+* `docs/maps/` has the picture of what the world builder really makes (`built_canyon.png`) next to the six other map ideas.
+
 ## Quick-and-simple mode (the default)
 
 The game ships as: **look at heads, type their number, win.** Matches are 90 seconds, a wrong guess freezes you for 1.5 seconds, there is no tutorial wall (one line of hint at the start of each match), and the screen only shows hearts, points, bullets, the big GUESS button and the timer. Click or tap somebody to open the number pad; on a phone just tap.
