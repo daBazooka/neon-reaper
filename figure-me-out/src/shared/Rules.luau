@@ -91,6 +91,29 @@ function Rules.coverStage(timer)
 	return "ok"
 end
 
+-- Idle camping. `anchor` is where the player started waiting (a Vector3 or nil), `timer` how long they have been
+-- inside the circle around it. Moving out of the circle starts again from the new place.
+function Rules.campStep(anchor, timer, pos, dt)
+	if anchor == nil then
+		return pos, 0
+	end
+	local dx, dz = pos.X - anchor.X, pos.Z - anchor.Z
+	if dx * dx + dz * dz > Config.Camp.Radius * Config.Camp.Radius then
+		return pos, 0
+	end
+	return anchor, timer + dt
+end
+
+-- "ok", "warn" or "expose" for the idle timer.
+function Rules.campStage(timer)
+	if timer >= Config.Camp.Limit then
+		return "expose"
+	elseif timer >= Config.Camp.WarnAfter then
+		return "warn"
+	end
+	return "ok"
+end
+
 --------------------------------------------------------------------------------
 -- Seeing numbers: photos and flashbangs
 --------------------------------------------------------------------------------

@@ -137,6 +137,18 @@ check(Flags.state(mine) == "dropped" and not rival.alive, "a carrier who leaves 
 -- nobody respawns forever and nothing was duplicated
 check(X.made.Part - partsAtStart <= 12, "no flag parts were duplicated during all of this (" .. (X.made.Part - partsAtStart) .. " new parts)")
 
+-- defenders next to their own flag are never counted as campers
+local Cover = require(ModN.children.Cover)
+Cover.reset(me)
+place(me, atBase(mine, 6))
+wait(Config.Camp.Limit + 5)
+check(me.campStage == "ok" and (me.campViolations or 0) == 0, "guarding your own flag is not camping")
+place(me, V3new(0, 3.5, -100))
+Cover.reset(me)
+wait(Config.Camp.Limit + 2)
+check((me.campViolations or 0) >= 1, "...but sitting somewhere else is")
+Cover.reset(me)
+
 -- the capture limit ends the match
 fresh(me)
 place(me, atBase(mine, 8)); wait(0.6)

@@ -391,6 +391,7 @@ check(#Items.distractions == 0, "the noise stops")
 
 -- ===== covering: warn, expose, and it gets longer each time =====
 place(me, V3new(0, 3.5, 0), V3new(0, 0, 1))
+Cover.reset(me)
 X.addWall(V3new(-8, 0, 3), V3new(8, 30, 4))
 wait(2)
 check(me.coverStage == "warn", "covering the forehead gives a warning (" .. tostring(me.coverStage) .. ")")
@@ -416,6 +417,43 @@ wait(3)
 check(me.coverStage == "ok", "a short look at a wall is not punished")
 -- smoke does not count as covering
 Cover.reset(me)
+
+-- ===== idle camping: sit in one small area too long =====
+Cover.reset(me)
+X.clearWalls()
+place(me, V3new(0, 3.5, 60), V3new(0, 0, 1))
+wait(Config.Camp.WarnAfter - 3)
+check(me.campStage == "ok" and (me.exposedUntil or 0) <= State.now(), "standing still for a while is fine")
+wait(5)
+check(me.campStage == "warn" and lastNote("camp") and lastNote("camp")[2] == "warn" and lastNote("camp")[3] > 0, "after " .. Config.Camp.WarnAfter .. "s in one spot you get a KEEP MOVING warning with a countdown")
+-- shuffling a few steps inside the circle doesn't help
+place(me, V3new(3, 3.5, 62), V3new(0, 0, 1))
+wait(2)
+check(me.campStage == "warn", "small movements inside the same spot don't reset the timer")
+-- walking out of the circle clears the warning at once
+place(me, V3new(0, 3.5, 60 + Config.Camp.Radius + 3), V3new(0, 0, 1))
+wait(0.6)
+check(me.campStage == "ok" and lastNote("camp")[2] == "ok", "walking to a new spot clears the warning")
+-- ignoring it exposes you
+wait(Config.Camp.Limit + 1)
+local c1 = me.exposedUntil - State.now()
+check(me.campViolations == 1 and c1 > 0 and c1 <= Config.Camp.Expose and me.reveal.gui.Enabled == true, "ignoring the warning reveals your position (violation 1)")
+check(lastNote("camp")[2] == "exposed", "...and tells you")
+wait(Config.Camp.Expose + 1)
+check(not me.revealed, "the reveal ends")
+local guard = 0
+while (me.campViolations or 0) < 2 and guard < 400 do wait(0.25); guard += 1 end
+local c2 = me.exposedUntil - State.now()
+check(me.campViolations == 2 and c2 > c1 + 3, "the second time lasts longer")
+-- being frozen by a hit is never camping
+Cover.reset(me)
+me.stunUntil = State.now() + 100
+wait(Config.Camp.Limit + 5)
+check(me.campStage == "ok" and (me.campViolations or 0) == 0, "a frozen player is not a camper")
+me.stunUntil = 0
+Cover.reset(me)
+-- bots are never judged (only real players are)
+check(State.get(-1).campTimer == nil or State.get(-1).campTimer == 0, "bots aren't judged for camping")
 
 -- ===== information terminals =====
 place(me, Config.Map.Terminals[1] + V3new(3, 1.5, 0), V3new(0, 0, 1))

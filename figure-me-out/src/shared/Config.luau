@@ -96,6 +96,17 @@ Config.Cover = {
 	Tick = 0.25,
 }
 
+-- Idle camping: staying inside a small circle for too long. Walking out of the circle (even just a few steps) resets it,
+-- so this only catches people who really sit still. Capture-the-flag defenders next to their own flag are never counted.
+Config.Camp = {
+	Radius = 7, -- studs: you count as "in the same spot" while you stay this close to where you started waiting
+	WarnAfter = 25, -- seconds in one spot before the warning appears
+	Limit = 40, -- seconds in one spot before you are exposed
+	Expose = 15, -- seconds your plate glows red and a marker shows over your head
+	RepeatBonus = 0.5, -- each earlier violation makes the exposure this much longer
+	BaseExempt = 30, -- capture the flag: staying this close to your own flag is allowed
+}
+
 Config.Movement = { Walk = 16, Jump = 50, ScopeWalk = 8 }
 
 --------------------------------------------------------------------------------

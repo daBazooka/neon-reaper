@@ -77,6 +77,17 @@ check(timer == 1 and Rules.coverStep(0.5, false, 5) == 0, "uncovering drains the
 check(Rules.coverStage(0) == "ok" and Rules.coverStage(Config.Cover.WarnAfter - 0.01) == "ok", "no warning while you are not covered")
 check(Config.Cover.Limit > Config.Cover.WarnAfter + 3, "there are several seconds between the warning and the penalty")
 
+-- idle camping -------------------------------------------------------------------------------
+local anchor, ct = nil, 0
+anchor, ct = Rules.campStep(anchor, ct, Vector3.new(10, 3, 10), 0.25)
+check(anchor.X == 10 and ct == 0, "the first look just notes where you are")
+for _ = 1, 20 do anchor, ct = Rules.campStep(anchor, ct, Vector3.new(12, 3, 13), 0.25) end
+check(ct == 5 and anchor.X == 10, "staying near the same spot counts up (a few steps don't matter)")
+anchor, ct = Rules.campStep(anchor, ct, Vector3.new(10 + Config.Camp.Radius + 1, 3, 10), 0.25)
+check(ct == 0 and anchor.X == 10 + Config.Camp.Radius + 1, "walking out of the circle starts again from the new place")
+check(Rules.campStage(0) == "ok" and Rules.campStage(Config.Camp.WarnAfter) == "warn" and Rules.campStage(Config.Camp.Limit) == "expose", "camp stages")
+check(Config.Camp.Limit >= Config.Camp.WarnAfter + 10 and Config.Camp.WarnAfter >= 20, "there is a fair warning and a generous time before the penalty")
+
 -- photos ----------------------------------------------------------------------------------
 local all = Rules.photoReadable(10, 1, { 0.99, 0.99, 0.99 })
 check(all[1] and all[2] and all[3], "up close and facing you, every digit shows")

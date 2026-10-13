@@ -52,6 +52,16 @@ Every gadget has a cooldown and (except 1 and 2) a limited number of charges. Yo
 * **6 s**: **YOUR POSITION HAS BEEN REVEALED!** Your plate glows red and a 👁 marker shows over your head (visible through walls) for 20 s.
 * Every earlier violation makes it longer (x1.5, x2, ...). The timer drains twice as fast when you turn away, so a quick look at a wall is fine. Smoke and flashbangs never count.
 
+### Sitting in one spot
+
+* Stay inside a small circle (7 studs) for **25 s**: ⚠️ **KEEP MOVING!** with a countdown. Walk out of the circle (even a few steps past its edge) and it clears at once.
+* **40 s** in the same spot: **CAMPER REVEALED!** Plate glows red and the 👁 marker shows for 15 s, longer for each repeat.
+* Never counted: waiting for the match to start, being frozen after a hit, and (capture the flag) guarding your own flag within 30 studs of it. Only real players are judged; bots roam anyway.
+
+### What this can and can't detect (honest limits)
+
+The server only knows where each character is and which way the head points. So it can catch "standing still", "face against a wall" and "stuck in one small area", but it **cannot tell** a camper from someone who is AFK, reading the notebook, or waiting for a teammate; it cannot see a player who wiggles just outside the circle every 20 s; and it cannot judge intent. That is why the penalties are only visibility (the plate glows, a marker appears), never a kick or lost points, and why the times are generous. All numbers are in `Config.Cover` and `Config.Camp` if you want them stricter or looser.
+
 ## Bounty, alliances, terminals, events
 
 * **🎯 Bounty:** one player at a time wears a gold tag with the prize (never the number). Whoever hits them gets +150 points and 25 coins, then a new target is picked.

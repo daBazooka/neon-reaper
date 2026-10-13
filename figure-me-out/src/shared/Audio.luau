@@ -209,6 +209,20 @@ function Audio.bounty()
 	Audio.play("Bass", 0.8, 0.6)
 end
 
+function Audio.flagTaken() -- somebody picked up a flag
+	run({ 5, 8, 5 }, 0.09, 0.55)
+	Audio.play("Bass", 0.7, 0.6)
+end
+
+function Audio.flagDropped()
+	run({ 8, 5, 3 }, 0.08, 0.4)
+end
+
+function Audio.capture() -- a flag was brought home
+	run({ 1, 3, 5, 8, 10 }, 0.07, 0.65)
+	Audio.play("Bass", 0.9, 0.7)
+end
+
 function Audio.event()
 	run({ 8, 6, 8, 10 }, 0.12, 0.55)
 end

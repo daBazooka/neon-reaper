@@ -317,6 +317,16 @@ send("results", {}, 0); frames(2)
 check(X.seen("NO WINNER"), "empty results are handled")
 attrsWS.Phase = "lobby"; frames(8)
 
+-- ===== idle camping warning =====
+a.Alive = true; attrsWS.Phase = "play"; attrsWS.PhaseEnd = clock + 100
+send("camp", "warn", 12.4); frames(2)
+check(X.seen("KEEP MOVING") and X.seen("13s"), "the keep-moving warning counts down")
+send("camp", "ok", 0); frames(2)
+check(not X.seen("KEEP MOVING"), "the warning goes away when you move")
+send("camp", "exposed", 15, 1); frames(2)
+check(X.seen("CAMPER REVEALED"), "the camper announcement")
+a.Alive = false; attrsWS.Phase = "lobby"; frames(8)
+
 -- ===== team modes: banner, flags, results =====
 a.Alive = true; a.Team = 1
 attrsWS.Phase = "play"; attrsWS.PhaseEnd = clock + 100

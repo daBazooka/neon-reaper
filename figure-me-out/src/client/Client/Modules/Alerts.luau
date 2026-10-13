@@ -138,6 +138,26 @@ function Alerts.stun(seconds)
 	deps.Keypad.close()
 end
 
+-- Sitting still too long. stage: "warn" | "ok" | "exposed"
+function Alerts.camp(stage, value, violations)
+	if stage == "warn" then
+		refs.cover.Visible = true
+		refs.coverTitle.Text = "⚠️ KEEP MOVING!"
+		refs.coverSub.Text = "No camping! Move to a new spot or your position is revealed in " .. math.ceil(value) .. "s"
+		if (refs.lastWarnBeep or 0) + 1.5 < os.clock() then
+			refs.lastWarnBeep = os.clock()
+			Audio.warn()
+		end
+	elseif stage == "ok" then
+		refs.cover.Visible = false
+	else
+		refs.cover.Visible = false
+		Audio.siren()
+		deps.Fx.flash(C.Danger, 0.5, 0.6)
+		deps.Fx.announce("CAMPER REVEALED!", "You stayed in one spot. Your plate glows red for " .. value .. "s" .. ((violations or 1) > 1 and ("  •  violation #" .. violations) or ""), C.Danger, 0.28)
+	end
+end
+
 -- stage: "warn" | "ok" | "exposed"
 function Alerts.cover(stage, value, violations)
 	if stage == "warn" then

@@ -107,7 +107,7 @@ local function loadingScreen()
 			"Everyone can see your number. Except you.",
 			"Hold right mouse for binoculars.",
 			"Smoke blocks sight. Flashbangs blind. Use them!",
-			"Don't stare at walls: the game exposes campers.",
+			"Don't stare at walls or sit still: the game exposes campers.",
 			"Someone is always watching.",
 		}
 		local waited = 0
@@ -290,6 +290,10 @@ function handlers.cover(stage, value, violations)
 	Alerts.cover(stage, value, violations)
 end
 
+function handlers.camp(stage, value, violations)
+	Alerts.camp(stage, value, violations)
+end
+
 function handlers.exposed(label)
 	Hud.feed(label .. " was EXPOSED!", C.Danger)
 end
@@ -341,16 +345,18 @@ function handlers.flag(what, team, who)
 	if what == "taken" then
 		Hud.feed("🚩 " .. who .. " took the " .. t.Name .. " flag!", t.Color)
 		Fx.announce(ours and "THEY HAVE OUR FLAG!" or "FLAG TAKEN!", who .. " has the " .. t.Name .. " flag", ours and C.Danger or C.Gold, 0.24)
+		Audio.flagTaken()
 	elseif what == "dropped" then
 		Hud.feed("🚩 The " .. t.Name .. " flag was dropped", t.Color)
+		Audio.flagDropped()
 	elseif what == "returned" then
 		Hud.feed("🚩 The " .. t.Name .. " flag is back at its base" .. (who ~= "" and (" (" .. who .. ")") or ""), t.Color)
 	elseif what == "captured" then
 		local other = Config.Teams[3 - team]
 		Hud.feed("🏁 " .. who .. " captured the " .. (other and other.Name or "") .. " flag!", C.Gold)
 		Fx.announce(ours and "CAPTURE!" or "THEY SCORED!", who .. " scored for " .. t.Name, ours and C.Good or C.Danger, 0.24)
+		Audio.capture()
 	end
-	Audio.kill()
 end
 
 function handlers.captured(points)

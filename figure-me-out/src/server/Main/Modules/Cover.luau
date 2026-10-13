@@ -18,6 +18,11 @@ function Cover.reset(e)
 	e.coverStage = "ok"
 	e.exposedUntil = 0
 	e.violations = 0
+	e.campAnchor = nil
+	e.campLast = nil
+	e.campTimer = 0
+	e.campStage = "ok"
+	e.campViolations = 0
 end
 
 -- Is something solid right in front of this entity's forehead?
@@ -45,6 +50,58 @@ function Cover.expose(e, seconds)
 	Net.sendAll("exposed", e.icon .. " " .. e.code)
 end
 
+-- Is this player allowed to stay put? (Waiting for the match to start, being frozen, or defending your own flag.)
+local function mayRest(e)
+	if State.phase ~= "play" or (e.stunUntil or 0) > State.now() then
+		return true
+	end
+	if State.mode and State.mode.Id == "ctf" and e.team then
+		local base = Config.Map.Bases[e.team]
+		local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+		if base and root then
+			local dx, dz = root.Position.X - base.X, root.Position.Z - base.Z
+			if dx * dx + dz * dz <= Config.Camp.BaseExempt * Config.Camp.BaseExempt then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+-- The second anti-camping rule: sitting in one small area for too long.
+local function campStep(e)
+	-- real time since the last check (the tick loop runs a little slower than its nominal rate)
+	local now = State.now()
+	local dt = math.clamp(now - (e.campLast or now), 0, 1)
+	e.campLast = now
+	local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return
+	end
+	if mayRest(e) then
+		e.campAnchor, e.campTimer = root.Position, 0
+	else
+		e.campAnchor, e.campTimer = Rules.campStep(e.campAnchor, e.campTimer or 0, root.Position, dt)
+	end
+	local stage = Rules.campStage(e.campTimer)
+	if stage == "expose" then
+		local seconds = Config.Camp.Expose * (1 + Config.Camp.RepeatBonus * (e.campViolations or 0))
+		e.campViolations = (e.campViolations or 0) + 1
+		e.campTimer = 0
+		e.campAnchor = root.Position
+		Cover.expose(e, seconds)
+		Net.send(e.player, "camp", "exposed", math.floor(seconds), e.campViolations)
+		e.campStage = "ok"
+		return
+	end
+	if stage == "warn" then
+		Net.send(e.player, "camp", "warn", math.max(0, Config.Camp.Limit - e.campTimer))
+	elseif e.campStage == "warn" then
+		Net.send(e.player, "camp", "ok", 0)
+	end
+	e.campStage = stage
+end
+
 -- Called every Cover.Tick seconds for every living entity that is a real player.
 function Cover.step(e, dt)
 	local now = State.now()
@@ -56,6 +113,7 @@ function Cover.step(e, dt)
 	if not e.alive or not e.player then
 		return
 	end
+	campStep(e)
 	local covered = Cover.isCovered(e)
 	e.coverTimer = Rules.coverStep(e.coverTimer or 0, covered, dt)
 	local stage = Rules.coverStage(e.coverTimer)

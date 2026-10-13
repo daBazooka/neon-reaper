@@ -3,7 +3,7 @@
 A Roblox game for up to 20 players. Everybody wears a secret 3-digit number on their forehead that they cannot see.
 Type someone else's number to take one of their three lives. Read numbers with binoculars and photos, hide yours with smoke,
 flashbangs, distraction grenades and decoys, sprint away, scan for enemies, hack terminals for clues, ally and betray, collect bounties, and don't
-get caught staring at a wall: the game exposes campers. Last one standing wins.
+get caught staring at a wall or sitting in one spot: the game exposes campers. Last one standing wins.
 
 See [docs/GAME_CONCEPT.md](docs/GAME_CONCEPT.md) for the full design and [docs/SETUP_AND_TESTING.md](docs/SETUP_AND_TESTING.md) for setup, a testing checklist and troubleshooting.
 
