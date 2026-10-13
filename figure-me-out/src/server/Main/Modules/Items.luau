@@ -202,6 +202,11 @@ local function flashBoom(position)
 				local facing = distance > 0.1 and head.CFrame.LookVector:Dot(offset.Unit) or 1
 				local seconds = Rules.flashBlind(distance, facing)
 				if seconds > 0 then
+					-- the stun grenade also freezes: the closer you are, the longer
+					local freeze = Config.Flash.Stun * (1 - distance / Config.Flash.Radius)
+					if freeze > 0.4 then
+						Combat.stun(e, freeze)
+					end
 					e.blindUntil = math.max(e.blindUntil or 0, now + seconds)
 					if e.player then
 						Net.send(e.player, "flash", seconds)

@@ -13,10 +13,25 @@ local Modes = {}
 
 local rng = Random.new()
 Modes.next = "deathmatch" -- the mode of the upcoming match (shown in the lobby)
+Modes.played = 0 -- real matches played so far: the rotation goes by this, so a practice round does not use up a place in it
 
 -- Chooses the mode of the upcoming match and announces it in the lobby.
 function Modes.chooseNext()
-	Modes.next = Rules.modeFor(Config.Modes.Mode, State.matchId + 1)
+	Modes.next = Rules.modeFor(Config.Modes.Mode, Modes.played + 1)
+	workspace:SetAttribute("NextMode", Modes.next)
+	workspace:SetAttribute("NextModeName", Config.Modes.List[Modes.next].Name)
+	return Modes.next
+end
+
+-- Settles the mode of the upcoming match for `humans` real players: a single player gets a short practice round (when
+-- Config.Match.SoloPractice is on), everybody else the normal rotation. Called every moment of the lobby wait, so the lobby always
+-- shows what is coming.
+function Modes.settle(humans)
+	if Config.Match.SoloPractice and humans < 2 and Config.Modes.List.practice then
+		Modes.next = "practice"
+	else
+		Modes.next = Rules.modeFor(Config.Modes.Mode, Modes.played + 1)
+	end
 	workspace:SetAttribute("NextMode", Modes.next)
 	workspace:SetAttribute("NextModeName", Config.Modes.List[Modes.next].Name)
 	return Modes.next
@@ -25,6 +40,9 @@ end
 -- Starts the mode for the match being set up.
 function Modes.begin()
 	State.mode = Config.Modes.List[Modes.next] or Config.Modes.List.deathmatch
+	if not State.mode.Practice then
+		Modes.played += 1
+	end
 	State.teamScore = { 0, 0 }
 	if State.mode.Id == "ctf" then
 		Flags.reset()

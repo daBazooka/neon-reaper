@@ -20,6 +20,9 @@ local function setReady(c, on)
 	for _, extra in c.extras or {} do
 		extra.Transparency = on and 0 or 1
 	end
+	if c.beam then
+		c.beam.Transparency = on and 0.72 or 1
+	end
 	local gui = c.part:FindFirstChildOfClass("BillboardGui")
 	if gui then
 		gui.Enabled = on
@@ -68,6 +71,20 @@ function Pickups.build(parent)
 		trim("ChestBand", Vector3.new(0.3, 2.3, 2.5), Vector3.new(-1.1, 0, 0), dark)
 		trim("ChestBand", Vector3.new(0.3, 2.3, 2.5), Vector3.new(1.1, 0, 0), dark)
 		trim("ChestLatch", Vector3.new(0.5, 0.6, 0.2), Vector3.new(0, 0.7, -1.25), Color3.fromRGB(40, 36, 30))
+		-- a faint golden beam of light, so the chests can be found from across the map
+		local beam = Instance.new("Part")
+		beam.Name = "ChestBeam"
+		beam.Size = Vector3.new(1.4, 40, 1.4)
+		beam.Position = part.Position + Vector3.new(0, 20, 0)
+		beam.Anchored = true
+		beam.CanCollide = false
+		beam.CanQuery = false
+		beam.CanTouch = false
+		beam.CastShadow = false
+		beam.Material = Enum.Material.Neon
+		beam.Color = Color3.fromRGB(255, 214, 90)
+		beam.Transparency = 0.72
+		beam.Parent = parent
 		local gui = Instance.new("BillboardGui")
 		gui.Size = UDim2.fromOffset(44, 44)
 		gui.StudsOffset = Vector3.new(0, 3, 0)
@@ -85,7 +102,7 @@ function Pickups.build(parent)
 		light.Range = 10
 		light.Brightness = 1
 		light.Parent = part
-		table.insert(crates, { part = part, extras = extras, readyAt = 0 })
+		table.insert(crates, { part = part, extras = extras, beam = beam, readyAt = 0 })
 	end
 end
 

@@ -126,4 +126,22 @@ attrsWS.Phase = "results"; attrsWS.PhaseEnd = clock + 8; attrsWS.Mode = nil; a.A
 check(X.seen("RESULTS") or true, "results")
 attrsWS.Phase = "lobby"; attrsWS.PhaseEnd = clock + 10; frames(6)
 check(X.seen("NEXT MATCH"), "back to the lobby")
+-- ===== somebody who arrived late: the waiting card =====
+a.Alive = false; a.Playing = false; a.QueuePos = 2
+attrsWS.Phase = "play"; attrsWS.PhaseEnd = clock + 1301; attrsWS.Mode = "ctf"; attrsWS.ModeName = "CAPTURE THE FLAG"; attrsWS.MapName = "School Yard"
+attrsWS.Total = 18; attrsWS.Waiting = 3; attrsWS.MaxPlayers = 20; frames(6)
+check(X.seen("MATCH IN PROGRESS") and X.seen("CAPTURE THE FLAG") and X.seen("School Yard"), "late joiners see what is on: the match, the mode and the map")
+check(X.seen("21:4") and X.seen("18/20 playing") and X.seen("3 waiting"), "...how long it has left, how many play (of 20) and how many wait")
+check(X.seen("You play the next match") and X.seen("starts in about 21:5"), "...and when their match starts (about 22 minutes)")
+check(X.seen("#2 in line"), "...and their place in the queue")
+attrsWS.PhaseEnd = clock + 41; frames(4)
+check(X.seen("MATCH ENDING SOON!"), "when the match is about to end it says so")
+attrsWS.Phase = "results"; attrsWS.PhaseEnd = clock + 8; frames(4)
+check(X.seen("MATCH OVER") and X.seen("Next match in 00:1"), "after it, the card counts down to the next match")
+attrsWS.Phase = "lobby"; attrsWS.PhaseEnd = clock + 7; attrsWS.Waiting = 0; frames(4)
+check(X.seen("NEXT MATCH IN 00:0"), "in the lobby it counts down")
+a.Playing = true; a.Alive = true; attrsWS.Phase = "play"; attrsWS.PhaseEnd = clock + 900; frames(4)
+check(not X.seen("MATCH IN PROGRESS") and not X.seen("YOU ARE OUT"), "the card is gone once you are playing")
+a.Alive = false; frames(4)
+check(X.seen("YOU ARE OUT"), "a player who is out sees that, and the time left")
 print("--- video client done")

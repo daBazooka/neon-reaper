@@ -22,7 +22,10 @@ Config.Features = {
 
 Config.Match = {
 	MaxPlayers = 20,
-	MinHumans = 1, -- real players needed before a match starts. 1 = the match starts as soon as somebody is here, and everybody else drops straight in when they arrive
+	MinHumans = 1, -- real players needed before a match starts. 1 = the lobby starts a match as soon as somebody is here
+	DropIn = false, -- false: somebody who arrives while a match is on WAITS in the lobby (the screen shows the time left and when the next match starts) and plays the next one. true: they jump into the running match
+	SoloPractice = true, -- with only one player the match is a short practice round (to try the items); it ends the moment somebody else arrives, so nobody waits long
+	PracticeLength = 180, -- seconds
 	FirstMatchAtOnce = true, -- the first match after the server starts begins the moment somebody is here (no lobby wait); after that, the lobby counts down
 	MinTotal = 0, -- 0 = real players only. (A number here would add bots up to that many players: handy for testing alone in Studio.)
 	Intermission = 10, -- lobby wait between matches (seconds)
@@ -40,6 +43,7 @@ Config.Modes = {
 	Rotation = { "ctf", "team", "deathmatch" },
 	Mode = "rotate", -- "rotate" or one of the ids above
 	List = {
+		practice = { Id = "practice", Name = "PRACTICE", Icon = "🎯", Teams = false, Respawn = false, Length = 180, Practice = true, Tip = "You are the only player: try the items. The real match starts when somebody else arrives." },
 		deathmatch = { Id = "deathmatch", Name = "DEATHMATCH", Icon = "💀", Teams = false, Respawn = false, Length = 600, Tip = "Everybody for themselves. 3 lives." },
 		team = { Id = "team", Name = "TEAM DEATHMATCH", Icon = "⚔️", Teams = true, Respawn = true, ScoreLimit = 50, Tip = "Two teams. Every hit on the other team scores. First to 50." },
 		ctf = { Id = "ctf", Name = "CAPTURE THE FLAG", Icon = "🚩", Teams = true, Respawn = true, CaptureLimit = 10, Tip = "Grab the enemy flag and bring it home. First to 10 captures." },
@@ -139,7 +143,7 @@ Config.Movement = { Walk = 16, Jump = 50, ScopeWalk = 8 }
 Config.Items = {
 	{ Id = "binos", Name = "Binoculars", Icon = "🔭", Key = 1, Permanent = true, Cooldown = 0.6, Tip = "Hold to zoom in and read far-away plates. Can't see through walls." },
 	{ Id = "camera", Name = "Snapshot Camera", Icon = "📷", Key = 2, Permanent = true, Cooldown = 1.4, Tip = "Photograph everyone in frame. Clear numbers go into your notebook." },
-	{ Id = "flash", Name = "Flashbang", Icon = "⚡", Key = 3, Start = 2, Max = 3, Weight = 22, Cooldown = 4, Tip = "Throw it: blinds whoever sees it go off. Turn away to blink less." },
+	{ Id = "flash", Name = "Stun Grenade", Icon = "⚡", Key = 3, Start = 2, Max = 3, Weight = 22, Cooldown = 4, Tip = "Throw it: blinds and freezes whoever is near when it goes off. Turn away to blink less." },
 	{ Id = "smoke", Name = "Smoke Bottle", Icon = "🧪", Key = 4, Start = 2, Max = 3, Weight = 22, Cooldown = 4, Tip = "Throw it: a thick cloud nobody can see through for 15s." },
 	{ Id = "distraction", Name = "Sound Grenade", Icon = "🔊", Key = 5, Start = 1, Max = 2, Weight = 16, Cooldown = 6, Tip = "Throw it: fake footsteps for 8s. Bots (and people) go to check." },
 	{ Id = "scanner", Name = "Scanner", Icon = "📡", Key = 6, Start = 1, Max = 3, Weight = 16, Cooldown = 8, Tip = "Pings people nearby: you see where they are, never their number." },
@@ -166,7 +170,7 @@ end
 -- item slots, big typed digits); "classic" = the older glass panels.
 Config.Hud = { Style = "video" }
 
-Config.Flash = { Radius = 80, Fuse = 1.6, MaxBlind = 6.5, MinBlind = 1.2, ThrowSpeed = 55, ThrowUp = 22 }
+Config.Flash = { Radius = 80, Fuse = 1.6, MaxBlind = 6.5, MinBlind = 1.2, ThrowSpeed = 55, ThrowUp = 22, Stun = 2.0 } -- the stun grenade (flashbang): everybody who sees it go off is blinded AND frozen for up to Stun seconds (less the further away they are)
 Config.Smoke = { Radius = 9, Duration = 15, Fuse = 1.3, Fade = 3 }
 Config.Sprint = { Speed = 28, Duration = 5 }
 Config.Decoy = { Duration = 30, Stun = 4 } -- how long the copy stays; how long someone who shoots it is frozen
@@ -282,7 +286,10 @@ Config.Animals = {
 -- The forehead sign and the name tags. Width = the sign's width in head widths, Height = its height in sign widths, Up = how high on the
 -- forehead (in head heights), Tilt = the most it is stuck on crooked (degrees). Detail = little bolts and a shine strip (off: it is a
 -- plain sign). WhiteNames = the small see-through white name above each head; DarkTrousers = dark trousers under the team shirt.
-Config.Plate = { Width = 1.3, Height = 0.4, Up = 0.32, Tilt = 4, Detail = false, WhiteNames = true, NameRange = 70, DarkTrousers = true }
+-- Skins: players keep their REAL Roblox look (clothes, hair, body). Only hats are taken off, because a hat could hide the sign. In team
+-- modes a team-coloured outline and name tell the teams apart. (Bots, which are off, still get plain coloured clothes.)
+Config.Skins = { Real = true, RemoveHats = true, TeamOutline = true }
+Config.Plate = { Out = 0.18, Width = 1.3, Height = 0.4, Up = 0.32, Tilt = 4, Detail = false, WhiteNames = true, NameRange = 70, DarkTrousers = true }
 
 -- Forehead plates you unlock by winning. Wins = how many wins unlock it.
 Config.PlateStyles = {

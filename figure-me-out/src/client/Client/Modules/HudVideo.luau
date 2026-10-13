@@ -147,11 +147,26 @@ local function buildViewmodels(root)
 	refs.grenade = UI.label(vm, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.62, 0, 1, -20), Size = UDim2.fromOffset(160, 160), Font = UI.Fonts.Title, TextSize = 120, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 1, Text = "", ZIndex = 12, Visible = false })
 end
 
+-- The waiting card: shown to everybody who is not playing right now (somebody who arrived late, or who is out). It says what is
+-- going on and exactly when they will be in a match.
+local function buildWaiting(root)
+	local card = UI.new("Frame", { Name = "Waiting", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.2, 0), Size = UDim2.fromOffset(460, 150), BackgroundColor3 = Color3.fromRGB(16, 20, 26), BackgroundTransparency = 0.35, BorderSizePixel = 0, Visible = false, ZIndex = 18 }, root)
+	UI.corner(card, 16)
+	UI.stroke(card, Color3.new(1, 1, 1), 2, 0.45)
+	scaled(card)
+	refs.wait = card
+	refs.waitTitle = UI.label(card, { Position = UDim2.fromOffset(0, 10), Size = UDim2.new(1, 0, 0, 34), Font = UI.Fonts.Title, TextSize = 28, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "", ZIndex = 19 })
+	refs.waitMode = UI.label(card, { Position = UDim2.fromOffset(0, 46), Size = UDim2.new(1, 0, 0, 24), Font = UI.Fonts.Bold, TextSize = 19, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "", ZIndex = 19 })
+	refs.waitInfo = UI.label(card, { Position = UDim2.fromOffset(0, 72), Size = UDim2.new(1, 0, 0, 24), Font = UI.Fonts.Bold, TextSize = 18, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "", ZIndex = 19 })
+	refs.waitNext = UI.label(card, { Position = UDim2.fromOffset(10, 100), Size = UDim2.new(1, -20, 0, 42), Font = UI.Fonts.Bold, TextSize = 18, TextColor3 = C.Mint, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = true, Text = "", ZIndex = 19 })
+end
+
 function Hud.init(screen, d)
 	gui = screen
 	deps = d
 	local root = UI.new("Frame", { Name = "Hud", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, gui)
 	refs.root = root
+	buildWaiting(root)
 	buildViewmodels(root)
 	buildScores(root)
 	buildSlots(root)
@@ -491,6 +506,46 @@ function Hud.update()
 		local into, need = player:GetAttribute("XPInto") or 0, player:GetAttribute("XPNeed") or 1
 		refs.xpBar.set(into / math.max(1, need))
 		refs.xpText.Text = into .. " / " .. need .. " XP"
+	end
+
+	-- the waiting card: for everybody who is not in the match that is on (arrived late, or out)
+	local inMatch = player:GetAttribute("Playing") == true
+	local showWait = not playing and phase ~= "results" or (not inMatch and phase == "results")
+	if phase == "lobby" then
+		showWait = true
+	end
+	refs.wait.Visible = showWait
+	if showWait then
+		local waiters = workspace:GetAttribute("Waiting") or 0
+		local total = View.total()
+		local maxPlayers = workspace:GetAttribute("MaxPlayers") or Config.Match.MaxPlayers
+		local modeName = workspace:GetAttribute("ModeName") or ""
+		local mapName = workspace:GetAttribute("MapName") or ""
+		local resultsTime = mode == "practice" and 3 or Config.Match.ResultsTime
+		if phase == "lobby" then
+			refs.waitTitle.Text = Players.NumPlayers < Config.Match.MinHumans and "WAITING FOR PLAYERS" or ("NEXT MATCH IN " .. clock(left))
+			refs.waitMode.Text = workspace:GetAttribute("NextModeName") or ""
+			refs.waitInfo.Text = "👥 " .. math.min(Players.NumPlayers, maxPlayers) .. "/" .. maxPlayers .. " ready"
+			refs.waitNext.Text = Players.NumPlayers > maxPlayers and ("Server full: " .. (Players.NumPlayers - maxPlayers) .. " will wait for the one after") or "Vote for the next map with the cards below"
+		elseif phase == "countdown" then
+			refs.waitTitle.Text = "NEXT MATCH STARTING"
+			refs.waitMode.Text = modeName .. (mapName ~= "" and ("  •  " .. mapName) or "")
+			refs.waitInfo.Text = "👥 " .. total .. "/" .. maxPlayers .. " playing"
+			refs.waitNext.Text = "This one is full. You play the next match, starting in about " .. clock(left + (mode == "practice" and 3 or Config.Match.Length) + resultsTime + Config.Match.Intermission)
+		elseif phase == "results" then
+			refs.waitTitle.Text = "MATCH OVER"
+			refs.waitMode.Text = "Next match in " .. clock(left + Config.Match.Intermission)
+			refs.waitInfo.Text = "👥 " .. (waiters + total) .. " here"
+			refs.waitNext.Text = "Vote for the next map with the cards below"
+		else
+			local ending = left <= 60
+			refs.waitTitle.Text = inMatch and "YOU ARE OUT" or (ending and "MATCH ENDING SOON!" or "MATCH IN PROGRESS")
+			refs.waitTitle.TextColor3 = (ending and left <= Config.Match.RevealAt) and C.Danger or C.Gold
+			refs.waitMode.Text = modeName .. (mapName ~= "" and ("  •  " .. mapName) or "")
+			refs.waitInfo.Text = "⏱ " .. clock(left) .. " left   •   👥 " .. total .. "/" .. maxPlayers .. " playing   •   " .. waiters .. " waiting"
+			local pos = player:GetAttribute("QueuePos") or 0
+			refs.waitNext.Text = (inMatch and "You can watch, and play the next match" or "You play the next match") .. ": starts in about " .. clock(left + resultsTime + Config.Match.Intermission) .. (pos > 1 and ("   (you are #" .. pos .. " in line)") or "")
+		end
 	end
 
 	-- the two slots

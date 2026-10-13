@@ -451,6 +451,12 @@ function World.watchStatus()
 			local left = math.max(0, math.ceil((workspace:GetAttribute("PhaseEnd") or 0) - workspace:GetServerTimeNow()))
 			local n = #game:GetService("Players"):GetPlayers()
 			local nextName = workspace:GetAttribute("NextModeName") or ""
+			local waiting = workspace:GetAttribute("Waiting") or 0
+			local playing = workspace:GetAttribute("Total") or 0
+			local function mmss(t)
+				t = math.max(0, math.floor(t))
+				return string.format("%d:%02d", t // 60, t % 60)
+			end
 			if phase == "lobby" then
 				if n < Config.Match.MinHumans then
 					World.setStatus("WAITING FOR PLAYERS", n .. " / " .. Config.Match.MinHumans .. " here. Invite a friend!")
@@ -460,11 +466,11 @@ function World.watchStatus()
 					World.setStatus("NEXT: " .. nextName, "starts in " .. left .. " s  •  " .. n .. " players" .. leadText)
 				end
 			elseif phase == "countdown" then
-				World.setStatus("GET READY!", "starts in " .. left .. " s")
+				World.setStatus("GET READY!", "starts in " .. left .. " s  •  " .. playing .. " playing  •  " .. waiting .. " waiting")
 			elseif phase == "play" then
-				World.setStatus((workspace:GetAttribute("ModeName") or "MATCH") .. " IN PROGRESS", (workspace:GetAttribute("Alive") or 0) .. " alive  •  " .. left .. " s left")
+				World.setStatus((workspace:GetAttribute("ModeName") or "MATCH") .. " IN PROGRESS", mmss(left) .. " left  •  " .. playing .. "/" .. (workspace:GetAttribute("MaxPlayers") or Config.Match.MaxPlayers) .. " playing  •  " .. waiting .. " waiting  •  next match in about " .. mmss(left + Config.Match.ResultsTime + Config.Match.Intermission))
 			else
-				World.setStatus("RESULTS", "next match soon")
+				World.setStatus("RESULTS", "next match in about " .. mmss(left + Config.Match.Intermission))
 			end
 			task.wait(0.5)
 		end

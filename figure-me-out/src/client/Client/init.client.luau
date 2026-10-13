@@ -173,6 +173,9 @@ function handlers.phase(phase)
 		Fx.announce("GET READY", (workspace:GetAttribute("MapName") or "") .. "  •  Look at heads. Type their number.", C.Accent, 0.22)
 		Audio.reveal()
 	elseif phase == "play" then
+		if VIDEO and Config.Features.Gadgets and player:GetAttribute("Playing") == true then
+			Toasts.push("⚡ Yellow chests hold a stun grenade, a smoke bottle or a sound grenade", "info")
+		end
 		Fx.announce("GO!", "Someone is always watching", C.Good, 0.22)
 		Audio.countdown(0, true)
 		Audio.horn()

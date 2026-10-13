@@ -41,10 +41,20 @@ function Plates.attachPlate(char, style, text)
 		old:Destroy()
 	end
 	local size = head.Size
-	local w = size.X * Config.Plate.Width -- a sign a little wider than the head, so the digits can be read from a distance
+	-- the visible head: an R6 head part is 2 wide but its round mesh only 1.25, so the sign is sized from the real head, not the part
+	local headWidth = math.min(size.X, size.Y * 1.25)
+	local front = size.Z / 2
+	local okMesh, scaleZ = pcall(function()
+		local mesh = head:FindFirstChildOfClass("SpecialMesh") :: SpecialMesh?
+		return mesh and mesh.Scale.Z or 1
+	end)
+	if okMesh and type(scaleZ) == "number" then
+		front = front * scaleZ
+	end
+	local w = headWidth * Config.Plate.Width -- a sign a little wider than the head, so the digits can be read from a distance
 	local h = w * Config.Plate.Height
 	local y = size.Y * Config.Plate.Up
-	local z = -(size.Z / 2) - 0.05
+	local z = -front - 0.05 - Config.Plate.Out -- (a little in front of the face and the hair)
 	local plate = Instance.new("Part")
 	plate.Name = PLATE_NAME
 	plate.Size = Vector3.new(w, h, 0.1)
@@ -247,6 +257,9 @@ function Plates.hide(e)
 	if e.reveal and e.reveal.gui then
 		e.reveal.gui.Enabled = false
 	end
+	if e.outline then
+		e.outline.Enabled = false
+	end
 	if e.bountyTag and e.bountyTag.gui then
 		e.bountyTag.gui.Enabled = false
 	end
@@ -397,6 +410,46 @@ function Plates.dress(char, color)
 	colors.RightLegColor3 = legs
 end
 
+-- Keeps the player's REAL Roblox look (clothes, hair, colours) and only takes off hats, which could hide the sign. The Roblox
+-- name and health bar over the head are hidden because the game has its own small name tag.
+function Plates.keepSkin(char)
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+	end
+	if Config.Skins.RemoveHats then
+		pcall(function()
+			for _, d in char:GetDescendants() do
+				if d:IsA("Accessory") and d.AccessoryType == Enum.AccessoryType.Hat then
+					d:Destroy()
+				end
+			end
+		end)
+	end
+end
+
+-- A thin team-coloured outline round the whole character (team modes), so the teams can tell each other apart whatever they wear.
+function Plates.attachOutline(char, color)
+	local old = char:FindFirstChild("TeamOutline")
+	if old then
+		old:Destroy()
+	end
+	local ok, h = pcall(function()
+		local hl = Instance.new("Highlight")
+		hl.Name = "TeamOutline"
+		hl.Adornee = char
+		hl.FillColor = color
+		hl.FillTransparency = 0.88
+		hl.OutlineColor = color
+		hl.OutlineTransparency = 0.1
+		hl.DepthMode = Enum.HighlightDepthMode.Occluded
+		hl.Parent = char
+		return hl
+	end)
+	return ok and h or nil
+end
+
 -- Everything for one entity. e needs char, code, icon, color, number and style.
 function Plates.setup(e)
 	local char = e.char
@@ -404,7 +457,12 @@ function Plates.setup(e)
 		return false
 	end
 	e.styleDef = Config.PlateStyleById[e.style or "classic"] or Config.PlateStyles[1]
-	Plates.dress(char, e.color)
+	if e.player and Config.Skins.Real then
+		Plates.keepSkin(char)
+	else
+		Plates.dress(char, e.color)
+	end
+	e.outline = (e.team and Config.Skins.TeamOutline) and Plates.attachOutline(char, e.color) or nil
 	e.plate = Plates.attachPlate(char, e.styleDef, e.number)
 	e.tag = Plates.attachTag(char, (e.icon ~= "" and (e.icon .. " ") or "") .. e.code, e.color)
 	e.numberTag = Config.Number.FloatingTag and Plates.attachNumberTag(char, e.number) or nil

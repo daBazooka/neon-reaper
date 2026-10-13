@@ -34,3 +34,10 @@ The reference is a 35-second vertical trailer (720 x 1280) of the Steam game "Fi
 * What the third strike does: nothing extra beyond a longer "exposed" time each strike, so the game never feels unfair.
 * Sounds and music: the trailer's soundtrack is not game audio, so the game keeps its own sounds.
 * The title screen and the logo: those belong to the original game's creator. For your own Roblox listing use your own name and art (the generated art in `docs/icons` is yours).
+
+## Added after the first version
+
+* The video never shows a lobby, so the lobby is a courtyard in the same style as the School Yard map.
+* The video shows the camera, binoculars, a **flashbang** (lightning-bolt icon), a smoke flask and a speaker (sound) grenade. The flashbang is the **stun grenade**: it blinds and freezes.
+* Players keep their **real Roblox avatar and name** (the video's characters are the game's own models; on Roblox the player's avatar is the natural equivalent). Only hats are removed, and in team modes an outline in the team colour replaces the red/blue shirts.
+* **Joining:** anybody can join any time, 20 play; late joiners wait in the lobby with a card showing the time left and when their match starts; a lone player gets a practice round.

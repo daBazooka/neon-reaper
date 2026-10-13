@@ -1,12 +1,12 @@
--- FIGURE ME OUT: the lobby, a floating garden island where everybody waits for the next match: grass and trees, a stone plaza with a
--- fountain, paths, benches, lamps, flower beds, two little waterfalls spilling off the edge into the sky, a big title banner,
--- the winners board, a how-to board and a big status screen ("WAITING FOR PLAYERS 1/2", "NEXT: DEATHMATCH - 8 s").
+-- FIGURE ME OUT: the lobby, a school courtyard like the one in the original game: terracotta paving, cream walls with an orange band,
+-- teal doors, a blue basketball court in the middle, wooden decks with stairs, hedges, planters, lockers, log stacks, teal and yellow
+-- boxes, benches and trees, with the title banner, the winners board, the how-to board and a big status screen on the walls
+-- ("WAITING FOR PLAYERS", "NEXT: CAPTURE THE FLAG - 8 s", "MATCH IN PROGRESS - 12:30 left").
 -- Players are placed on a ring of radius 30 round the middle (see World.lobbySpawn), so nothing solid stands on that ring.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
-local CanyonWorld = require(script.Parent.CanyonWorld)
 
 local LobbyWorld = {}
 
@@ -118,124 +118,140 @@ end
 function LobbyWorld.build(lobby)
 	local c = Config.Map.Lobby
 	local top = c.Y
-
-	-- the island: a grass top over layers of rock getting smaller towards the bottom
-	disc(lobby, "Grass", c.X, top - 1.5, c.Z, 64, 3, GRASS, Enum.Material.Grass)
-	for i, def in { { 60, 10 }, { 48, 10 }, { 34, 10 }, { 20, 10 }, { 8, 12 } } do
-		disc(lobby, "Rock" .. i, c.X, top - 3 - i * 9, c.Z, def[1], def[2], i % 2 == 0 and ROCK or C(168, 156, 140), Enum.Material.Slate)
+	local H = 74 -- the courtyard is 148 x 148 inside its walls
+	local PLASTER, ORANGE, TEAL, YELLOW = C(238, 228, 208), C(226, 110, 40), C(40, 150, 150), C(230, 190, 70)
+	local PLANK, PLANK2, LEAF = C(166, 112, 60), C(132, 88, 46), C(70, 150, 70)
+	local function solid(name, x, z, w, h, d, y0, color, material, rot)
+		local p = part(lobby, name, Vector3.new(w, h, d), Vector3.new(c.X + x, top + y0 + h / 2, c.Z + z), color, material)
+		if rot then
+			p.CFrame = CFrame.new(c.X + x, top + y0 + h / 2, c.Z + z) * CFrame.Angles(0, math.rad(rot), 0)
+		end
+		return p
 	end
-	disc(lobby, "EdgeGlow", c.X, top - 0.9, c.Z, 65, 1.4, AQUA, Enum.Material.Neon, false).Transparency = 0.15 -- a glowing rim round the grass
-
-	-- mown stripes: bands of lighter and darker grass in rings
-	for i, def in { { 60, C(132, 214, 104) }, { 52, C(116, 196, 90) }, { 44, C(132, 214, 104) }, { 36, C(116, 196, 90) } } do
-		disc(lobby, "Mown" .. i, c.X, top + 0.02 + i * 0.01, c.Z, def[1], 0.1, def[2], Enum.Material.Grass, false)
+	local function soft(name, x, z, w, h, d, y0, color, material, rot)
+		local p = solid(name, x, z, w, h, d, y0, color, material, rot)
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CastShadow = false
+		return p
 	end
 
-	-- the plaza and the fountain
-	disc(lobby, "Plaza", c.X, top + 0.2, c.Z, 22, 0.4, STONE, Enum.Material.Marble)
-	disc(lobby, "PlazaRing1", c.X, top + 0.45, c.Z, 20, 0.1, AQUA, Enum.Material.Neon, false)
-	disc(lobby, "PlazaRing2", c.X, top + 0.5, c.Z, 19, 0.1, STONE, Enum.Material.Marble, false)
-	disc(lobby, "PlazaRing3", c.X, top + 0.45, c.Z, 13, 0.1, GOLD, Enum.Material.Neon, false)
-	disc(lobby, "PlazaRing4", c.X, top + 0.5, c.Z, 12, 0.1, STONE, Enum.Material.Marble, false)
-	disc(lobby, "FountainBasin", c.X, top + 0.9, c.Z, 8.5, 1.4, STONE, Enum.Material.Marble)
-	local water = disc(lobby, "FountainWater", c.X, top + 1.5, c.Z, 7.6, 0.4, C(110, 220, 255), Enum.Material.Glass, false)
-	water.Transparency = 0.3
-	disc(lobby, "FountainColumn", c.X, top + 4, c.Z, 1.3, 6, STONE, Enum.Material.Marble)
-	disc(lobby, "FountainBowl", c.X, top + 7.2, c.Z, 3.4, 0.9, STONE, Enum.Material.Marble)
-	local spout = deco(lobby, "FountainSpout", Vector3.new(1, 1, 1), Vector3.new(c.X, top + 8, c.Z), WHITE)
-	spout.Transparency = 1
-	local spray = Instance.new("ParticleEmitter")
-	spray.Name = "Spray"
-	spray.Rate = 40
-	spray.Lifetime = NumberRange.new(1.2, 1.8)
-	spray.Speed = NumberRange.new(10, 14)
-	spray.SpreadAngle = Vector2.new(26, 26)
-	spray.Acceleration = Vector3.new(0, -22, 0)
-	spray.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.7), NumberSequenceKeypoint.new(1, 0.2) })
-	spray.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
-	spray.Color = ColorSequence.new(C(190, 235, 255))
-	spray.LightEmission = 0.5
-	spray.EmissionDirection = Enum.NormalId.Top
-	spray.Parent = spout
-	-- slow glittering sparkles over the plaza
-	local sparkAnchor = deco(lobby, "SparkleAnchor", Vector3.new(40, 1, 40), Vector3.new(c.X, top + 14, c.Z), WHITE)
-	sparkAnchor.Transparency = 1
-	local sparkle = Instance.new("ParticleEmitter")
-	sparkle.Name = "Sparkles"
-	sparkle.Rate = 6
-	sparkle.Lifetime = NumberRange.new(4, 6)
-	sparkle.Speed = NumberRange.new(0.5, 1.5)
-	sparkle.SpreadAngle = Vector2.new(180, 180)
-	sparkle.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) })
-	sparkle.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) })
-	sparkle.Color = ColorSequence.new(C(255, 240, 180))
-	sparkle.LightEmission = 0.8
-	sparkle.Parent = sparkAnchor
-
-	-- stone paths out to the four sides
+	-- the ground: terracotta paving with tan patches, white painted lines and cobblestone paths out from the court
+	solid("Floor", 0, 0, H * 2 + 8, 2, H * 2 + 8, -2, C(212, 150, 126), Enum.Material.Concrete)
+	for i = 1, 40 do
+		local a = i * 2.399
+		local r = 12 + (i * 37) % 58
+		soft("PavingPatch", math.cos(a) * r, math.sin(a) * r, 8 + (i % 5) * 3, 0.06, 6 + (i % 4) * 3, 0.04, C(232, 190, 130), Enum.Material.Concrete, i * 23)
+	end
+	for _, z in { -52, 52 } do
+		soft("PaintedLine", 0, z, 140, 0.06, 0.5, 0.06, WHITE, Enum.Material.SmoothPlastic)
+	end
 	for _, dir in { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } } do
-		local len = 36
-		local mid = 22 + len / 2
-		local w, d = dir[1] ~= 0 and len or 8, dir[2] ~= 0 and len or 8
-		part(lobby, "Path", Vector3.new(w, 0.3, d), Vector3.new(c.X + dir[1] * mid, top + 0.15, c.Z + dir[2] * mid), C(226, 206, 164), Enum.Material.Cobblestone)
-	end
-
-	-- flower beds between the plaza and the spawn ring, and benches, lamps and trees further out
-	local bedColors = { C(255, 120, 160), C(255, 214, 80), C(190, 130, 255), C(255, 150, 70), C(120, 200, 255), C(255, 255, 255) }
-	for i = 1, 12 do
-		local a = (i / 12) * math.pi * 2 + 0.26
-		local x, z = c.X + math.cos(a) * 24.5, c.Z + math.sin(a) * 24.5
-		disc(lobby, "FlowerBed", x, top + 0.4, z, 2.4, 0.8, C(150, 108, 70), Enum.Material.Wood)
-		for k = 1, 5 do
-			local fa = k * 1.256
-			local f = ball(lobby, "Flower", 0.9, Vector3.new(x + math.cos(fa) * 1.2, top + 1.1, z + math.sin(fa) * 1.2), bedColors[(i + k) % 6 + 1], Enum.Material.SmoothPlastic)
-			f.CanCollide = false
-			f.CanQuery = false
+		for k = 0, 8 do
+			local d = 26 + k * 5.6
+			soft("StoneTile", dir[1] * d + (dir[1] == 0 and (k % 2) * 1.2 - 0.6 or 0), dir[2] * d + (dir[2] == 0 and (k % 2) * 1.2 - 0.6 or 0), 5, 0.14, 4.2, 0.04, C(168, 164, 160), Enum.Material.Slate, k * 7)
 		end
 	end
+
+	-- the walls: cream plaster with an orange band, windows and teal doors, and a dark roof line
+	local wallDefs = { { 0, -H, H * 2 + 8, 4 }, { 0, H, H * 2 + 8, 4 }, { -H, 0, 4, H * 2 + 8 }, { H, 0, 4, H * 2 + 8 } }
+	for i, def in wallDefs do
+		solid("Wall", def[1], def[2], def[3], 34, def[4], 0, PLASTER, Enum.Material.SmoothPlastic)
+		soft("WallCap", def[1], def[2], def[3], 1.6, def[4] + 1.2, 34, C(70, 58, 66), Enum.Material.SmoothPlastic)
+		local along = i <= 2
+		local inward = (i == 1 and 1) or (i == 2 and -1) or (i == 3 and 1) or -1
+		local px, pz = def[1] + (along and 0 or inward * 2.1), def[2] + (along and inward * 2.1 or 0)
+		soft("WallBand", px, pz, along and H * 2 or 0.3, 7, along and 0.3 or H * 2, 0, ORANGE, Enum.Material.SmoothPlastic)
+		for k = -3, 3 do
+			local off = k * 20 + 6
+			local wx, wz = along and off or px, along and pz or off
+			soft("Window", wx, wz, along and 9 or 0.3, 6, along and 0.3 or 9, 18, C(40, 70, 110), Enum.Material.Glass).Transparency = 0.25
+			soft("WindowFrame", wx, wz, along and 10 or 0.2, 7, along and 0.2 or 10, 17.5, C(250, 246, 236), Enum.Material.SmoothPlastic)
+			if k % 3 == 0 then
+				soft("Door", wx + (along and 12 or 0), wz + (along and 0 or 12), along and 6 or 0.3, 10, along and 0.3 or 6, 0, TEAL, Enum.Material.Wood)
+			end
+		end
+	end
+
+	-- the basketball court in the middle (the spawn ring of radius 30 is round it) with a hoop at each end
+	solid("Court", 0, 0, 38, 0.3, 22, 0, C(54, 116, 188), Enum.Material.SmoothPlastic)
+	soft("CourtEdge", 0, 0, 40, 0.2, 24, 0, ORANGE, Enum.Material.SmoothPlastic)
+	for _, l in { { 0, -10.5, 36, 0.4 }, { 0, 10.5, 36, 0.4 }, { -18, 0, 0.4, 21 }, { 18, 0, 0.4, 21 }, { 0, 0, 0.4, 21 } } do
+		soft("CourtLine", l[1], l[2], l[3], 0.06, l[4], 0.32, WHITE, Enum.Material.SmoothPlastic)
+	end
+	disc(lobby, "CourtCircle", c.X, top + 0.34, c.Z, 4, 0.06, WHITE, Enum.Material.SmoothPlastic, false)
+	disc(lobby, "CourtCircleInner", c.X, top + 0.35, c.Z, 3.6, 0.07, C(54, 116, 188), Enum.Material.SmoothPlastic, false)
+	for _, side in { -1, 1 } do
+		disc(lobby, "HoopPole", c.X + side * 20.6, top + 5, c.Z, 0.35, 10, C(70, 74, 82), Enum.Material.Metal)
+		solid("HoopBoard", side * 19.2, 0, 0.4, 4, 6, 8, WHITE, Enum.Material.SmoothPlastic)
+		disc(lobby, "HoopRim", c.X + side * 18.1, top + 8.6, c.Z, 1.1, 0.2, C(255, 110, 40), Enum.Material.Neon, false)
+	end
+
+	-- the four wooden decks with stairs (8 high), one in each corner, to climb and look down on the court
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			local x, z = 52 * sx, 50 * sz
+			solid("Deck", x, z, 16, 8, 16, 0, PLANK, Enum.Material.Wood)
+			soft("DeckTop", x, z, 16.6, 0.6, 16.6, 8, PLANK2, Enum.Material.Wood).CanCollide = true
+			for k = 1, 8 do
+				local from = (8 - k) * 2
+				local mid = z - sz * (8 + from + 1)
+				solid("Step", x, mid, 6, k, 2, 0, C(190, 134, 76), Enum.Material.Wood)
+			end
+		end
+	end
+
+	-- the dressing, all outside the spawn ring and clear of the boards
+	local function hedge(x, z, rot)
+		solid("Hedge", x, z, 9, 3.4, 2.6, 0, LEAF, Enum.Material.Grass, rot)
+	end
+	local function planter(x, z)
+		solid("Planter", x, z, 5, 2.2, 3.2, 0, PLANK, Enum.Material.Wood)
+		ball(lobby, "PlanterBush", 2.6, Vector3.new(c.X + x, top + 3.3, c.Z + z), LEAF, Enum.Material.Grass).CanCollide = false
+	end
+	local function stack(x, z, a, b)
+		solid("CrateBox", x, z, 4.6, 3.6, 4.6, 0, a, Enum.Material.Wood)
+		solid("CrateBox", x + 0.4, z - 0.2, 4, 3.2, 4, 3.6, b, Enum.Material.Wood, 12)
+	end
+	local function logs(x, z)
+		for row = 0, 2 do
+			for i = 0, 3 - row do
+				local p = part(lobby, "Log", Vector3.new(5, 1.15, 1.15), Vector3.new(c.X + x, top + 0.6 + row * 1.05, c.Z + z + (i - (3 - row) / 2) * 1.25), row % 2 == 0 and PLANK or PLANK2, Enum.Material.Wood)
+				p.Shape = Enum.PartType.Cylinder
+			end
+		end
+	end
+	local function lockers(x, z, color)
+		solid("Lockers", x, z, 8, 7, 2.4, 0, color, Enum.Material.Metal)
+		for i = -1, 1 do
+			soft("LockerDoor", x + i * 2.6, z - 1.2, 2.4, 6, 0.2, 0.5, color:Lerp(C(0, 0, 0), 0.18), Enum.Material.Metal)
+		end
+	end
+	for _, x in { -62, -48, 48, 62 } do
+		lockers(x, H - 4, x % 2 == 0 and TEAL or ORANGE)
+		hedge(x, -H + 4, 0)
+	end
+	for _, z in { -34, 0, 34 } do
+		hedge(-H + 4, z, 90)
+		hedge(H - 4, z, 90)
+	end
+	planter(-36, H - 8); planter(36, H - 8); planter(-36, -H + 8); planter(36, -H + 8)
+	stack(-66, 20, TEAL, YELLOW); stack(66, -20, YELLOW, TEAL); stack(-66, -22, YELLOW, TEAL); stack(66, 22, TEAL, YELLOW)
+	logs(-30, 60); logs(30, -60)
 	for i = 1, 8 do
 		local a = (i / 8) * math.pi * 2 + 0.39
 		bench(lobby, c.X + math.cos(a) * 41, c.Z + math.sin(a) * 41, -a + math.pi / 2)
 	end
-	for i = 1, 12 do
-		local a = (i / 12) * math.pi * 2
-		lamp(lobby, c.X + math.cos(a) * 37, c.Z + math.sin(a) * 37)
+	for i = 1, 8 do
+		local a = (i / 8) * math.pi * 2
+		lamp(lobby, c.X + math.cos(a) * 36, c.Z + math.sin(a) * 36)
 	end
-	-- (trees stay clear of the boards, the status screen and the banner)
-	local keepClear = { { -46, 26 }, { 46, 26 }, { 0, -46 }, { 0, 50 }, { -32, 50 }, { 32, 50 } }
-	for i = 1, 22 do
-		local a = (i / 22) * math.pi * 2 + 0.2
-		local r = 54 + (i % 3) * 3
-		local x, z = math.cos(a) * r, math.sin(a) * r
-		local free = true
-		for _, k in keepClear do
-			if (k[1] - x) ^ 2 + (k[2] - z) ^ 2 < 15 ^ 2 then
-				free = false
-			end
-		end
-		if free then
-			tree(lobby, c.X + x, top, c.Z + z, 1.0 + (i % 4) * 0.18)
-		end
+	for _, t in { { -66, 66 }, { 66, 66 }, { -66, -66 }, { 66, -66 }, { -40, 62 }, { 40, 62 }, { -66, 0 }, { 66, 0 } } do
+		tree(lobby, c.X + t[1], top, c.Z + t[2], 1.1)
 	end
 
-	-- two little waterfalls over the edge, falling into the sky
-	for _, angle in { 3.75, 5.35 } do
-		local x, z = c.X + math.cos(angle) * 60, c.Z + math.sin(angle) * 60
-		local ox, oz = math.cos(angle), math.sin(angle)
-		part(lobby, "FallRock", Vector3.new(11, 7, 7), Vector3.new(x - ox * 3, top + 3.5, z - oz * 3), ROCK, Enum.Material.Slate)
-		part(lobby, "FallPool", Vector3.new(9, 0.4, 5), Vector3.new(x - ox * 1, top + 0.3, z - oz * 1), C(80, 190, 245), Enum.Material.Glass).CanCollide = false
-		local sheet = part(lobby, "LobbyFall", Vector3.new(6, 70, 1.4), Vector3.new(x + ox * 3.4, top - 30, z + oz * 3.4), C(150, 218, 255), Enum.Material.SmoothPlastic)
-		sheet.CFrame = CFrame.new(sheet.Position, Vector3.new(c.X, sheet.Position.Y, c.Z))
-		sheet.Transparency = 0.3
-		sheet.CanCollide = false
-		sheet.CanQuery = false
-		sheet.CastShadow = false
-		CanyonWorld.flowing(sheet, Enum.NormalId.Front, Config.Water.FallSpeed, 6, 0.35)
-		CanyonWorld.flowing(sheet, Enum.NormalId.Back, Config.Water.FallSpeed, 6, 0.35)
-	end
-
-	-- a golden trophy on a marble pedestal in the plaza (win a match to be on the board!)
-	local tx, tz = c.X + 14, c.Z + 11
+	-- a golden trophy on a marble pedestal by the court (win a match to be on the board!)
+	local tx, tz = c.X + 14, c.Z + 15
 	part(lobby, "TrophyPedestal", Vector3.new(4.6, 3, 4.6), Vector3.new(tx, top + 1.9, tz), STONE, Enum.Material.Marble)
 	part(lobby, "TrophyPlinth", Vector3.new(5.4, 0.6, 5.4), Vector3.new(tx, top + 0.7, tz), C(210, 200, 182), Enum.Material.Marble)
 	local gold = C(255, 200, 60)
@@ -257,100 +273,25 @@ function LobbyWorld.build(lobby)
 	starLight.Brightness = 1.5
 	starLight.Parent = star
 
-	-- glowing stepping lights along the paths
-	for _, dir in { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } } do
-		for k = 0, 5 do
-			local r = 26 + k * 6
-			for _, side in { -4.6, 4.6 } do
-				local x = c.X + dir[1] * r + (dir[1] == 0 and side or 0)
-				local z = c.Z + dir[2] * r + (dir[2] == 0 and side or 0)
-				disc(lobby, "PathLight", x, top + 0.45, z, 0.45, 0.3, AQUA, Enum.Material.Neon, false)
-			end
-		end
-	end
-
-	-- bunting: little coloured flags strung between the lamps
-	local flagColours = { C(255, 100, 140), C(255, 214, 80), C(110, 200, 255), C(150, 230, 120), C(200, 140, 255) }
-	for i = 1, 12 do
-		local a1, a2 = (i / 12) * math.pi * 2, ((i % 12 + 1) / 12) * math.pi * 2
-		local x1, z1, x2, z2 = math.cos(a1) * 37, math.sin(a1) * 37, math.cos(a2) * 37, math.sin(a2) * 37
-		for k = 1, 7 do
-			local t = k / 8
-			local fx, fz = x1 + (x2 - x1) * t, z1 + (z2 - z1) * t
-			local flag = ball(lobby, "Flag", 0.95, Vector3.new(c.X + fx, top + 9.6 - 1.4 * math.sin(math.pi * t), c.Z + fz), flagColours[(i + k) % 5 + 1], Enum.Material.SmoothPlastic)
-			flag.CanCollide = false
-			flag.CanQuery = false
-			flag.CastShadow = false
-		end
-	end
-
-	-- paper lanterns floating on strings above the garden
-	for i = 1, 10 do
-		local a = i * 0.63 + 0.2
-		local r = 44 + (i % 3) * 3
-		local y = top + 15 + (i % 4) * 2
-		local string_ = deco(lobby, "LanternString", Vector3.new(0.15, 6, 0.15), Vector3.new(c.X + math.cos(a) * r, y + 3.6, c.Z + math.sin(a) * r), C(90, 90, 100))
-		local lantern = ball(lobby, "PaperLantern", 2.6, Vector3.new(c.X + math.cos(a) * r, y, c.Z + math.sin(a) * r), flagColours[i % 5 + 1], Enum.Material.Neon)
-		lantern.CanCollide = false
-		lantern.CanQuery = false
-		lantern.Transparency = 0.15
-		local glow = Instance.new("PointLight")
-		glow.Color = lantern.Color
-		glow.Range = 16
-		glow.Brightness = 1
-		glow.Parent = lantern
-	end
-
-	-- a rainbow behind the banner
-	CanyonWorld.rainbow(lobby, c.X, top - 4, c.Z + 66, 54, 2.2)
-
-	-- the title banner on two tall posts (read from the middle)
-	for _, dx in { -32, 32 } do
-		part(lobby, "BannerPost", Vector3.new(2, 34, 2), Vector3.new(c.X + dx, top + 17, c.Z + 50), C(70, 76, 92), Enum.Material.Metal)
-		ball(lobby, "BannerKnob", 3, Vector3.new(c.X + dx, top + 35, c.Z + 50), GOLD, Enum.Material.Neon).CanCollide = false
-	end
-	local _, titleGui = board(lobby, "Title", Vector3.new(60, 14, 1), Vector3.new(c.X, top + 26, c.Z + 50), Vector3.new(c.X, top + 26, c.Z), C(22, 96, 150), Enum.NormalId.Front)
+	-- the title banner on the north wall
+	local _, titleGui = board(lobby, "Title", Vector3.new(60, 14, 1), Vector3.new(c.X, top + 22, c.Z + H - 3), Vector3.new(c.X, top + 22, c.Z), C(40, 150, 150), Enum.NormalId.Front)
+	soft("TitleFrame", 0, H - 2.4, 62, 16, 0.4, 14, ORANGE, Enum.Material.SmoothPlastic)
 	label(titleGui, { Size = UDim2.fromScale(1, 0.62), Text = "FIGURE ME OUT", TextColor3 = WHITE })
-	label(titleGui, { Position = UDim2.fromScale(0, 0.64), Size = UDim2.fromScale(1, 0.3), Text = "Read their number. Hide yours.", Font = Enum.Font.GothamBold, TextColor3 = C(180, 255, 150) })
+	label(titleGui, { Position = UDim2.fromScale(0, 0.64), Size = UDim2.fromScale(1, 0.3), Text = "Read their number. Hide yours.", Font = Enum.Font.GothamBold, TextColor3 = C(255, 226, 120) })
 
-	-- the status screen, facing the spawn ring
-	local screen, statusGui = board(lobby, "StatusScreen", Vector3.new(34, 14, 1.2), Vector3.new(c.X, top + 12, c.Z - 46), Vector3.new(c.X, top + 12, c.Z), C(14, 30, 64), Enum.NormalId.Front)
-	part(lobby, "StatusFrame", Vector3.new(36, 16, 0.8), Vector3.new(c.X, top + 12, c.Z - 46.5), AQUA, Enum.Material.Neon).CanCollide = false
-	for _, dx in { -14, 14 } do
-		part(lobby, "StatusLeg", Vector3.new(1.4, 12, 1.4), Vector3.new(c.X + dx, top + 5, c.Z - 47), C(70, 76, 92), Enum.Material.Metal)
-	end
-	local statusTitle = label(statusGui, { Position = UDim2.fromScale(0.04, 0.08), Size = UDim2.fromScale(0.92, 0.5), Text = "WAITING FOR PLAYERS", TextColor3 = GOLD })
-	local statusSub = label(statusGui, { Position = UDim2.fromScale(0.04, 0.6), Size = UDim2.fromScale(0.92, 0.3), Text = "", Font = Enum.Font.GothamBold, TextColor3 = WHITE })
+	-- the status screen on the south wall: what is on, how long it has left, when the next match starts
+	local screen, statusGui = board(lobby, "StatusScreen", Vector3.new(44, 16, 1.2), Vector3.new(c.X, top + 18, c.Z - H + 3), Vector3.new(c.X, top + 18, c.Z), C(14, 30, 64), Enum.NormalId.Front)
+	soft("StatusFrame", 0, -H + 2.4, 46, 18, 0.4, 9, ORANGE, Enum.Material.SmoothPlastic)
+	local statusTitle = label(statusGui, { Position = UDim2.fromScale(0.04, 0.08), Size = UDim2.fromScale(0.92, 0.46), Text = "WAITING FOR PLAYERS", TextColor3 = GOLD })
+	local statusSub = label(statusGui, { Position = UDim2.fromScale(0.04, 0.56), Size = UDim2.fromScale(0.92, 0.36), Text = "", Font = Enum.Font.GothamBold, TextColor3 = WHITE })
 
-	-- the winners board (left) and the how-to board (right)
-	local bpart, bgui = board(lobby, "Board", Vector3.new(26, 22, 1), Vector3.new(c.X - 46, top + 13, c.Z + 26), Vector3.new(c.X, top + 13, c.Z), C(22, 96, 150), Enum.NormalId.Front)
-	part(lobby, "BoardPost", Vector3.new(1.4, 12, 1.4), Vector3.new(c.X - 46, top + 6, c.Z + 26), C(70, 76, 92), Enum.Material.Metal)
+	-- the winners board (west wall) and the how-to board (east wall)
+	local bpart, bgui = board(lobby, "Board", Vector3.new(26, 22, 1), Vector3.new(c.X - H + 3, top + 17, c.Z + 8), Vector3.new(c.X, top + 17, c.Z + 8), C(40, 150, 150), Enum.NormalId.Front)
 	label(bgui, { Size = UDim2.new(1, 0, 0, 70), Text = "🏆 TOP WINNERS", TextColor3 = GOLD })
 	local winners = label(bgui, { Position = UDim2.fromOffset(20, 80), Size = UDim2.new(1, -40, 1, -90), Text = "Win a match to get on the board!", Font = Enum.Font.GothamBold, TextScaled = false, TextSize = 30, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
-	local hpart, hgui = board(lobby, "HowTo", Vector3.new(26, 22, 1), Vector3.new(c.X + 46, top + 13, c.Z + 26), Vector3.new(c.X, top + 13, c.Z), C(22, 96, 150), Enum.NormalId.Front)
-	part(lobby, "HowToPost", Vector3.new(1.4, 12, 1.4), Vector3.new(c.X + 46, top + 6, c.Z + 26), C(70, 76, 92), Enum.Material.Metal)
+	local hpart, hgui = board(lobby, "HowTo", Vector3.new(26, 22, 1), Vector3.new(c.X + H - 3, top + 17, c.Z + 8), Vector3.new(c.X, top + 17, c.Z + 8), C(40, 150, 150), Enum.NormalId.Front)
 	label(hgui, { Size = UDim2.new(1, 0, 0, 70), Text = "HOW TO PLAY", TextColor3 = WHITE })
-	label(hgui, { Position = UDim2.fromOffset(20, 80), Size = UDim2.new(1, -40, 1, -90), Text = "• Everyone has a " .. Config.Number.Digits .. "-digit number on a sign on their forehead.\n• Yours is on your screen: keep it hidden!\n• Put the dot on someone and type THEIR number.\n• Right = they are out. Wrong = you freeze.\n• F camera, G binoculars, chests give grenades.", Font = Enum.Font.GothamBold, TextScaled = false, TextSize = 25, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
-
-	-- the skyline: little floating islands with trees, and clouds
-	for i = 1, 7 do
-		local a = i * 0.9 + 0.3
-		local r = 120 + (i % 3) * 22
-		local x, z, y = c.X + math.cos(a) * r, c.Z + math.sin(a) * r, top - 6 + (i % 4) * 9
-		disc(lobby, "SkyIsle", x, y, z, 12, 6, GRASS, Enum.Material.Grass, false)
-		disc(lobby, "SkyIsleRock", x, y - 8, z, 8, 10, ROCK, Enum.Material.Slate, false)
-		tree(lobby, x, y + 3, z, 1.1)
-	end
-	for i = 1, 9 do
-		local a = i * 0.7
-		local r = 115 + (i % 4) * 20
-		local cloud = ball(lobby, "Cloud", 12 + (i % 3) * 6, Vector3.new(c.X + math.cos(a) * r, top - 14 + (i % 5) * 8, c.Z + math.sin(a) * r), WHITE, Enum.Material.SmoothPlastic)
-		cloud.Size = Vector3.new(cloud.Size.X * 1.6, cloud.Size.Y * 0.5, cloud.Size.Z)
-		cloud.Transparency = 0.25
-		cloud.CanCollide = false
-		cloud.CanQuery = false
-		cloud.CastShadow = false
-	end
+	label(hgui, { Position = UDim2.fromOffset(20, 80), Size = UDim2.new(1, -40, 1, -90), Text = "• Everyone has a " .. Config.Number.Digits .. "-digit number on a sign on their forehead.\n• Yours is on your screen: keep it hidden!\n• Put the dot on someone and type THEIR number.\n• Right = they are out. Wrong = you freeze.\n• F camera, G binoculars, chests give grenades.\n• Joined late? Wait here: the next match starts soon.", Font = Enum.Font.GothamBold, TextScaled = false, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
 
 	-- the default spawn: anybody Roblox spawns on its own (joining, resetting) appears in the lobby. It is invisible and you can't bump into it.
 	local home = Instance.new("SpawnLocation")

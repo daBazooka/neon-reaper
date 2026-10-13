@@ -51,7 +51,7 @@ check(decoCount > 400, "plenty of decoration: bushes, flowers, stones, reeds, li
 check(solidDeco == 0, "none of the decoration is solid, so nobody gets stuck on it (" .. solidDeco .. " solid)")
 local rainbows = 0
 for _, o in X.parts do if o.Name == "RainbowBand" then rainbows += 1 end end
-check(rainbows == 2 * 6 * 24, "two rainbows (one over the middle waterfall, one over the lobby): " .. rainbows .. " bands")
+check(rainbows == 6 * 24, "a rainbow over the middle waterfall: " .. rainbows .. " bands")
 check(attrsWS.BootErrors == nil, "the world still builds without any error")
 
 -- ---- the river current ----

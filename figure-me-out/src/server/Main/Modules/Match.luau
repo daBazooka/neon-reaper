@@ -41,6 +41,28 @@ local function toLobby(p)
 	end
 end
 
+Match.played = {} -- userId -> the last match they played in (the queue for a full server goes by this)
+
+-- Who is waiting in the lobby for the next match (not in the one that is running), and how many are playing. Also tells every
+-- waiting player their place in the queue. Published as attributes the screens read.
+function Match.publishQueue()
+	local waiting = 0
+	for _, p in Players:GetPlayers() do
+		local e = State.byPlayer(p)
+		if e then
+			p:SetAttribute("Playing", true)
+			p:SetAttribute("QueuePos", 0)
+		else
+			waiting += 1
+			p:SetAttribute("Playing", false)
+			p:SetAttribute("QueuePos", waiting)
+		end
+	end
+	workspace:SetAttribute("Waiting", waiting)
+	workspace:SetAttribute("MaxPlayers", Config.Match.MaxPlayers)
+	return waiting
+end
+
 -- Gives the player a fresh character standing in the lobby.
 function Match.respawnLobby(p)
 	if not p.Parent then
@@ -147,10 +169,22 @@ function Match.setup()
 	State.matchId += 1
 
 	local players = Players:GetPlayers()
+	-- at most 20 play. If more are here, the ones who sat out the last match go first, then whoever has waited longest
+	local order = {}
+	for i, p in players do
+		table.insert(order, { p = p, last = Match.played[p.UserId] or 0, i = i })
+	end
+	table.sort(order, function(a, b)
+		if a.last ~= b.last then
+			return a.last < b.last
+		end
+		return a.i < b.i
+	end)
 	local humans = {}
-	for _, p in players do
+	for _, o in order do
 		if #humans < Config.Match.MaxPlayers then
-			table.insert(humans, p)
+			table.insert(humans, o.p)
+			Match.played[o.p.UserId] = State.matchId
 		end
 	end
 	local botCount = math.max(0, math.min(Config.Match.MinTotal, Config.Match.MaxPlayers) - #humans)
@@ -365,6 +399,11 @@ function Match.tick(dt)
 		Match.reveal()
 	end
 	State.writeWorld()
+	local waiting = Match.publishQueue()
+	-- a practice round ends the moment somebody else is here, so they do not wait for it
+	if State.mode.Practice and waiting > 0 then
+		return true
+	end
 	return Modes.over() or now >= State.phaseEnd or not humansAlive()
 end
 
@@ -464,7 +503,7 @@ function Match.finish()
 			Plates.showReveal(e, true, false)
 		end
 	end
-	State.setPhase("results", State.now() + Config.Match.ResultsTime)
+	State.setPhase("results", State.now() + (mode.Practice and 3 or Config.Match.ResultsTime))
 	Votes.open() -- the vote for the next map is open from here until the lobby wait is over
 	Net.sendAll("results", rows, winnerId or 0, winnerTeam, mode.Id, { State.teamScore[1], State.teamScore[2] })
 	return winnerId, winnerTeam
@@ -533,7 +572,10 @@ function Match.onJoin(p)
 	end)
 	task.spawn(function()
 		Match.respawnLobby(p)
-		Match.dropIn(p) -- (a match is on: straight into it)
+		if Config.Match.DropIn then
+			Match.dropIn(p) -- (a match is on: straight into it)
+		end
+		Match.publishQueue()
 	end)
 end
 
@@ -630,9 +672,12 @@ function Match.run()
 	local first = Config.Match.FirstMatchAtOnce
 	while true do
 		State.setPhase("lobby", State.now() + Config.Match.Intermission)
-		Modes.chooseNext()
+		Modes.settle(#Players:GetPlayers())
 		Net.sendAll("phase", "lobby", State.phaseEnd)
+		Match.publishQueue()
 		waitUntil(function()
+			Modes.settle(#Players:GetPlayers())
+			Match.publishQueue()
 			if #Players:GetPlayers() < Config.Match.MinHumans then
 				State.phaseEnd = State.now() + Config.Match.Intermission
 				return false
@@ -653,7 +698,9 @@ function Match.run()
 		end
 		first = false
 
+		Modes.settle(math.min(#Players:GetPlayers(), Config.Match.MaxPlayers))
 		Match.setup()
+		Match.publishQueue()
 		State.setPhase("countdown", State.now() + Config.Match.Countdown)
 		Net.sendAll("phase", "countdown", State.phaseEnd)
 		Match.tellNumbers()
