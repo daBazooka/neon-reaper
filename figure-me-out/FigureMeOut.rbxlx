@@ -448,6 +448,15 @@ Config.Camp = {
 	BaseExempt = 30, -- capture the flag: staying this close to your own flag is allowed
 }
 
+-- Server-side movement check: the server compares where a player is now with where it saw them last. Anybody who
+-- moves much further than their speed allows (teleport / speed hacks) is put back where they were.
+Config.Sanity = {
+	Enabled = true,
+	SpeedSlack = 1.5, -- allowed distance = speed x time x this (lag makes players "catch up")
+	Slack = 8, -- ... plus this many studs, so small jolts and pushes are never punished
+	MaxDt = 1.5, -- at most this many seconds of movement are credited at once (after a lag spike)
+}
+
 Config.Movement = { Walk = 16, Jump = 50, ScopeWalk = 8 }
 
 --------------------------------------------------------------------------------
@@ -698,7 +707,7 @@ end
 
 -- Checks what the player typed. Returns the cleaned digits, or nil and a reason.
 function Rules.parseGuess(text)
-	if type(text) ~= "string" then
+	if type(text) ~= "string" or #text > 16 then
 		return nil, "type 3 digits"
 	end
 	local digits = string.gsub(text, "%s", "")
@@ -788,6 +797,24 @@ function Rules.campStep(anchor, timer, pos, dt)
 		return pos, 0
 	end
 	return anchor, timer + dt
+end
+
+-- Is a horizontal move of `distance` studs in `dt` seconds possible at `speed` studs per second?
+function Rules.moveAllowed(distance, speed, dt)
+	dt = math.clamp(dt, 0, Config.Sanity.MaxDt)
+	return distance <= speed * dt * Config.Sanity.SpeedSlack + Config.Sanity.Slack
+end
+
+-- A vector from a client that is safe to use: a real Vector3 with ordinary numbers (no NaN, no infinity, nothing huge).
+function Rules.cleanVector(v)
+	if typeof(v) ~= "Vector3" then
+		return nil
+	end
+	local x, y, z = v.X, v.Y, v.Z
+	if x ~= x or y ~= y or z ~= z or math.abs(x) > 1e5 or math.abs(y) > 1e5 or math.abs(z) > 1e5 then
+		return nil
+	end
+	return v
 end
 
 -- "ok", "warn" or "expose" for the idle timer.
@@ -1788,8 +1815,10 @@ function Alliance.share(e, entries)
 		return false
 	end
 	local clean = {}
+	local looked = 0
 	for _, row in entries do
-		if #clean >= Config.Alliance.MaxShare then
+		looked += 1
+		if #clean >= Config.Alliance.MaxShare or looked > 50 then
 			break
 		end
 		if type(row) == "table" and type(row[1]) == "number" and type(row[2]) == "string" and string.match(row[2], "^[%d%?][%d%?][%d%?]$") then
@@ -2397,6 +2426,7 @@ function Cover.reset(e)
 	e.exposedUntil = 0
 	e.violations = 0
 	e.campAnchor = nil
+	e.sanePos = nil; e.saneAt = nil
 	e.campLast = nil
 	e.campTimer = 0
 	e.campStage = "ok"
@@ -2480,6 +2510,40 @@ local function campStep(e)
 	e.campStage = stage
 end
 
+-- Movement check (teleport / speed hacks): if the player is further from where we last saw them than their speed allows,
+-- they are put back. Server-made teleports clear `sanePos` first (spawning, respawning).
+function Cover.sanity(e)
+	if not Config.Sanity.Enabled then
+		return
+	end
+	local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return
+	end
+	local now = State.now()
+	local pos = root.Position
+	local last = e.sanePos
+	if State.phase ~= "play" or not last then
+		e.sanePos, e.saneAt = pos, now
+		return
+	end
+	local dx, dz = pos.X - last.X, pos.Z - last.Z
+	local dist = math.sqrt(dx * dx + dz * dz)
+	if dist < 0.5 then
+		return -- standing still: the clock keeps running, so a lag spike followed by a jump is not mistaken for a teleport
+	end
+	local top = math.max(Config.Movement.Walk, Config.Sprint.Speed)
+	if (e.stunUntil or 0) > now then
+		top = 0
+	end
+	if Rules.moveAllowed(dist, top, now - (e.saneAt or now)) then
+		e.sanePos, e.saneAt = pos, now
+		return
+	end
+	e.sanityHits = (e.sanityHits or 0) + 1
+	e.char:PivotTo(CFrame.new(last.X, pos.Y, last.Z) * CFrame.Angles(0, 0, 0))
+end
+
 -- Called every Cover.Tick seconds for every living entity that is a real player.
 function Cover.step(e, dt)
 	local now = State.now()
@@ -2491,6 +2555,7 @@ function Cover.step(e, dt)
 	if not e.alive or not e.player then
 		return
 	end
+	Cover.sanity(e)
 	campStep(e)
 	local covered = Cover.isCovered(e)
 	e.coverTimer = Rules.coverStep(e.coverTimer or 0, covered, dt)
@@ -3534,7 +3599,8 @@ function Items.use(e, id, look)
 	if (e.stunUntil or 0) > now or Items.cooldownLeft(e, id) > 0 or now - (e.lastUse or -100) < 0.4 then
 		return false
 	end
-	if typeof(look) ~= "Vector3" or look.Magnitude < 0.1 then
+	look = Rules.cleanVector(look)
+	if not look or look.Magnitude < 0.1 then
 		local head = Vision.head(e)
 		look = head and head.CFrame.LookVector or Vector3.new(0, 0, -1)
 	end
@@ -3841,6 +3907,7 @@ function Match.setup()
 			Bots.place(e, spawn)
 		elseif e.char then
 			e.char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
+			e.sanePos = nil; e.saneAt = nil
 		end
 		finish(e, index)
 	end
@@ -4144,6 +4211,7 @@ function Match.run()
 		local spawn = Match.safeSpawn(victim.team)
 		if victim.char then
 			victim.char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
+			victim.sanePos = nil
 		end
 	end
 	Combat.onCredit = function(killer, victim)
@@ -4418,7 +4486,8 @@ function Photos.snap(p, origin, look)
 	if not e or State.phase ~= "play" or not e.alive then
 		return
 	end
-	if typeof(origin) ~= "Vector3" or typeof(look) ~= "Vector3" or look.Magnitude < 0.1 then
+	origin, look = Rules.cleanVector(origin), Rules.cleanVector(look)
+	if not origin or not look or look.Magnitude < 0.1 then
 		return
 	end
 	local now = State.now()
@@ -7793,6 +7862,7 @@ return Fx
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -7991,6 +8061,8 @@ function Hud.init(screen, d)
 	})
 	refs.tips = UI.label(root, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 14, 1, -14), Size = UDim2.fromOffset(300, 60), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "G guess   T ally   RMB hold: binoculars   click / F: photo   V notebook   I gadgets   1-8 gadgets" })
 
+	-- the keyboard hints are no use on a phone
+	refs.tips.Visible = UserInputService.KeyboardEnabled
 	-- everything important can shrink on small screens (phones, small windows)
 	for _, thing in { me, profile, refs.quick, bar, guess, refs.feed } do
 		table.insert(scaleObjects, UI.new("UIScale", {}, thing))
@@ -8086,7 +8158,9 @@ local function updateScale()
 	if not vp or type(vp.X) ~= "number" then
 		return
 	end
-	local want = math.clamp(math.min(vp.X / 1100, vp.Y / 650), 0.62, 1.1)
+	-- fingers need bigger buttons than a mouse does, so touch screens never shrink the HUD as far
+	local floor = UserInputService.TouchEnabled and 0.78 or 0.62
+	local want = math.clamp(math.min(vp.X / 1100, vp.Y / 650), floor, 1.1)
 	if math.abs(want - uiScale) > 0.01 then
 		uiScale = want
 		for _, obj in scaleObjects do
