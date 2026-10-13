@@ -1,5 +1,6 @@
 -- FIGURE ME OUT: the guess panel. Press G (or tap GUESS): pick who you mean from the list of people you can see (the one under
--- the crosshair is chosen for you), type their three digits and press CONFIRM (or Enter). The panel tells you what a wrong
+-- the crosshair is chosen for you) and type their three digits: the guess goes in by itself on the third digit (with
+-- Config.Guess.AutoSubmit off you press CONFIRM or Enter instead). The panel tells you what a wrong
 -- guess costs before you commit, and shows the cooldown. Nothing here ever shows a number: you have to find it yourself.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -28,6 +29,11 @@ for i = 0, 9 do
 	DIGIT_KEYS[Enum.KeyCode[({ "KeypadZero", "KeypadOne", "KeypadTwo", "KeypadThree", "KeypadFour", "KeypadFive", "KeypadSix", "KeypadSeven", "KeypadEight", "KeypadNine" })[i + 1]]] = tostring(i)
 end
 
+-- The digit a key stands for ("0".."9"), or nil.
+function Keypad.digitOf(keyCode)
+	return DIGIT_KEYS[keyCode]
+end
+
 function Keypad.isOpen()
 	return panel ~= nil and panel.Visible
 end
@@ -42,9 +48,11 @@ local function redraw()
 		l.Text = ch ~= "" and ch or "_"
 		l.TextColor3 = ch ~= "" and C.Text or C.Muted
 	end
-	local ready = #typed == Config.Number.Digits and target ~= nil
-	confirm.BackgroundColor3 = ready and C.Good or C.Disabled
-	confirm.Text = ready and "CONFIRM" or "TYPE 3 DIGITS"
+	if not Config.Guess.AutoSubmit then
+		local ready = #typed == Config.Number.Digits and target ~= nil
+		confirm.BackgroundColor3 = ready and C.Good or C.Disabled
+		confirm.Text = ready and "CONFIRM" or "TYPE 3 DIGITS"
+	end
 end
 
 -- People you could guess right now: alive, in sight, in range. Nearest first, the crosshair target first of all.
@@ -127,7 +135,7 @@ function Keypad.init(gui, d)
 		Name = "Keypad",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -84),
-		Size = UDim2.fromOffset(340, 430),
+		Size = UDim2.fromOffset(340, Config.Guess.AutoSubmit and 384 or 430), -- (no CONFIRM button when the guess goes in by itself)
 		Visible = false,
 		ZIndex = 30,
 	})
@@ -173,6 +181,7 @@ function Keypad.init(gui, d)
 		Keypad.close()
 	end)
 	confirm = UI.button(panel, { Position = UDim2.fromOffset(40, 204 + 4 * 42 + 4), Size = UDim2.fromOffset(260, 40), Text = "TYPE 3 DIGITS", TextSize = 18, BackgroundColor3 = C.Disabled, ZIndex = 31 })
+	confirm.Visible = not Config.Guess.AutoSubmit
 	confirm.MouseButton1Click:Connect(function()
 		Keypad.submit()
 	end)

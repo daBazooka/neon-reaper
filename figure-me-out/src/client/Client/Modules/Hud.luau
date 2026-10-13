@@ -22,6 +22,7 @@ local gui
 local refs = {}
 local feed = {}
 local slots = {}
+local myDigits = nil
 local lastSecond = -1
 local snapReadyAt = 0
 local aimAt, aimTarget, aimDistance = 0, nil, 0
@@ -92,10 +93,15 @@ function Hud.init(screen, d)
 		Size = UDim2.fromOffset(270, 104),
 	})
 	refs.meBox = me
-	refs.meTitle = UI.label(me, { Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -24, 0, 14), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "YOUR CODENAME" })
-	refs.meName = UI.label(me, { Position = UDim2.fromOffset(12, 20), Size = UDim2.new(1, -24, 0, 26), Font = UI.Fonts.Title, TextSize = 20, Text = "-" })
+	refs.meTitle = UI.label(me, { Position = UDim2.fromOffset(12, 6), Size = UDim2.fromOffset(134, 14), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "YOUR CODENAME" })
+	refs.meName = UI.label(me, { Position = UDim2.fromOffset(12, 20), Size = UDim2.fromOffset(136, 26), Font = UI.Fonts.Title, TextSize = 16, TextWrapped = false, Text = "-" })
+	-- your own digits, big: you must know them to hide them
+	refs.meCaption = UI.label(me, { Position = UDim2.fromOffset(150, 6), Size = UDim2.fromOffset(108, 14), Font = UI.Fonts.Bold, TextSize = 11, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Center, Text = "YOUR NUMBER" })
+	refs.meDigits = UI.label(me, { Position = UDim2.fromOffset(150, 18), Size = UDim2.fromOffset(108, 44), Font = UI.Fonts.Title, TextSize = 40, TextWrapped = false, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.5, Text = "---" })
+	refs.meCaption.Visible = Config.Number.ShowOwn
+	refs.meDigits.Visible = Config.Number.ShowOwn
 	refs.hearts = UI.label(me, { Position = UDim2.fromOffset(12, 48), Size = UDim2.fromOffset(120, 22), Font = UI.Fonts.Title, TextSize = 20, TextWrapped = false, Text = "" })
-	refs.score = UI.label(me, { Position = UDim2.fromOffset(130, 50), Size = UDim2.new(1, -142, 0, 20), Font = UI.Fonts.Title, TextSize = 16, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Right, Text = "" })
+	refs.score = UI.label(me, { Position = UDim2.fromOffset(150, 60), Size = UDim2.fromOffset(108, 18), Font = UI.Fonts.Title, TextSize = 15, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Center, Text = "" })
 	refs.pips = {}
 	for i = 1, Config.Guess.Bullets do
 		local pip = UI.new("Frame", { Position = UDim2.fromOffset(12 + (i - 1) * 26, 78), Size = UDim2.fromOffset(20, 16), BackgroundColor3 = C.Gold, BorderSizePixel = 0 }, me)
@@ -103,7 +109,7 @@ function Hud.init(screen, d)
 		UI.stroke(pip, C.Stroke, 2)
 		refs.pips[i] = pip
 	end
-	refs.meHint = UI.label(me, { Position = UDim2.fromOffset(150, 76), Size = UDim2.new(1, -162, 0, 20), Font = UI.Fonts.Bold, TextSize = 11, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Right, Text = "bullets" })
+	refs.meHint = UI.label(me, { Position = UDim2.fromOffset(150, 80), Size = UDim2.fromOffset(108, 16), Font = UI.Fonts.Bold, TextSize = 11, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Center, Text = "bullets" })
 
 	local profile = UI.panel(root, {
 		Name = "Profile",
@@ -259,6 +265,14 @@ function Hud.activate(id)
 	end
 end
 
+-- Your own digits, as the server told you (nil clears them).
+function Hud.setMyNumber(text)
+	myDigits = text
+	if refs.meDigits then
+		refs.meDigits.Text = text or "---"
+	end
+end
+
 function Hud.feed(text, color)
 	if not refs.feed then
 		return
@@ -354,17 +368,22 @@ function Hud.update()
 	local alive = View.aliveCount()
 	local playing = player:GetAttribute("Alive") == true and (phase == "play" or phase == "countdown")
 	refs.phase.Text = PHASE_TEXT[phase] or ""
+	-- not enough real players yet: the lobby waits (the clock does not run)
+	local waiting = phase == "lobby" and Players.NumPlayers < Config.Match.MinHumans
+	if waiting then
+		refs.phase.Text = "WAITING FOR PLAYERS"
+	end
 	if phase == "play" and alive <= 3 and alive > 0 then
 		refs.phase.Text = "⚠ ONLY " .. alive .. " LEFT"
 	end
-	refs.timer.Text = Util.clock(left)
+	refs.timer.Text = waiting and (Players.NumPlayers .. "/" .. Config.Match.MinHumans) or Util.clock(left)
 	local final = phase == "play" and left <= Config.Match.RevealAt
 	refs.timer.TextColor3 = final and C.Danger or C.Text
 	if final then
 		refs.topScale.Scale = uiScale * (1 + 0.05 * math.abs(math.sin(os.clock() * 5)))
 		if not finalShown then
 			finalShown = true
-			deps.Fx.announce("30 SECONDS LEFT!", "Every plate glows. Make it count!", C.Danger, 0.2)
+			deps.Fx.announce(Config.Match.RevealAt .. " SECONDS LEFT!", "Every plate glows. Make it count!", C.Danger, 0.2)
 			Audio.setIntensity(true)
 		end
 	else

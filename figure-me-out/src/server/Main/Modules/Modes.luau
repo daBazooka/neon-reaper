@@ -75,8 +75,21 @@ end
 -- Is the match over (before the clock runs out)?
 function Modes.over()
 	local mode = State.mode
+	local started = #State.order >= 2 -- (a match somebody plays alone, for practice, just runs until the clock ends)
 	if not mode.Teams then
-		return State.aliveCount() <= 1
+		return started and State.aliveCount() <= 1
+	end
+	if started then
+		-- a team with nobody left in it has lost (everybody on it left the game)
+		local alive = { 0, 0 }
+		for _, e in State.aliveList() do
+			if e.team then
+				alive[e.team] += 1
+			end
+		end
+		if alive[1] == 0 or alive[2] == 0 then
+			return true
+		end
 	end
 	local limit = mode.ScoreLimit or mode.CaptureLimit
 	return State.teamScore[1] >= limit or State.teamScore[2] >= limit
@@ -84,6 +97,19 @@ end
 
 -- The winning team (1 or 2), or 0 for a draw. Only for team modes.
 function Modes.winningTeam()
+	if #State.order >= 2 then
+		local alive = { 0, 0 }
+		for _, e in State.aliveList() do
+			if e.team then
+				alive[e.team] += 1
+			end
+		end
+		if alive[1] == 0 and alive[2] > 0 then
+			return 2
+		elseif alive[2] == 0 and alive[1] > 0 then
+			return 1
+		end
+	end
 	return Rules.winningTeam(State.teamScore, Modes.teamPoints())
 end
 

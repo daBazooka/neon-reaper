@@ -1,6 +1,7 @@
 -- ===== scenario =====
 local function check(cond, msg) print((cond and "PASS  " or "FAIL  ") .. msg) end
 do local C0 = require(RS.children.Shared.children.Config); C0.Map.use("city"); local F = C0.Features for k in F do F[k] = true end end -- these scenarios test the full game with every extra switched on
+do local M0 = require(RS.children.Shared.children.Config).Match; M0.MinTotal = 10; M0.MinHumans = 1 end -- these scenarios use bots as opponents (the shipped game has real players only)
 local ok, err = pcall(sources[MainN], MainN)
 check(ok, "Main runs without error " .. tostring(err))
 local State = require(ModN.children.State)

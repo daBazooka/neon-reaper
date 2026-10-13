@@ -3,6 +3,7 @@ local function check(cond, msg) print((cond and "PASS  " or "FAIL  ") .. msg) en
 local Config = require(RS.children.Shared.children.Config)
 Config.Modes.Mode = "deathmatch"
 Config.Sanity.Enabled = false
+do local M0 = require(RS.children.Shared.children.Config).Match; M0.MinTotal = 10; M0.MinHumans = 1 end -- these scenarios use bots as opponents (the shipped game has real players only)
 local ok, err = pcall(sources[MainN], MainN)
 check(ok, "Main runs without error " .. tostring(err))
 check(Config.Map.Theme == "canyon", "the game ships on Waterfall Canyon")

@@ -580,8 +580,9 @@ end
 
 -- A bright but not washed-out afternoon: moderate exposure, strong contrast, a little bloom.
 local function lighting()
-	Lighting.ClockTime = 14
-	Lighting.Brightness = 2.4
+	local look = Config.Look.play
+	Lighting.ClockTime = look.Clock
+	Lighting.Brightness = look.Brightness
 	Lighting.Ambient = C(120, 134, 158)
 	Lighting.OutdoorAmbient = C(140, 154, 178)
 	Lighting.ColorShift_Top = C(255, 244, 220)
@@ -592,9 +593,9 @@ local function lighting()
 	Lighting.FogEnd = 2500
 	effect(Lighting, "Sky", { StarCount = 0 })
 	effect(Lighting, "Atmosphere", { Density = 0.25, Color = C(190, 220, 250), Decay = C(120, 170, 230), Haze = 0.6, Glare = 0.1 })
-	effect(Lighting, "BloomEffect", { Intensity = 0.2, Size = 20, Threshold = 1.1 })
+	effect(Lighting, "BloomEffect", { Intensity = look.Bloom, Size = 20, Threshold = 1.1 })
 	effect(Lighting, "SunRaysEffect", { Intensity = 0.06, Spread = 0.8 })
-	effect(Lighting, "ColorCorrectionEffect", { Saturation = 0.12, Contrast = 0.12, TintColor = C(246, 252, 255) })
+	effect(Lighting, "ColorCorrectionEffect", { Saturation = look.Saturation, Contrast = look.Contrast, Brightness = look.Shift, TintColor = look.Tint })
 	effect(workspace.Terrain, "Clouds", { Cover = 0.55, Density = 0.5 })
 end
 

@@ -2,6 +2,7 @@
 local function check(cond, msg) print((cond and "PASS  " or "FAIL  ") .. msg) end
 local Config = require(RS.children.Shared.children.Config)
 Config.Modes.Mode = "deathmatch"
+do local M0 = require(RS.children.Shared.children.Config).Match; M0.MinTotal = 10; M0.MinHumans = 1 end -- these scenarios use bots as opponents (the shipped game has real players only)
 local ok, err = pcall(sources[MainN], MainN)
 check(ok, "Main runs without error " .. tostring(err))
 local State = require(ModN.children.State)
@@ -102,6 +103,19 @@ advance(1)
 check((p1.Character.root.Position - lobbyAt).Magnitude < 60, "after " .. Config.Lives.EliminatedDelay .. " seconds the player is back in the lobby")
 check(Config.Lives.RespawnDelay == 3, "losing a life respawns you after 3 seconds")
 
+-- ===== you are told your own number, and only yours =====
+local mine = {}
+for _, m in notifyLog do if m[1] == "myNumber" then mine[m.to] = m[2] end end
+check(mine[p1] ~= nil and mine[p1] == State.byPlayer(p1).number, "the player is told their own number")
+local leaked = false
+for _, m in notifyLog do
+	if m[1] == "myNumber" then
+		for _, e in State.list() do
+			if e.player ~= m.to and m[2] == e.number and e.player then leaked = true end
+		end
+	end
+end
+check(not leaked, "nobody is ever told somebody else's number")
 -- win streaks pay more
 local w2 = Rules.streakMultiplier(3)
 check(w2 == 1.5, "a 3-win streak pays x1.5")

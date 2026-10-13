@@ -320,6 +320,19 @@ function Rules.planePose(t, planes, index)
 	return x, planes.Height, z, -angle - math.pi
 end
 
+-- Which colour grade to show: "lobby", "play", "final" (the last seconds of a match) or "results".
+function Rules.lookFor(phase, secondsLeft)
+	if phase == "play" or phase == "countdown" then
+		if phase == "play" and secondsLeft <= Config.Match.RevealAt then
+			return "final"
+		end
+		return "play"
+	elseif phase == "results" then
+		return "results"
+	end
+	return "lobby"
+end
+
 -- Turns a direction (x, z) by `degrees` around the up axis. Returns the new x, z.
 function Rules.turn(x, z, degrees)
 	local r = math.rad(degrees)

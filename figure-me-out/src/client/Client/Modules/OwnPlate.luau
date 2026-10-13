@@ -1,6 +1,8 @@
 -- FIGURE ME OUT: you must never see your own number (forehead plate or the floating one). The plate is hidden on your screen only; everybody else
 -- still sees it.
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
 local OwnPlate = {}
 
@@ -26,6 +28,9 @@ local function watch(char)
 end
 
 function OwnPlate.init()
+	if Config.Number.ShowOwn then
+		return -- you may see your own number (that is how you know what to hide)
+	end
 	if player.Character then
 		watch(player.Character)
 	end

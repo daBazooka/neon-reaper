@@ -22,8 +22,8 @@ Config.Features = {
 
 Config.Match = {
 	MaxPlayers = 20,
-	MinHumans = 1, -- real players needed before a match starts (bots fill the rest up to MinTotal)
-	MinTotal = 10, -- bots fill the match up to this many players, so there is always a game (and 2 "players" is the minimum)
+	MinHumans = 2, -- real players needed before a match starts (the lobby waits until this many are here)
+	MinTotal = 0, -- 0 = real players only. (A number here would add bots up to that many players: handy for testing alone in Studio.)
 	Intermission = 10, -- lobby wait between matches (seconds)
 	Countdown = 5, -- before the start whistle
 	Length = 90, -- the match: a minute and a half
@@ -61,7 +61,7 @@ Config.Flag = {
 	TakePoints = 20, -- ... and for taking the enemy flag
 }
 
-Config.Number = { Digits = 3, Min = 1, Max = 999, TagRange = 110 } -- shown with leading zeros: 007, 042, 512
+Config.Number = { Digits = 3, Min = 1, Max = 999, TagRange = 110, ShowOwn = true } -- ShowOwn: you can see your own number (HUD, and your own plate and floating tag), so you know what to hide -- shown with leading zeros: 007, 042, 512
 
 -- Lives: a correct guess takes one life. You come back after a moment, protected, until your lives run out.
 Config.Lives = {
@@ -93,7 +93,7 @@ Config.Guess = {
 	BulletRegen = 25, -- seconds to get one bullet back
 	KillBullets = 2, -- bullets back for a successful guess
 	WarnTime = 4, -- how long the guessed player sees "someone guessed you" with an arrow
-	AutoSubmit = false, -- true = fires on the third digit; false = you press CONFIRM (or Enter)
+	AutoSubmit = true, -- true = the guess is sent the moment you type the third digit; false = you press CONFIRM (or Enter)
 }
 
 -- Covering your number: facing a wall or dead end for too long. You are warned, then exposed. Repeat offenders are
@@ -396,6 +396,19 @@ Config.Sounds = {
 	Flash = "rbxasset://sounds/flashbulb.wav",
 	Footsteps = "rbxasset://sounds/action_footsteps_plastic.mp3",
 }
+-- Colour grading. The screen's look changes with the moment, to keep it lively and the eyes interested:
+--   lobby   warm golden afternoon (calm, inviting)      play    bright and vivid (clear to read, rich colours)
+--   final   the last seconds: punchier, warmer, pulsing  results celebratory (extra colour, extra glow)
+-- Clock = time of day, Brightness = sun strength, Saturation/Contrast/Shift = colour correction (Shift is a small brightness
+-- nudge), Tint = overall colour cast, Bloom = glow on bright things. The client blends smoothly from one look to the next.
+Config.Look = {
+	Speed = 1.4, -- how fast it blends (bigger = quicker)
+	lobby = { Clock = 16.2, Brightness = 2.2, Saturation = 0.24, Contrast = 0.10, Shift = 0.0, Tint = C(255, 238, 216), Bloom = 0.34 },
+	play = { Clock = 14.0, Brightness = 2.4, Saturation = 0.20, Contrast = 0.14, Shift = 0.0, Tint = C(247, 252, 255), Bloom = 0.22 },
+	final = { Clock = 13.2, Brightness = 2.35, Saturation = 0.30, Contrast = 0.22, Shift = -0.02, Tint = C(255, 232, 222), Bloom = 0.30, Pulse = 0.035 },
+	results = { Clock = 15.4, Brightness = 2.3, Saturation = 0.34, Contrast = 0.12, Shift = 0.02, Tint = C(255, 244, 226), Bloom = 0.42 },
+}
+
 -- Waterfall Canyon: how fast the ripple patterns slide (screens per second; flip the sign if they run the wrong way).
 Config.Water = { FallSpeed = 0.9, RiverSpeed = -0.25, PushScale = 1, HighAbove = 9 } -- PushScale: how strong the current is (1 = normal, 0 = off). HighAbove: above this height you are on a bridge or rock, not in the water.
 Config.Sounds.Waterfall = "" -- optional looping waterfall sound: put an asset id from the Creator Store here

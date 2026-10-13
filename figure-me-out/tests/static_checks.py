@@ -141,6 +141,8 @@ for m in re.finditer(r"Net\.(?:send|sendAll|toast)\(", server):
         depth += {"(": 1, ")": -1}.get(server[i], 0)
         i += 1
     call = server[m.start():i]
+    if '"myNumber"' in call:
+        continue  # the one exception: you are told your own number (and nobody else's)
     if re.search(r"\.number\b|maskNumber|\.shown\b", call):
         problems.append("a message sends a number to a client: " + call.replace("\n", " ")[:90])
 # the results screen and the feed never show numbers either

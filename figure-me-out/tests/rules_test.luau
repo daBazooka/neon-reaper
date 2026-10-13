@@ -100,6 +100,17 @@ check(Rules.parseGuess(string.rep("1", 100000)) == nil and Rules.parseGuess(123)
 check(Rules.streakMultiplier(0) == 1 and Rules.streakMultiplier(1) == 1 and Rules.streakMultiplier(2) == 1.25 and Rules.streakMultiplier(3) == 1.5, "win streak multiplier grows by a quarter per extra win")
 check(Rules.streakMultiplier(100) == 1 + Config.Rewards.Streak.Step * Config.Rewards.Streak.Max, "...up to a cap")
 
+-- colour grades ----------------------------------------------------------------------------
+check(Rules.lookFor("lobby", 99) == "lobby" and Rules.lookFor("countdown", 5) == "play" and Rules.lookFor("play", 60) == "play" and Rules.lookFor("results", 0) == "results", "each moment of the game has its colour look")
+check(Rules.lookFor("play", Config.Match.RevealAt) == "final" and Rules.lookFor("play", Config.Match.RevealAt + 1) == "play", "the last seconds get the punchy look")
+local looksOk = true
+for _, n in { "lobby", "play", "final", "results" } do
+	local l = Config.Look[n]
+	if not (l.Saturation > 0 and l.Saturation < 0.5 and l.Contrast >= 0 and l.Contrast < 0.4 and l.Brightness > 1.5 and l.Brightness < 3.2 and l.Bloom < 0.6 and l.Clock > 10 and l.Clock < 18) then looksOk = false end
+end
+check(looksOk, "every look stays in a comfortable range (vivid, never washed out or harsh)")
+check(Config.Look.final.Saturation > Config.Look.play.Saturation and Config.Look.final.Contrast > Config.Look.play.Contrast, "the final seconds are punchier than the match")
+
 -- photos ----------------------------------------------------------------------------------
 local all = Rules.photoReadable(10, 1, { 0.99, 0.99, 0.99 })
 check(all[1] and all[2] and all[3], "up close and facing you, every digit shows")

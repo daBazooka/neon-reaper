@@ -20,7 +20,7 @@ a.Music = true; a.Sfx = true; a.Fx = true; a.Alive = false
 a.Level = 1; a.Coins = 40; a.XP = 30; a.XPInto = 30; a.XPNeed = 100; a.Trail = "none"; a.Effect = "pixels"; a.Owned = "emote:wave,emote:laugh,emote:cool,emote:think,emote:eyes"; a.Lives = 3; a.Score = 0; a.Ally = 0
 attrsWS.Phase = "lobby"; attrsWS.PhaseEnd = clock + 12; attrsWS.Alive = 0; attrsWS.Total = 0; attrsWS.Reveal = false
 
-do local F = require(SharedN.children.Config).Features for k in F do F[k] = true end end -- this scenario tests the full game with every extra switched on
+do local C0 = require(SharedN.children.Config); local F = C0.Features for k in F do F[k] = true end; C0.Guess.AutoSubmit = false; C0.Number.ShowOwn = false; C0.Match.MinHumans = 1 end -- this scenario tests the full game with every extra switched on
 local ok, err = pcall(sources[ClientN], ClientN)
 check(ok, "client starts " .. tostring(err))
 frames(3)
@@ -472,7 +472,7 @@ send("event", "end", "blackout", "BLACKOUT", "🌑", ""); frames(2)
 check(true, "blackout runs")
 -- the last stretch
 attrsWS.PhaseEnd = clock + 25; frames(3)
-check(X.seen("30 SECONDS LEFT!"), "the final 30 seconds are announced")
+check(X.seen(Config.Match.RevealAt .. " SECONDS LEFT!"), "the final seconds are announced")
 attrsWS.Alive = 3; frames(2)
 check(X.seen("ONLY 3 LEFT"), "a warning when only a few players remain")
 attrsWS.PhaseEnd = clock + 200; attrsWS.Alive = 6

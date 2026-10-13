@@ -26,6 +26,7 @@ local Menu = require(Modules.Menu)
 local Controls = require(Modules.Controls)
 local OwnPlate = require(Modules.OwnPlate)
 local Ambient = require(Modules.Ambient)
+local Grade = require(Modules.Grade)
 local Markers = require(Modules.Markers)
 local Inventory = require(Modules.Inventory)
 local Emotes = require(Modules.Emotes)
@@ -90,6 +91,7 @@ Markers.init()
 Controls.init(deps)
 OwnPlate.init()
 Ambient.init()
+Grade.init()
 Camera.init()
 Audio.startMusic()
 
@@ -141,6 +143,12 @@ function handlers.toast(text, kind)
 	Toasts.push(text, kind)
 end
 
+function handlers.myNumber(text)
+	if type(text) == "string" then
+		Hud.setMyNumber(text)
+	end
+end
+
 function handlers.phase(phase)
 	if phase == "countdown" then
 		if player:GetAttribute("Seen") == false then
@@ -156,6 +164,7 @@ function handlers.phase(phase)
 		Audio.horn()
 		Fx.flash(Color3.new(1, 1, 1), 0.3, 0.4)
 	elseif phase == "lobby" then
+		Hud.setMyNumber(nil)
 		Album.reset()
 		Inventory.resetClues()
 		Keypad.close()
@@ -275,6 +284,8 @@ function handlers.guessResult(result)
 		Audio.miss()
 		Fx.flash(C.Danger, 0.35, 0.4)
 		Toasts.push("Wrong number! -1 bullet, frozen", "bad")
+	elseif result == "hit" then
+		Fx.flash(C.Good, 0.3, 0.3)
 	elseif result == "invalid" then
 		Audio.error()
 	end

@@ -234,6 +234,18 @@ function Match.safeSpawn(team)
 	return best or arena[1]
 end
 
+-- Tells every real player their own number (and nobody else's), so they know what to hide.
+function Match.tellNumbers()
+	if not Config.Number.ShowOwn then
+		return
+	end
+	for _, e in State.list() do
+		if e.player then
+			Net.send(e.player, "myNumber", e.number)
+		end
+	end
+end
+
 function Match.reveal()
 	if State.revealing then
 		return
@@ -556,11 +568,13 @@ function Match.run()
 		Match.setup()
 		State.setPhase("countdown", State.now() + Config.Match.Countdown)
 		Net.sendAll("phase", "countdown", State.phaseEnd)
+		Match.tellNumbers()
 		waitUntil(function()
 			return State.now() >= State.phaseEnd
 		end)
 
 		State.setPhase("play", State.now() + Config.Match.Length)
+		Match.tellNumbers()
 		for _, e in State.list() do
 			Combat.applySpeed(e)
 		end

@@ -25,15 +25,16 @@ local function canAct()
 	return View.phase() == "play" and View.amAlive() and player:GetAttribute("Stunned") ~= true and not deps.Alerts.isStunned()
 end
 
+-- Opens (or closes) the number pad. Returns true when it is open afterwards.
 function Controls.guess()
 	if deps.Keypad.isOpen() then
 		deps.Keypad.close()
-		return
+		return false
 	end
 	if not canAct() then
-		return
+		return false
 	end
-	deps.Keypad.open()
+	return deps.Keypad.open()
 end
 
 -- Ask the player you are aiming at to team up, or end your alliance if you have one.
@@ -166,9 +167,14 @@ function Controls.init(d)
 			deps.Spectate.cycle(-1)
 		elseif kc == Enum.KeyCode.Right then
 			deps.Spectate.cycle(1)
-		elseif HOTKEYS[kc] then
-			if F.Gadgets or HOTKEYS[kc] == "binos" and F.Binoculars or HOTKEYS[kc] == "camera" and F.Photos then
-				deps.Hud.activate(HOTKEYS[kc])
+		elseif HOTKEYS[kc] and (F.Gadgets or HOTKEYS[kc] == "binos" and F.Binoculars or HOTKEYS[kc] == "camera" and F.Photos) then
+			deps.Hud.activate(HOTKEYS[kc])
+		elseif kc == Enum.KeyCode.Return or kc == Enum.KeyCode.KeypadEnter then
+			Controls.guess() -- Enter opens the number pad too
+		elseif deps.Keypad.digitOf(kc) and View.phase() == "play" and not deps.Menu.isOpen() and not deps.Album.isOpen() then
+			-- just start typing the number: the pad opens on whoever you are looking at, and the digit goes in
+			if Controls.guess() then
+				deps.Keypad.press(deps.Keypad.digitOf(kc))
 			end
 		elseif kind == Enum.UserInputType.MouseButton1 and not deps.Menu.isOpen() and not deps.Album.isOpen() then
 			if F.Photos then
