@@ -10,6 +10,7 @@ Config.GameName = "Figure Me Out"
 --------------------------------------------------------------------------------
 Config.Match = {
 	MaxPlayers = 20,
+	MinHumans = 1, -- real players needed before a match starts (bots fill the rest up to MinTotal)
 	MinTotal = 10, -- bots fill the match up to this many players, so there is always a game (and 2 "players" is the minimum)
 	Intermission = 14, -- lobby wait between matches (seconds)
 	Countdown = 8, -- before the start whistle
@@ -109,6 +110,8 @@ Config.Photo = {
 	NoticeDistance = 24, -- closer than this, the person photographed may notice the flash
 	NoticeChance = 0.6,
 }
+
+Config.Camera = { FirstPerson = true, MaxZoom = 14 } -- first person during matches; third person in the lobby, results and spectating
 
 Config.Scope = { Fov = 14, MinFov = 6, MaxFov = 24, NormalFov = 70 }
 

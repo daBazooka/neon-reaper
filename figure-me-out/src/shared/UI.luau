@@ -189,6 +189,20 @@ function UI.button(parent, props, style)
 	return btn, scale, grad
 end
 
+-- Frees the mouse while this window is visible. In first person Roblox locks the cursor to the middle of the screen; a visible
+-- button with Modal = true is the supported way to get the cursor back so the window's buttons can be clicked.
+function UI.modal(window)
+	return UI.new("TextButton", {
+		Name = "Modal",
+		Modal = true,
+		Size = UDim2.fromOffset(1, 1),
+		BackgroundTransparency = 1,
+		Text = "",
+		AutoButtonColor = false,
+		ZIndex = 1,
+	}, window)
+end
+
 -- Horizontal progress bar. Returns an object with :set(alpha) and .fill / .back.
 function UI.bar(parent, props, fillColor)
 	local back = UI.new("Frame", {

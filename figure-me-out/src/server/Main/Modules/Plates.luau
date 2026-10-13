@@ -41,7 +41,7 @@ function Plates.attachPlate(char, style, text)
 		old:Destroy()
 	end
 	local size = head.Size
-	local w = size.X * 1.25 -- a bold headband: wider than the head so the digits can be read from a distance
+	local w = size.X * 1.5 -- a bold headband: wider than the head so the digits can be read from a distance
 	local h = w * 0.5
 	local y = size.Y * 0.2
 	local z = -(size.Z / 2) - 0.05

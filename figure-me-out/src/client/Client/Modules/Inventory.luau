@@ -31,6 +31,7 @@ function Inventory.init(gui, d)
 		Visible = false,
 		ZIndex = 58,
 	})
+	UI.modal(window)
 	UI.label(window, { Position = UDim2.fromOffset(16, 10), Size = UDim2.new(1, -70, 0, 28), Font = UI.Fonts.Title, TextSize = 22, Text = "🎒 GADGETS", ZIndex = 59 })
 	local close = UI.button(window, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10), Size = UDim2.fromOffset(40, 32), Text = "✕", TextSize = 18, BackgroundColor3 = C.Danger, ZIndex = 59 })
 	close.MouseButton1Click:Connect(function()

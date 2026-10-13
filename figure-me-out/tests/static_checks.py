@@ -96,6 +96,13 @@ for name in sorted(set(re.findall(r"workspace:GetAttribute\(\"(\w+)\"\)", client
     if f'workspace:SetAttribute("{name}"' not in server:
         problems.append(f"the client reads workspace attribute '{name}' that the server never sets")
 
+# 4b. every Roblox class name used in the code is a real class (a typo here only fails on a real server)
+prelude = open(os.path.join(ROOT, "tests", "mock_prelude.luau")).read()
+known = set(re.findall(r'^\["(\w+)"\] = \{', prelude, re.M))
+for m in re.finditer(r'(?:Instance\.new|effect|FindFirstChildOfClass|FindFirstAncestorOfClass|FindFirstChildWhichIsA)\(\s*(?:[\w.]+,\s*)?"(\w+)"', joined):
+    if m.group(1) not in known:
+        problems.append(f"'{m.group(1)}' is not a Roblox class")
+
 # 5. the two remotes exist in the right order (the test mocks and the client both rely on Action first)
 s = read("server/Main/init.server.luau")
 if not (0 <= s.find('action.Name = "Action"') < s.find('notify.Name = "Notify"')):

@@ -194,6 +194,7 @@ function Menu.init(gui, d)
 		Visible = false,
 		ZIndex = 60,
 	})
+	UI.modal(window)
 	UI.label(window, { Position = UDim2.fromOffset(16, 10), Size = UDim2.new(1, -70, 0, 30), Font = UI.Fonts.Title, TextSize = 24, TextColor3 = C.Accent, Text = "FIGURE ME OUT", ZIndex = 61 })
 	local close = UI.button(window, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10), Size = UDim2.fromOffset(40, 32), Text = "✕", TextSize = 18, BackgroundColor3 = C.Danger, ZIndex = 61 })
 	close.MouseButton1Click:Connect(function()

@@ -150,3 +150,18 @@ do
 		return c
 	end
 end
+
+-- Lighting and Terrain start with no effects, exactly like a fresh place: the code must create them, which checks the class names
+do
+	local lighting = U("Lighting")
+	lighting.FindFirstChildOfClass = function() return nil end
+	local terrain = U("Terrain")
+	terrain.FindFirstChildOfClass = function() return nil end
+	local old = game.GetService
+	local gameBase = game
+	game = {GetService = function(self, n)
+		if n == "Lighting" then return lighting end
+		return old(self, n)
+	end, BindToClose = function() end}
+	rawset(workspace, "Terrain", terrain)
+end

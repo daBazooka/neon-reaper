@@ -306,38 +306,42 @@ function World.setBoard(lines)
 	end
 end
 
-local function effect(class, props)
-	local e = Lighting:FindFirstChildOfClass(class) or Instance.new(class)
-	for k, v in props do
-		e[k] = v
+-- Finds or creates a lighting effect and sets its properties. Optional: if anything about it fails, the game goes on.
+local function effect(parent, class, props)
+	local ok, err = pcall(function()
+		local e = parent:FindFirstChildOfClass(class)
+		if not e then
+			e = Instance.new(class)
+		end
+		for k, v in props do
+			e[k] = v
+		end
+		e.Parent = parent
+	end)
+	if not ok then
+		warn("[FigureMeOut] optional effect " .. class .. " skipped: " .. tostring(err))
 	end
-	e.Parent = Lighting
-	return e
+	return ok
 end
 
--- A bright, sunny afternoon.
+-- A bright but not washed-out afternoon: moderate exposure, strong contrast, a little bloom.
 local function lighting()
 	Lighting.ClockTime = 14
-	Lighting.Brightness = 3
-	Lighting.Ambient = C(150, 168, 190)
-	Lighting.OutdoorAmbient = C(170, 188, 210)
+	Lighting.Brightness = 2.4
+	Lighting.Ambient = C(120, 134, 158)
+	Lighting.OutdoorAmbient = C(140, 154, 178)
 	Lighting.ColorShift_Top = C(255, 244, 220)
-	Lighting.EnvironmentDiffuseScale = 0.7
-	Lighting.EnvironmentSpecularScale = 0.6
+	Lighting.EnvironmentDiffuseScale = 0.6
+	Lighting.EnvironmentSpecularScale = 0.5
 	Lighting.GlobalShadows = true
-	Lighting.FogColor = C(200, 230, 255)
+	Lighting.FogColor = C(190, 220, 250)
 	Lighting.FogEnd = 2500
-	local sky = Lighting:FindFirstChildOfClass("Sky") or Instance.new("Sky")
-	sky.StarCount = 0
-	sky.Parent = Lighting
-	effect("Atmosphere", { Density = 0.3, Color = C(190, 225, 255), Decay = C(120, 180, 240), Haze = 0.8, Glare = 0.2 })
-	effect("Bloom", { Intensity = 0.35, Size = 28, Threshold = 0.95 })
-	effect("SunRaysEffect", { Intensity = 0.1, Spread = 0.8 })
-	effect("ColorCorrectionEffect", { Saturation = 0.18, Contrast = 0.06, TintColor = C(244, 252, 255) })
-	local clouds = workspace.Terrain:FindFirstChildOfClass("Clouds") or Instance.new("Clouds")
-	clouds.Cover = 0.55
-	clouds.Density = 0.5
-	clouds.Parent = workspace.Terrain
+	effect(Lighting, "Sky", { StarCount = 0 })
+	effect(Lighting, "Atmosphere", { Density = 0.25, Color = C(190, 220, 250), Decay = C(120, 170, 230), Haze = 0.6, Glare = 0.1 })
+	effect(Lighting, "BloomEffect", { Intensity = 0.2, Size = 20, Threshold = 1.1 })
+	effect(Lighting, "SunRaysEffect", { Intensity = 0.06, Spread = 0.8 })
+	effect(Lighting, "ColorCorrectionEffect", { Saturation = 0.12, Contrast = 0.12, TintColor = C(246, 252, 255) })
+	effect(workspace.Terrain, "Clouds", { Cover = 0.55, Density = 0.5 })
 end
 
 -- Rolling green hills in the distance, a hazy horizon and floating bubbles (all decoration: nothing here can be hit).

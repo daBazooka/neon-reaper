@@ -294,6 +294,33 @@ send("results", {}, 0); frames(2)
 check(X.seen("NO WINNER"), "empty results are handled")
 attrsWS.Phase = "lobby"; frames(8)
 
+-- ===== camera: first person in a match, third person otherwise =====
+do
+	local Camera = require(ModN.children.Camera)
+	local PLAYER = localPlayer
+	a.Alive = false; attrsWS.Phase = "lobby"; frames(5)
+	check(Camera.mode() == "third" and PLAYER.CameraMode == Enum.CameraMode.Classic, "the lobby uses the normal third-person camera")
+	a.Alive = true; attrsWS.Phase = "countdown"; fireAll("attr_Alive"); frames(5)
+	check(Camera.mode() == "first" and PLAYER.CameraMode == Enum.CameraMode.LockFirstPerson, "a living player in a match is in first person")
+	attrsWS.Phase = "play"; frames(5)
+	check(Camera.mode() == "first", "still first person while playing")
+	mouse(UT.MouseButton2); frames(5); mouseUp(UT.MouseButton2); frames(5)
+	check(Camera.mode() == "first" and PLAYER.CameraMode == Enum.CameraMode.LockFirstPerson, "using binoculars never changes the camera mode")
+	local modals = 0
+	for _, b in X.buttons do if b.Modal == true then modals += 1 end end
+	check(modals >= 6, "every window that needs the mouse frees the cursor in first person (" .. modals .. " windows)")
+	a.Alive = false; fireAll("attr_Alive"); frames(5)
+	check(Camera.mode() == "third" and PLAYER.CameraMode == Enum.CameraMode.Classic, "when you are out you get the normal camera to spectate")
+	a.Alive = true; attrsWS.Phase = "results"; frames(5)
+	check(Camera.mode() == "third", "the results screen uses the normal camera")
+	Config.Camera.FirstPerson = false
+	attrsWS.Phase = "play"; frames(5)
+	check(Camera.mode() == "third", "first person can be switched off in Config")
+	Config.Camera.FirstPerson = true
+	frames(5)
+	a.Alive = false; attrsWS.Phase = "lobby"; frames(3)
+end
+
 -- ===== lives, scanner, alliances, clues, bounty, events, emotes =====
 a.Alive = true; attrsWS.Phase = "play"; attrsWS.PhaseEnd = clock + 200; attrsWS.Alive = 6; attrsWS.Total = 10
 frames(3)
@@ -396,7 +423,7 @@ check(X.click("Cosmetics") and X.seen("TRAILS") and X.seen("ELIMINATION EFFECTS"
 check(X.seen("LEVEL 1   •   🪙 40") and X.seen("🔒 Level 2") and X.seen("✓ EQUIPPED"), "locked items show the level they need; equipped ones are marked")
 local buys = fired("Buy")
 local cos = {}
-for _, b in X.buttons do if b.Text == "" and visible(b) then table.insert(cos, b) end end
+for _, b in X.buttons do if b.Text == "" and b.Modal ~= true and visible(b) then table.insert(cos, b) end end
 check(#cos == #Config.Trails + #Config.Effects + #Config.Emotes, "one card per cosmetic (" .. #cos .. ")")
 for _, f in cos[2].MouseButton1Click.fns do f() end
 check(fired("Buy") == buys + 1 and lastFired("Buy")[2] == "trail" and lastFired("Buy")[3] == "sparkle", "tapping a locked trail asks to buy it")
@@ -412,7 +439,7 @@ check(not X.seen("tap to equip"), "nothing unlocked yet to equip")
 a.Wins = 3; fireAll("attr_Wins"); frames(2)
 check(X.seen("tap to equip"), "unlocked plates can be equipped after winning")
 local cards = {}
-for _, b in X.buttons do if b.Text == "" and visible(b) then table.insert(cards, b) end end
+for _, b in X.buttons do if b.Text == "" and b.Modal ~= true and visible(b) then table.insert(cards, b) end end
 check(#cards == #Config.PlateStyles, "one card per plate (" .. #cards .. ")")
 local st = fired("Style")
 for _, f in cards[2].MouseButton1Click.fns do f() end

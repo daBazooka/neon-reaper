@@ -124,9 +124,6 @@ function Scope.set(value)
 		layout()
 	end
 	overlay.Visible = on
-	pcall(function()
-		Players.LocalPlayer.CameraMode = on and Enum.CameraMode.LockFirstPerson or Enum.CameraMode.Classic
-	end)
 	deps.Fx.setBaseFov(on and fov or Config.Scope.NormalFov)
 	pcall(function()
 		if on then

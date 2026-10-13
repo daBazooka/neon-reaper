@@ -131,6 +131,7 @@ function Keypad.init(gui, d)
 		Visible = false,
 		ZIndex = 30,
 	})
+	UI.modal(panel)
 	title = UI.label(panel, { Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 24), Font = UI.Fonts.Title, TextSize = 18, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Accent, Text = "WHO IS IT?", ZIndex = 31 })
 	chipRow = UI.new("Frame", { Position = UDim2.fromOffset(10, 36), Size = UDim2.new(1, -20, 0, 44), BackgroundTransparency = 1, ZIndex = 31 }, panel)
 	UI.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, chipRow)

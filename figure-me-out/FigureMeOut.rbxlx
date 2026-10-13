@@ -337,6 +337,7 @@ Config.GameName = "Figure Me Out"
 --------------------------------------------------------------------------------
 Config.Match = {
 	MaxPlayers = 20,
+	MinHumans = 1, -- real players needed before a match starts (bots fill the rest up to MinTotal)
 	MinTotal = 10, -- bots fill the match up to this many players, so there is always a game (and 2 "players" is the minimum)
 	Intermission = 14, -- lobby wait between matches (seconds)
 	Countdown = 8, -- before the start whistle
@@ -436,6 +437,8 @@ Config.Photo = {
 	NoticeDistance = 24, -- closer than this, the person photographed may notice the flash
 	NoticeChance = 0.6,
 }
+
+Config.Camera = { FirstPerson = true, MaxZoom = 14 } -- first person during matches; third person in the lobby, results and spectating
 
 Config.Scope = { Fov = 14, MinFov = 6, MaxFov = 24, NormalFov = 70 }
 
@@ -1169,6 +1172,20 @@ function UI.button(parent, props, style)
 		UI.tween(scale, 0.1, { Scale = 1.04 })
 	end)
 	return btn, scale, grad
+end
+
+-- Frees the mouse while this window is visible. In first person Roblox locks the cursor to the middle of the screen; a visible
+-- button with Modal = true is the supported way to get the cursor back so the window's buttons can be clicked.
+function UI.modal(window)
+	return UI.new("TextButton", {
+		Name = "Modal",
+		Modal = true,
+		Size = UDim2.fromOffset(1, 1),
+		BackgroundTransparency = 1,
+		Text = "",
+		AutoButtonColor = false,
+		ZIndex = 1,
+	}, window)
 end
 
 -- Horizontal progress bar. Returns an object with :set(alpha) and .fill / .back.
@@ -3569,7 +3586,7 @@ function Match.run()
 		State.setPhase("lobby", State.now() + Config.Match.Intermission)
 		Net.sendAll("phase", "lobby", State.phaseEnd)
 		waitUntil(function()
-			if #Players:GetPlayers() == 0 then
+			if #Players:GetPlayers() < Config.Match.MinHumans then
 				State.phaseEnd = State.now() + Config.Match.Intermission
 				return false
 			end
@@ -3995,7 +4012,7 @@ function Plates.attachPlate(char, style, text)
 		old:Destroy()
 	end
 	local size = head.Size
-	local w = size.X * 1.25 -- a bold headband: wider than the head so the digits can be read from a distance
+	local w = size.X * 1.5 -- a bold headband: wider than the head so the digits can be read from a distance
 	local h = w * 0.5
 	local y = size.Y * 0.2
 	local z = -(size.Z / 2) - 0.05
@@ -5052,38 +5069,42 @@ function World.setBoard(lines)
 	end
 end
 
-local function effect(class, props)
-	local e = Lighting:FindFirstChildOfClass(class) or Instance.new(class)
-	for k, v in props do
-		e[k] = v
+-- Finds or creates a lighting effect and sets its properties. Optional: if anything about it fails, the game goes on.
+local function effect(parent, class, props)
+	local ok, err = pcall(function()
+		local e = parent:FindFirstChildOfClass(class)
+		if not e then
+			e = Instance.new(class)
+		end
+		for k, v in props do
+			e[k] = v
+		end
+		e.Parent = parent
+	end)
+	if not ok then
+		warn("[FigureMeOut] optional effect " .. class .. " skipped: " .. tostring(err))
 	end
-	e.Parent = Lighting
-	return e
+	return ok
 end
 
--- A bright, sunny afternoon.
+-- A bright but not washed-out afternoon: moderate exposure, strong contrast, a little bloom.
 local function lighting()
 	Lighting.ClockTime = 14
-	Lighting.Brightness = 3
-	Lighting.Ambient = C(150, 168, 190)
-	Lighting.OutdoorAmbient = C(170, 188, 210)
+	Lighting.Brightness = 2.4
+	Lighting.Ambient = C(120, 134, 158)
+	Lighting.OutdoorAmbient = C(140, 154, 178)
 	Lighting.ColorShift_Top = C(255, 244, 220)
-	Lighting.EnvironmentDiffuseScale = 0.7
-	Lighting.EnvironmentSpecularScale = 0.6
+	Lighting.EnvironmentDiffuseScale = 0.6
+	Lighting.EnvironmentSpecularScale = 0.5
 	Lighting.GlobalShadows = true
-	Lighting.FogColor = C(200, 230, 255)
+	Lighting.FogColor = C(190, 220, 250)
 	Lighting.FogEnd = 2500
-	local sky = Lighting:FindFirstChildOfClass("Sky") or Instance.new("Sky")
-	sky.StarCount = 0
-	sky.Parent = Lighting
-	effect("Atmosphere", { Density = 0.3, Color = C(190, 225, 255), Decay = C(120, 180, 240), Haze = 0.8, Glare = 0.2 })
-	effect("Bloom", { Intensity = 0.35, Size = 28, Threshold = 0.95 })
-	effect("SunRaysEffect", { Intensity = 0.1, Spread = 0.8 })
-	effect("ColorCorrectionEffect", { Saturation = 0.18, Contrast = 0.06, TintColor = C(244, 252, 255) })
-	local clouds = workspace.Terrain:FindFirstChildOfClass("Clouds") or Instance.new("Clouds")
-	clouds.Cover = 0.55
-	clouds.Density = 0.5
-	clouds.Parent = workspace.Terrain
+	effect(Lighting, "Sky", { StarCount = 0 })
+	effect(Lighting, "Atmosphere", { Density = 0.25, Color = C(190, 220, 250), Decay = C(120, 170, 230), Haze = 0.6, Glare = 0.1 })
+	effect(Lighting, "BloomEffect", { Intensity = 0.2, Size = 20, Threshold = 1.1 })
+	effect(Lighting, "SunRaysEffect", { Intensity = 0.06, Spread = 0.8 })
+	effect(Lighting, "ColorCorrectionEffect", { Saturation = 0.12, Contrast = 0.12, TintColor = C(246, 252, 255) })
+	effect(workspace.Terrain, "Clouds", { Cover = 0.55, Density = 0.5 })
 end
 
 -- Rolling green hills in the distance, a hazy horizon and floating bubbles (all decoration: nothing here can be hit).
@@ -5191,6 +5212,7 @@ local OwnPlate = require(Modules.OwnPlate)
 local Markers = require(Modules.Markers)
 local Inventory = require(Modules.Inventory)
 local Emotes = require(Modules.Emotes)
+local Camera = require(Modules.Camera)
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "FigureMeOut"
@@ -5218,9 +5240,6 @@ local deps = {
 	Emotes = Emotes,
 }
 
-pcall(function()
-	player.CameraMaxZoomDistance = 14
-end)
 -- the player list, health bar and backpack would sit on top of the game's own screens
 task.spawn(function()
 	local StarterGui = game:GetService("StarterGui")
@@ -5253,6 +5272,7 @@ Emotes.init(gui, deps)
 Markers.init()
 Controls.init(deps)
 OwnPlate.init()
+Camera.init()
 Audio.startMusic()
 
 local C = UI.Colors
@@ -5573,6 +5593,7 @@ function Album.init(screen, d)
 		Visible = false,
 		ZIndex = 25,
 	})
+	UI.modal(panel)
 	UI.label(panel, {
 		Position = UDim2.fromOffset(14, 8),
 		Size = UDim2.new(1, -60, 0, 28),
@@ -5911,6 +5932,7 @@ function Alerts.init(gui, d)
 	refs.eventTitle = UI.label(refs.event, { Position = UDim2.fromOffset(0, 4), Size = UDim2.new(1, 0, 0, 24), Font = UI.Fonts.Title, TextSize = 18, TextXAlignment = Enum.TextXAlignment.Center, Text = "", ZIndex = 45 })
 	refs.eventSub = UI.label(refs.event, { Position = UDim2.fromOffset(0, 29), Size = UDim2.new(1, 0, 0, 20), Font = UI.Fonts.Bold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Center, Text = "", ZIndex = 45 })
 	refs.offer = UI.panel(gui, { Name = "AllyOffer", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0.7, 0), Size = UDim2.fromOffset(270, 96), BackgroundColor3 = Color3.fromRGB(30, 130, 70), Visible = false, ZIndex = 46 })
+	UI.modal(refs.offer)
 	refs.offerText = UI.label(refs.offer, { Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 36), Font = UI.Fonts.Bold, TextSize = 14, Text = "", ZIndex = 47 })
 	local yes = UI.button(refs.offer, { Position = UDim2.fromOffset(12, 50), Size = UDim2.fromOffset(120, 34), Text = "ACCEPT", TextSize = 15, BackgroundColor3 = C.Good, ZIndex = 47 })
 	local no = UI.button(refs.offer, { Position = UDim2.fromOffset(140, 50), Size = UDim2.fromOffset(120, 34), Text = "NO THANKS", TextSize = 13, BackgroundColor3 = C.Danger, ZIndex = 47 })
@@ -6169,6 +6191,78 @@ return Alerts
           </Item>
           <Item class="ModuleScript" referent="36">
             <Properties>
+              <string name="Name">Camera</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: the camera. During a match (while you are alive) you play in first person: you see through your own eyes, your own
+-- body and head are hidden from you, and the crosshair is always in the middle. In the lobby, while spectating and on the results
+-- screen you get the normal third-person camera. Your own forehead number is hidden from you in every view (see OwnPlate).
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local View = require(script.Parent:WaitForChild("View"))
+
+local Camera = {}
+
+local player = Players.LocalPlayer
+local mode = nil -- "first" or "third"
+
+function Camera.mode()
+	return mode
+end
+
+-- The mode we want right now.
+function Camera.wanted()
+	if Config.Camera.FirstPerson and View.amAlive() then
+		return "first"
+	end
+	return "third"
+end
+
+local function apply(want)
+	if want == mode then
+		return
+	end
+	mode = want
+	pcall(function()
+		if want == "first" then
+			player.CameraMode = Enum.CameraMode.LockFirstPerson
+		else
+			player.CameraMode = Enum.CameraMode.Classic
+			player.CameraMaxZoomDistance = Config.Camera.MaxZoom
+			-- pull back out of first person: ask for a minimum distance for a moment, then allow zooming in again
+			player.CameraMinZoomDistance = 12
+			task.delay(0.2, function()
+				player.CameraMinZoomDistance = 0.5
+			end)
+		end
+	end)
+end
+
+function Camera.init()
+	apply(Camera.wanted())
+	player:GetAttributeChangedSignal("Alive"):Connect(function()
+		apply(Camera.wanted())
+	end)
+	task.spawn(function()
+		while true do
+			task.wait(0.25)
+			apply(Camera.wanted())
+		end
+	end)
+end
+
+-- For the tests: re-evaluate right now.
+function Camera.refresh()
+	apply(Camera.wanted())
+end
+
+return Camera
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="37">
+            <Properties>
               <string name="Name">Controls</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: keyboard and mouse. G guess, hold right mouse (or Z) for binoculars, click or F for a photo, V for
 -- the notebook, 1 to 8 for items, M for the menu, arrow keys to change who you watch.
@@ -6339,7 +6433,7 @@ return Controls
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="37">
+          <Item class="ModuleScript" referent="38">
             <Properties>
               <string name="Name">Emotes</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the quick emote panel (💬 button). Tap an emoji and it pops up over your head for a few seconds. Great for
@@ -6391,6 +6485,7 @@ function Emotes.init(gui, d)
 		Visible = false,
 		ZIndex = 38,
 	})
+	UI.modal(panel)
 	UI.label(panel, { Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -24, 0, 18), Font = UI.Fonts.Title, TextSize = 14, TextColor3 = UI.Colors.Accent, Text = "💬 QUICK EMOTES", ZIndex = 39 })
 	grid = UI.new("Frame", { Position = UDim2.fromOffset(10, 30), Size = UDim2.new(1, -20, 1, -38), BackgroundTransparency = 1, ZIndex = 39 }, panel)
 	UI.new("UIGridLayout", { CellSize = UDim2.fromOffset(52, 44), CellPadding = UDim2.fromOffset(6, 6), SortOrder = Enum.SortOrder.LayoutOrder }, grid)
@@ -6441,7 +6536,7 @@ return Emotes
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="38">
+          <Item class="ModuleScript" referent="39">
             <Properties>
               <string name="Name">Fx</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
@@ -6679,7 +6774,7 @@ return Fx
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="39">
+          <Item class="ModuleScript" referent="40">
             <Properties>
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the always-on screen: timer and alive count, your codename, lives, points and bullets, the kill feed, the
@@ -6908,7 +7003,10 @@ function Hud.feed(text, color)
 	UI.label(line, { Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -16, 1, 0), Font = UI.Fonts.Bold, TextSize = 13, TextColor3 = color or C.Text, TextXAlignment = Enum.TextXAlignment.Right, TextWrapped = false, Text = text })
 	table.insert(feed, line)
 	while #feed > 6 do
-		table.remove(feed, 1):Destroy()
+		local oldest = table.remove(feed, 1)
+		if oldest then
+			oldest:Destroy()
+		end
 	end
 	task.delay(9, function()
 		local i = table.find(feed, line)
@@ -7087,7 +7185,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="40">
+          <Item class="ModuleScript" referent="41">
             <Properties>
               <string name="Name">Inventory</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the gadget inventory (🎒 or I). Every gadget with its charges, cooldown and what it does, plus the clues you
@@ -7123,6 +7221,7 @@ function Inventory.init(gui, d)
 		Visible = false,
 		ZIndex = 58,
 	})
+	UI.modal(window)
 	UI.label(window, { Position = UDim2.fromOffset(16, 10), Size = UDim2.new(1, -70, 0, 28), Font = UI.Fonts.Title, TextSize = 22, Text = "🎒 GADGETS", ZIndex = 59 })
 	local close = UI.button(window, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10), Size = UDim2.fromOffset(40, 32), Text = "✕", TextSize = 18, BackgroundColor3 = C.Danger, ZIndex = 59 })
 	close.MouseButton1Click:Connect(function()
@@ -7207,7 +7306,7 @@ return Inventory
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="41">
+          <Item class="ModuleScript" referent="42">
             <Properties>
               <string name="Name">Keypad</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the guess panel. Press G (or tap GUESS): pick who you mean from the list of people you can see (the one under
@@ -7343,6 +7442,7 @@ function Keypad.init(gui, d)
 		Visible = false,
 		ZIndex = 30,
 	})
+	UI.modal(panel)
 	title = UI.label(panel, { Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 24), Font = UI.Fonts.Title, TextSize = 18, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Accent, Text = "WHO IS IT?", ZIndex = 31 })
 	chipRow = UI.new("Frame", { Position = UDim2.fromOffset(10, 36), Size = UDim2.new(1, -20, 0, 44), BackgroundTransparency = 1, ZIndex = 31 }, panel)
 	UI.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, chipRow)
@@ -7510,7 +7610,7 @@ return Keypad
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="42">
+          <Item class="ModuleScript" referent="43">
             <Properties>
               <string name="Name">Markers</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: little markers drawn only on your screen: the green 🤝 over your ally, and the pings from your scanner.
@@ -7599,7 +7699,7 @@ return Markers
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="43">
+          <Item class="ModuleScript" referent="44">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the menu window: how to play, forehead plates you unlock by winning, your stats and the settings.
@@ -7798,6 +7898,7 @@ function Menu.init(gui, d)
 		Visible = false,
 		ZIndex = 60,
 	})
+	UI.modal(window)
 	UI.label(window, { Position = UDim2.fromOffset(16, 10), Size = UDim2.new(1, -70, 0, 30), Font = UI.Fonts.Title, TextSize = 24, TextColor3 = C.Accent, Text = "FIGURE ME OUT", ZIndex = 61 })
 	local close = UI.button(window, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10), Size = UDim2.fromOffset(40, 32), Text = "✕", TextSize = 18, BackgroundColor3 = C.Danger, ZIndex = 61 })
 	close.MouseButton1Click:Connect(function()
@@ -7911,7 +8012,7 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="44">
+          <Item class="ModuleScript" referent="45">
             <Properties>
               <string name="Name">OwnPlate</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: you must never see your own forehead number. The plate is hidden on your screen only; everybody else
@@ -7952,7 +8053,7 @@ return OwnPlate
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="45">
+          <Item class="ModuleScript" referent="46">
             <Properties>
               <string name="Name">Results</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the scoreboard at the end of every match.
@@ -8169,7 +8270,7 @@ return Results
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="46">
+          <Item class="ModuleScript" referent="47">
             <Properties>
               <string name="Name">Scope</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the binoculars. Hold the right mouse button (or Z, or tap the 🔭 slot) to zoom far across the map and
@@ -8298,9 +8399,6 @@ function Scope.set(value)
 		layout()
 	end
 	overlay.Visible = on
-	pcall(function()
-		Players.LocalPlayer.CameraMode = on and Enum.CameraMode.LockFirstPerson or Enum.CameraMode.Classic
-	end)
 	deps.Fx.setBaseFov(on and fov or Config.Scope.NormalFov)
 	pcall(function()
 		if on then
@@ -8335,7 +8433,7 @@ return Scope
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="47">
+          <Item class="ModuleScript" referent="48">
             <Properties>
               <string name="Name">Spectate</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: once you are out, you watch the others. The camera follows a living player; press ◀ ▶ (or the arrow
@@ -8472,7 +8570,7 @@ return Spectate
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="48">
+          <Item class="ModuleScript" referent="49">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -8582,7 +8680,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="49">
+          <Item class="ModuleScript" referent="50">
             <Properties>
               <string name="Name">View</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the client's picture of the match. Reads the attributes the server writes and finds the people in the
@@ -8775,7 +8873,7 @@ return View
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="50">
+  <Item class="Workspace" referent="51">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

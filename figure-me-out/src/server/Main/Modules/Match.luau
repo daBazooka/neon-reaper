@@ -482,7 +482,7 @@ function Match.run()
 		State.setPhase("lobby", State.now() + Config.Match.Intermission)
 		Net.sendAll("phase", "lobby", State.phaseEnd)
 		waitUntil(function()
-			if #Players:GetPlayers() == 0 then
+			if #Players:GetPlayers() < Config.Match.MinHumans then
 				State.phaseEnd = State.now() + Config.Match.Intermission
 				return false
 			end

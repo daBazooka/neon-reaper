@@ -14,4 +14,11 @@ for t in fmo_rules_test fmo_server_test fmo_full_test fmo_client_test; do
 		fail=1
 	fi
 done
+# type-check against Roblox's real API (skipped when the tools are not installed)
+LSP=${LSP:-/tmp/claude-0/lu/luau-lsp}
+if [ -x "$LSP" ] && [ -f /tmp/claude-0/lu/globalTypes.d.luau ]; then
+	/tmp/claude-0/lu/rojo sourcemap default.project.json -o /tmp/claude-0/lu/sourcemap.json >/dev/null 2>&1
+	types=$($LSP analyze --definitions=/tmp/claude-0/lu/globalTypes.d.luau --base-luaurc=/tmp/claude-0/lu/base.luaurc --sourcemap=/tmp/claude-0/lu/sourcemap.json src 2>&1 | grep -a "TypeError" | grep -av "not found in table 'refs'")
+	if [ -n "$types" ]; then echo "real-API type check: problems"; echo "$types" | head -8; fail=1; else echo "real-API type check: OK"; fi
+fi
 exit $fail

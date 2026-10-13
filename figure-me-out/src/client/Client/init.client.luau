@@ -28,6 +28,7 @@ local OwnPlate = require(Modules.OwnPlate)
 local Markers = require(Modules.Markers)
 local Inventory = require(Modules.Inventory)
 local Emotes = require(Modules.Emotes)
+local Camera = require(Modules.Camera)
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "FigureMeOut"
@@ -55,9 +56,6 @@ local deps = {
 	Emotes = Emotes,
 }
 
-pcall(function()
-	player.CameraMaxZoomDistance = 14
-end)
 -- the player list, health bar and backpack would sit on top of the game's own screens
 task.spawn(function()
 	local StarterGui = game:GetService("StarterGui")
@@ -90,6 +88,7 @@ Emotes.init(gui, deps)
 Markers.init()
 Controls.init(deps)
 OwnPlate.init()
+Camera.init()
 Audio.startMusic()
 
 local C = UI.Colors

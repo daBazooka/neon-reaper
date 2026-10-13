@@ -224,7 +224,10 @@ function Hud.feed(text, color)
 	UI.label(line, { Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -16, 1, 0), Font = UI.Fonts.Bold, TextSize = 13, TextColor3 = color or C.Text, TextXAlignment = Enum.TextXAlignment.Right, TextWrapped = false, Text = text })
 	table.insert(feed, line)
 	while #feed > 6 do
-		table.remove(feed, 1):Destroy()
+		local oldest = table.remove(feed, 1)
+		if oldest then
+			oldest:Destroy()
+		end
 	end
 	task.delay(9, function()
 		local i = table.find(feed, line)

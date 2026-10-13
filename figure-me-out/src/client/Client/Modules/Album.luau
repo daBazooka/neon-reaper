@@ -55,6 +55,7 @@ function Album.init(screen, d)
 		Visible = false,
 		ZIndex = 25,
 	})
+	UI.modal(panel)
 	UI.label(panel, {
 		Position = UDim2.fromOffset(14, 8),
 		Size = UDim2.new(1, -60, 0, 28),

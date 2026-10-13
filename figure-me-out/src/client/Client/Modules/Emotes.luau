@@ -47,6 +47,7 @@ function Emotes.init(gui, d)
 		Visible = false,
 		ZIndex = 38,
 	})
+	UI.modal(panel)
 	UI.label(panel, { Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -24, 0, 18), Font = UI.Fonts.Title, TextSize = 14, TextColor3 = UI.Colors.Accent, Text = "💬 QUICK EMOTES", ZIndex = 39 })
 	grid = UI.new("Frame", { Position = UDim2.fromOffset(10, 30), Size = UDim2.new(1, -20, 1, -38), BackgroundTransparency = 1, ZIndex = 39 }, panel)
 	UI.new("UIGridLayout", { CellSize = UDim2.fromOffset(52, 44), CellPadding = UDim2.fromOffset(6, 6), SortOrder = Enum.SortOrder.LayoutOrder }, grid)
