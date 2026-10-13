@@ -205,6 +205,12 @@ function Audio.countdown(n, final)
 	Audio.play("Tone", final and 1.6 or 1.0, 0.7)
 end
 
+function Audio.horn() -- the round starts
+	Audio.play("Bass", 0.55, 1)
+	Audio.play("Bass", 0.7, 0.8)
+	run({ 5, 8, 12 }, 0.12, 0.7)
+end
+
 function Audio.tick()
 	Audio.play("Click", 1.8, 0.25)
 end
@@ -403,12 +409,13 @@ Config.Flag = {
 	TakePoints = 20, -- ... and for taking the enemy flag
 }
 
-Config.Number = { Digits = 3, Min = 1, Max = 999 } -- shown with leading zeros: 007, 042, 512
+Config.Number = { Digits = 3, Min = 1, Max = 999, TagRange = 110 } -- shown with leading zeros: 007, 042, 512
 
 -- Lives: a correct guess takes one life. You come back after a moment, protected, until your lives run out.
 Config.Lives = {
 	Start = 3,
-	RespawnDelay = 2.0, -- you are frozen and glitching for this long, then you pop up somewhere else
+	RespawnDelay = 3.0, -- you are frozen and glitching for this long, then you pop up somewhere else
+	EliminatedDelay = 3, -- out of lives: after this long you are sent back to the lobby (and spectate from there)
 	Protect = 5, -- seconds nobody can guess you after coming back
 	AntiFarm = 25, -- you can't score on the same person again for this long
 }
@@ -515,7 +522,9 @@ Config.Photo = {
 	NoticeChance = 0.6,
 }
 
-Config.Camera = { FirstPerson = true, MaxZoom = 14 } -- first person during matches; third person in the lobby, results and spectating
+-- Third person with mouse-wheel zoom (0.5 = first person, 30 = far away). Occlusion "Zoom" pulls the camera in when a wall is in
+-- the way (so it never clips); "Invisicam" instead makes walls see-through. Set FirstPerson = true to lock first person in matches.
+Config.Camera = { FirstPerson = false, MinZoom = 0.5, MaxZoom = 30, Occlusion = "Zoom" }
 
 Config.Scope = { Fov = 14, MinFov = 6, MaxFov = 24, NormalFov = 70 }
 
@@ -2449,6 +2458,7 @@ function Cover.reset(e)
 	e.coverStage = "ok"
 	e.exposedUntil = 0
 	e.violations = 0
+	e.coverLast = nil
 	e.campAnchor = nil
 	e.sanePos = nil; e.saneAt = nil
 	e.campLast = nil
@@ -2582,6 +2592,9 @@ function Cover.step(e, dt)
 	Cover.sanity(e)
 	campStep(e)
 	local covered = Cover.isCovered(e)
+	-- real time since the last check (the tick loop runs a little slower than its nominal rate)
+	dt = math.clamp(now - (e.coverLast or now), 0, 1)
+	e.coverLast = now
 	e.coverTimer = Rules.coverStep(e.coverTimer or 0, covered, dt)
 	local stage = Rules.coverStage(e.coverTimer)
 	if stage == "expose" then
@@ -3564,6 +3577,10 @@ local function makeDecoy(e)
 	if label then
 		label.Text = number
 	end
+	local tagLabel = model:FindFirstChild("TagDigits", true)
+	if tagLabel then
+		tagLabel.Text = number
+	end
 	local hum = model:FindFirstChildOfClass("Humanoid")
 	if hum then
 		hum.WalkSpeed = 0
@@ -3845,7 +3862,8 @@ function Match.setup()
 	local botCount = math.max(0, math.min(Config.Match.MinTotal, Config.Match.MaxPlayers) - #humans)
 	local total = #humans + botCount
 	local names = Rules.codenames(roll, total)
-	local spawnOrder = shuffled(#Config.Map.Spawns)
+	local arena = World.arenaSpawns()
+	local spawnOrder = shuffled(#arena)
 	local now = State.now()
 
 	local function finish(e, index)
@@ -3908,7 +3926,7 @@ function Match.setup()
 	local pools, taken = {}, { 0, 0 }
 	for team = 1, 2 do
 		local side = {}
-		for _, sp in Config.Map.Spawns do
+		for _, sp in arena do
 			if (team == 1 and sp.X < 0) or (team == 2 and sp.X > 0) then
 				table.insert(side, sp)
 			end
@@ -3925,7 +3943,7 @@ function Match.setup()
 			taken[e.team] += 1
 			spawn = pools[e.team][(taken[e.team] - 1) % #pools[e.team] + 1]
 		else
-			spawn = Config.Map.Spawns[spawnOrder[(index - 1) % #spawnOrder + 1]]
+			spawn = arena[spawnOrder[(index - 1) % #spawnOrder + 1]]
 		end
 		if e.bot then
 			Bots.place(e, spawn)
@@ -3947,7 +3965,8 @@ end
 -- A spawn point with nobody close, for somebody who lost a life and is coming back.
 function Match.safeSpawn(team)
 	local best, bestScore = nil, -1
-	for _, spawn in Config.Map.Spawns do
+	local arena = World.arenaSpawns()
+	for _, spawn in arena do
 		if team and ((team == 1 and spawn.X > 0) or (team == 2 and spawn.X < 0)) then
 			continue
 		end
@@ -3963,7 +3982,7 @@ function Match.safeSpawn(team)
 			best, bestScore = spawn, score
 		end
 	end
-	return best or Config.Map.Spawns[1]
+	return best or arena[1]
 end
 
 function Match.reveal()
@@ -4264,7 +4283,7 @@ function Match.run()
 		Flags.dropCarried(victim, "out")
 		local p = victim.player
 		if p then
-			task.delay(3, function()
+			task.delay(Config.Lives.EliminatedDelay, function()
 				if State.phase == "play" or State.phase == "countdown" then
 					Match.respawnLobby(p)
 				end
@@ -4871,6 +4890,9 @@ function Plates.setText(e, text)
 	if plate and plate.label then
 		plate.label.Text = text
 	end
+	if e.numberTag and e.numberTag.label then
+		e.numberTag.label.Text = text
+	end
 end
 
 -- The codename tag that floats above the head ("🦊 Red Fox").
@@ -4894,6 +4916,30 @@ function Plates.attachTag(char, text, color)
 	gui.Parent = head
 	label(gui, { Text = text, TextColor3 = color, TextStrokeTransparency = 0.3, TextScaled = false, TextSize = 18 })
 	return gui
+end
+
+-- The big number that floats above the head (everybody but you sees it; OwnPlate hides it on your own screen). It is drawn
+-- in the world, so walls hide it, and it only shows within Config.Number.TagRange studs.
+function Plates.attachNumberTag(char, text)
+	local head = char:FindFirstChild("Head")
+	if not head then
+		return nil
+	end
+	local old = head:FindFirstChild("NumberTag")
+	if old then
+		old:Destroy()
+	end
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "NumberTag"
+	gui.Size = UDim2.fromOffset(120, 46)
+	gui.StudsOffset = Vector3.new(0, 3.6, 0)
+	gui.MaxDistance = Config.Number.TagRange
+	gui.AlwaysOnTop = false
+	gui.LightInfluence = 0
+	gui.Adornee = head
+	gui.Parent = head
+	local text3 = label(gui, { Name = "TagDigits", Text = text, TextColor3 = Color3.fromRGB(255, 232, 90), TextStrokeColor3 = Color3.fromRGB(20, 40, 90), TextStrokeTransparency = 0, Font = Enum.Font.FredokaOne })
+	return { gui = gui, label = text3 }
 end
 
 -- A small eye marker above the head of an exposed player (no digits: the number is only ever on the forehead).
@@ -4954,6 +5000,9 @@ function Plates.hide(e)
 		plate.rim.Transparency = 1
 		plate.gui.Enabled = false
 		plate.light.Enabled = false
+	end
+	if e.numberTag and e.numberTag.gui then
+		e.numberTag.gui.Enabled = false
 	end
 	if e.reveal and e.reveal.gui then
 		e.reveal.gui.Enabled = false
@@ -5116,6 +5165,7 @@ function Plates.setup(e)
 	Plates.dress(char, e.color)
 	e.plate = Plates.attachPlate(char, e.styleDef, e.number)
 	e.tag = Plates.attachTag(char, e.icon .. " " .. e.code, e.color)
+	e.numberTag = Plates.attachNumberTag(char, e.number)
 	e.reveal = Plates.attachReveal(char)
 	e.bountyTag = Plates.attachBounty(char)
 	e.flagTag = Plates.attachFlagTag(char)
@@ -5980,14 +6030,26 @@ local function buildArena()
 			lamp(lamps, 112 * sx, 31 * sz)
 		end
 	end
-	-- clearly marked spawn points: glowing pads on the street
-	local pads = folder("SpawnPads")
+	-- Workspace.ArenaSpawns: one SpawnLocation per spawn point (disabled, so they are only used when a round starts).
+	-- Drag them around in Studio and the game uses the new places; add or delete some, there are always at least 10 in use
+	-- (if the folder is ever missing or empty the positions in Config.Map.Spawns are used instead).
+	local pads = folder("ArenaSpawns")
 	for i, spawn in m.Spawns do
-		local pad = neon(pads, "SpawnPad" .. i, Vector3.new(6, 0.15, 6), Vector3.new(spawn.X, 0.5, spawn.Z), C(120, 230, 255))
-		pad.Shape = Enum.PartType.Cylinder
-		pad.Size = Vector3.new(0.15, 6, 6)
-		pad.CFrame = CFrame.new(spawn.X, 0.5, spawn.Z) * CFrame.Angles(0, 0, math.pi / 2)
+		local pad = Instance.new("SpawnLocation")
+		pad.Name = "ArenaSpawn" .. i
+		pad.Size = Vector3.new(6, 0.4, 6)
+		pad.Position = Vector3.new(spawn.X, spawn.Y - 3, spawn.Z)
+		pad.Anchored = true
+		pad.Enabled = false
+		pad.Neutral = true
+		pad.AllowTeamChangeOnTouch = false
+		pad.Duration = 0
+		pad.Material = Enum.Material.Neon
+		pad.Color = C(120, 230, 255)
 		pad.Transparency = 0.35
+		pad.CanQuery = false
+		pad.TopSurface = Enum.SurfaceType.Smooth
+		pad.Parent = pads
 	end
 	local crates = folder("Crates")
 	Pickups.build(crates)
@@ -6107,6 +6169,19 @@ local function buildLobby()
 		local pad = part(lobby, "Pad", Vector3.new(4, 0.3, 4), c + Vector3.new(math.cos(angle) * 30, 0.35, math.sin(angle) * 30), C(130, 214, 250))
 		pad.CanQuery = false
 	end
+	-- the default spawn: anybody Roblox spawns on its own (joining, resetting) appears in the lobby
+	local home = Instance.new("SpawnLocation")
+	home.Name = "LobbySpawnLocation"
+	home.Size = Vector3.new(10, 0.4, 10)
+	home.Position = c + Vector3.new(0, 0.5, 0)
+	home.Anchored = true
+	home.Neutral = true
+	home.Duration = 0
+	home.Transparency = 0.6
+	home.Material = Enum.Material.Neon
+	home.Color = AQUA
+	home.TopSurface = Enum.SurfaceType.Smooth
+	home.Parent = lobby
 end
 
 function World.lobbySpawn(i)
@@ -6115,8 +6190,32 @@ function World.lobbySpawn(i)
 	return c + Vector3.new(math.cos(angle) * 30, 4, math.sin(angle) * 30)
 end
 
+-- Where players stand when a round starts: the pads in Workspace.ArenaSpawns (so you can move them in Studio), or the
+-- built-in list when that folder is missing or has fewer than 10 pads.
+function World.arenaSpawns()
+	local list = {}
+	local pads = workspace:FindFirstChild("ArenaSpawns")
+	if pads then
+		for _, pad in pads:GetChildren() do
+			if pad:IsA("BasePart") then
+				table.insert(list, Vector3.new(pad.Position.X, pad.Position.Y + 3, pad.Position.Z))
+			end
+		end
+	end
+	if #list < 10 then
+		return Config.Map.Spawns
+	end
+	table.sort(list, function(a, b)
+		if a.X ~= b.X then
+			return a.X < b.X
+		end
+		return a.Z < b.Z
+	end)
+	return list
+end
+
 function World.arenaSpawn(i)
-	local list = Config.Map.Spawns
+	local list = World.arenaSpawns()
 	return list[(i - 1) % #list + 1]
 end
 
@@ -6232,6 +6331,11 @@ return World
   <Item class="StarterPlayer" referent="32">
     <Properties>
       <string name="Name">StarterPlayer</string>
+      <float name="CameraMaxZoomDistance">30</float>
+      <float name="CameraMinZoomDistance">0.5</float>
+      <token name="DevCameraOcclusionMode">0</token>
+      <token name="DevComputerCameraMovementMode">0</token>
+      <token name="DevTouchCameraMovementMode">0</token>
     </Properties>
     <Item class="StarterPlayerScripts" referent="33">
       <Properties>
@@ -6393,6 +6497,7 @@ function handlers.phase(phase)
 	elseif phase == "play" then
 		Fx.announce("GO!", "Someone is always watching", C.Good, 0.22)
 		Audio.countdown(0, true)
+		Audio.horn()
 		Fx.flash(Color3.new(1, 1, 1), 0.3, 0.4)
 	elseif phase == "lobby" then
 		Album.reset()
@@ -7307,7 +7412,8 @@ return Alerts
           <Item class="ModuleScript" referent="38">
             <Properties>
               <string name="Name">Camera</string>
-              <string name="Source"><![CDATA[-- FIGURE ME OUT: the camera. During a match (while you are alive) you play in first person: you see through your own eyes, your own
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: the camera. By default you play in third person with mouse-wheel zoom (0.5 to 30 studs) and wall-proof "Zoom" occlusion,
+-- so the camera never clips and your own character never disappears. (With Config.Camera.FirstPerson = true you would play in first person: you see through your own eyes, your own
 -- body and head are hidden from you, and the crosshair is always in the middle. In the lobby, while spectating and on the results
 -- screen you get the normal third-person camera. Your own forehead number is hidden from you in every view (see OwnPlate).
 local Players = game:GetService("Players")
@@ -7334,6 +7440,17 @@ function Camera.wanted()
 	return "third"
 end
 
+-- Zoom range, occlusion and movement mode (the same values are also set on StarterPlayer in the project file).
+local function setup()
+	pcall(function()
+		player.CameraMinZoomDistance = Config.Camera.MinZoom
+		player.CameraMaxZoomDistance = Config.Camera.MaxZoom
+		player.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode[Config.Camera.Occlusion] or Enum.DevCameraOcclusionMode.Zoom
+		player.DevComputerCameraMode = Enum.DevComputerCameraMovementMode.UserChoice
+		player.DevTouchCameraMode = Enum.DevTouchCameraMovementMode.UserChoice
+	end)
+end
+
 local function apply(want)
 	if want == mode then
 		return
@@ -7344,17 +7461,20 @@ local function apply(want)
 			player.CameraMode = Enum.CameraMode.LockFirstPerson
 		else
 			player.CameraMode = Enum.CameraMode.Classic
-			player.CameraMaxZoomDistance = Config.Camera.MaxZoom
-			-- pull back out of first person: ask for a minimum distance for a moment, then allow zooming in again
-			player.CameraMinZoomDistance = 12
-			task.delay(0.2, function()
-				player.CameraMinZoomDistance = 0.5
-			end)
+			setup()
+			if Config.Camera.FirstPerson then
+				-- pull back out of first person: ask for a minimum distance for a moment, then allow zooming in again
+				player.CameraMinZoomDistance = 12
+				task.delay(0.2, function()
+					player.CameraMinZoomDistance = Config.Camera.MinZoom
+				end)
+			end
 		end
 	end)
 end
 
 function Camera.init()
+	setup()
 	apply(Camera.wanted())
 	player:GetAttributeChangedSignal("Alive"):Connect(function()
 		apply(Camera.wanted())
@@ -8309,6 +8429,10 @@ function Hud.update()
 	if phase == "countdown" and second ~= lastSecond and second >= 1 and second <= 3 then
 		Audio.countdown(second, false)
 		deps.Fx.announce(tostring(second), "", C.Gold, 0.3)
+	end
+	-- the lobby wait ticks down its last 5 seconds (only once a match is really about to start)
+	if phase == "lobby" and second ~= lastSecond and second >= 1 and second <= 5 and left <= 5 then
+		Audio.tick()
 	end
 	if phase == "play" and second ~= lastSecond and second <= 10 and second >= 1 and left <= 10 then
 		Audio.tick()
@@ -9280,7 +9404,7 @@ return Menu
           <Item class="ModuleScript" referent="47">
             <Properties>
               <string name="Name">OwnPlate</string>
-              <string name="Source"><![CDATA[-- FIGURE ME OUT: you must never see your own forehead number. The plate is hidden on your screen only; everybody else
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: you must never see your own number (forehead plate or the floating one). The plate is hidden on your screen only; everybody else
 -- still sees it.
 local Players = game:GetService("Players")
 
@@ -9292,7 +9416,7 @@ local conn
 local function hide(inst)
 	if inst.Name == "NumberPlate" or inst.Name == "PlateRim" then
 		inst.Transparency = 1
-	elseif inst.Name == "PlateGui" then
+	elseif inst.Name == "PlateGui" or inst.Name == "NumberTag" then
 		inst.Enabled = false
 	end
 end
@@ -10161,7 +10285,7 @@ function View.aimed()
 				local angle = math.deg(math.acos(math.clamp(to.Unit:Dot(look), -1, 1)))
 				-- the person nearest the middle wins; when two are lined up, the nearer one does
 				local score = angle + distance * 0.002
-				if angle <= limit and (not bestAngle or score < bestAngle) and not View.blocked(origin, e.head.Position) then
+				if angle <= limit and (not bestAngle or score < bestAngle) and not View.blocked(origin, e.head.Position) and not View.blocked(head.Position, e.head.Position) then
 					best, bestAngle, bestDistance = e, score, distance
 				end
 			end
