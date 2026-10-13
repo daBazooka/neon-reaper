@@ -71,7 +71,7 @@ class Scene:
 def render(scene, path, w=1500, h=1050):
     fig = plt.figure(figsize=(w / 100, h / 100), dpi=100)
     fig.patch.set_facecolor(scene.sky)
-    ax = fig.add_axes([0, 0.06, 1, 0.80], projection="3d")
+    ax = fig.add_axes([0, 0.08, 1, 0.80], projection="3d")
     ax.set_facecolor(scene.sky)
     ax.set_axis_off()
     ax.computed_zorder = False  # draw in the order we say: floor, then things, then spawn pads
@@ -85,7 +85,7 @@ def render(scene, path, w=1500, h=1050):
         t = [(x + 2.2 * math.cos(a), z + 2.2 * math.sin(a), 0.4 + 0.0) for a in [i * math.pi / 6 for i in range(12)]]
         sp = Poly3DCollection([t], facecolors=[(0.25, 0.95, 1.0, 1)], edgecolors=[(1, 1, 1, 1)], linewidths=0.8); sp.set_zorder(1.5); ax.add_collection3d(sp)
     ax.set_xlim(-H, H); ax.set_ylim(-H, H); ax.set_zlim(0, 2 * H * 0.62)
-    ax.set_box_aspect((1, 1, 0.62), zoom=1.75)
+    ax.set_box_aspect((1, 1, 0.62), zoom=1.12)
     ax.view_init(elev=38, azim=-52)
     ax.dist = 7.4
     fig.text(0.5, 0.945, scene.name, ha="center", va="center", fontsize=40, fontweight="bold", color="white",
