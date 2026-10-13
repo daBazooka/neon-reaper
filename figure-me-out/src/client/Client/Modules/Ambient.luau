@@ -42,6 +42,14 @@ local function scan(now)
 			end
 		end
 	end
+	-- planes of a map that has been replaced are forgotten (the canyon is rebuilt when it wins a vote again)
+	local alive = {}
+	for _, p in planes do
+		if p.model.Parent ~= nil then
+			table.insert(alive, p)
+		end
+	end
+	planes = alive
 	local known = {}
 	for _, p in planes do
 		known[p.model] = true

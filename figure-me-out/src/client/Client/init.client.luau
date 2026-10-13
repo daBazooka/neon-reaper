@@ -7,6 +7,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local UI = require(Shared:WaitForChild("UI"))
 local Audio = require(Shared:WaitForChild("Audio"))
+local Maps = require(Shared:WaitForChild("Maps"))
 
 local Net = ReplicatedStorage:WaitForChild("Net")
 local Action = Net:WaitForChild("Action")
@@ -31,6 +32,7 @@ local Markers = require(Modules.Markers)
 local Inventory = require(Modules.Inventory)
 local Emotes = require(Modules.Emotes)
 local Camera = require(Modules.Camera)
+local MapVote = require(Modules.MapVote)
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "FigureMeOut"
@@ -87,6 +89,7 @@ Menu.init(gui, deps)
 Hud.init(gui, deps)
 Inventory.init(gui, deps)
 Emotes.init(gui, deps)
+MapVote.init(gui, deps)
 Markers.init()
 Controls.init(deps)
 OwnPlate.init()
@@ -102,7 +105,7 @@ local function loadingScreen()
 	local cover = UI.new("Frame", { Name = "Loading", Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.Bg, BorderSizePixel = 0, ZIndex = 200 }, gui)
 	UI.gradient(cover, Color3.fromRGB(90, 190, 240), Color3.fromRGB(10, 60, 120), 90)
 	local title = UI.label(cover, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.42), Size = UDim2.fromOffset(640, 80), Font = UI.Fonts.Title, TextSize = 60, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "FIGURE ME OUT", ZIndex = 201 })
-	local tip = UI.label(cover, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.52), Size = UDim2.fromOffset(640, 30), Font = UI.Fonts.Bold, TextSize = 18, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Center, Text = "Everyone can see your number. Except you.", ZIndex = 201 })
+	local tip = UI.label(cover, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.52), Size = UDim2.fromOffset(640, 30), Font = UI.Fonts.Bold, TextSize = 18, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Center, Text = "Hide your number. Read theirs.", ZIndex = 201 })
 	local bar = UI.bar(cover, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.6), Size = UDim2.fromOffset(320, 12) }, C.Accent)
 	bar.back.ZIndex = 201
 	bar.fill.ZIndex = 202
@@ -143,6 +146,16 @@ function handlers.toast(text, kind)
 	Toasts.push(text, kind)
 end
 
+-- The vote is over: say which map won (and whether it was a tie).
+function handlers.mapPicked(id, votes, tied)
+	local m = Maps.List[id]
+	if not m then
+		return
+	end
+	local detail = (votes or 0) == 0 and "no votes: picked at random" or ((votes == 1 and "1 vote" or (votes .. " votes")) .. (tied and " (a tie: picked at random)" or ""))
+	Toasts.push(m.Icon .. " Next map: " .. m.Name .. " (" .. detail .. ")", "gold")
+end
+
 function handlers.myNumber(text)
 	if type(text) == "string" then
 		Hud.setMyNumber(text)
@@ -156,7 +169,7 @@ function handlers.phase(phase)
 		end
 		Album.reset()
 		Inventory.resetClues()
-		Fx.announce("GET READY", "Look at heads. Type their number.", C.Accent, 0.22)
+		Fx.announce("GET READY", (workspace:GetAttribute("MapName") or "") .. "  •  Look at heads. Type their number.", C.Accent, 0.22)
 		Audio.reveal()
 	elseif phase == "play" then
 		Fx.announce("GO!", "Someone is always watching", C.Good, 0.22)

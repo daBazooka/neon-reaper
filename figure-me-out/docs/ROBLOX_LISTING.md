@@ -28,13 +28,14 @@ Your number is on your forehead and on your screen. Everyone else can read it. H
 HOW TO PLAY
 - Everyone gets a random 3-digit number shown on a plate on their forehead and a floating tag.
 - You can see your own number on your screen, so you know what to hide.
+- Players show by their real Roblox name
 - Look at a player and type their 3 digits (press Enter or G, or tap). It submits by itself.
 - Right number: they lose a life. Wrong number: you freeze for 1.5 seconds.
 
 FEATURES
 - Up to 20 real players, no bots
 - Deathmatch, Team Fight (red vs blue) and Capture the Flag
-- Waterfall Canyon: waterfalls, a river that pushes you, planes overhead
+- Six maps you vote on: Waterfall Canyon, Plaza Park, Frosty Peaks, Candy Kingdom, Desert Ruins and Neon Station. The map with the most votes is played
 - Floating-island lobby; a new match every 10 seconds; first player joins instantly, others drop into a running match
 - Short rounds, simple controls, works on phone, tablet and PC
 

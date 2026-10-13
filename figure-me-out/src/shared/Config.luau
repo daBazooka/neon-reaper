@@ -62,7 +62,7 @@ Config.Flag = {
 	TakePoints = 20, -- ... and for taking the enemy flag
 }
 
-Config.Number = { Digits = 3, Min = 1, Max = 999, TagRange = 110, ShowOwn = true } -- ShowOwn: you can see your own number (HUD, and your own plate and floating tag), so you know what to hide -- shown with leading zeros: 007, 042, 512
+Config.Number = { Digits = 3, Min = 1, Max = 999, TagRange = 110, ShowOwn = true, FloatingTag = false } -- ShowOwn: you see your own number in the HUD box (so you know what to hide). FloatingTag: the big gold number above heads is OFF: the number is only on the forehead plate -- shown with leading zeros: 007, 042, 512
 
 -- Lives: a correct guess takes one life. You come back after a moment, protected, until your lives run out.
 Config.Lives = {
@@ -353,6 +353,7 @@ end
 --------------------------------------------------------------------------------
 do
 	local Canyon = require(script.Parent:WaitForChild("Canyon"))
+	local Maps = require(script.Parent:WaitForChild("Maps"))
 	local function toVectors(list, y)
 		local out = {}
 		for _, p in list do
@@ -377,6 +378,18 @@ Config.Map.Themes = {
 			Crates = toVectors(Canyon.Crates, 1.5),
 		},
 	}
+	-- the four kit maps (Frosty Peaks, Candy Kingdom, Desert Ruins, Neon Station): positions come from Maps.layout
+	for _, id in { "frost", "candy", "desert", "station" } do
+		local L = Maps.layout(id)
+		Config.Map.Themes[id] = {
+			Spawns = toVectors(L.Spawns, 3.5),
+			Bases = { [1] = Vector3.new(L.Bases[1][1], 0, L.Bases[1][2]), [2] = Vector3.new(L.Bases[2][1], 0, L.Bases[2][2]) },
+			Terminals = toVectors(L.Terminals, 2),
+			DropSpots = toVectors(L.DropSpots, 0),
+			Crates = toVectors(L.Crates, 1.5),
+		}
+	end
+	Config.Maps = Maps
 	function Config.Map.use(theme)
 		local t = Config.Map.Themes[theme]
 		assert(t, "unknown map theme " .. tostring(theme))
@@ -410,6 +423,10 @@ Config.Look = {
 	final = { Clock = 13.2, Brightness = 2.35, Saturation = 0.30, Contrast = 0.22, Shift = -0.02, Tint = C(255, 232, 222), Bloom = 0.30, Pulse = 0.035 },
 	results = { Clock = 15.4, Brightness = 2.3, Saturation = 0.34, Contrast = 0.12, Shift = 0.02, Tint = C(255, 244, 226), Bloom = 0.42 },
 }
+
+-- Map voting: during the results screen and the lobby wait everybody can vote for the next map. The map with the most votes is
+-- played; if maps are tied, one of the tied maps is picked at random. (Maps.Order lists the six maps.)
+Config.Vote = { Enabled = true, MinGap = 0.4 }
 
 -- Waterfall Canyon: how fast the ripple patterns slide (screens per second; flip the sign if they run the wrong way).
 Config.Water = { FallSpeed = 0.9, RiverSpeed = -0.25, PushScale = 1, HighAbove = 9 } -- PushScale: how strong the current is (1 = normal, 0 = off). HighAbove: above this height you are on a bridge or rock, not in the water.

@@ -1,5 +1,5 @@
 -- FIGURE ME OUT: everything on a player's body for the game. The number plate on the forehead (only visible from the
--- front), the codename tag above the head, the plain coloured outfit, and the "exposed" number that floats above the
+-- front), the name tag above the head, the plain coloured outfit, and the "exposed" number that floats above the
 -- head of someone who covered their number or when THE REVEAL begins.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -69,6 +69,31 @@ function Plates.attachPlate(char, style, text)
 	rim.CFrame = head.CFrame * CFrame.new(0, y, z + 0.03)
 	rim.Parent = head
 	weld(head, rim)
+	-- detail: four little bolts at the corners and a glossy highlight strip across the top edge
+	local extras = {}
+	local function detail(name, size, offset, color, material)
+		local d = Instance.new("Part")
+		d.Name = name
+		d.Size = size
+		d.Color = color
+		d.Material = material
+		d.CanCollide = false
+		d.CanQuery = false
+		d.CanTouch = false
+		d.Massless = true
+		d.CFrame = head.CFrame * CFrame.new(offset.X, y + offset.Y, z + offset.Z)
+		d.Parent = head
+		weld(head, d)
+		table.insert(extras, d)
+		return d
+	end
+	for _, bx in { -1, 1 } do
+		for _, by in { -1, 1 } do
+			detail("PlateBolt", Vector3.new(0.09, 0.09, 0.05), Vector3.new(bx * (w / 2 - 0.1), by * (h / 2 - 0.1), -0.07), Color3.fromRGB(200, 205, 215), Enum.Material.Metal)
+		end
+	end
+	local shine = detail("PlateShine", Vector3.new(w - 0.34, 0.05, 0.05), Vector3.new(0, h / 2 - 0.07, -0.07), Color3.fromRGB(255, 255, 255), Enum.Material.Neon)
+	shine.Transparency = 0.55
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "PlateGui"
 	gui.Face = Enum.NormalId.Front
@@ -85,7 +110,7 @@ function Plates.attachPlate(char, style, text)
 	glow.Color = Color3.fromRGB(255, 70, 70)
 	glow.Enabled = false
 	glow.Parent = plate
-	return { part = plate, rim = rim, light = glow, label = text3, gui = gui }
+	return { part = plate, rim = rim, light = glow, label = text3, gui = gui, extras = extras }
 end
 
 function Plates.setText(e, text)
@@ -99,7 +124,7 @@ function Plates.setText(e, text)
 	end
 end
 
--- The codename tag that floats above the head ("🦊 Red Fox").
+-- The name tag that floats above the head: the player's Roblox name (bots: "🦊 Red Fox").
 function Plates.attachTag(char, text, color)
 	local head = char:FindFirstChild("Head")
 	if not head then
@@ -202,6 +227,9 @@ function Plates.hide(e)
 	if plate and plate.part then
 		plate.part.Transparency = 1
 		plate.rim.Transparency = 1
+		for _, d in plate.extras or {} do
+			d.Transparency = 1
+		end
 		plate.gui.Enabled = false
 		plate.light.Enabled = false
 	end
@@ -343,7 +371,7 @@ function Plates.dress(char, color)
 		pcall(function()
 			humanoid:RemoveAccessories()
 		end)
-		-- the codename is the only name: no username or health bar over anybody's head
+		-- the name tag above is the only name: no Roblox name or health bar over anybody's head
 		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 		humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
 	end
@@ -368,8 +396,8 @@ function Plates.setup(e)
 	e.styleDef = Config.PlateStyleById[e.style or "classic"] or Config.PlateStyles[1]
 	Plates.dress(char, e.color)
 	e.plate = Plates.attachPlate(char, e.styleDef, e.number)
-	e.tag = Plates.attachTag(char, e.icon .. " " .. e.code, e.color)
-	e.numberTag = Plates.attachNumberTag(char, e.number)
+	e.tag = Plates.attachTag(char, (e.icon ~= "" and (e.icon .. " ") or "") .. e.code, e.color)
+	e.numberTag = Config.Number.FloatingTag and Plates.attachNumberTag(char, e.number) or nil
 	e.reveal = Plates.attachReveal(char)
 	e.bountyTag = Plates.attachBounty(char)
 	e.flagTag = Plates.attachFlagTag(char)

@@ -93,7 +93,7 @@ function Hud.init(screen, d)
 		Size = UDim2.fromOffset(270, 104),
 	})
 	refs.meBox = me
-	refs.meTitle = UI.label(me, { Position = UDim2.fromOffset(12, 6), Size = UDim2.fromOffset(134, 14), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "YOUR CODENAME" })
+	refs.meTitle = UI.label(me, { Position = UDim2.fromOffset(12, 6), Size = UDim2.fromOffset(134, 14), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "YOUR NAME" })
 	refs.meName = UI.label(me, { Position = UDim2.fromOffset(12, 20), Size = UDim2.fromOffset(136, 26), Font = UI.Fonts.Title, TextSize = 16, TextWrapped = false, Text = "-" })
 	-- your own digits, big: you must know them to hide them
 	refs.meCaption = UI.label(me, { Position = UDim2.fromOffset(150, 6), Size = UDim2.fromOffset(108, 14), Font = UI.Fonts.Bold, TextSize = 11, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Center, Text = "YOUR NUMBER" })
@@ -454,13 +454,14 @@ function Hud.update()
 	end
 	if playing then
 		refs.hearts.Visible = not teamMode
-		refs.meName.Text = (player:GetAttribute("Icon") or "") .. " " .. (player:GetAttribute("Code") or "")
+		local icon = player:GetAttribute("Icon") or ""
+		refs.meName.Text = (icon ~= "" and (icon .. " ") or "") .. (player:GetAttribute("Code") or "")
 		local lives = player:GetAttribute("Lives") or 0
 		local myTeam = player:GetAttribute("Team")
 		if teamMode and myTeam then
 			refs.meTitle.Text = Config.Teams[myTeam].Icon .. " TEAM " .. Config.Teams[myTeam].Name
 		else
-			refs.meTitle.Text = "YOUR CODENAME"
+			refs.meTitle.Text = "YOUR NAME"
 		end
 		refs.hearts.Text = string.rep("❤", lives) .. string.rep("🖤", math.max(0, Config.Lives.Start - lives))
 		refs.score.Text = "⭐ " .. (player:GetAttribute("Score") or 0)

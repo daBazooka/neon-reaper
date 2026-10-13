@@ -13,7 +13,8 @@ local Vector3 = { new = function(x, y, z) return setmetatable({ X = x or 0, Y = 
 local Color3 = { fromRGB = function(r, g, b) return { R = r / 255, G = g / 255, B = b / 255 } end }
 
 local loaded = {}
-local env = setmetatable({ Vector3 = Vector3, Color3 = Color3, typeof = function(v) if getmetatable(v) == V then return "Vector3" end return type(v) end }, { __index = _G })
+local Enum = setmetatable({}, { __index = function(_, k) return setmetatable({}, { __index = function(_, m) return k .. "." .. m end }) end })
+local env = setmetatable({ Vector3 = Vector3, Color3 = Color3, Enum = Enum, typeof = function(v) if getmetatable(v) == V then return "Vector3" end return type(v) end }, { __index = _G })
 local function load(name)
 	if loaded[name] then return loaded[name] end
 	local fn = loadstring(MODULE_SOURCES[name])

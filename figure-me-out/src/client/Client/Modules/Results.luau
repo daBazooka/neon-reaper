@@ -24,7 +24,7 @@ function Results.init(gui, d)
 	panel = UI.panel(gui, {
 		Name = "Results",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.44),
 		Size = UDim2.fromOffset(560, 520),
 		Visible = false,
 		ZIndex = 55,
@@ -178,7 +178,7 @@ function Results.show(rows, winnerId, winnerTeam, modeId, scores)
 			Font = UI.Fonts.Bold,
 			TextSize = 14,
 			TextWrapped = false,
-			Text = (teamMode and Config.Teams[r.team] and (Config.Teams[r.team].Icon .. " ") or "") .. r.label .. (r.who ~= "Bot" and ("  (" .. r.who .. ")") or ""),
+			Text = (teamMode and Config.Teams[r.team] and (Config.Teams[r.team].Icon .. " ") or "") .. r.label .. ((r.who ~= "Bot" and r.who ~= r.label) and ("  (" .. r.who .. ")") or ""),
 			ZIndex = 58,
 		})
 		UI.label(row, {

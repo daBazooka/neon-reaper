@@ -806,7 +806,7 @@ Config.Flag = {
 	TakePoints = 20, -- ... and for taking the enemy flag
 }
 
-Config.Number = { Digits = 3, Min = 1, Max = 999, TagRange = 110, ShowOwn = true } -- ShowOwn: you can see your own number (HUD, and your own plate and floating tag), so you know what to hide -- shown with leading zeros: 007, 042, 512
+Config.Number = { Digits = 3, Min = 1, Max = 999, TagRange = 110, ShowOwn = true, FloatingTag = false } -- ShowOwn: you see your own number in the HUD box (so you know what to hide). FloatingTag: the big gold number above heads is OFF: the number is only on the forehead plate -- shown with leading zeros: 007, 042, 512
 
 -- Lives: a correct guess takes one life. You come back after a moment, protected, until your lives run out.
 Config.Lives = {
@@ -1097,6 +1097,7 @@ end
 --------------------------------------------------------------------------------
 do
 	local Canyon = require(script.Parent:WaitForChild("Canyon"))
+	local Maps = require(script.Parent:WaitForChild("Maps"))
 	local function toVectors(list, y)
 		local out = {}
 		for _, p in list do
@@ -1121,6 +1122,18 @@ Config.Map.Themes = {
 			Crates = toVectors(Canyon.Crates, 1.5),
 		},
 	}
+	-- the four kit maps (Frosty Peaks, Candy Kingdom, Desert Ruins, Neon Station): positions come from Maps.layout
+	for _, id in { "frost", "candy", "desert", "station" } do
+		local L = Maps.layout(id)
+		Config.Map.Themes[id] = {
+			Spawns = toVectors(L.Spawns, 3.5),
+			Bases = { [1] = Vector3.new(L.Bases[1][1], 0, L.Bases[1][2]), [2] = Vector3.new(L.Bases[2][1], 0, L.Bases[2][2]) },
+			Terminals = toVectors(L.Terminals, 2),
+			DropSpots = toVectors(L.DropSpots, 0),
+			Crates = toVectors(L.Crates, 1.5),
+		}
+	end
+	Config.Maps = Maps
 	function Config.Map.use(theme)
 		local t = Config.Map.Themes[theme]
 		assert(t, "unknown map theme " .. tostring(theme))
@@ -1155,6 +1168,10 @@ Config.Look = {
 	results = { Clock = 15.4, Brightness = 2.3, Saturation = 0.34, Contrast = 0.12, Shift = 0.02, Tint = C(255, 244, 226), Bloom = 0.42 },
 }
 
+-- Map voting: during the results screen and the lobby wait everybody can vote for the next map. The map with the most votes is
+-- played; if maps are tied, one of the tied maps is picked at random. (Maps.Order lists the six maps.)
+Config.Vote = { Enabled = true, MinGap = 0.4 }
+
 -- Waterfall Canyon: how fast the ripple patterns slide (screens per second; flip the sign if they run the wrong way).
 Config.Water = { FallSpeed = 0.9, RiverSpeed = -0.25, PushScale = 1, HighAbove = 9 } -- PushScale: how strong the current is (1 = normal, 0 = off). HighAbove: above this height you are on a bridge or rock, not in the water.
 Config.Sounds.Waterfall = "" -- optional looping waterfall sound: put an asset id from the Creator Store here
@@ -1167,6 +1184,299 @@ return Config
         </Properties>
       </Item>
       <Item class="ModuleScript" referent="6">
+        <Properties>
+          <string name="Name">Maps</string>
+          <string name="Source"><![CDATA[-- FIGURE ME OUT: the six maps players vote on, and the layout of the four built from the map kit (Frosty Peaks, Candy Kingdom,
+-- Desert Ruins, Neon Station). Waterfall Canyon (Canyon.luau) and Plaza Park (World.luau) have their own layouts.
+-- Everything here is plain data worked out the same way every time, so the server builds it, the tests check it, and nobody
+-- ever spawns inside a wall. All maps are 268 x 268 studs (x and z from -134 to 134), the red base is in the west, blue in the east.
+local Maps = {}
+
+local C = Color3.fromRGB
+
+Maps.Order = { "canyon", "city", "frost", "candy", "desert", "station" }
+Maps.FirstMap = "canyon" -- the very first match (nobody could vote yet)
+
+-- Name, icon and one-line blurb are shown on the vote cards. Look = changes to the "play" and "final" colour grades on this map
+-- (Clock = time of day, Tint = colour cast, Saturation = colour strength). Atmo = lighting colours the server applies for the match.
+Maps.List = {
+	canyon = {
+		Id = "canyon", Name = "Waterfall Canyon", Icon = "🌊", Blurb = "Waterfalls, a pushy river and planes overhead", Card = C(64, 190, 160),
+		Look = { Clock = 14.0 },
+		Scenery = { Hill = C(118, 204, 78), Far = C(128, 208, 84), Bubbles = true },
+	},
+	city = {
+		Id = "city", Name = "Plaza Park", Icon = "🏙️", Blurb = "Streets, buildings with balconies and a park", Card = C(255, 112, 170),
+		Look = { Clock = 14.5 },
+		Scenery = { Hill = C(118, 204, 78), Far = C(128, 208, 84), Bubbles = true },
+	},
+	frost = {
+		Id = "frost", Name = "Frosty Peaks", Icon = "❄️", Blurb = "Igloos, snowmen and a frozen pond", Card = C(120, 200, 255),
+		Look = { Clock = 12.5, Tint = C(232, 244, 255), Saturation = 0.12 },
+		Atmo = { Ambient = C(150, 170, 205), Outdoor = C(170, 188, 220), Fog = C(214, 232, 250), Haze = 0.5, AtmoColor = C(206, 226, 250) },
+		Scenery = { Hill = C(236, 244, 252), Far = C(226, 238, 250), Bubbles = false, Flakes = true },
+		Ground = { Color = C(240, 247, 255), Material = Enum.Material.Snow, Patch = C(190, 224, 250) },
+		Wall = { Color = C(160, 205, 240), Material = Enum.Material.Ice, Trim = C(255, 255, 255), Height = 38 },
+	},
+	candy = {
+		Id = "candy", Name = "Candy Kingdom", Icon = "🍭", Blurb = "Lollipops, cupcakes and a giant cake", Card = C(255, 130, 190),
+		Look = { Clock = 15.0, Tint = C(255, 240, 248), Saturation = 0.28 },
+		Atmo = { Ambient = C(170, 150, 175), Outdoor = C(190, 168, 190), Fog = C(255, 218, 236), Haze = 0.4, AtmoColor = C(255, 214, 234) },
+		Scenery = { Hill = C(255, 170, 214), Far = C(255, 196, 226), Bubbles = true, BubbleColor = C(255, 220, 240) },
+		Ground = { Color = C(255, 205, 228), Material = Enum.Material.SmoothPlastic, Patch = C(255, 244, 250) },
+		Wall = { Color = C(255, 150, 200), Material = Enum.Material.SmoothPlastic, Trim = C(255, 255, 255), Height = 30 },
+	},
+	desert = {
+		Id = "desert", Name = "Desert Ruins", Icon = "🏜️", Blurb = "Sandstone pillars, cacti and a stepped pyramid", Card = C(240, 170, 80),
+		Look = { Clock = 10.5, Tint = C(255, 238, 214), Saturation = 0.22 },
+		Atmo = { Ambient = C(160, 138, 108), Outdoor = C(184, 158, 124), Fog = C(250, 224, 180), Haze = 0.5, AtmoColor = C(250, 222, 176) },
+		Scenery = { Hill = C(236, 196, 120), Far = C(232, 194, 124), Bubbles = false },
+		Ground = { Color = C(238, 204, 140), Material = Enum.Material.Sand, Patch = C(222, 184, 116) },
+		Wall = { Color = C(214, 170, 108), Material = Enum.Material.Sandstone, Trim = C(190, 140, 80), Height = 32 },
+	},
+	station = {
+		Id = "station", Name = "Neon Station", Icon = "🚀", Blurb = "A glowing space station with a reactor core", Card = C(140, 110, 255),
+		Look = { Clock = 0.0, Brightness = 2.0, Tint = C(226, 232, 255), Saturation = 0.30 },
+		Atmo = { Ambient = C(122, 126, 178), Outdoor = C(136, 140, 190), Fog = C(40, 40, 90), Haze = 0.2, AtmoColor = C(70, 70, 140), Stars = true },
+		Scenery = { Hill = C(40, 40, 80), Far = C(24, 26, 56), Bubbles = false, Stars = true },
+		Ground = { Color = C(52, 58, 84), Material = Enum.Material.DiamondPlate, Patch = C(70, 230, 255) },
+		Wall = { Color = C(38, 42, 70), Material = Enum.Material.Metal, Trim = C(90, 240, 255), Height = 34 },
+	},
+}
+
+function Maps.name(id)
+	local m = Maps.List[id]
+	return m and m.Name or tostring(id)
+end
+
+-- The look of a colour grade on a map: the map's own changes laid over the base look (only the "play" and "final" looks change;
+-- the lobby and the results screen always keep their own).
+function Maps.looked(look, which, id)
+	local over = Maps.List[id] and Maps.List[id].Look
+	if not over or (which ~= "play" and which ~= "final") then
+		return look
+	end
+	local out = {}
+	for k, v in look do
+		out[k] = v
+	end
+	for k, v in over do
+		if k == "Tint" and look.Tint then
+			out.Tint = look.Tint:Lerp(v, 0.6)
+		else
+			out[k] = v
+		end
+	end
+	return out
+end
+
+--------------------------------------------------------------------------------
+-- Voting: the winner is the map with the most votes. A tie is settled by picking one of the tied maps at random (`roll` is a
+-- number in [0, 1)). With no votes at all every map is tied, so any map can come up. `last` (optional) is the map that was
+-- just played: it is skipped when anything else is tied with it, so the same map does not come back twice running.
+--------------------------------------------------------------------------------
+function Maps.winner(counts, roll, last)
+	local best = -1
+	for _, id in Maps.Order do
+		best = math.max(best, counts[id] or 0)
+	end
+	local tied = {}
+	for _, id in Maps.Order do
+		if (counts[id] or 0) == best then
+			table.insert(tied, id)
+		end
+	end
+	local wasTied = #tied > 1
+	if wasTied and last then
+		local without = {}
+		for _, id in tied do
+			if id ~= last then
+				table.insert(without, id)
+			end
+		end
+		if #without > 0 then
+			tied = without
+		end
+	end
+	local pick = 1 + math.floor(math.clamp(roll, 0, 0.999999) * #tied)
+	return tied[pick], best, wasTied
+end
+
+-- Counts the votes ({ [userId] = mapId }); votes for unknown maps are ignored.
+function Maps.tally(votes)
+	local counts = {}
+	for _, id in Maps.Order do
+		counts[id] = 0
+	end
+	for _, id in votes do
+		if counts[id] ~= nil then
+			counts[id] += 1
+		end
+	end
+	return counts
+end
+
+-- "canyon=2,city=0,..." <-> table (the counts travel to every screen as one attribute).
+function Maps.encode(counts)
+	local parts = {}
+	for _, id in Maps.Order do
+		table.insert(parts, id .. "=" .. (counts[id] or 0))
+	end
+	return table.concat(parts, ",")
+end
+
+function Maps.decode(text)
+	local counts = {}
+	for _, id in Maps.Order do
+		counts[id] = 0
+	end
+	if type(text) == "string" then
+		for id, n in string.gmatch(text, "(%a+)=(%d+)") do
+			if counts[id] ~= nil then
+				counts[id] = tonumber(n) or 0
+			end
+		end
+	end
+	return counts
+end
+
+--------------------------------------------------------------------------------
+-- Layouts of the four kit maps
+--------------------------------------------------------------------------------
+Maps.Half = 134
+
+-- Props (cover) per map: kind, how much room it takes (radius at normal size) and how often it is picked.
+Maps.Props = {
+	frost = { { "igloo", 8, 3 }, { "pine", 4, 8 }, { "snowman", 3.5, 4 }, { "iceblock", 5, 5 }, { "crystal", 5, 4 }, { "cabin", 9, 2 }, { "drift", 5, 4 } },
+	candy = { { "lollipop", 5, 6 }, { "cupcake", 5, 5 }, { "gumdrop", 4, 6 }, { "cane", 3, 4 }, { "donut", 7, 3 }, { "cookie", 6, 4 } },
+	desert = { { "pillar", 3.5, 7 }, { "ruin", 8, 4 }, { "cactus", 3, 6 }, { "minipyramid", 8, 2 }, { "rocks", 6, 5 }, { "palm", 4, 4 }, { "obelisk", 3, 3 } },
+	station = { { "container", 8, 5 }, { "pipe", 5, 4 }, { "console", 5, 4 }, { "pylon", 2.5, 5 }, { "tank", 5, 4 }, { "holo", 4, 3 }, { "crate", 4, 5 } },
+}
+Maps.PropCount = 64
+
+Maps.DeckSize = 16 -- the raised platforms (a staircase on the side that faces the middle line)
+Maps.DeckHeight = 8
+Maps.CenterRadius = 20 -- the landmark in the middle
+
+local cache = {}
+
+local function lcg(seed)
+	local s = seed
+	return function()
+		s = (s * 48271) % 2147483647
+		return s / 2147483647
+	end
+end
+
+-- Returns { Spawns, Bases, Terminals, DropSpots, Crates, Decks, Props, Footprints } (positions are { x, z }); nil for maps without a kit layout.
+function Maps.layout(id)
+	if cache[id] then
+		return cache[id]
+	end
+	if not Maps.Props[id] then
+		return nil
+	end
+	local seed = 1000
+	for i = 1, #id do
+		seed += string.byte(id, i) * i
+	end
+	local rnd = lcg(seed)
+	local L = { Spawns = {}, Bases = { { -100, 0 }, { 100, 0 } }, Terminals = {}, DropSpots = {}, Crates = {}, Decks = {}, Props = {}, Footprints = {} }
+	local foot = L.Footprints
+	local function clear(x, z, r)
+		for _, f in foot do
+			local dx, dz = x - f[1], z - f[2]
+			if dx * dx + dz * dz < (r + f[3]) * (r + f[3]) then
+				return false
+			end
+		end
+		return math.abs(x) <= Maps.Half - 8 and math.abs(z) <= Maps.Half - 8
+	end
+	local function reserve(x, z, r)
+		table.insert(foot, { x, z, r })
+	end
+	-- fixed things first: the landmark, the bases, the four decks and the spawn ring
+	reserve(0, 0, Maps.CenterRadius)
+	for _, b in L.Bases do
+		reserve(b[1], b[2], 14)
+	end
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			local x, z = 58 * sx, 56 * sz
+			table.insert(L.Decks, { x, z, -sz }) -- the third number: which way the stairs climb (towards -sz)
+			reserve(x, z, 11)
+			reserve(x, z - sz * 15, 8)
+			reserve(x, z - sz * 24, 6)
+		end
+	end
+	for k = 0, 19 do
+		local a = math.rad(k * 18 + 9)
+		local x, z = math.floor(math.cos(a) * 99 + 0.5), math.floor(math.sin(a) * 99 + 0.5)
+		table.insert(L.Spawns, { x, z })
+		reserve(x, z, 6)
+	end
+	-- terminals, drop spots and crates go on free ground near where they were meant to be
+	local function place(list, x, z, r)
+		for step = 0, 40 do
+			for _, a in { 0, 1.2, -1.2, 2.4, -2.4, 3.6, -3.6 } do
+				local px, pz = x + math.cos(step * 0.7) * step * 0.9 + a, z + math.sin(step * 0.7) * step * 0.9 - a
+				if clear(px, pz, r) then
+					px, pz = math.floor(px + 0.5), math.floor(pz + 0.5)
+					table.insert(list, { px, pz })
+					reserve(px, pz, r)
+					return
+				end
+			end
+		end
+		table.insert(list, { x, z })
+	end
+	for _, t in { { -34, -32 }, { 34, -32 }, { -34, 32 }, { 34, 32 } } do
+		place(L.Terminals, t[1], t[2], 3)
+	end
+	for _, d in { { 24, 10 }, { -24, -10 }, { 10, -26 }, { -10, 26 } } do
+		place(L.DropSpots, d[1], d[2], 4)
+	end
+	for k = 0, 15 do
+		local a = math.rad(k * 22.5 + 11.25)
+		local radius = k % 2 == 0 and 52 or 78
+		place(L.Crates, math.cos(a) * radius, math.sin(a) * radius, 3)
+	end
+	-- the scattered cover
+	local kinds, total = Maps.Props[id], 0
+	for _, k in kinds do
+		total += k[3]
+	end
+	local tries = 0
+	while #L.Props < Maps.PropCount and tries < 4000 do
+		tries += 1
+		local x, z = (rnd() * 2 - 1) * (Maps.Half - 12), (rnd() * 2 - 1) * (Maps.Half - 12)
+		local pick = rnd() * total
+		local kind
+		for _, k in kinds do
+			pick -= k[3]
+			if pick < 0 then
+				kind = k
+				break
+			end
+		end
+		kind = kind or kinds[1]
+		local size = 1.0 + rnd() * 0.6
+		local r = kind[2] * size
+		if clear(x, z, r + 2.5) then
+			x, z = math.floor(x * 10 + 0.5) / 10, math.floor(z * 10 + 0.5) / 10
+			table.insert(L.Props, { Kind = kind[1], X = x, Z = z, Rot = math.floor(rnd() * 360), Size = size, Variant = 1 + math.floor(rnd() * 3), Radius = r })
+			reserve(x, z, r)
+		end
+	end
+	cache[id] = L
+	return L
+end
+
+return Maps
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="7">
         <Properties>
           <string name="Name">Rules</string>
           <string name="Source"><![CDATA[-- FIGURE ME OUT: the game's rules as small pure functions, so the server, the clients and the tests all agree.
@@ -1765,7 +2075,7 @@ return Rules
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="7">
+      <Item class="ModuleScript" referent="8">
         <Properties>
           <string name="Name">UI</string>
           <string name="Source"><![CDATA[-- FIGURE ME OUT: the client design system. One place for colours, fonts and reusable components
@@ -2003,7 +2313,7 @@ return UI
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="8">
+      <Item class="ModuleScript" referent="9">
         <Properties>
           <string name="Name">Util</string>
           <string name="Source"><![CDATA[-- FIGURE ME OUT: small shared helpers.
@@ -2054,11 +2364,11 @@ return Util
       </Item>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="9">
+  <Item class="ServerScriptService" referent="10">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Script" referent="10">
+    <Item class="Script" referent="11">
       <Properties>
         <string name="Name">Main</string>
         <token name="RunContext">0</token>
@@ -2076,6 +2386,7 @@ local Items = require(Modules.Items)
 local Progress = require(Modules.Progress)
 local Alliance = require(Modules.Alliance)
 local State = require(Modules.State)
+local Votes = require(Modules.Votes)
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
 Players.CharacterAutoLoads = false
@@ -2115,7 +2426,7 @@ end
 
 -- Every request is checked and rate limited, and a bad one can never crash the server.
 -- the shortest time allowed between two requests of the same kind from one player
-local MIN_GAP = { Guess = 0.25, Use = 0.3, Snap = 0.5, Emote = 1, Buy = 0.5, Equip = 0.3, AllyAsk = 1, AllyReply = 0.3, Share = 1 }
+local MIN_GAP = { Guess = 0.25, Use = 0.3, Snap = 0.5, Emote = 1, Buy = 0.5, Equip = 0.3, AllyAsk = 1, AllyReply = 0.3, Share = 1, Vote = Config.Vote.MinGap }
 local lastCall = {} -- userId -> { kind -> time of the last call }
 local function allowed(p, kind)
 	local now = os.clock()
@@ -2196,6 +2507,9 @@ function handlers.Share(p, entries)
 		Alliance.share(e, entries)
 	end
 end
+function handlers.Vote(p, id)
+	Votes.cast(p, id)
+end
 function handlers.Seen(p)
 	local data = Data.get(p)
 	if data then
@@ -2266,11 +2580,11 @@ end)
 print("[" .. Config.GameName .. "] ready")
 ]]></string>
       </Properties>
-      <Item class="Folder" referent="11">
+      <Item class="Folder" referent="12">
         <Properties>
           <string name="Name">Modules</string>
         </Properties>
-        <Item class="ModuleScript" referent="12">
+        <Item class="ModuleScript" referent="13">
           <Properties>
             <string name="Name">Alliance</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: temporary alliances. Voluntary, short, and breakable: shooting your ally ends it (a betrayal). Allies get a
@@ -2449,7 +2763,7 @@ return Alliance
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="13">
+        <Item class="ModuleScript" referent="14">
           <Properties>
             <string name="Name">Bots</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: simple computer players that walk the streets and sometimes guess. They keep a match lively when few
@@ -2710,7 +3024,7 @@ return Bots
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="14">
+        <Item class="ModuleScript" referent="15">
           <Properties>
             <string name="Name">Bounty</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the bounty. One player at a time wears a 🎯 tag with a prize. Whoever gets them wins the prize, and a new
@@ -2808,7 +3122,7 @@ return Bounty
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="15">
+        <Item class="ModuleScript" referent="16">
           <Properties>
             <string name="Name">CanyonWorld</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: builds "Waterfall Canyon" (the layout lives in Shared/Canyon.luau): a cliff wall with three waterfalls, a
@@ -3247,7 +3561,7 @@ return CanyonWorld
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="16">
+        <Item class="ModuleScript" referent="17">
           <Properties>
             <string name="Name">Combat</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: lives, stuns, speed and eliminations. Everything that changes whether an entity can move, how many
@@ -3467,7 +3781,7 @@ return Combat
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="17">
+        <Item class="ModuleScript" referent="18">
           <Properties>
             <string name="Name">Cover</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the anti-camping rule. If a wall is right in front of your forehead for too long you get a warning,
@@ -3652,7 +3966,7 @@ return Cover
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="18">
+        <Item class="ModuleScript" referent="19">
           <Properties>
             <string name="Name">Data</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: player save data (wins, kills, plate style). Loads/saves with DataStores when available; the game
@@ -3829,7 +4143,7 @@ return Data
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="19">
+        <Item class="ModuleScript" referent="20">
           <Properties>
             <string name="Name">Events</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: bonus events. Every minute or so a short event is announced, then it runs: double points, low gravity,
@@ -3954,7 +4268,7 @@ return Events
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="20">
+        <Item class="ModuleScript" referent="21">
           <Properties>
             <string name="Name">Flags</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: capture the flag. Each team has one flag standing in the middle of its base (the MARKET courtyards: red west,
@@ -4205,7 +4519,7 @@ return Flags
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="21">
+        <Item class="ModuleScript" referent="22">
           <Properties>
             <string name="Name">Guess</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: typing someone's number. Right = they lose a life. Wrong = you lose a bullet and freeze for a moment, and
@@ -4329,7 +4643,7 @@ return Guess
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="22">
+        <Item class="ModuleScript" referent="23">
           <Properties>
             <string name="Name">Items</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the gadgets you carry. Flashbang, smoke grenade, distraction grenade, scanner, sprint boost and decoy
@@ -4779,7 +5093,7 @@ return Items
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="23">
+        <Item class="ModuleScript" referent="24">
           <Properties>
             <string name="Name">LobbyWorld</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the lobby, a floating garden island where everybody waits for the next match: grass and trees, a stone plaza with a
@@ -5157,7 +5471,555 @@ return LobbyWorld
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="24">
+        <Item class="ModuleScript" referent="25">
+          <Properties>
+            <string name="Name">MapKit</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: builds the four maps that come from the map kit: Frosty Peaks, Candy Kingdom, Desert Ruins and Neon Station.
+-- Each map is a big open arena (268 x 268) with a landmark in the middle, four raised decks with staircases, tall boundary walls and
+-- about forty pieces of themed cover scattered where Maps.layout says (never on a spawn, a base, a crate or a terminal).
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Maps = require(Shared:WaitForChild("Maps"))
+
+local MapKit = {}
+
+local C = Color3.fromRGB
+local M = Enum.Material
+local PI = math.pi
+
+--------------------------------------------------------------------------------
+-- Small building blocks
+--------------------------------------------------------------------------------
+local function part(parent, name, size, cf, color, material, soft)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = size
+	p.CFrame = cf
+	p.Anchored = true
+	p.Color = color
+	p.Material = material or M.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	if soft then
+		-- decoration: never blocks a hit, a view or a step
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+	end
+	p.Parent = parent
+	return p
+end
+
+-- A box standing on the ground (or at height y0), turned by `rot` degrees, centred at (x, z).
+local function box(parent, name, x, z, w, h, d, y0, rot, color, material, soft)
+	return part(parent, name, Vector3.new(w, h, d), CFrame.new(x, y0 + h / 2, z) * CFrame.Angles(0, math.rad(rot or 0), 0), color, material, soft)
+end
+
+-- An upright cylinder: diameter `dia`, height `h`, its bottom at y0.
+local function cyl(parent, name, x, z, dia, h, y0, color, material, soft)
+	local p = part(parent, name, Vector3.new(h, dia, dia), CFrame.new(x, y0 + h / 2, z) * CFrame.Angles(0, 0, PI / 2), color, material, soft)
+	p.Shape = Enum.PartType.Cylinder
+	return p
+end
+
+-- A cylinder lying down, pointing along `rot` degrees (0 = along x).
+local function pipe(parent, name, x, y, z, length, dia, rot, color, material, soft)
+	local p = part(parent, name, Vector3.new(length, dia, dia), CFrame.new(x, y, z) * CFrame.Angles(0, math.rad(rot), 0), color, material, soft)
+	p.Shape = Enum.PartType.Cylinder
+	return p
+end
+
+local function ball(parent, name, x, y, z, dia, color, material, soft, sy)
+	local p = part(parent, name, Vector3.new(dia, dia * (sy or 1), dia), CFrame.new(x, y, z), color, material, soft)
+	p.Shape = Enum.PartType.Ball
+	return p
+end
+
+-- A staircase of `count` steps (each `rise` high and `run` deep, `width` wide) that climbs towards the deck edge at (x, edgeZ);
+-- `sgn` is the direction in z the stairs run away from the deck.
+local function stairs(parent, x, edgeZ, sgn, width, count, rise, run, color)
+	for k = 1, count do
+		local from, to = (count - k) * run, (count - k + 1) * run
+		local z1, z2 = edgeZ + sgn * from, edgeZ + sgn * to
+		part(parent, "Step", Vector3.new(width, k * rise, run), CFrame.new(x, k * rise / 2, (z1 + z2) / 2), color, M.SmoothPlastic)
+	end
+end
+
+local function pick(list, variant)
+	return list[(variant - 1) % #list + 1]
+end
+
+--------------------------------------------------------------------------------
+-- Frosty Peaks
+--------------------------------------------------------------------------------
+local WHITE, SNOW = C(250, 252, 255), C(238, 246, 255)
+local ICE, ICE2 = C(150, 210, 250), C(110, 180, 240)
+local PINE, WOOD = C(46, 128, 86), C(138, 98, 62)
+
+local frostProps = {}
+function frostProps.igloo(f, x, z, rot, s)
+	local dome = ball(f, "Igloo", x, 0, z, 15 * s, SNOW, M.Snow)
+	local lookX, lookZ = math.cos(math.rad(rot)), math.sin(math.rad(rot))
+	box(f, "IglooPorch", x + lookX * 6.5 * s, z - lookZ * 6.5 * s, 5 * s, 4 * s, 5 * s, 0, rot, SNOW, M.Snow)
+	box(f, "IglooDoor", x + lookX * 9.1 * s, z - lookZ * 9.1 * s, 0.3, 3 * s, 3 * s, 0, rot, C(40, 70, 120), M.SmoothPlastic, true)
+	for i = 1, 3 do -- ice-brick lines: thin rings round the dome
+		local y = 1.7 * i * s
+		local ring = ball(f, "IglooLine", x, y, z, 2 * math.sqrt(7.5 * 7.5 - (1.7 * i) * (1.7 * i)) * s + 0.1, ICE, M.Ice, true, 0.02)
+		ring.Transparency = 0.5
+	end
+	return dome
+end
+function frostProps.pine(f, x, z, rot, s)
+	cyl(f, "PineTrunk", x, z, 1.4 * s, 4 * s, 0, WOOD, M.Wood)
+	for i = 1, 3 do
+		local d, y = (10 - i * 2.4) * s, (2.4 + (i - 1) * 3.2) * s
+		cyl(f, "PineTier", x, z, d, 2.6 * s, y, PINE, M.Grass)
+		cyl(f, "PineSnow", x, z, d * 0.86, 0.7 * s, y + 2.4 * s, WHITE, M.Snow)
+	end
+	ball(f, "PineStar", x, 11.2 * s, z, 1.1 * s, C(255, 226, 90), M.Neon, true)
+end
+function frostProps.snowman(f, x, z, rot, s)
+	ball(f, "SnowmanBase", x, 2.2 * s, z, 4.8 * s, WHITE, M.Snow)
+	ball(f, "SnowmanMid", x, 5.4 * s, z, 3.5 * s, WHITE, M.Snow)
+	ball(f, "SnowmanHead", x, 8 * s, z, 2.6 * s, WHITE, M.Snow)
+	local fx, fz = math.cos(math.rad(rot)), -math.sin(math.rad(rot))
+	box(f, "Carrot", x + fx * 1.4 * s, z + fz * 1.4 * s, 0.4 * s, 0.4 * s, 1.4 * s, 7.85 * s, rot + 90, C(255, 140, 30), M.SmoothPlastic, true)
+	for _, e in { -0.45, 0.45 } do
+		ball(f, "Coal", x + fx * 1.2 * s - fz * e * s, 8.4 * s, z + fz * 1.2 * s + fx * e * s, 0.4 * s, C(30, 30, 40), M.SmoothPlastic, true)
+	end
+	cyl(f, "Scarf", x, z, 3.1 * s, 0.7 * s, 6.5 * s, C(230, 60, 70), M.Fabric, true)
+	cyl(f, "HatBrim", x, z, 3.2 * s, 0.25 * s, 9.2 * s, C(40, 40, 60), M.SmoothPlastic, true)
+	cyl(f, "Hat", x, z, 1.9 * s, 1.5 * s, 9.4 * s, C(40, 40, 60), M.SmoothPlastic, true)
+end
+function frostProps.iceblock(f, x, z, rot, s, variant)
+	local b = box(f, "IceBlock", x, z, 7 * s, 6 * s, 7 * s, 0, rot, ICE, M.Ice)
+	b.Transparency = 0.25
+	local core = box(f, "IceCore", x, z, 3.6 * s, 3.6 * s, 3.6 * s, 1.2 * s, rot + 20, ICE2, M.Glass, true)
+	core.Transparency = 0.1
+end
+function frostProps.crystal(f, x, z, rot, s, variant)
+	for i = 1, 3 do
+		local h = (8 + i * 2.5) * s
+		local a = rot + i * 120
+		local ox, oz = math.cos(math.rad(a)) * 1.6 * s, -math.sin(math.rad(a)) * 1.6 * s
+		local p = part(f, "Crystal", Vector3.new(2.2 * s, h, 2.2 * s), CFrame.new(x + ox, h / 2 - 0.5, z + oz) * CFrame.Angles(math.rad(8 * (i - 2)), math.rad(a), math.rad(6 * (2 - i))), pick({ ICE, C(180, 160, 255), C(140, 230, 255) }, variant + i), M.Glass)
+		p.Transparency = 0.2
+	end
+	ball(f, "CrystalGlow", x, 1.2 * s, z, 2 * s, C(190, 240, 255), M.Neon, true)
+end
+function frostProps.cabin(f, x, z, rot, s)
+	box(f, "CabinWalls", x, z, 14 * s, 7 * s, 11 * s, 0, rot, WOOD, M.Wood)
+	for _, side in { -1, 1 } do
+		local r = part(f, "CabinRoof", Vector3.new(15.5 * s, 0.9, 7.2 * s), CFrame.new(x, 8 * s, z) * CFrame.Angles(0, math.rad(rot), 0) * CFrame.new(0, 0, side * 2.9 * s) * CFrame.Angles(side * -0.5, 0, 0), WHITE, M.Snow)
+		r.CanCollide = false
+	end
+	box(f, "CabinChimney", x + math.cos(math.rad(rot)) * 4 * s, z - math.sin(math.rad(rot)) * 4 * s, 2 * s, 5 * s, 2 * s, 7 * s, rot, C(150, 90, 80), M.Brick, true)
+	local fx, fz = math.cos(math.rad(rot + 90)), -math.sin(math.rad(rot + 90))
+	box(f, "CabinDoor", x + fx * 5.55 * s, z + fz * 5.55 * s, 3 * s, 4.5 * s, 0.3, 0, rot + 90, C(90, 60, 40), M.Wood, true)
+	box(f, "CabinWindow", x + fx * 5.55 * s + math.cos(math.rad(rot)) * 4.2 * s, z + fz * 5.55 * s - math.sin(math.rad(rot)) * 4.2 * s, 2.4 * s, 2.4 * s, 0.3, 3 * s, rot + 90, C(255, 226, 120), M.Neon, true)
+end
+function frostProps.drift(f, x, z, rot, s)
+	ball(f, "Drift", x, 0.4, z, 9 * s, WHITE, M.Snow, false, 0.45)
+end
+
+local function frostCenter(f)
+	cyl(f, "Pond", 0, 0, 38, 0.5, 0, C(160, 214, 250), M.Ice)
+	cyl(f, "PondRing", 0, 0, 40, 0.4, 0, WHITE, M.Snow)
+	for i = 1, 6 do
+		local a = i * PI / 3
+		local p = part(f, "SpirePillar", Vector3.new(2.4, 12 + (i % 2) * 5, 2.4), CFrame.new(math.cos(a) * 12, 7, math.sin(a) * 12) * CFrame.Angles(0.12, a, 0.1), ICE, M.Ice)
+		p.Transparency = 0.2
+	end
+	local spire = part(f, "Spire", Vector3.new(5, 26, 5), CFrame.new(0, 13, 0) * CFrame.Angles(0.04, 0.8, 0.04), C(190, 232, 255), M.Glass)
+	spire.Transparency = 0.15
+	ball(f, "SpireGlow", 0, 9, 0, 4, C(160, 240, 255), M.Neon, true)
+	for _, y in { 8, 15, 22 } do
+		cyl(f, "SpireRing", 0, 0, 10 - y * 0.2, 0.5, y, C(120, 220, 255), M.Neon, true)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Candy Kingdom
+--------------------------------------------------------------------------------
+local PINKS = { C(255, 120, 170), C(255, 170, 70), C(120, 220, 160), C(150, 130, 255), C(255, 226, 90), C(90, 200, 255) }
+local candyProps = {}
+function candyProps.lollipop(f, x, z, rot, s, variant)
+	local col, col2 = pick(PINKS, variant), pick(PINKS, variant + 2)
+	cyl(f, "LollipopStick", x, z, 0.9 * s, 9 * s, 0, WHITE, M.SmoothPlastic)
+	local disc = part(f, "LollipopDisc", Vector3.new(1.2 * s, 8 * s, 8 * s), CFrame.new(x, 12.4 * s, z) * CFrame.Angles(0, math.rad(rot), 0), col, M.SmoothPlastic)
+	disc.Shape = Enum.PartType.Cylinder
+	local swirl = part(f, "LollipopSwirl", Vector3.new(1.4 * s, 5.4 * s, 5.4 * s), CFrame.new(x, 12.4 * s, z) * CFrame.Angles(0, math.rad(rot), 0), col2, M.SmoothPlastic, true)
+	swirl.Shape = Enum.PartType.Cylinder
+	local core = part(f, "LollipopCore", Vector3.new(1.6 * s, 2.4 * s, 2.4 * s), CFrame.new(x, 12.4 * s, z) * CFrame.Angles(0, math.rad(rot), 0), WHITE, M.SmoothPlastic, true)
+	core.Shape = Enum.PartType.Cylinder
+end
+function candyProps.cupcake(f, x, z, rot, s, variant)
+	cyl(f, "CupcakeCup", x, z, 6 * s, 3.4 * s, 0, pick({ C(255, 255, 255), C(255, 214, 120), C(150, 220, 255) }, variant), M.SmoothPlastic)
+	for i = 0, 5 do
+		local a = i * PI / 3
+		box(f, "CupcakeRidge", x + math.cos(a) * 3 * s, z + math.sin(a) * 3 * s, 0.4, 3.2 * s, 0.4, 0.1, 0, C(255, 255, 255), M.SmoothPlastic, true)
+	end
+	ball(f, "CupcakeFrosting", x, 4.4 * s, z, 6.6 * s, pick(PINKS, variant + 1), M.SmoothPlastic, false, 0.8)
+	ball(f, "CupcakeCherry", x, 7.4 * s, z, 1.6 * s, C(230, 40, 60), M.Glass, true)
+end
+function candyProps.gumdrop(f, x, z, rot, s, variant)
+	local col = pick(PINKS, variant + 3)
+	ball(f, "Gumdrop", x, 1.2 * s, z, 7.4 * s, col, M.SmoothPlastic, false, 0.9)
+	for i = 0, 6 do
+		local a = i * 0.9 + rot
+		ball(f, "Sugar", x + math.cos(a) * 2.6 * s, 3 * s + (i % 3) * 0.7 * s, z + math.sin(a) * 2.6 * s, 0.35, WHITE, M.Neon, true)
+	end
+end
+function candyProps.cane(f, x, z, rot, s)
+	for i = 1, 6 do
+		cyl(f, "CaneStripe", x, z, 1.7 * s, 1.7 * s, (i - 1) * 1.7 * s, i % 2 == 0 and WHITE or C(235, 50, 70), M.SmoothPlastic)
+	end
+	local hook = pipe(f, "CaneHook", x + math.cos(math.rad(rot)) * 1.2 * s, 10.5 * s, z - math.sin(math.rad(rot)) * 1.2 * s, 3.6 * s, 1.7 * s, rot, C(235, 50, 70), M.SmoothPlastic)
+	return hook
+end
+function candyProps.donut(f, x, z, rot, s, variant)
+	cyl(f, "Donut", x, z, 12 * s, 3 * s, 0, C(236, 180, 110), M.SmoothPlastic)
+	cyl(f, "DonutIcing", x, z, 12.2 * s, 0.7 * s, 3 * s, pick(PINKS, variant), M.SmoothPlastic)
+	cyl(f, "DonutHole", x, z, 3.4 * s, 0.9 * s, 3.1 * s, C(255, 205, 228), M.SmoothPlastic, true)
+	for i = 0, 8 do
+		local a = i * 0.7 + rot
+		local r = 3.5 + (i % 3) * 1.2
+		box(f, "Sprinkle", x + math.cos(a) * r * s, z + math.sin(a) * r * s, 0.25, 0.25, 1, 3.7 * s, i * 40, pick(PINKS, i + 1), M.Neon, true)
+	end
+end
+function candyProps.cookie(f, x, z, rot, s)
+	cyl(f, "Cookie", x, z, 11 * s, 2.6 * s, 0, C(196, 140, 82), M.Sand)
+	for i = 0, 6 do
+		local a = i * 0.9 + rot
+		ball(f, "Chip", x + math.cos(a) * (1.5 + i % 3 * 1.3) * s, 2.6 * s, z + math.sin(a) * (1.5 + i % 3 * 1.3) * s, 1.1 * s, C(80, 48, 30), M.SmoothPlastic, true)
+	end
+end
+
+local function candyCenter(f)
+	local tiers = { { 34, 3, C(255, 150, 200) }, { 24, 3, C(255, 244, 250) }, { 14, 3, C(255, 120, 170) } }
+	local y = 0
+	for i, t in tiers do
+		cyl(f, "CakeTier", 0, 0, t[1], t[2], y, t[3], M.SmoothPlastic)
+		cyl(f, "CakeIcing", 0, 0, t[1] + 0.6, 0.5, y + t[2] - 0.1, WHITE, M.SmoothPlastic, true)
+		for k = 0, 11 do
+			local a = k * PI / 6
+			ball(f, "CakeDrop", math.cos(a) * t[1] / 2, y + t[2] - 0.8, math.sin(a) * t[1] / 2, 1.6, pick(PINKS, k + i), M.SmoothPlastic, true)
+		end
+		y += t[2]
+	end
+	for k = 0, 4 do
+		local a = k * PI * 2 / 5
+		cyl(f, "Candle", math.cos(a) * 4, math.sin(a) * 4, 0.8, 4, y, pick(PINKS, k), M.SmoothPlastic, true)
+		ball(f, "Flame", math.cos(a) * 4, y + 4.5, math.sin(a) * 4, 1, C(255, 220, 90), M.Neon, true)
+	end
+	ball(f, "CakeCherry", 0, y + 1.6, 0, 3.4, C(230, 40, 60), M.Glass)
+end
+
+--------------------------------------------------------------------------------
+-- Desert Ruins
+--------------------------------------------------------------------------------
+local SAND, STONE, DARKSTONE = C(238, 204, 140), C(214, 170, 108), C(176, 130, 84)
+local desertProps = {}
+function desertProps.pillar(f, x, z, rot, s, variant)
+	local h = (variant == 1 and 7 or 14) * s
+	box(f, "PillarBase", x, z, 5 * s, 1.2 * s, 5 * s, 0, rot, DARKSTONE, M.Sandstone)
+	cyl(f, "Pillar", x, z, 3.4 * s, h, 1.2 * s, STONE, M.Sandstone)
+	for i = 1, 3 do
+		cyl(f, "PillarRing", x, z, 3.7 * s, 0.4, 1.2 * s + i * h / 4, DARKSTONE, M.Sandstone, true)
+	end
+	if variant ~= 1 then
+		box(f, "PillarCap", x, z, 5.2 * s, 1.2 * s, 5.2 * s, h + 1.2 * s, rot, DARKSTONE, M.Sandstone)
+	else
+		box(f, "Rubble", x + 2.6 * s, z + 1.4 * s, 2 * s, 1.2 * s, 1.6 * s, 0, rot + 30, STONE, M.Sandstone, true)
+	end
+end
+function desertProps.ruin(f, x, z, rot, s)
+	local c, sn = math.cos(math.rad(rot)), -math.sin(math.rad(rot))
+	box(f, "RuinWall", x, z, 14 * s, 9 * s, 2.6 * s, 0, rot, STONE, M.Sandstone)
+	box(f, "RuinWallShort", x + c * 6 * s - sn * 3 * s, z + sn * 6 * s + c * 3 * s, 2.6 * s, 5.5 * s, 6 * s, 0, rot, DARKSTONE, M.Sandstone)
+	box(f, "RuinArch", x - c * 3 * s, z - sn * 3 * s, 3 * s, 3 * s, 3 * s, 9 * s, rot + 15, STONE, M.Sandstone, true)
+	for i = 1, 3 do
+		box(f, "Rubble", x - c * (4 - i * 3) * s + sn * 3.4 * s, z - sn * (4 - i * 3) * s - c * 3.4 * s, 1.6 * s, 1.1 * s, 1.5 * s, 0, rot + i * 40, DARKSTONE, M.Sandstone, true)
+	end
+end
+function desertProps.cactus(f, x, z, rot, s)
+	local green = C(80, 160, 80)
+	cyl(f, "Cactus", x, z, 2.2 * s, 9 * s, 0, green, M.Grass)
+	for side = -1, 1, 2 do
+		local ax, az = math.cos(math.rad(rot)) * side, -math.sin(math.rad(rot)) * side
+		pipe(f, "CactusArm", x + ax * 1.9 * s, 4.4 * s + (side + 1) * 0.5 * s, z + az * 1.9 * s, 2.6 * s, 1.3 * s, rot, green, M.Grass)
+		cyl(f, "CactusArmUp", x + ax * 3.1 * s, z + az * 3.1 * s, 1.3 * s, 3.2 * s, 4.4 * s + (side + 1) * 0.5 * s, green, M.Grass)
+	end
+	ball(f, "CactusFlower", x, 9.4 * s, z, 1 * s, C(255, 120, 170), M.SmoothPlastic, true)
+end
+function desertProps.minipyramid(f, x, z, rot, s)
+	for i = 1, 3 do
+		box(f, "MiniPyramid", x, z, (15 - i * 4) * s, 2.6 * s, (15 - i * 4) * s, (i - 1) * 2.6 * s, rot, i % 2 == 0 and STONE or DARKSTONE, M.Sandstone)
+	end
+end
+function desertProps.rocks(f, x, z, rot, s, variant)
+	ball(f, "Rock", x, 1.6 * s, z, 7 * s, C(190, 150, 110), M.Rock, false, 0.7)
+	ball(f, "Rock", x + 3.4 * s, 0.8 * s, z + 1 * s, 4 * s, C(176, 136, 98), M.Rock, false, 0.7)
+	ball(f, "Rock", x - 2.6 * s, 0.7 * s, z - 2 * s, 3.4 * s, C(200, 160, 120), M.Rock, false, 0.7)
+end
+function desertProps.palm(f, x, z, rot, s)
+	cyl(f, "PalmTrunk", x, z, 1.3 * s, 11 * s, 0, C(150, 110, 70), M.Wood)
+	for i = 0, 5 do
+		local a = i * PI / 3 + rot
+		part(f, "PalmLeaf", Vector3.new(7 * s, 0.25, 1.8 * s), CFrame.new(x + math.cos(a) * 3 * s, 11.2 * s, z + math.sin(a) * 3 * s) * CFrame.Angles(0, -a, -0.35), C(70, 160, 70), M.Grass, true)
+	end
+	ball(f, "Coconut", x + 0.6, 10.4 * s, z, 1 * s, C(110, 74, 44), M.SmoothPlastic, true)
+end
+function desertProps.obelisk(f, x, z, rot, s)
+	box(f, "ObeliskBase", x, z, 4.4 * s, 1.5 * s, 4.4 * s, 0, rot, DARKSTONE, M.Sandstone)
+	box(f, "Obelisk", x, z, 3 * s, 16 * s, 3 * s, 1.5 * s, rot, STONE, M.Sandstone)
+	box(f, "ObeliskTip", x, z, 2 * s, 2 * s, 2 * s, 17.5 * s, rot + 45, C(255, 214, 90), M.Neon, true)
+	for i = 0, 4 do
+		box(f, "Glyph", x, z, 3.1 * s, 0.4, 3.1 * s, 4 * s + i * 2.4 * s, rot, C(110, 70, 40), M.SmoothPlastic, true)
+	end
+end
+
+local function desertCenter(f)
+	local steps = { { 38, 4 }, { 30, 4 }, { 22, 4 }, { 14, 4 }, { 7, 4 } }
+	for i, st in steps do
+		box(f, "Pyramid", 0, 0, st[1], st[2], st[1], (i - 1) * st[2], 0, i % 2 == 0 and STONE or SAND, M.Sandstone)
+	end
+	box(f, "PyramidCap", 0, 0, 3.4, 3.4, 3.4, 20, 45, C(255, 214, 90), M.Neon)
+	pipe(f, "SunDisc", 0, 27, 0, 0.8, 9, 0, C(255, 190, 60), M.Neon, true)
+	for _, a in { 0, PI / 2, PI, PI * 1.5 } do
+		box(f, "PyramidBrazier", math.cos(a) * 21, math.sin(a) * 21, 2, 2.4, 2, 0, 0, DARKSTONE, M.Sandstone, true)
+		ball(f, "PyramidFlame", math.cos(a) * 21, 3.1, math.sin(a) * 21, 1.8, C(255, 150, 40), M.Neon, true)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Neon Station
+--------------------------------------------------------------------------------
+local METAL, DARK, CYAN, MAG = C(70, 78, 112), C(40, 44, 70), C(70, 240, 255), C(255, 80, 200)
+local CARGO = { C(220, 80, 70), C(240, 160, 50), C(70, 150, 230), C(60, 190, 160) }
+local stationProps = {}
+function stationProps.container(f, x, z, rot, s, variant)
+	local col = pick(CARGO, variant)
+	local c, sn = math.cos(math.rad(rot)), -math.sin(math.rad(rot))
+	box(f, "Container", x, z, 14 * s, 6.5 * s, 6 * s, 0, rot, col, M.Metal)
+	for i = -3, 3 do
+		box(f, "ContainerRib", x + c * i * 1.8 * s, z + sn * i * 1.8 * s, 0.4, 6.7 * s, 6.2 * s, 0, rot, col:Lerp(C(0, 0, 0), 0.25), M.Metal, true)
+	end
+	box(f, "ContainerStripe", x, z, 14.2 * s, 0.5, 6.2 * s, 5.2 * s, rot, CYAN, M.Neon, true)
+end
+function stationProps.pipe(f, x, z, rot, s)
+	local c, sn = math.cos(math.rad(rot)), -math.sin(math.rad(rot))
+	pipe(f, "Pipe", x, 2.4 * s, z, 12 * s, 3.2 * s, rot, METAL, M.Metal)
+	for _, side in { -1, 1 } do
+		box(f, "PipeLeg", x + c * side * 4.4 * s, z + sn * side * 4.4 * s, 1.2 * s, 1.4 * s, 1.2 * s, 0, rot, DARK, M.Metal)
+	end
+	pipe(f, "PipeBand", x, 2.4 * s, z, 0.7, 3.5 * s, rot, MAG, M.Neon, true)
+end
+function stationProps.console(f, x, z, rot, s)
+	box(f, "Console", x, z, 6 * s, 3.4 * s, 3 * s, 0, rot, DARK, M.Metal)
+	local c, sn = math.cos(math.rad(rot)), -math.sin(math.rad(rot))
+	part(f, "Screen", Vector3.new(5 * s, 2.4 * s, 0.3), CFrame.new(x, 4.6 * s, z) * CFrame.Angles(0, math.rad(rot), -0.2) * CFrame.Angles(0.2, 0, 0), C(40, 200, 255), M.Neon, true)
+	for i = -2, 2 do
+		ball(f, "Light", x + c * i * 1 * s, 3.5 * s, z + sn * i * 1 * s, 0.35, i % 2 == 0 and MAG or CYAN, M.Neon, true)
+	end
+end
+function stationProps.pylon(f, x, z, rot, s)
+	cyl(f, "Pylon", x, z, 2 * s, 16 * s, 0, DARK, M.Metal)
+	for _, y in { 3, 8, 13 } do
+		cyl(f, "PylonRing", x, z, 2.6 * s, 0.5, y * s, CYAN, M.Neon, true)
+	end
+	ball(f, "PylonTop", x, 16.6 * s, z, 1.6 * s, MAG, M.Neon, true)
+end
+function stationProps.tank(f, x, z, rot, s)
+	cyl(f, "Tank", x, z, 8 * s, 9 * s, 0, METAL, M.Metal)
+	ball(f, "TankDome", x, 9 * s, z, 8 * s, METAL, M.Metal, false, 0.45)
+	cyl(f, "TankBand", x, z, 8.3 * s, 0.7, 4 * s, CYAN, M.Neon, true)
+	cyl(f, "TankBand", x, z, 8.3 * s, 0.7, 6.4 * s, MAG, M.Neon, true)
+end
+function stationProps.holo(f, x, z, rot, s)
+	cyl(f, "HoloBase", x, z, 4.4 * s, 1.2 * s, 0, DARK, M.Metal)
+	local g = ball(f, "Hologram", x, 4.2 * s, z, 3.6 * s, C(90, 240, 255), M.Neon, true)
+	g.Transparency = 0.55
+	cyl(f, "HoloRing", x, z, 5 * s, 0.25, 4.1 * s, MAG, M.Neon, true)
+	cyl(f, "HoloPost", x, z, 0.8 * s, 3 * s, 1.2 * s, DARK, M.Metal)
+end
+function stationProps.crate(f, x, z, rot, s, variant)
+	box(f, "Crate", x, z, 5 * s, 5 * s, 5 * s, 0, rot, METAL, M.Metal)
+	box(f, "CrateBand", x, z, 5.2 * s, 0.5, 5.2 * s, 2.2 * s, rot, pick({ CYAN, MAG }, variant), M.Neon, true)
+	box(f, "CrateBand", x, z, 0.5, 5.2 * s, 5.2 * s, 0, rot, pick({ CYAN, MAG }, variant), M.Neon, true)
+end
+
+local function stationCenter(f)
+	cyl(f, "ReactorBase", 0, 0, 34, 2, 0, DARK, M.Metal)
+	cyl(f, "ReactorPad", 0, 0, 28, 0.4, 2, METAL, M.DiamondPlate)
+	local core = cyl(f, "ReactorCore", 0, 0, 9, 26, 2.4, C(60, 220, 255), M.Neon)
+	core.Transparency = 0.15
+	for _, y in { 6, 12, 18, 24 } do
+		cyl(f, "ReactorRing", 0, 0, 15 - (y - 6) * 0.25, 0.7, y, MAG, M.Neon, true)
+	end
+	for k = 0, 5 do
+		local a = k * PI / 3
+		box(f, "ReactorStrut", math.cos(a) * 12, math.sin(a) * 12, 1.4, 9, 1.4, 2, math.deg(-a), DARK, M.Metal)
+	end
+	local light = Instance.new("PointLight")
+	light.Range = 70
+	light.Brightness = 2.5
+	light.Color = C(110, 230, 255)
+	light.Parent = core
+end
+
+--------------------------------------------------------------------------------
+-- The shared parts: ground, decks, walls
+--------------------------------------------------------------------------------
+local PROPS = { frost = frostProps, candy = candyProps, desert = desertProps, station = stationProps }
+local CENTERS = { frost = frostCenter, candy = candyCenter, desert = desertCenter, station = stationCenter }
+local DECKS = {
+	frost = { Body = ICE, Mat = M.Ice, Trim = WHITE, Stair = SNOW, Light = C(160, 240, 255) },
+	candy = { Body = C(255, 150, 200), Mat = M.SmoothPlastic, Trim = WHITE, Stair = C(255, 226, 120), Light = C(255, 255, 255) },
+	desert = { Body = STONE, Mat = M.Sandstone, Trim = DARKSTONE, Stair = SAND, Light = C(255, 190, 70) },
+	station = { Body = METAL, Mat = M.Metal, Trim = DARK, Stair = DARK, Light = CYAN },
+}
+
+local function deck(parent, id, d)
+	local pal = DECKS[id]
+	local x, z, sgn = d[1], d[2], d[3]
+	local size, h = Maps.DeckSize, Maps.DeckHeight
+	box(parent, "Deck", x, z, size, h, size, 0, 0, pal.Body, pal.Mat)
+	box(parent, "DeckTop", x, z, size + 0.6, 0.6, size + 0.6, h, 0, pal.Trim, pal.Mat)
+	-- a low rim on three sides (the stairs side stays open)
+	for _, side in { -1, 1 } do
+		box(parent, "DeckRim", x + side * (size / 2 - 0.4), z, 0.8, 1.6, size, h + 0.6, 0, pal.Trim, pal.Mat)
+	end
+	box(parent, "DeckRim", x, z - sgn * (size / 2 - 0.4), size, 1.6, 0.8, h + 0.6, 0, pal.Trim, pal.Mat)
+	stairs(parent, x, z + sgn * size / 2, sgn, 6, h, 1, 2, pal.Stair)
+	box(parent, "DeckGlow", x, z, size - 2, 0.2, size - 2, h + 0.6, 0, pal.Light, M.Neon, true)
+end
+
+local function walls(parent, id, spec)
+	local half = Maps.Half + 2
+	local h = spec.Height
+	local segs = 12
+	local len = (half * 2 + 4) / segs
+	for side = 1, 4 do
+		for i = 0, segs - 1 do
+			local t = -half - 2 + len * (i + 0.5)
+			local x, z, w, d
+			if side == 1 then x, z, w, d = t, -half, len + 0.2, 4
+			elseif side == 2 then x, z, w, d = t, half, len + 0.2, 4
+			elseif side == 3 then x, z, w, d = -half, t, 4, len + 0.2
+			else x, z, w, d = half, t, 4, len + 0.2 end
+			local color = spec.Color
+			if spec.Alt and i % 2 == 1 then
+				color = spec.Alt
+			end
+			part(parent, "Wall", Vector3.new(w, h, d), CFrame.new(x, h / 2, z), color, spec.Material)
+		end
+	end
+	-- a bright cap along the top of every wall
+	for _, def in { { 0, -half, half * 2 + 4, 1 }, { 0, half, half * 2 + 4, 1 }, { -half, 0, 1, half * 2 + 4 }, { half, 0, 1, half * 2 + 4 } } do
+		part(parent, "WallCap", Vector3.new(def[3], 1.2, def[4]), CFrame.new(def[1], h + 0.6, def[2]), spec.Trim, spec.Cap or M.Neon, true)
+	end
+end
+
+local function decorGround(parent, id, spec)
+	local seed = 77
+	local function rnd()
+		seed = (seed * 48271) % 2147483647
+		return seed / 2147483647
+	end
+	if id == "station" then
+		-- a glowing grid on the floor
+		for t = -120, 120, 20 do
+			part(parent, "GridLine", Vector3.new(0.4, 0.06, 262), CFrame.new(t, 0.04, 0), CYAN, M.Neon, true)
+			part(parent, "GridLine", Vector3.new(262, 0.06, 0.4), CFrame.new(0, 0.04, t), CYAN, M.Neon, true)
+		end
+		for _, b in { -100, 100 } do
+			part(parent, "LaunchPad", Vector3.new(22, 0.08, 22), CFrame.new(b, 0.06, 0), MAG, M.Neon, true).Transparency = 0.7
+		end
+		return
+	end
+	for _ = 1, 70 do
+		local x, z = (rnd() * 2 - 1) * 126, (rnd() * 2 - 1) * 126
+		if id == "candy" then
+			local p = box(parent, "Sprinkle", x, z, 0.5, 0.15, 2.4, 0.06, rnd() * 180, pick(PINKS, 1 + math.floor(rnd() * 6)), M.Neon, true)
+			p.Transparency = 0.1
+		elseif id == "frost" then
+			local p = ball(parent, "SnowPatch", x, 0.05, z, 6 + rnd() * 10, spec.Patch, M.Snow, true, 0.02)
+			p.Transparency = 0.3
+		else
+			local p = ball(parent, "SandPatch", x, 0.05, z, 8 + rnd() * 14, spec.Patch, M.Sand, true, 0.02)
+			p.Transparency = 0.3
+		end
+	end
+end
+
+local function wallDetail(parent, id, spec)
+	local half = Maps.Half + 2
+	if id == "candy" then
+		for i = -5, 5 do
+			local off = i * 24
+			for _, o in { { off, -half + 3 }, { off, half - 3 }, { -half + 3, off }, { half - 3, off } } do
+				ball(parent, "WallGumdrop", o[1], spec.Height + 1.6, o[2], 5, pick(PINKS, i + 6), M.SmoothPlastic, true, 0.8)
+			end
+		end
+	elseif id == "frost" then
+		for i = -5, 5 do
+			local off = i * 24 + 6
+			for _, o in { { off, -half - 4, 0 }, { off, half + 4, 0 }, { -half - 4, off, 90 }, { half + 4, off, 90 } } do
+				local peak = part(parent, "IcePeak", Vector3.new(14, 22 + (i % 3) * 8, 14), CFrame.new(o[1], spec.Height + 4, o[2]) * CFrame.Angles(0.2, math.rad(o[3] + i * 20), 0.2), ICE, M.Ice, true)
+				peak.Transparency = 0.15
+			end
+		end
+	elseif id == "desert" then
+		for i = -10, 10 do
+			local off = i * 12.5
+			for _, o in { { off, -half }, { off, half }, { -half, off }, { half, off } } do
+				if i % 2 == 0 then
+					part(parent, "Merlon", Vector3.new(4, 3, 4), CFrame.new(o[1], spec.Height + 2.2, o[2]), STONE, M.Sandstone, true)
+				end
+			end
+		end
+	else
+		for i = -4, 4 do
+			local off = i * 28
+			for _, o in { { off, -half + 2.1, 0 }, { off, half - 2.1, 0 }, { -half + 2.1, off, 90 }, { half - 2.1, off, 90 } } do
+				local win = part(parent, "Window", Vector3.new(o[3] == 0 and 18 or 0.3, 10, o[3] == 0 and 0.3 or 18), CFrame.new(o[1], spec.Height * 0.55, o[2]), C(30, 70, 150), M.Glass, true)
+				win.Transparency = 0.25
+			end
+		end
+	end
+end
+
+-- Builds the map `id` into the `arena` and `ground` folders.
+function MapKit.build(arena, ground, id)
+	local spec = Maps.List[id]
+	local layout = Maps.layout(id)
+	assert(spec and layout, "no map kit layout for " .. tostring(id))
+	local g = spec.Ground
+	part(ground, "Floor", Vector3.new(280, 2, 280), CFrame.new(0, -1, 0), g.Color, g.Material)
+	decorGround(ground, id, g)
+	walls(arena, id, { Color = spec.Wall.Color, Alt = id == "candy" and WHITE or nil, Material = spec.Wall.Material, Trim = spec.Wall.Trim, Height = spec.Wall.Height, Cap = id == "frost" and M.Ice or nil })
+	wallDetail(arena, id, spec.Wall)
+	CENTERS[id](arena)
+	for _, d in layout.Decks do
+		deck(arena, id, d)
+	end
+	local props = PROPS[id]
+	for _, p in layout.Props do
+		local build = props[p.Kind]
+		if build then
+			build(arena, p.X, p.Z, p.Rot, p.Size, p.Variant)
+		end
+	end
+end
+
+return MapKit
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="26">
           <Properties>
             <string name="Name">Match</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the match from start to finish: lobby wait, countdown, play, THE REVEAL, results, back to the lobby.
@@ -5186,6 +6048,8 @@ local Events = require(script.Parent.Events)
 local Modes = require(script.Parent.Modes)
 local Flags = require(script.Parent.Flags)
 local Water = require(script.Parent.Water)
+local Votes = require(script.Parent.Votes)
+local Maps = require(Shared:WaitForChild("Maps"))
 
 local Match = {}
 
@@ -5255,10 +6119,20 @@ local function hookDeath(e)
 	end
 end
 
--- Makes an entity a living member of the match: codename, number, lives, plate. (Used when a match starts and when somebody joins late.)
+-- Makes an entity a living member of the match: name, number, lives, plate. (Used when a match starts and when somebody joins late.)
 function Match.activate(e, color, animal, now)
-	e.code = color.Name .. " " .. animal.Name
-	e.icon = animal.Icon
+	if e.player then
+		-- real players are shown by their own Roblox name; only bots (off by default) get a colour and animal codename
+		local shown = e.player.DisplayName
+		if type(shown) ~= "string" or shown == "" then
+			shown = e.player.Name
+		end
+		e.code = shown
+		e.icon = ""
+	else
+		e.code = color.Name .. " " .. animal.Name
+		e.icon = animal.Icon
+	end
 	if not e.team then
 		e.color = color.Color
 	end
@@ -5410,7 +6284,7 @@ function Match.canDropIn(p)
 	return State.phase == "play" and #State.order < Config.Match.MaxPlayers and State.phaseEnd - State.now() > Config.Match.RevealAt
 end
 
--- A player arrives while a match is on: they go straight into it (a fresh codename and number, three lives, a few seconds
+-- A player arrives while a match is on: they go straight into it (their own number, three lives, a few seconds
 -- of protection, on their team's side in team modes). Returns true when they joined.
 function Match.dropIn(p)
 	if not Match.canDropIn(p) then
@@ -5420,17 +6294,7 @@ function Match.dropIn(p)
 	if not char or not Match.canDropIn(p) then
 		return false
 	end
-	local used = {}
-	for _, other in State.list() do
-		used[other.code or ""] = true
-	end
-	local color, animal
-	for _ = 1, 300 do
-		color, animal = Config.Colors[1 + math.floor(roll() * #Config.Colors)], Config.Animals[1 + math.floor(roll() * #Config.Animals)]
-		if not used[color.Name .. " " .. animal.Name] then
-			break
-		end
-	end
+	local color, animal = Config.Colors[1 + math.floor(roll() * #Config.Colors)], Config.Animals[1 + math.floor(roll() * #Config.Animals)]
 	local e: any = { id = p.UserId, player = p, char = char, style = styleFor(p) }
 	local data = Data.get(p)
 	if data then
@@ -5602,7 +6466,7 @@ function Match.finish()
 			score = e.score,
 			captures = e.captures or 0,
 			survived = math.floor((e.diedAt or now) - (e.startedAt or now)),
-			label = e.icon .. " " .. e.code,
+			label = (e.icon ~= "" and (e.icon .. " ") or "") .. e.code,
 			who = e.player and e.player.Name or "Bot",
 			kills = e.kills,
 			alive = e.alive,
@@ -5625,6 +6489,7 @@ function Match.finish()
 		end
 	end
 	State.setPhase("results", State.now() + Config.Match.ResultsTime)
+	Votes.open() -- the vote for the next map is open from here until the lobby wait is over
 	Net.sendAll("results", rows, winnerId or 0, winnerTeam, mode.Id, { State.teamScore[1], State.teamScore[2] })
 	return winnerId, winnerTeam
 end
@@ -5637,6 +6502,7 @@ function Match.cleanup()
 	Events.stop()
 	Bounty.clear()
 	Alliance.reset()
+	World.lobbyAtmosphere()
 	local list = Players:GetPlayers()
 	State.clear()
 	State.revealing = false
@@ -5697,6 +6563,7 @@ end
 
 function Match.onLeave(p)
 	Progress.release(p)
+	Votes.leave(p)
 	local e = State.byPlayer(p)
 	if e then
 		Alliance.leave(e)
@@ -5794,6 +6661,17 @@ function Match.run()
 			-- the very first match starts the moment somebody is here (no lobby wait); after that the lobby counts down
 			return first or State.now() >= State.phaseEnd
 		end)
+		-- the map: the first match uses the starter map; after that the one with the most votes (a tie: one of the tied maps)
+		if Config.Vote.Enabled then
+			local mapId
+			if first then
+				mapId = Maps.FirstMap
+				Votes.last = mapId
+			else
+				mapId = Votes.close()
+			end
+			World.loadMap(mapId)
+		end
 		first = false
 
 		Match.setup()
@@ -5836,7 +6714,7 @@ return Match
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="25">
+        <Item class="ModuleScript" referent="27">
           <Properties>
             <string name="Name">Modes</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the game modes. One framework, three rule sets (see Config.Modes): deathmatch, team deathmatch and capture the
@@ -5972,7 +6850,7 @@ return Modes
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="26">
+        <Item class="ModuleScript" referent="28">
           <Properties>
             <string name="Name">Net</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the server's way of talking to players.
@@ -6005,7 +6883,7 @@ return Net
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="27">
+        <Item class="ModuleScript" referent="29">
           <Properties>
             <string name="Name">Photos</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the camera. The server works out who is in the picture and which digits you could actually read, so
@@ -6119,7 +6997,7 @@ return Photos
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="28">
+        <Item class="ModuleScript" referent="30">
           <Properties>
             <string name="Name">Pickups</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: glowing item crates around the map. Walk into one to get a random item (never more than you can carry).
@@ -6327,11 +7205,11 @@ return Pickups
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="29">
+        <Item class="ModuleScript" referent="31">
           <Properties>
             <string name="Name">Plates</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: everything on a player's body for the game. The number plate on the forehead (only visible from the
--- front), the codename tag above the head, the plain coloured outfit, and the "exposed" number that floats above the
+-- front), the name tag above the head, the plain coloured outfit, and the "exposed" number that floats above the
 -- head of someone who covered their number or when THE REVEAL begins.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -6401,6 +7279,31 @@ function Plates.attachPlate(char, style, text)
 	rim.CFrame = head.CFrame * CFrame.new(0, y, z + 0.03)
 	rim.Parent = head
 	weld(head, rim)
+	-- detail: four little bolts at the corners and a glossy highlight strip across the top edge
+	local extras = {}
+	local function detail(name, size, offset, color, material)
+		local d = Instance.new("Part")
+		d.Name = name
+		d.Size = size
+		d.Color = color
+		d.Material = material
+		d.CanCollide = false
+		d.CanQuery = false
+		d.CanTouch = false
+		d.Massless = true
+		d.CFrame = head.CFrame * CFrame.new(offset.X, y + offset.Y, z + offset.Z)
+		d.Parent = head
+		weld(head, d)
+		table.insert(extras, d)
+		return d
+	end
+	for _, bx in { -1, 1 } do
+		for _, by in { -1, 1 } do
+			detail("PlateBolt", Vector3.new(0.09, 0.09, 0.05), Vector3.new(bx * (w / 2 - 0.1), by * (h / 2 - 0.1), -0.07), Color3.fromRGB(200, 205, 215), Enum.Material.Metal)
+		end
+	end
+	local shine = detail("PlateShine", Vector3.new(w - 0.34, 0.05, 0.05), Vector3.new(0, h / 2 - 0.07, -0.07), Color3.fromRGB(255, 255, 255), Enum.Material.Neon)
+	shine.Transparency = 0.55
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "PlateGui"
 	gui.Face = Enum.NormalId.Front
@@ -6417,7 +7320,7 @@ function Plates.attachPlate(char, style, text)
 	glow.Color = Color3.fromRGB(255, 70, 70)
 	glow.Enabled = false
 	glow.Parent = plate
-	return { part = plate, rim = rim, light = glow, label = text3, gui = gui }
+	return { part = plate, rim = rim, light = glow, label = text3, gui = gui, extras = extras }
 end
 
 function Plates.setText(e, text)
@@ -6431,7 +7334,7 @@ function Plates.setText(e, text)
 	end
 end
 
--- The codename tag that floats above the head ("🦊 Red Fox").
+-- The name tag that floats above the head: the player's Roblox name (bots: "🦊 Red Fox").
 function Plates.attachTag(char, text, color)
 	local head = char:FindFirstChild("Head")
 	if not head then
@@ -6534,6 +7437,9 @@ function Plates.hide(e)
 	if plate and plate.part then
 		plate.part.Transparency = 1
 		plate.rim.Transparency = 1
+		for _, d in plate.extras or {} do
+			d.Transparency = 1
+		end
 		plate.gui.Enabled = false
 		plate.light.Enabled = false
 	end
@@ -6675,7 +7581,7 @@ function Plates.dress(char, color)
 		pcall(function()
 			humanoid:RemoveAccessories()
 		end)
-		-- the codename is the only name: no username or health bar over anybody's head
+		-- the name tag above is the only name: no Roblox name or health bar over anybody's head
 		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 		humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
 	end
@@ -6700,8 +7606,8 @@ function Plates.setup(e)
 	e.styleDef = Config.PlateStyleById[e.style or "classic"] or Config.PlateStyles[1]
 	Plates.dress(char, e.color)
 	e.plate = Plates.attachPlate(char, e.styleDef, e.number)
-	e.tag = Plates.attachTag(char, e.icon .. " " .. e.code, e.color)
-	e.numberTag = Plates.attachNumberTag(char, e.number)
+	e.tag = Plates.attachTag(char, (e.icon ~= "" and (e.icon .. " ") or "") .. e.code, e.color)
+	e.numberTag = Config.Number.FloatingTag and Plates.attachNumberTag(char, e.number) or nil
 	e.reveal = Plates.attachReveal(char)
 	e.bountyTag = Plates.attachBounty(char)
 	e.flagTag = Plates.attachFlagTag(char)
@@ -6714,7 +7620,7 @@ return Plates
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="30">
+        <Item class="ModuleScript" referent="32">
           <Properties>
             <string name="Name">Progress</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: what you keep between matches: coins, XP, levels and cosmetics (number plates, trails, elimination
@@ -6863,7 +7769,7 @@ return Progress
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="31">
+        <Item class="ModuleScript" referent="33">
           <Properties>
             <string name="Name">State</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: who is in the match right now. Every player and bot in a match is an "entity" with an id (a player's
@@ -7013,7 +7919,7 @@ return State
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="32">
+        <Item class="ModuleScript" referent="34">
           <Properties>
             <string name="Name">Terminals</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: information terminals. Hack one to learn something TRUE about your own number (greater than, even or odd,
@@ -7132,7 +8038,7 @@ return Terminals
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="33">
+        <Item class="ModuleScript" referent="35">
           <Properties>
             <string name="Name">Vision</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: what can see what. A number can only be read, photographed or guessed when nothing solid is in the
@@ -7210,7 +8116,100 @@ return Vision
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="34">
+        <Item class="ModuleScript" referent="36">
+          <Properties>
+            <string name="Name">Votes</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: the map vote. From the moment a match ends until the lobby wait is over, everybody can vote for the next map
+-- (one vote each, changeable). The map with the most votes is played; maps tied on votes are settled by a random pick among
+-- the tied ones (and with no votes at all, any of the six can come up). The counts are shown live on everybody's screen.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Maps = require(Shared:WaitForChild("Maps"))
+local Net = require(script.Parent.Net)
+
+local Votes = {}
+
+local rng = Random.new()
+local open = false
+local votes = {} -- userId -> map id
+local players = {} -- userId -> player (so a vote can be shown on that player's own screen)
+Votes.last = nil -- the map played last (a tie avoids it when there is anything else tied)
+
+local function publish()
+	local counts = Maps.tally(votes)
+	workspace:SetAttribute("VoteCounts", Maps.encode(counts))
+	local lead = Maps.winner(counts, 0, nil)
+	workspace:SetAttribute("VoteLead", open and lead or "")
+end
+
+function Votes.isOpen()
+	return open
+end
+
+function Votes.counts()
+	return Maps.tally(votes)
+end
+
+-- Opens a fresh vote (everybody's old vote is cleared).
+function Votes.open()
+	if not Config.Vote.Enabled then
+		return
+	end
+	for _, p in players do
+		p:SetAttribute("MyVote", "")
+	end
+	votes, players = {}, {}
+	open = true
+	workspace:SetAttribute("VoteOpen", true)
+	publish()
+end
+
+-- Somebody votes for a map. Returns true when the vote was counted.
+function Votes.cast(p, id)
+	if not open or type(id) ~= "string" or not Maps.List[id] or not p or not p.Parent then
+		return false
+	end
+	votes[p.UserId] = id
+	players[p.UserId] = p
+	p:SetAttribute("MyVote", id)
+	publish()
+	return true
+end
+
+-- A player who leaves takes their vote back.
+function Votes.leave(p)
+	if votes[p.UserId] then
+		votes[p.UserId] = nil
+		players[p.UserId] = nil
+		publish()
+	end
+end
+
+-- Closes the vote and returns the map to play next: (map id, its votes, true when maps were tied).
+-- `roll` is optional (a number in [0, 1)), for tests.
+function Votes.close(roll)
+	local counts = Maps.tally(votes)
+	local id, best, tied = Maps.winner(counts, roll or rng:NextNumber(), Votes.last)
+	open = false
+	workspace:SetAttribute("VoteOpen", false)
+	workspace:SetAttribute("VoteLead", "")
+	for _, p in players do
+		p:SetAttribute("MyVote", "")
+	end
+	Votes.last = id
+	Net.sendAll("mapPicked", id, best, tied)
+	votes, players = {}, {}
+	publish()
+	return id, best, tied
+end
+
+return Votes
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="37">
           <Properties>
             <string name="Name">Water</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the river current in Waterfall Canyon. Anybody standing in the river, a side stream, a plunge pool or
@@ -7282,7 +8281,7 @@ return Water
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="35">
+        <Item class="ModuleScript" referent="38">
           <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: builds the world from plain parts: "Plaza Park" (the arena, a city of 8 buildings around a park, with
@@ -7296,6 +8295,8 @@ local Pickups = require(script.Parent.Pickups)
 local Terminals = require(script.Parent.Terminals)
 local CanyonWorld = require(script.Parent.CanyonWorld)
 local LobbyWorld = require(script.Parent.LobbyWorld)
+local MapKit = require(script.Parent.MapKit)
+local Maps = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Maps"))
 
 local World = {}
 
@@ -7650,8 +8651,10 @@ local function buildArena()
 	local m = Config.Map
 	if m.Theme == "canyon" then
 		CanyonWorld.build(arena, ground)
-	else
+	elseif m.Theme == "city" then
 		buildCity(arena, ground)
+	else
+		MapKit.build(arena, ground, m.Theme)
 	end
 	-- Workspace.ArenaSpawns: one SpawnLocation per spawn point (disabled, so they are only used when a round starts).
 	-- Drag them around in Studio and the game uses the new places; add or delete some, there are always at least 10 in use
@@ -7738,7 +8741,9 @@ function World.watchStatus()
 				if n < Config.Match.MinHumans then
 					World.setStatus("WAITING FOR PLAYERS", n .. " / " .. Config.Match.MinHumans .. " here. Invite a friend!")
 				else
-					World.setStatus("NEXT: " .. nextName, "starts in " .. left .. " s  •  " .. n .. " players")
+					local lead = workspace:GetAttribute("VoteLead")
+					local leadText = (type(lead) == "string" and lead ~= "") and ("  •  🗳 " .. Maps.name(lead) .. " leads") or ""
+					World.setStatus("NEXT: " .. nextName, "starts in " .. left .. " s  •  " .. n .. " players" .. leadText)
 				end
 			elseif phase == "countdown" then
 				World.setStatus("GET READY!", "starts in " .. left .. " s")
@@ -7811,22 +8816,30 @@ local function effect(parent, class, props)
 	return ok
 end
 
+-- Lighting that is not part of a colour grade: the sky and the haze. `theme` is a map id (its own colours are applied from
+-- Maps.List[theme].Atmo) or nil for the normal sunny look the lobby has.
+local function atmosphere(theme)
+	local look = Config.Look.play
+	local atmo = theme and Maps.List[theme] and Maps.List[theme].Atmo or {}
+	Lighting.Ambient = atmo.Ambient or C(120, 134, 158)
+	Lighting.OutdoorAmbient = atmo.Outdoor or C(140, 154, 178)
+	Lighting.FogColor = atmo.Fog or C(190, 220, 250)
+	effect(Lighting, "Sky", { StarCount = atmo.Stars and 3000 or 0 })
+	effect(Lighting, "Atmosphere", { Density = 0.25, Color = atmo.AtmoColor or C(190, 220, 250), Decay = C(120, 170, 230), Haze = atmo.Haze or 0.6, Glare = 0.1 })
+	effect(Lighting, "BloomEffect", { Intensity = look.Bloom, Size = 20, Threshold = 1.1 })
+end
+
 -- A bright but not washed-out afternoon: moderate exposure, strong contrast, a little bloom.
 local function lighting()
 	local look = Config.Look.play
 	Lighting.ClockTime = look.Clock
 	Lighting.Brightness = look.Brightness
-	Lighting.Ambient = C(120, 134, 158)
-	Lighting.OutdoorAmbient = C(140, 154, 178)
 	Lighting.ColorShift_Top = C(255, 244, 220)
 	Lighting.EnvironmentDiffuseScale = 0.6
 	Lighting.EnvironmentSpecularScale = 0.5
 	Lighting.GlobalShadows = true
-	Lighting.FogColor = C(190, 220, 250)
 	Lighting.FogEnd = 2500
-	effect(Lighting, "Sky", { StarCount = 0 })
-	effect(Lighting, "Atmosphere", { Density = 0.25, Color = C(190, 220, 250), Decay = C(120, 170, 230), Haze = 0.6, Glare = 0.1 })
-	effect(Lighting, "BloomEffect", { Intensity = look.Bloom, Size = 20, Threshold = 1.1 })
+	atmosphere(Config.Map.Theme)
 	effect(Lighting, "SunRaysEffect", { Intensity = 0.06, Spread = 0.8 })
 	effect(Lighting, "ColorCorrectionEffect", { Saturation = look.Saturation, Contrast = look.Contrast, Brightness = look.Shift, TintColor = look.Tint })
 	effect(workspace.Terrain, "Clouds", { Cover = 0.55, Density = 0.5 })
@@ -7842,28 +8855,76 @@ local function scenery()
 		p.CastShadow = false
 		return p
 	end
+	local spec = Maps.List[Config.Map.Theme] and Maps.List[Config.Map.Theme].Scenery or {}
 	local hills = {
 		{ -420, -300, 330 }, { 60, -520, 420 }, { 520, -260, 360 }, { 620, 200, 300 }, { 380, 560, 380 },
 		{ -140, 640, 340 }, { -560, 380, 360 }, { -640, -60, 300 },
 	}
 	for _, h in hills do
-		local hill = deco(part(f, "Hill", Vector3.new(h[3], h[3], h[3]), Vector3.new(h[1], -h[3] * 0.38, h[2]), C(118, 204, 78), Enum.Material.Grass))
+		local hill = deco(part(f, "Hill", Vector3.new(h[3], h[3], h[3]), Vector3.new(h[1], -h[3] * 0.38, h[2]), spec.Hill or C(118, 204, 78), spec.Hill and Enum.Material.SmoothPlastic or Enum.Material.Grass))
 		hill.Shape = Enum.PartType.Ball
 	end
-	deco(part(f, "FarGround", Vector3.new(3000, 2, 3000), Vector3.new(0, -26, 0), C(128, 208, 84), Enum.Material.Grass))
+	deco(part(f, "FarGround", Vector3.new(3000, 2, 3000), Vector3.new(0, -26, 0), spec.Far or C(128, 208, 84), spec.Far and Enum.Material.SmoothPlastic or Enum.Material.Grass))
 	-- bubbles: translucent glassy balls drifting above the streets
 	local seed = 17
 	local function rnd()
 		seed = (seed * 48271) % 2147483647
 		return seed / 2147483647
 	end
-	for _ = 1, 40 do
-		local size = 3 + rnd() * 7
-		local b = deco(part(f, "Bubble", Vector3.new(size, size, size), Vector3.new((rnd() - 0.5) * 240, 8 + rnd() * 26, (rnd() - 0.5) * 240), C(190, 235, 255), Enum.Material.Glass))
+	-- (floating bubbles; snowflakes on the snow map; nothing on the desert and station maps)
+	for _ = 1, (spec.Bubbles == false and not spec.Flakes) and 0 or 40 do
+		local size = spec.Flakes and (1 + rnd() * 2.5) or (3 + rnd() * 7)
+		local b = deco(part(f, "Bubble", Vector3.new(size, size, size), Vector3.new((rnd() - 0.5) * 240, 8 + rnd() * 26, (rnd() - 0.5) * 240), spec.Flakes and C(255, 255, 255) or spec.BubbleColor or C(190, 235, 255), spec.Flakes and Enum.Material.Snow or Enum.Material.Glass))
 		b.Shape = Enum.PartType.Ball
-		b.Transparency = 0.55
-		b.Reflectance = 0.3
+		b.Transparency = spec.Flakes and 0.1 or 0.55
+		b.Reflectance = spec.Flakes and 0 or 0.3
 	end
+end
+
+-- Everything that belongs to the map being played (so it can be thrown away and built again for the next one).
+local MAP_FOLDERS = { "Arena", "Ground", "ArenaSpawns", "Crates", "Terminals", "Lamps", "Bases", "Scenery", "CanyonScenery", "Water", "Planes" }
+local built -- the map id the world was built for
+
+-- Builds the arena for another map (when it is not the one that is already built). Returns true when it was rebuilt.
+-- This happens in the lobby wait, while everybody is far away on the lobby island.
+function World.loadMap(theme)
+	if not Maps.List[theme] or not Config.Map.Themes[theme] then
+		return false
+	end
+	if built == theme then
+		atmosphere(theme)
+		return false
+	end
+	Config.Map.use(theme)
+	for _, name in MAP_FOLDERS do
+		local old = workspace:FindFirstChild(name)
+		if old then
+			old:Destroy()
+		end
+	end
+	local errors = {}
+	for _, step in { { "arena", buildArena }, { "bases", buildBases }, { "scenery", scenery } } do
+		local name, fn = step[1], step[2]
+		local ok, err = pcall(fn)
+		if not ok then
+			warn("[FigureMeOut] map step '" .. name .. "' failed: " .. tostring(err))
+			table.insert(errors, name .. ": " .. tostring(err))
+		end
+	end
+	built = theme
+	atmosphere(theme)
+	workspace:SetAttribute("MapTheme", theme)
+	workspace:SetAttribute("MapName", Maps.name(theme))
+	return true, errors
+end
+
+-- Back to the normal sunny sky (the lobby).
+function World.lobbyAtmosphere()
+	atmosphere(nil)
+end
+
+function World.currentMap()
+	return built
 end
 
 -- Builds everything. Each piece is separate, so a problem in one decoration can never stop the game. Returns a list of
@@ -7882,6 +8943,11 @@ function World.build()
 	step("bases", buildBases)
 	step("lobby", buildLobby)
 	step("scenery", scenery)
+	step("mapname", function()
+		built = Config.Map.Theme
+		workspace:SetAttribute("MapTheme", built)
+		workspace:SetAttribute("MapName", Maps.name(built))
+	end)
 	step("folders", function()
 		for _, name in { "Smoke", "Decoys", "Bots", "Effects" } do
 			folder(name)
@@ -7897,7 +8963,7 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="36">
+  <Item class="StarterPlayer" referent="39">
     <Properties>
       <string name="Name">StarterPlayer</string>
       <float name="CameraMaxZoomDistance">30</float>
@@ -7906,11 +8972,11 @@ return World
       <token name="DevComputerCameraMovementMode">0</token>
       <token name="DevTouchCameraMovementMode">0</token>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="37">
+    <Item class="StarterPlayerScripts" referent="40">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="38">
+      <Item class="LocalScript" referent="41">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[-- FIGURE ME OUT: client entry point. Builds the screen, wires every module together and routes the server's messages.
@@ -7922,6 +8988,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local UI = require(Shared:WaitForChild("UI"))
 local Audio = require(Shared:WaitForChild("Audio"))
+local Maps = require(Shared:WaitForChild("Maps"))
 
 local Net = ReplicatedStorage:WaitForChild("Net")
 local Action = Net:WaitForChild("Action")
@@ -7946,6 +9013,7 @@ local Markers = require(Modules.Markers)
 local Inventory = require(Modules.Inventory)
 local Emotes = require(Modules.Emotes)
 local Camera = require(Modules.Camera)
+local MapVote = require(Modules.MapVote)
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "FigureMeOut"
@@ -8002,6 +9070,7 @@ Menu.init(gui, deps)
 Hud.init(gui, deps)
 Inventory.init(gui, deps)
 Emotes.init(gui, deps)
+MapVote.init(gui, deps)
 Markers.init()
 Controls.init(deps)
 OwnPlate.init()
@@ -8017,7 +9086,7 @@ local function loadingScreen()
 	local cover = UI.new("Frame", { Name = "Loading", Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.Bg, BorderSizePixel = 0, ZIndex = 200 }, gui)
 	UI.gradient(cover, Color3.fromRGB(90, 190, 240), Color3.fromRGB(10, 60, 120), 90)
 	local title = UI.label(cover, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.42), Size = UDim2.fromOffset(640, 80), Font = UI.Fonts.Title, TextSize = 60, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "FIGURE ME OUT", ZIndex = 201 })
-	local tip = UI.label(cover, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.52), Size = UDim2.fromOffset(640, 30), Font = UI.Fonts.Bold, TextSize = 18, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Center, Text = "Everyone can see your number. Except you.", ZIndex = 201 })
+	local tip = UI.label(cover, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.52), Size = UDim2.fromOffset(640, 30), Font = UI.Fonts.Bold, TextSize = 18, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Center, Text = "Hide your number. Read theirs.", ZIndex = 201 })
 	local bar = UI.bar(cover, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.6), Size = UDim2.fromOffset(320, 12) }, C.Accent)
 	bar.back.ZIndex = 201
 	bar.fill.ZIndex = 202
@@ -8058,6 +9127,16 @@ function handlers.toast(text, kind)
 	Toasts.push(text, kind)
 end
 
+-- The vote is over: say which map won (and whether it was a tie).
+function handlers.mapPicked(id, votes, tied)
+	local m = Maps.List[id]
+	if not m then
+		return
+	end
+	local detail = (votes or 0) == 0 and "no votes: picked at random" or ((votes == 1 and "1 vote" or (votes .. " votes")) .. (tied and " (a tie: picked at random)" or ""))
+	Toasts.push(m.Icon .. " Next map: " .. m.Name .. " (" .. detail .. ")", "gold")
+end
+
 function handlers.myNumber(text)
 	if type(text) == "string" then
 		Hud.setMyNumber(text)
@@ -8071,7 +9150,7 @@ function handlers.phase(phase)
 		end
 		Album.reset()
 		Inventory.resetClues()
-		Fx.announce("GET READY", "Look at heads. Type their number.", C.Accent, 0.22)
+		Fx.announce("GET READY", (workspace:GetAttribute("MapName") or "") .. "  •  Look at heads. Type their number.", C.Accent, 0.22)
 		Audio.reveal()
 	elseif phase == "play" then
 		Fx.announce("GO!", "Someone is always watching", C.Good, 0.22)
@@ -8311,11 +9390,11 @@ end)
 
 ]]></string>
         </Properties>
-        <Item class="Folder" referent="39">
+        <Item class="Folder" referent="42">
           <Properties>
             <string name="Name">Modules</string>
           </Properties>
-          <Item class="ModuleScript" referent="40">
+          <Item class="ModuleScript" referent="43">
             <Properties>
               <string name="Name">Album</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the photo notebook. Every photo fills in the digits you could read; several blurry photos of the same
@@ -8671,7 +9750,7 @@ return Album
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="41">
+          <Item class="ModuleScript" referent="44">
             <Properties>
               <string name="Name">Alerts</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: everything the game shouts at you: flashbang blindness, stun, the "don't hide your number" warning,
@@ -8991,7 +10070,7 @@ return Alerts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="42">
+          <Item class="ModuleScript" referent="45">
             <Properties>
               <string name="Name">Ambient</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the moving scenery of Waterfall Canyon, animated on your own screen (no network traffic): the ripples on the
@@ -9038,6 +10117,14 @@ local function scan(now)
 			end
 		end
 	end
+	-- planes of a map that has been replaced are forgotten (the canyon is rebuilt when it wins a vote again)
+	local alive = {}
+	for _, p in planes do
+		if p.model.Parent ~= nil then
+			table.insert(alive, p)
+		end
+	end
+	planes = alive
 	local known = {}
 	for _, p in planes do
 		known[p.model] = true
@@ -9085,7 +10172,7 @@ return Ambient
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="43">
+          <Item class="ModuleScript" referent="46">
             <Properties>
               <string name="Name">Camera</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the camera. By default you play in third person with mouse-wheel zoom (0.5 to 30 studs) and wall-proof "Zoom" occlusion,
@@ -9172,7 +10259,7 @@ return Camera
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="44">
+          <Item class="ModuleScript" referent="47">
             <Properties>
               <string name="Name">Controls</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: keyboard and mouse. G guess, hold right mouse (or Z) for binoculars, click or F for a photo, V for
@@ -9379,7 +10466,7 @@ return Controls
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="45">
+          <Item class="ModuleScript" referent="48">
             <Properties>
               <string name="Name">Emotes</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the quick emote panel (💬 button). Tap an emoji and it pops up over your head for a few seconds. Great for
@@ -9482,7 +10569,7 @@ return Emotes
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="46">
+          <Item class="ModuleScript" referent="49">
             <Properties>
               <string name="Name">Fx</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
@@ -9720,7 +10807,7 @@ return Fx
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="47">
+          <Item class="ModuleScript" referent="50">
             <Properties>
               <string name="Name">Grade</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: colour grading on your own screen. The look blends smoothly from one moment to the next (warm lobby, vivid
@@ -9734,6 +10821,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Rules = require(Shared:WaitForChild("Rules"))
+local Maps = require(Shared:WaitForChild("Maps"))
 local View = require(script.Parent:WaitForChild("View"))
 
 local Grade = {}
@@ -9775,7 +10863,8 @@ function Grade.step(dt, t)
 		wantName = "play"
 	end
 	name = wantName
-	local want = Config.Look[wantName]
+	-- the map being played tints its own matches (snow is cool and pale, the desert warm, the station dark and neon)
+	local want = Maps.looked(Config.Look[wantName], wantName, workspace:GetAttribute("MapTheme"))
 	local k = 1 - math.exp(-Config.Look.Speed * dt)
 	for _, key in { "Clock", "Brightness", "Saturation", "Contrast", "Shift", "Bloom" } do
 		current[key] += (want[key] - current[key]) * k
@@ -9813,7 +10902,7 @@ return Grade
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="48">
+          <Item class="ModuleScript" referent="51">
             <Properties>
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the always-on screen: timer and alive count, your codename, lives, points and bullets, the kill feed, the
@@ -9911,7 +11000,7 @@ function Hud.init(screen, d)
 		Size = UDim2.fromOffset(270, 104),
 	})
 	refs.meBox = me
-	refs.meTitle = UI.label(me, { Position = UDim2.fromOffset(12, 6), Size = UDim2.fromOffset(134, 14), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "YOUR CODENAME" })
+	refs.meTitle = UI.label(me, { Position = UDim2.fromOffset(12, 6), Size = UDim2.fromOffset(134, 14), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "YOUR NAME" })
 	refs.meName = UI.label(me, { Position = UDim2.fromOffset(12, 20), Size = UDim2.fromOffset(136, 26), Font = UI.Fonts.Title, TextSize = 16, TextWrapped = false, Text = "-" })
 	-- your own digits, big: you must know them to hide them
 	refs.meCaption = UI.label(me, { Position = UDim2.fromOffset(150, 6), Size = UDim2.fromOffset(108, 14), Font = UI.Fonts.Bold, TextSize = 11, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Center, Text = "YOUR NUMBER" })
@@ -10272,13 +11361,14 @@ function Hud.update()
 	end
 	if playing then
 		refs.hearts.Visible = not teamMode
-		refs.meName.Text = (player:GetAttribute("Icon") or "") .. " " .. (player:GetAttribute("Code") or "")
+		local icon = player:GetAttribute("Icon") or ""
+		refs.meName.Text = (icon ~= "" and (icon .. " ") or "") .. (player:GetAttribute("Code") or "")
 		local lives = player:GetAttribute("Lives") or 0
 		local myTeam = player:GetAttribute("Team")
 		if teamMode and myTeam then
 			refs.meTitle.Text = Config.Teams[myTeam].Icon .. " TEAM " .. Config.Teams[myTeam].Name
 		else
-			refs.meTitle.Text = "YOUR CODENAME"
+			refs.meTitle.Text = "YOUR NAME"
 		end
 		refs.hearts.Text = string.rep("❤", lives) .. string.rep("🖤", math.max(0, Config.Lives.Start - lives))
 		refs.score.Text = "⭐ " .. (player:GetAttribute("Score") or 0)
@@ -10357,7 +11447,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="49">
+          <Item class="ModuleScript" referent="52">
             <Properties>
               <string name="Name">Inventory</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the gadget inventory (🎒 or I). Every gadget with its charges, cooldown and what it does, plus the clues you
@@ -10478,7 +11568,7 @@ return Inventory
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="50">
+          <Item class="ModuleScript" referent="53">
             <Properties>
               <string name="Name">Keypad</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the guess panel. Press G (or tap GUESS): pick who you mean from the list of people you can see (the one under
@@ -10791,7 +11881,147 @@ return Keypad
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="51">
+          <Item class="ModuleScript" referent="54">
+            <Properties>
+              <string name="Name">MapVote</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: the map vote. Six cards along the bottom of the screen while the vote is open (from the results screen until
+-- the next match starts): tap a map to vote for it, tap another to change your mind. The number on a card is how many votes it
+-- has; the leading map glows gold. The map with the most votes is played, and a tie is settled by a random pick among the tied.
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Maps = require(Shared:WaitForChild("Maps"))
+local UI = require(Shared:WaitForChild("UI"))
+local Audio = require(Shared:WaitForChild("Audio"))
+local View = require(script.Parent:WaitForChild("View"))
+
+local MapVote = {}
+
+local player = Players.LocalPlayer
+local C = UI.Colors
+local deps
+local panel, title, cards
+local lastAt = -100
+local picked -- the vote I just cast (shown at once, before the server's answer arrives)
+
+local function visible()
+	return Config.Vote.Enabled and workspace:GetAttribute("VoteOpen") == true and (View.phase() == "lobby" or View.phase() == "results")
+end
+
+function MapVote.isOpen()
+	return panel ~= nil and panel.Visible
+end
+
+-- Votes for a map (returns false when the vote is closed or it was too soon after the last one).
+function MapVote.vote(id)
+	if not visible() or not Maps.List[id] then
+		return false
+	end
+	local now = os.clock()
+	if now - lastAt < Config.Vote.MinGap then
+		return false
+	end
+	lastAt = now
+	picked = id
+	deps.send("Vote", id)
+	Audio.click()
+	MapVote.update()
+	return true
+end
+
+function MapVote.init(gui, d)
+	deps = d
+	panel = UI.panel(gui, {
+		Name = "MapVote",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -12),
+		Size = UDim2.new(0.94, 0, 0, 142),
+		Visible = false,
+		ZIndex = 40,
+	})
+	UI.new("UISizeConstraint", { MaxSize = Vector2.new(820, 142), MinSize = Vector2.new(300, 142) }, panel)
+	title = UI.label(panel, {
+		Position = UDim2.fromOffset(12, 6),
+		Size = UDim2.new(1, -24, 0, 22),
+		Font = UI.Fonts.Title,
+		TextSize = 17,
+		TextColor3 = C.Gold,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextWrapped = false,
+		Text = "🗳 VOTE FOR THE NEXT MAP",
+		ZIndex = 41,
+	})
+	local row = UI.new("Frame", { Name = "Cards", Position = UDim2.fromOffset(8, 32), Size = UDim2.new(1, -16, 1, -40), BackgroundTransparency = 1, ZIndex = 41 }, panel)
+	UI.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder, HorizontalAlignment = Enum.HorizontalAlignment.Center }, row)
+	cards = {}
+	for i, id in Maps.Order do
+		local m = Maps.List[id]
+		local card = UI.button(row, { LayoutOrder = i, Size = UDim2.new(1 / #Maps.Order, -6, 1, 0), Text = "", BackgroundColor3 = m.Card, ZIndex = 42 }, "card")
+		local icon = UI.label(card, { Position = UDim2.fromOffset(0, 4), Size = UDim2.new(1, 0, 0.5, 0), Font = UI.Fonts.Title, TextSize = 30, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = m.Icon, ZIndex = 43 })
+		local name = UI.label(card, { Position = UDim2.new(0, 2, 0.5, 0), Size = UDim2.new(1, -4, 0.32, 0), Font = UI.Fonts.Bold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Center, Text = m.Name, ZIndex = 43 })
+		local count = UI.label(card, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -3, 0, 3), Size = UDim2.fromOffset(26, 20), Font = UI.Fonts.Title, TextSize = 14, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "", ZIndex = 44 })
+		local mine = UI.label(card, { Position = UDim2.new(0, 0, 0.82, 0), Size = UDim2.new(1, 0, 0.16, 0), Font = UI.Fonts.Bold, TextSize = 11, TextColor3 = C.Mint, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "", ZIndex = 43 })
+		card.MouseButton1Click:Connect(function()
+			MapVote.vote(id)
+		end)
+		cards[id] = { card = card, count = count, mine = mine, stroke = card:FindFirstChildOfClass("UIStroke") }
+	end
+	local last = 0
+	RunService.RenderStepped:Connect(function()
+		local now = os.clock()
+		if now - last >= 0.2 then
+			last = now
+			MapVote.update()
+		end
+	end)
+end
+
+function MapVote.update()
+	if not panel then
+		return
+	end
+	local show = visible()
+	panel.Visible = show
+	if not show then
+		picked = nil
+		return
+	end
+	local counts = Maps.decode(workspace:GetAttribute("VoteCounts"))
+	local mine = player:GetAttribute("MyVote")
+	if type(mine) ~= "string" or mine == "" then
+		mine = picked
+	end
+	local lead = workspace:GetAttribute("VoteLead")
+	local best = 0
+	for _, id in Maps.Order do
+		best = math.max(best, counts[id])
+	end
+	for _, id in Maps.Order do
+		local c = cards[id]
+		local n = counts[id]
+		c.count.Text = n > 0 and tostring(n) or ""
+		c.mine.Text = id == mine and "✓ YOUR VOTE" or ""
+		if c.stroke then
+			c.stroke.Color = (best > 0 and n == best) and C.Gold or (id == mine and Color3.new(1, 1, 1) or C.Stroke)
+			c.stroke.Thickness = (best > 0 and n == best) and 4 or (id == mine and 3.5 or 2.5)
+		end
+	end
+	local left = math.ceil(View.timeLeft())
+	if View.phase() == "lobby" then
+		title.Text = "🗳 VOTE FOR THE NEXT MAP  •  most votes wins  •  tie = random pick"
+	else
+		title.Text = "🗳 VOTE FOR THE NEXT MAP  •  tap a map"
+	end
+end
+
+return MapVote
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="55">
             <Properties>
               <string name="Name">Markers</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: little markers drawn only on your screen: the green 🤝 over your ally, and the pings from your scanner.
@@ -10880,7 +12110,7 @@ return Markers
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="52">
+          <Item class="ModuleScript" referent="56">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the menu window: how to play, forehead plates you unlock by winning, your stats and the settings.
@@ -11204,7 +12434,7 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="53">
+          <Item class="ModuleScript" referent="57">
             <Properties>
               <string name="Name">OwnPlate</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: you must never see your own number (forehead plate or the floating one). The plate is hidden on your screen only; everybody else
@@ -11250,7 +12480,7 @@ return OwnPlate
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="54">
+          <Item class="ModuleScript" referent="58">
             <Properties>
               <string name="Name">Results</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the scoreboard at the end of every match.
@@ -11279,7 +12509,7 @@ function Results.init(gui, d)
 	panel = UI.panel(gui, {
 		Name = "Results",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.44),
 		Size = UDim2.fromOffset(560, 520),
 		Visible = false,
 		ZIndex = 55,
@@ -11433,7 +12663,7 @@ function Results.show(rows, winnerId, winnerTeam, modeId, scores)
 			Font = UI.Fonts.Bold,
 			TextSize = 14,
 			TextWrapped = false,
-			Text = (teamMode and Config.Teams[r.team] and (Config.Teams[r.team].Icon .. " ") or "") .. r.label .. (r.who ~= "Bot" and ("  (" .. r.who .. ")") or ""),
+			Text = (teamMode and Config.Teams[r.team] and (Config.Teams[r.team].Icon .. " ") or "") .. r.label .. ((r.who ~= "Bot" and r.who ~= r.label) and ("  (" .. r.who .. ")") or ""),
 			ZIndex = 58,
 		})
 		UI.label(row, {
@@ -11484,7 +12714,7 @@ return Results
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="55">
+          <Item class="ModuleScript" referent="59">
             <Properties>
               <string name="Name">Scope</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the binoculars. Hold the right mouse button (or Z, or tap the 🔭 slot) to zoom far across the map and
@@ -11647,7 +12877,7 @@ return Scope
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="56">
+          <Item class="ModuleScript" referent="60">
             <Properties>
               <string name="Name">Spectate</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: once you are out, you watch the others. The camera follows a living player; press ◀ ▶ (or the arrow
@@ -11784,7 +13014,7 @@ return Spectate
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="57">
+          <Item class="ModuleScript" referent="61">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -11894,7 +13124,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="58">
+          <Item class="ModuleScript" referent="62">
             <Properties>
               <string name="Name">View</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the client's picture of the match. Reads the attributes the server writes and finds the people in the
@@ -12110,7 +13340,7 @@ return View
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="59">
+  <Item class="Workspace" referent="63">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

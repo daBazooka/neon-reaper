@@ -24,6 +24,8 @@ local Events = require(script.Parent.Events)
 local Modes = require(script.Parent.Modes)
 local Flags = require(script.Parent.Flags)
 local Water = require(script.Parent.Water)
+local Votes = require(script.Parent.Votes)
+local Maps = require(Shared:WaitForChild("Maps"))
 
 local Match = {}
 
@@ -93,10 +95,20 @@ local function hookDeath(e)
 	end
 end
 
--- Makes an entity a living member of the match: codename, number, lives, plate. (Used when a match starts and when somebody joins late.)
+-- Makes an entity a living member of the match: name, number, lives, plate. (Used when a match starts and when somebody joins late.)
 function Match.activate(e, color, animal, now)
-	e.code = color.Name .. " " .. animal.Name
-	e.icon = animal.Icon
+	if e.player then
+		-- real players are shown by their own Roblox name; only bots (off by default) get a colour and animal codename
+		local shown = e.player.DisplayName
+		if type(shown) ~= "string" or shown == "" then
+			shown = e.player.Name
+		end
+		e.code = shown
+		e.icon = ""
+	else
+		e.code = color.Name .. " " .. animal.Name
+		e.icon = animal.Icon
+	end
 	if not e.team then
 		e.color = color.Color
 	end
@@ -248,7 +260,7 @@ function Match.canDropIn(p)
 	return State.phase == "play" and #State.order < Config.Match.MaxPlayers and State.phaseEnd - State.now() > Config.Match.RevealAt
 end
 
--- A player arrives while a match is on: they go straight into it (a fresh codename and number, three lives, a few seconds
+-- A player arrives while a match is on: they go straight into it (their own number, three lives, a few seconds
 -- of protection, on their team's side in team modes). Returns true when they joined.
 function Match.dropIn(p)
 	if not Match.canDropIn(p) then
@@ -258,17 +270,7 @@ function Match.dropIn(p)
 	if not char or not Match.canDropIn(p) then
 		return false
 	end
-	local used = {}
-	for _, other in State.list() do
-		used[other.code or ""] = true
-	end
-	local color, animal
-	for _ = 1, 300 do
-		color, animal = Config.Colors[1 + math.floor(roll() * #Config.Colors)], Config.Animals[1 + math.floor(roll() * #Config.Animals)]
-		if not used[color.Name .. " " .. animal.Name] then
-			break
-		end
-	end
+	local color, animal = Config.Colors[1 + math.floor(roll() * #Config.Colors)], Config.Animals[1 + math.floor(roll() * #Config.Animals)]
 	local e: any = { id = p.UserId, player = p, char = char, style = styleFor(p) }
 	local data = Data.get(p)
 	if data then
@@ -440,7 +442,7 @@ function Match.finish()
 			score = e.score,
 			captures = e.captures or 0,
 			survived = math.floor((e.diedAt or now) - (e.startedAt or now)),
-			label = e.icon .. " " .. e.code,
+			label = (e.icon ~= "" and (e.icon .. " ") or "") .. e.code,
 			who = e.player and e.player.Name or "Bot",
 			kills = e.kills,
 			alive = e.alive,
@@ -463,6 +465,7 @@ function Match.finish()
 		end
 	end
 	State.setPhase("results", State.now() + Config.Match.ResultsTime)
+	Votes.open() -- the vote for the next map is open from here until the lobby wait is over
 	Net.sendAll("results", rows, winnerId or 0, winnerTeam, mode.Id, { State.teamScore[1], State.teamScore[2] })
 	return winnerId, winnerTeam
 end
@@ -475,6 +478,7 @@ function Match.cleanup()
 	Events.stop()
 	Bounty.clear()
 	Alliance.reset()
+	World.lobbyAtmosphere()
 	local list = Players:GetPlayers()
 	State.clear()
 	State.revealing = false
@@ -535,6 +539,7 @@ end
 
 function Match.onLeave(p)
 	Progress.release(p)
+	Votes.leave(p)
 	local e = State.byPlayer(p)
 	if e then
 		Alliance.leave(e)
@@ -632,6 +637,17 @@ function Match.run()
 			-- the very first match starts the moment somebody is here (no lobby wait); after that the lobby counts down
 			return first or State.now() >= State.phaseEnd
 		end)
+		-- the map: the first match uses the starter map; after that the one with the most votes (a tie: one of the tied maps)
+		if Config.Vote.Enabled then
+			local mapId
+			if first then
+				mapId = Maps.FirstMap
+				Votes.last = mapId
+			else
+				mapId = Votes.close()
+			end
+			World.loadMap(mapId)
+		end
 		first = false
 
 		Match.setup()

@@ -61,6 +61,13 @@ Only use sounds you are allowed to use. If an id can't load, the game skips it s
 
 Set `Config.Modes.Mode` in `Config.luau` to `"team"` or `"ctf"` and press Play (or use Test > Start with 2+ players). Check: team colours and spawn sides, the score banner at the top, no way to guess a teammate, flags at the two base pads (west red, east blue), taking/dropping/returning/capturing, and the results screen naming the winning team.
 
+## Testing the maps and the vote
+
+* In Studio choose Test > Clients and Servers > 2 players. The first player goes straight into a match on Waterfall Canyon. Let it end (or wait out the 90 seconds): the **vote cards** appear along the bottom of both screens. Vote differently on each player, check the numbers on the cards change, then watch the lobby clock: the winner is announced ("Next map: ...") and the match starts on it.
+* Make a tie (one vote each for two maps) a few times: it must always be one of those two maps, and not always the same one.
+* To look at one map without voting, run this in the Studio command bar (server): `require(game.ServerScriptService.Main.Modules.World).loadMap("frost")` (ids: canyon, city, frost, candy, desert, station), then walk the spawn pads in Workspace.ArenaSpawns.
+* Names: every player shows by their Roblox display name. In Studio test sessions that is the test account's name.
+
 ## 4. Common problems
 
 * **Nothing happens when I press Play:** open View > Output and look for red text. Send it to me.

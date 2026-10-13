@@ -9,6 +9,8 @@ local Pickups = require(script.Parent.Pickups)
 local Terminals = require(script.Parent.Terminals)
 local CanyonWorld = require(script.Parent.CanyonWorld)
 local LobbyWorld = require(script.Parent.LobbyWorld)
+local MapKit = require(script.Parent.MapKit)
+local Maps = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Maps"))
 
 local World = {}
 
@@ -363,8 +365,10 @@ local function buildArena()
 	local m = Config.Map
 	if m.Theme == "canyon" then
 		CanyonWorld.build(arena, ground)
-	else
+	elseif m.Theme == "city" then
 		buildCity(arena, ground)
+	else
+		MapKit.build(arena, ground, m.Theme)
 	end
 	-- Workspace.ArenaSpawns: one SpawnLocation per spawn point (disabled, so they are only used when a round starts).
 	-- Drag them around in Studio and the game uses the new places; add or delete some, there are always at least 10 in use
@@ -451,7 +455,9 @@ function World.watchStatus()
 				if n < Config.Match.MinHumans then
 					World.setStatus("WAITING FOR PLAYERS", n .. " / " .. Config.Match.MinHumans .. " here. Invite a friend!")
 				else
-					World.setStatus("NEXT: " .. nextName, "starts in " .. left .. " s  •  " .. n .. " players")
+					local lead = workspace:GetAttribute("VoteLead")
+					local leadText = (type(lead) == "string" and lead ~= "") and ("  •  🗳 " .. Maps.name(lead) .. " leads") or ""
+					World.setStatus("NEXT: " .. nextName, "starts in " .. left .. " s  •  " .. n .. " players" .. leadText)
 				end
 			elseif phase == "countdown" then
 				World.setStatus("GET READY!", "starts in " .. left .. " s")
@@ -524,22 +530,30 @@ local function effect(parent, class, props)
 	return ok
 end
 
+-- Lighting that is not part of a colour grade: the sky and the haze. `theme` is a map id (its own colours are applied from
+-- Maps.List[theme].Atmo) or nil for the normal sunny look the lobby has.
+local function atmosphere(theme)
+	local look = Config.Look.play
+	local atmo = theme and Maps.List[theme] and Maps.List[theme].Atmo or {}
+	Lighting.Ambient = atmo.Ambient or C(120, 134, 158)
+	Lighting.OutdoorAmbient = atmo.Outdoor or C(140, 154, 178)
+	Lighting.FogColor = atmo.Fog or C(190, 220, 250)
+	effect(Lighting, "Sky", { StarCount = atmo.Stars and 3000 or 0 })
+	effect(Lighting, "Atmosphere", { Density = 0.25, Color = atmo.AtmoColor or C(190, 220, 250), Decay = C(120, 170, 230), Haze = atmo.Haze or 0.6, Glare = 0.1 })
+	effect(Lighting, "BloomEffect", { Intensity = look.Bloom, Size = 20, Threshold = 1.1 })
+end
+
 -- A bright but not washed-out afternoon: moderate exposure, strong contrast, a little bloom.
 local function lighting()
 	local look = Config.Look.play
 	Lighting.ClockTime = look.Clock
 	Lighting.Brightness = look.Brightness
-	Lighting.Ambient = C(120, 134, 158)
-	Lighting.OutdoorAmbient = C(140, 154, 178)
 	Lighting.ColorShift_Top = C(255, 244, 220)
 	Lighting.EnvironmentDiffuseScale = 0.6
 	Lighting.EnvironmentSpecularScale = 0.5
 	Lighting.GlobalShadows = true
-	Lighting.FogColor = C(190, 220, 250)
 	Lighting.FogEnd = 2500
-	effect(Lighting, "Sky", { StarCount = 0 })
-	effect(Lighting, "Atmosphere", { Density = 0.25, Color = C(190, 220, 250), Decay = C(120, 170, 230), Haze = 0.6, Glare = 0.1 })
-	effect(Lighting, "BloomEffect", { Intensity = look.Bloom, Size = 20, Threshold = 1.1 })
+	atmosphere(Config.Map.Theme)
 	effect(Lighting, "SunRaysEffect", { Intensity = 0.06, Spread = 0.8 })
 	effect(Lighting, "ColorCorrectionEffect", { Saturation = look.Saturation, Contrast = look.Contrast, Brightness = look.Shift, TintColor = look.Tint })
 	effect(workspace.Terrain, "Clouds", { Cover = 0.55, Density = 0.5 })
@@ -555,28 +569,76 @@ local function scenery()
 		p.CastShadow = false
 		return p
 	end
+	local spec = Maps.List[Config.Map.Theme] and Maps.List[Config.Map.Theme].Scenery or {}
 	local hills = {
 		{ -420, -300, 330 }, { 60, -520, 420 }, { 520, -260, 360 }, { 620, 200, 300 }, { 380, 560, 380 },
 		{ -140, 640, 340 }, { -560, 380, 360 }, { -640, -60, 300 },
 	}
 	for _, h in hills do
-		local hill = deco(part(f, "Hill", Vector3.new(h[3], h[3], h[3]), Vector3.new(h[1], -h[3] * 0.38, h[2]), C(118, 204, 78), Enum.Material.Grass))
+		local hill = deco(part(f, "Hill", Vector3.new(h[3], h[3], h[3]), Vector3.new(h[1], -h[3] * 0.38, h[2]), spec.Hill or C(118, 204, 78), spec.Hill and Enum.Material.SmoothPlastic or Enum.Material.Grass))
 		hill.Shape = Enum.PartType.Ball
 	end
-	deco(part(f, "FarGround", Vector3.new(3000, 2, 3000), Vector3.new(0, -26, 0), C(128, 208, 84), Enum.Material.Grass))
+	deco(part(f, "FarGround", Vector3.new(3000, 2, 3000), Vector3.new(0, -26, 0), spec.Far or C(128, 208, 84), spec.Far and Enum.Material.SmoothPlastic or Enum.Material.Grass))
 	-- bubbles: translucent glassy balls drifting above the streets
 	local seed = 17
 	local function rnd()
 		seed = (seed * 48271) % 2147483647
 		return seed / 2147483647
 	end
-	for _ = 1, 40 do
-		local size = 3 + rnd() * 7
-		local b = deco(part(f, "Bubble", Vector3.new(size, size, size), Vector3.new((rnd() - 0.5) * 240, 8 + rnd() * 26, (rnd() - 0.5) * 240), C(190, 235, 255), Enum.Material.Glass))
+	-- (floating bubbles; snowflakes on the snow map; nothing on the desert and station maps)
+	for _ = 1, (spec.Bubbles == false and not spec.Flakes) and 0 or 40 do
+		local size = spec.Flakes and (1 + rnd() * 2.5) or (3 + rnd() * 7)
+		local b = deco(part(f, "Bubble", Vector3.new(size, size, size), Vector3.new((rnd() - 0.5) * 240, 8 + rnd() * 26, (rnd() - 0.5) * 240), spec.Flakes and C(255, 255, 255) or spec.BubbleColor or C(190, 235, 255), spec.Flakes and Enum.Material.Snow or Enum.Material.Glass))
 		b.Shape = Enum.PartType.Ball
-		b.Transparency = 0.55
-		b.Reflectance = 0.3
+		b.Transparency = spec.Flakes and 0.1 or 0.55
+		b.Reflectance = spec.Flakes and 0 or 0.3
 	end
+end
+
+-- Everything that belongs to the map being played (so it can be thrown away and built again for the next one).
+local MAP_FOLDERS = { "Arena", "Ground", "ArenaSpawns", "Crates", "Terminals", "Lamps", "Bases", "Scenery", "CanyonScenery", "Water", "Planes" }
+local built -- the map id the world was built for
+
+-- Builds the arena for another map (when it is not the one that is already built). Returns true when it was rebuilt.
+-- This happens in the lobby wait, while everybody is far away on the lobby island.
+function World.loadMap(theme)
+	if not Maps.List[theme] or not Config.Map.Themes[theme] then
+		return false
+	end
+	if built == theme then
+		atmosphere(theme)
+		return false
+	end
+	Config.Map.use(theme)
+	for _, name in MAP_FOLDERS do
+		local old = workspace:FindFirstChild(name)
+		if old then
+			old:Destroy()
+		end
+	end
+	local errors = {}
+	for _, step in { { "arena", buildArena }, { "bases", buildBases }, { "scenery", scenery } } do
+		local name, fn = step[1], step[2]
+		local ok, err = pcall(fn)
+		if not ok then
+			warn("[FigureMeOut] map step '" .. name .. "' failed: " .. tostring(err))
+			table.insert(errors, name .. ": " .. tostring(err))
+		end
+	end
+	built = theme
+	atmosphere(theme)
+	workspace:SetAttribute("MapTheme", theme)
+	workspace:SetAttribute("MapName", Maps.name(theme))
+	return true, errors
+end
+
+-- Back to the normal sunny sky (the lobby).
+function World.lobbyAtmosphere()
+	atmosphere(nil)
+end
+
+function World.currentMap()
+	return built
 end
 
 -- Builds everything. Each piece is separate, so a problem in one decoration can never stop the game. Returns a list of
@@ -595,6 +657,11 @@ function World.build()
 	step("bases", buildBases)
 	step("lobby", buildLobby)
 	step("scenery", scenery)
+	step("mapname", function()
+		built = Config.Map.Theme
+		workspace:SetAttribute("MapTheme", built)
+		workspace:SetAttribute("MapName", Maps.name(built))
+	end)
 	step("folders", function()
 		for _, name in { "Smoke", "Decoys", "Bots", "Effects" } do
 			folder(name)

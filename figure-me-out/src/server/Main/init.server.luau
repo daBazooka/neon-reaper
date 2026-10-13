@@ -12,6 +12,7 @@ local Items = require(Modules.Items)
 local Progress = require(Modules.Progress)
 local Alliance = require(Modules.Alliance)
 local State = require(Modules.State)
+local Votes = require(Modules.Votes)
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
 Players.CharacterAutoLoads = false
@@ -51,7 +52,7 @@ end
 
 -- Every request is checked and rate limited, and a bad one can never crash the server.
 -- the shortest time allowed between two requests of the same kind from one player
-local MIN_GAP = { Guess = 0.25, Use = 0.3, Snap = 0.5, Emote = 1, Buy = 0.5, Equip = 0.3, AllyAsk = 1, AllyReply = 0.3, Share = 1 }
+local MIN_GAP = { Guess = 0.25, Use = 0.3, Snap = 0.5, Emote = 1, Buy = 0.5, Equip = 0.3, AllyAsk = 1, AllyReply = 0.3, Share = 1, Vote = Config.Vote.MinGap }
 local lastCall = {} -- userId -> { kind -> time of the last call }
 local function allowed(p, kind)
 	local now = os.clock()
@@ -131,6 +132,9 @@ function handlers.Share(p, entries)
 	if e and Config.Features.Alliances then
 		Alliance.share(e, entries)
 	end
+end
+function handlers.Vote(p, id)
+	Votes.cast(p, id)
 end
 function handlers.Seen(p)
 	local data = Data.get(p)

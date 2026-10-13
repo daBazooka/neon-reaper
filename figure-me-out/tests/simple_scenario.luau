@@ -81,22 +81,22 @@ for _, v in list do distinct[string.format("%.1f,%.1f", v.X, v.Z)] = true end
 local nd = 0 for _ in distinct do nd += 1 end
 check(nd == #list, "...and they are all different places")
 
--- ===== floating numbers =====
-local withTag, wrongText = 0, 0
+-- ===== no floating numbers: the number is only on the forehead plate =====
+local withTag, wrongText, noPlate = 0, 0, 0
 for _, e in State.list() do
-	if e.numberTag then
-		withTag += 1
-		if e.numberTag.label.Text ~= e.number then wrongText += 1 end
-	end
+	if e.numberTag then withTag += 1 end
+	if not e.plate or e.plate.label.Text ~= e.number then wrongText += 1 end
+	local head = e.char and e.char:FindFirstChild("Head")
+	if head and head:FindFirstChild("NumberTag") then withTag += 1 end
 end
-check(withTag == #State.order and wrongText == 0, "everybody has a floating number over their head that matches their real number")
-check(me.numberTag.gui.MaxDistance == Config.Number.TagRange and me.numberTag.gui.AlwaysOnTop == false, "it is drawn in the world (walls hide it) and only within " .. Config.Number.TagRange .. " studs")
+check(withTag == 0 and Config.Number.FloatingTag == false, "nobody has a floating number over their head (not even me)")
+check(wrongText == 0 and #State.order > 0, "every forehead plate shows the real number")
 -- being eliminated: the number goes away, and after 3 seconds you are back in the lobby
 local lobbyAt = Config.Map.Lobby
 me.lives = 1; me.protectedUntil = 0; bot.protectedUntil = 0
 local Combat = require(ModN.children.Combat)
 Combat.eliminate(me, bot, "guess")
-check(me.numberTag.gui.Enabled == false and not me.alive, "an eliminated player's floating number disappears")
+check(me.plate.gui.Enabled == false and not me.alive, "an eliminated player's forehead number disappears")
 advance(Config.Lives.EliminatedDelay - 0.5)
 check(not (p1.Character.root.Position - lobbyAt).Magnitude or (p1.Character.root.Position - lobbyAt).Magnitude > 60, "still waiting during the respawn delay")
 advance(1)

@@ -36,6 +36,21 @@ Or run `rojo serve` and click Connect in the Rojo plugin to live-edit.
 
 On a phone or tablet: tap the buttons in the gadget bar, the GUESS button and the on-screen keypad. On a controller: X guess, R2 photo, hold L2 for binoculars, Y notebook, L1/R1 choose a gadget and A to use it, Start for the menu.
 
+## Six maps, and you vote for the next one
+
+From the moment a match ends until the next one starts (the results screen plus the 10-second lobby wait) six cards appear along the bottom of everybody's screen. **Tap a map to vote** (tap another to change your mind; the number on a card is its votes and the leader glows gold). **The map with the most votes is played. If maps are tied, one of the tied maps is picked at random** (and with no votes at all, any of the six can come up). The very first match, which starts the moment the first player arrives, uses the starter map (Waterfall Canyon). Switch voting off with `Config.Vote.Enabled = false` (the game then stays on one map). The arena is rebuilt for the winning map while everybody is on the lobby island; each map also tints the colour grade and the sky a little.
+
+| Map | What it is |
+|---|---|
+| 🌊 **Waterfall Canyon** | waterfalls, a river that pushes you, a lake, planes overhead (see below) |
+| 🏙️ **Plaza Park** | streets, four buildings with balconies and roofs, courtyards, a park in the middle |
+| ❄️ **Frosty Peaks** | snow, igloos, snowmen, pines, ice blocks, a frozen pond with an ice spire |
+| 🍭 **Candy Kingdom** | lollipops, cupcakes, gumdrops, candy canes, donuts and a giant layered cake |
+| 🏜️ **Desert Ruins** | sandstone pillars and ruins, cacti, palms, obelisks and a stepped pyramid |
+| 🚀 **Neon Station** | a glowing space station: containers, pylons, tanks, holograms and a reactor core |
+
+The four newer maps are built from a map kit (`src/shared/Maps.luau` has the data, `src/server/Main/Modules/MapKit.luau` the builders): every one is 268 x 268 studs with tall walls, four raised decks with staircases, a landmark in the middle and 64 pieces of cover placed where nobody spawns, and the red base in the west, the blue base in the east (for capture the flag). To add a map, add an entry to `Maps.List`/`Maps.Props`, a builder per prop kind in `MapKit.luau`, and add its id to `Maps.Order` and to the list in `Config.luau`.
+
 ## The map: Waterfall Canyon
 
 The arena is **Waterfall Canyon**: a tall cliff along one side with three waterfalls pouring down it (you can walk behind them, and a waterfall blocks sight), a river that runs down the middle into a swimmable lake with an island and a dock, bridges, rock arches, a jungle of trees and boulders, a wrecked plane you can use as cover, a seaplane at the dock, and two planes flying circuits high overhead.
@@ -49,8 +64,10 @@ The arena is **Waterfall Canyon**: a tall cliff along one side with three waterf
 
 ## Real players, your own number, instant guesses
 
-* **Real players only, and you drop straight in.** No bots. The very first player to arrive goes **straight into a match** (no lobby wait). Everybody who arrives after that drops into the match that is running (fresh number and codename, 3 lives, a few seconds of protection, on the smaller team in team modes) as long as it isn't in its last 20 seconds and isn't full (20). When a match ends there are the results, then the lobby for **10 seconds**, then the next match starts. Someone who leaves can't rejoin the same match. A match nobody else was in pays no win reward. If only one player is left, or a whole team has left, the match ends and the ones still there win. Settings: `Config.Match.FirstMatchAtOnce`, `MinHumans`, `Intermission`.
-* **You can see your own number** (big, top-left of the screen, and on your own plate and floating tag) so you know what to hide. Only you are told yours; the server never sends anybody else's.
+* **Everybody is shown by their real Roblox name** (display name) on the small name tag above the head, the guess pad, the kill feed and the results. The big gold floating numbers are gone: the number is only ever on the forehead plate (now with bolts and a shine strip). `Config.Number.FloatingTag = true` brings the old floating number back.
+
+* **Real players only, and you drop straight in.** No bots. The very first player to arrive goes **straight into a match** (no lobby wait). Everybody who arrives after that drops into the match that is running (their own number, 3 lives, a few seconds of protection, on the smaller team in team modes) as long as it isn't in its last 20 seconds and isn't full (20). When a match ends there are the results, then the lobby for **10 seconds**, then the next match starts. Someone who leaves can't rejoin the same match. A match nobody else was in pays no win reward. If only one player is left, or a whole team has left, the match ends and the ones still there win. Settings: `Config.Match.FirstMatchAtOnce`, `MinHumans`, `Intermission`.
+* **You can see your own number** (big, top-left of the screen; the number is on the forehead plate for everybody else, and there is no floating number above anybody's head) so you know what to hide. Only you are told yours; the server never sends anybody else's.
 * **No Enter, no CONFIRM.** Look at somebody and just type their three digits (or press G / Enter, or tap them on a phone first): the guess goes in by itself on the third digit and you see right or wrong at once. `Config.Guess.AutoSubmit = false` brings the CONFIRM button back.
 * **Colour grading** follows the moment (warm golden lobby, bright vivid match, punchy pulsing last seconds, celebratory results). Tune it in `Config.Look`.
 

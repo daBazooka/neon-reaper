@@ -13,5 +13,7 @@ for m in sorted(f[:-5] for f in os.listdir(os.path.join(root, "server/Main/Modul
 out.append(f'sources[MainN] = function(script)\n{read("server/Main/init.server.luau")}\nend')
 scenario = sys.argv[1] if len(sys.argv) > 1 else "server_scenario.luau"
 target = sys.argv[2] if len(sys.argv) > 2 else "fmo_server_test.luau"
+if not scenario.startswith(("maps", "vote")):
+    out.append("do require(RS.children.Shared.children.Config).Vote.Enabled = false end -- (the older scenarios keep one fixed map; the map vote has its own tests)")
 out.append("local function __scenario()\n" + open(os.path.join(here, scenario)).read() + "\nend\n__scenario()")
 open("/tmp/claude-0/lu/" + target, "w").write("\n".join(out))

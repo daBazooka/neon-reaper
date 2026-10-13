@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Rules = require(Shared:WaitForChild("Rules"))
+local Maps = require(Shared:WaitForChild("Maps"))
 local View = require(script.Parent:WaitForChild("View"))
 
 local Grade = {}
@@ -50,7 +51,8 @@ function Grade.step(dt, t)
 		wantName = "play"
 	end
 	name = wantName
-	local want = Config.Look[wantName]
+	-- the map being played tints its own matches (snow is cool and pale, the desert warm, the station dark and neon)
+	local want = Maps.looked(Config.Look[wantName], wantName, workspace:GetAttribute("MapTheme"))
 	local k = 1 - math.exp(-Config.Look.Speed * dt)
 	for _, key in { "Clock", "Brightness", "Saturation", "Contrast", "Shift", "Bloom" } do
 		current[key] += (want[key] - current[key]) * k
