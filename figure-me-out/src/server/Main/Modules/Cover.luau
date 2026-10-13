@@ -18,6 +18,7 @@ function Cover.reset(e)
 	e.coverStage = "ok"
 	e.exposedUntil = 0
 	e.violations = 0
+	e.coverLast = nil
 	e.campAnchor = nil
 	e.sanePos = nil; e.saneAt = nil
 	e.campLast = nil
@@ -151,6 +152,9 @@ function Cover.step(e, dt)
 	Cover.sanity(e)
 	campStep(e)
 	local covered = Cover.isCovered(e)
+	-- real time since the last check (the tick loop runs a little slower than its nominal rate)
+	dt = math.clamp(now - (e.coverLast or now), 0, 1)
+	e.coverLast = now
 	e.coverTimer = Rules.coverStep(e.coverTimer or 0, covered, dt)
 	local stage = Rules.coverStage(e.coverTimer)
 	if stage == "expose" then

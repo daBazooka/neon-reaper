@@ -61,12 +61,13 @@ Config.Flag = {
 	TakePoints = 20, -- ... and for taking the enemy flag
 }
 
-Config.Number = { Digits = 3, Min = 1, Max = 999 } -- shown with leading zeros: 007, 042, 512
+Config.Number = { Digits = 3, Min = 1, Max = 999, TagRange = 110 } -- shown with leading zeros: 007, 042, 512
 
 -- Lives: a correct guess takes one life. You come back after a moment, protected, until your lives run out.
 Config.Lives = {
 	Start = 3,
-	RespawnDelay = 2.0, -- you are frozen and glitching for this long, then you pop up somewhere else
+	RespawnDelay = 3.0, -- you are frozen and glitching for this long, then you pop up somewhere else
+	EliminatedDelay = 3, -- out of lives: after this long you are sent back to the lobby (and spectate from there)
 	Protect = 5, -- seconds nobody can guess you after coming back
 	AntiFarm = 25, -- you can't score on the same person again for this long
 }
@@ -173,7 +174,9 @@ Config.Photo = {
 	NoticeChance = 0.6,
 }
 
-Config.Camera = { FirstPerson = true, MaxZoom = 14 } -- first person during matches; third person in the lobby, results and spectating
+-- Third person with mouse-wheel zoom (0.5 = first person, 30 = far away). Occlusion "Zoom" pulls the camera in when a wall is in
+-- the way (so it never clips); "Invisicam" instead makes walls see-through. Set FirstPerson = true to lock first person in matches.
+Config.Camera = { FirstPerson = false, MinZoom = 0.5, MaxZoom = 30, Occlusion = "Zoom" }
 
 Config.Scope = { Fov = 14, MinFov = 6, MaxFov = 24, NormalFov = 70 }
 

@@ -83,3 +83,25 @@ Set `Config.Modes.Mode` in `Config.luau` to `"team"` or `"ctf"` and press Play (
 **Phones and tablets**: all buttons work by tapping (hotbar, GUESS, keypad with digits, notebook, menu). On touch screens the HUD never shrinks below 78% so buttons stay finger-sized; keyboard hints are hidden when there is no keyboard. Drag the screen to look around, tap the gadget buttons to use binoculars/photo/gadgets.
 
 **Speed**: with 20 players the server sends about 4 messages per second per player in the busiest possible test (everybody guessing and throwing gadgets every second), the number of parts in the world stays level over minutes (grenades, effects and sounds clean up), and one server tick is far below its 250 ms budget. Test files: `tests/exploit_scenario.luau`, `tests/perf_scenario.luau`, `tests/churn_scenario.luau`.
+
+## Where everything lives in Studio (Explorer layout)
+
+Open `FigureMeOut.rbxl` and you get this already assembled (nothing to paste):
+
+```
+ReplicatedStorage
+  Shared                 Config (every setting), Rules, UI, Audio, Util
+  Net                    Action + Notify RemoteEvents (made by the server)
+ServerScriptService
+  Main                   = the GameManager: Script "Main" + Modules (Match = rounds, intermission and respawns,
+                           World = map + spawns, Guess, Combat, Plates = floating numbers ...)
+StarterPlayer
+  StarterPlayerScripts
+    Client               = CameraAndClientSetup (Modules/Camera, Controls, OwnPlate) and the UI (Modules/Hud, Keypad ...)
+Workspace
+  ArenaSpawns            20 SpawnLocations (needs at least 10). Move them in Studio and rounds use the new places.
+  Lobby                  island + LobbySpawnLocation (where everybody appears first)
+```
+
+Camera: third person, mouse-wheel zoom 0.5 to 30 studs, walls pull the camera in (no clipping). Change it in `Config.Camera`.
+Timers: lobby wait 10 s (`Config.Match.Intermission`), losing a life or being eliminated sends you back after 3 s (`Config.Lives.RespawnDelay`, `Config.Lives.EliminatedDelay`).

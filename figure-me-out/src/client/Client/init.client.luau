@@ -151,6 +151,7 @@ function handlers.phase(phase)
 	elseif phase == "play" then
 		Fx.announce("GO!", "Someone is always watching", C.Good, 0.22)
 		Audio.countdown(0, true)
+		Audio.horn()
 		Fx.flash(Color3.new(1, 1, 1), 0.3, 0.4)
 	elseif phase == "lobby" then
 		Album.reset()

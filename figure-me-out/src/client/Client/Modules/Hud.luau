@@ -387,6 +387,10 @@ function Hud.update()
 		Audio.countdown(second, false)
 		deps.Fx.announce(tostring(second), "", C.Gold, 0.3)
 	end
+	-- the lobby wait ticks down its last 5 seconds (only once a match is really about to start)
+	if phase == "lobby" and second ~= lastSecond and second >= 1 and second <= 5 and left <= 5 then
+		Audio.tick()
+	end
 	if phase == "play" and second ~= lastSecond and second <= 10 and second >= 1 and left <= 10 then
 		Audio.tick()
 	end

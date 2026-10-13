@@ -194,7 +194,7 @@ function View.aimed()
 				local angle = math.deg(math.acos(math.clamp(to.Unit:Dot(look), -1, 1)))
 				-- the person nearest the middle wins; when two are lined up, the nearer one does
 				local score = angle + distance * 0.002
-				if angle <= limit and (not bestAngle or score < bestAngle) and not View.blocked(origin, e.head.Position) then
+				if angle <= limit and (not bestAngle or score < bestAngle) and not View.blocked(origin, e.head.Position) and not View.blocked(head.Position, e.head.Position) then
 					best, bestAngle, bestDistance = e, score, distance
 				end
 			end

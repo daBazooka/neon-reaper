@@ -355,14 +355,26 @@ local function buildArena()
 			lamp(lamps, 112 * sx, 31 * sz)
 		end
 	end
-	-- clearly marked spawn points: glowing pads on the street
-	local pads = folder("SpawnPads")
+	-- Workspace.ArenaSpawns: one SpawnLocation per spawn point (disabled, so they are only used when a round starts).
+	-- Drag them around in Studio and the game uses the new places; add or delete some, there are always at least 10 in use
+	-- (if the folder is ever missing or empty the positions in Config.Map.Spawns are used instead).
+	local pads = folder("ArenaSpawns")
 	for i, spawn in m.Spawns do
-		local pad = neon(pads, "SpawnPad" .. i, Vector3.new(6, 0.15, 6), Vector3.new(spawn.X, 0.5, spawn.Z), C(120, 230, 255))
-		pad.Shape = Enum.PartType.Cylinder
-		pad.Size = Vector3.new(0.15, 6, 6)
-		pad.CFrame = CFrame.new(spawn.X, 0.5, spawn.Z) * CFrame.Angles(0, 0, math.pi / 2)
+		local pad = Instance.new("SpawnLocation")
+		pad.Name = "ArenaSpawn" .. i
+		pad.Size = Vector3.new(6, 0.4, 6)
+		pad.Position = Vector3.new(spawn.X, spawn.Y - 3, spawn.Z)
+		pad.Anchored = true
+		pad.Enabled = false
+		pad.Neutral = true
+		pad.AllowTeamChangeOnTouch = false
+		pad.Duration = 0
+		pad.Material = Enum.Material.Neon
+		pad.Color = C(120, 230, 255)
 		pad.Transparency = 0.35
+		pad.CanQuery = false
+		pad.TopSurface = Enum.SurfaceType.Smooth
+		pad.Parent = pads
 	end
 	local crates = folder("Crates")
 	Pickups.build(crates)
@@ -482,6 +494,19 @@ local function buildLobby()
 		local pad = part(lobby, "Pad", Vector3.new(4, 0.3, 4), c + Vector3.new(math.cos(angle) * 30, 0.35, math.sin(angle) * 30), C(130, 214, 250))
 		pad.CanQuery = false
 	end
+	-- the default spawn: anybody Roblox spawns on its own (joining, resetting) appears in the lobby
+	local home = Instance.new("SpawnLocation")
+	home.Name = "LobbySpawnLocation"
+	home.Size = Vector3.new(10, 0.4, 10)
+	home.Position = c + Vector3.new(0, 0.5, 0)
+	home.Anchored = true
+	home.Neutral = true
+	home.Duration = 0
+	home.Transparency = 0.6
+	home.Material = Enum.Material.Neon
+	home.Color = AQUA
+	home.TopSurface = Enum.SurfaceType.Smooth
+	home.Parent = lobby
 end
 
 function World.lobbySpawn(i)
@@ -490,8 +515,32 @@ function World.lobbySpawn(i)
 	return c + Vector3.new(math.cos(angle) * 30, 4, math.sin(angle) * 30)
 end
 
+-- Where players stand when a round starts: the pads in Workspace.ArenaSpawns (so you can move them in Studio), or the
+-- built-in list when that folder is missing or has fewer than 10 pads.
+function World.arenaSpawns()
+	local list = {}
+	local pads = workspace:FindFirstChild("ArenaSpawns")
+	if pads then
+		for _, pad in pads:GetChildren() do
+			if pad:IsA("BasePart") then
+				table.insert(list, Vector3.new(pad.Position.X, pad.Position.Y + 3, pad.Position.Z))
+			end
+		end
+	end
+	if #list < 10 then
+		return Config.Map.Spawns
+	end
+	table.sort(list, function(a, b)
+		if a.X ~= b.X then
+			return a.X < b.X
+		end
+		return a.Z < b.Z
+	end)
+	return list
+end
+
 function World.arenaSpawn(i)
-	local list = Config.Map.Spawns
+	local list = World.arenaSpawns()
 	return list[(i - 1) % #list + 1]
 end
 

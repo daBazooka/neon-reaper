@@ -187,6 +187,12 @@ function Audio.countdown(n, final)
 	Audio.play("Tone", final and 1.6 or 1.0, 0.7)
 end
 
+function Audio.horn() -- the round starts
+	Audio.play("Bass", 0.55, 1)
+	Audio.play("Bass", 0.7, 0.8)
+	run({ 5, 8, 12 }, 0.12, 0.7)
+end
+
 function Audio.tick()
 	Audio.play("Click", 1.8, 0.25)
 end

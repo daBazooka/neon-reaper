@@ -94,6 +94,9 @@ function Plates.setText(e, text)
 	if plate and plate.label then
 		plate.label.Text = text
 	end
+	if e.numberTag and e.numberTag.label then
+		e.numberTag.label.Text = text
+	end
 end
 
 -- The codename tag that floats above the head ("🦊 Red Fox").
@@ -117,6 +120,30 @@ function Plates.attachTag(char, text, color)
 	gui.Parent = head
 	label(gui, { Text = text, TextColor3 = color, TextStrokeTransparency = 0.3, TextScaled = false, TextSize = 18 })
 	return gui
+end
+
+-- The big number that floats above the head (everybody but you sees it; OwnPlate hides it on your own screen). It is drawn
+-- in the world, so walls hide it, and it only shows within Config.Number.TagRange studs.
+function Plates.attachNumberTag(char, text)
+	local head = char:FindFirstChild("Head")
+	if not head then
+		return nil
+	end
+	local old = head:FindFirstChild("NumberTag")
+	if old then
+		old:Destroy()
+	end
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "NumberTag"
+	gui.Size = UDim2.fromOffset(120, 46)
+	gui.StudsOffset = Vector3.new(0, 3.6, 0)
+	gui.MaxDistance = Config.Number.TagRange
+	gui.AlwaysOnTop = false
+	gui.LightInfluence = 0
+	gui.Adornee = head
+	gui.Parent = head
+	local text3 = label(gui, { Name = "TagDigits", Text = text, TextColor3 = Color3.fromRGB(255, 232, 90), TextStrokeColor3 = Color3.fromRGB(20, 40, 90), TextStrokeTransparency = 0, Font = Enum.Font.FredokaOne })
+	return { gui = gui, label = text3 }
 end
 
 -- A small eye marker above the head of an exposed player (no digits: the number is only ever on the forehead).
@@ -177,6 +204,9 @@ function Plates.hide(e)
 		plate.rim.Transparency = 1
 		plate.gui.Enabled = false
 		plate.light.Enabled = false
+	end
+	if e.numberTag and e.numberTag.gui then
+		e.numberTag.gui.Enabled = false
 	end
 	if e.reveal and e.reveal.gui then
 		e.reveal.gui.Enabled = false
@@ -339,6 +369,7 @@ function Plates.setup(e)
 	Plates.dress(char, e.color)
 	e.plate = Plates.attachPlate(char, e.styleDef, e.number)
 	e.tag = Plates.attachTag(char, e.icon .. " " .. e.code, e.color)
+	e.numberTag = Plates.attachNumberTag(char, e.number)
 	e.reveal = Plates.attachReveal(char)
 	e.bountyTag = Plates.attachBounty(char)
 	e.flagTag = Plates.attachFlagTag(char)

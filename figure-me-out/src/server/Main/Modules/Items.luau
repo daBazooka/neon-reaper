@@ -275,6 +275,10 @@ local function makeDecoy(e)
 	if label then
 		label.Text = number
 	end
+	local tagLabel = model:FindFirstChild("TagDigits", true)
+	if tagLabel then
+		tagLabel.Text = number
+	end
 	local hum = model:FindFirstChildOfClass("Humanoid")
 	if hum then
 		hum.WalkSpeed = 0

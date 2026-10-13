@@ -363,7 +363,13 @@ do
 	local PLAYER = localPlayer
 	a.Alive = false; attrsWS.Phase = "lobby"; frames(5)
 	check(Camera.mode() == "third" and PLAYER.CameraMode == Enum.CameraMode.Classic, "the lobby uses the normal third-person camera")
-	a.Alive = true; attrsWS.Phase = "countdown"; fireAll("attr_Alive"); frames(5)
+	a.Alive = true; attrsWS.Phase = "play"; fireAll("attr_Alive"); frames(5)
+	check(Camera.mode() == "third" and PLAYER.CameraMode == Enum.CameraMode.Classic, "matches are played in third person by default")
+	check(PLAYER.CameraMinZoomDistance == 0.5 and PLAYER.CameraMaxZoomDistance == 30, "mouse-wheel zoom goes from 0.5 to 30 studs")
+	check(PLAYER.DevCameraOcclusionMode == Enum.DevCameraOcclusionMode.Zoom, "walls pull the camera in instead of clipping")
+	check(PLAYER.DevComputerCameraMode == Enum.DevComputerCameraMovementMode.UserChoice and PLAYER.DevTouchCameraMode == Enum.DevTouchCameraMovementMode.UserChoice, "players choose their own camera movement mode")
+	Config.Camera.FirstPerson = true -- (the optional first-person lock still works)
+	attrsWS.Phase = "countdown"; frames(5)
 	check(Camera.mode() == "first" and PLAYER.CameraMode == Enum.CameraMode.LockFirstPerson, "a living player in a match is in first person")
 	attrsWS.Phase = "play"; frames(5)
 	check(Camera.mode() == "first", "still first person while playing")
@@ -379,7 +385,6 @@ do
 	Config.Camera.FirstPerson = false
 	attrsWS.Phase = "play"; frames(5)
 	check(Camera.mode() == "third", "first person can be switched off in Config")
-	Config.Camera.FirstPerson = true
 	frames(5)
 	a.Alive = false; attrsWS.Phase = "lobby"; frames(3)
 end
@@ -542,6 +547,9 @@ X.click("📒"); check(Album.isOpen(), "notebook button"); Album.close()
 local plate, gui2 = {Name = "NumberPlate", Transparency = 0}, {Name = "PlateGui", Enabled = true}
 me.Character:addPart(plate); me.Character:addPart(gui2)
 check(plate.Transparency == 1 and gui2.Enabled == false, "my own number plate is hidden for me")
+local floating = {Name = "NumberTag", Enabled = true}
+me.Character:addPart(floating)
+check(floating.Enabled == false, "the floating number over my own head is hidden for me too")
 
 -- ===== keys do nothing outside a match =====
 a.Alive = false; attrsWS.Phase = "lobby"

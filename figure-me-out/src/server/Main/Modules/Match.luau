@@ -110,7 +110,8 @@ function Match.setup()
 	local botCount = math.max(0, math.min(Config.Match.MinTotal, Config.Match.MaxPlayers) - #humans)
 	local total = #humans + botCount
 	local names = Rules.codenames(roll, total)
-	local spawnOrder = shuffled(#Config.Map.Spawns)
+	local arena = World.arenaSpawns()
+	local spawnOrder = shuffled(#arena)
 	local now = State.now()
 
 	local function finish(e, index)
@@ -173,7 +174,7 @@ function Match.setup()
 	local pools, taken = {}, { 0, 0 }
 	for team = 1, 2 do
 		local side = {}
-		for _, sp in Config.Map.Spawns do
+		for _, sp in arena do
 			if (team == 1 and sp.X < 0) or (team == 2 and sp.X > 0) then
 				table.insert(side, sp)
 			end
@@ -190,7 +191,7 @@ function Match.setup()
 			taken[e.team] += 1
 			spawn = pools[e.team][(taken[e.team] - 1) % #pools[e.team] + 1]
 		else
-			spawn = Config.Map.Spawns[spawnOrder[(index - 1) % #spawnOrder + 1]]
+			spawn = arena[spawnOrder[(index - 1) % #spawnOrder + 1]]
 		end
 		if e.bot then
 			Bots.place(e, spawn)
@@ -212,7 +213,8 @@ end
 -- A spawn point with nobody close, for somebody who lost a life and is coming back.
 function Match.safeSpawn(team)
 	local best, bestScore = nil, -1
-	for _, spawn in Config.Map.Spawns do
+	local arena = World.arenaSpawns()
+	for _, spawn in arena do
 		if team and ((team == 1 and spawn.X > 0) or (team == 2 and spawn.X < 0)) then
 			continue
 		end
@@ -228,7 +230,7 @@ function Match.safeSpawn(team)
 			best, bestScore = spawn, score
 		end
 	end
-	return best or Config.Map.Spawns[1]
+	return best or arena[1]
 end
 
 function Match.reveal()
@@ -529,7 +531,7 @@ function Match.run()
 		Flags.dropCarried(victim, "out")
 		local p = victim.player
 		if p then
-			task.delay(3, function()
+			task.delay(Config.Lives.EliminatedDelay, function()
 				if State.phase == "play" or State.phase == "countdown" then
 					Match.respawnLobby(p)
 				end

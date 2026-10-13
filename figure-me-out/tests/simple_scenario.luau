@@ -67,6 +67,41 @@ local res = lastNote("results")
 check(res ~= nil and #res[2] == #State.order, "results are shown for everyone")
 advance(Config.Match.ResultsTime + Config.Match.Intermission + Config.Match.Countdown + 2)
 check(State.phase == "play" or State.phase == "countdown", "the next match starts quickly (" .. State.phase .. ")")
+-- ===== spawn system =====
+check((X.made.SpawnLocation or 0) >= 11, "the world has SpawnLocations: ten or more arena spawns plus the lobby spawn (" .. tostring(X.made.SpawnLocation) .. ")")
+local Config2 = Config
+local seen, dupes = {}, 0
+-- (the positions of the players right after the start were checked by the full-house scenario; here: the pads themselves)
+local World = require(ModN.children.World)
+local list = World.arenaSpawns()
+check(#list >= 10, "at least 10 distinct arena spawn points (" .. #list .. ")")
+local distinct = {}
+for _, v in list do distinct[string.format("%.1f,%.1f", v.X, v.Z)] = true end
+local nd = 0 for _ in distinct do nd += 1 end
+check(nd == #list, "...and they are all different places")
+
+-- ===== floating numbers =====
+local withTag, wrongText = 0, 0
+for _, e in State.list() do
+	if e.numberTag then
+		withTag += 1
+		if e.numberTag.label.Text ~= e.number then wrongText += 1 end
+	end
+end
+check(withTag == #State.order and wrongText == 0, "everybody has a floating number over their head that matches their real number")
+check(me.numberTag.gui.MaxDistance == Config.Number.TagRange and me.numberTag.gui.AlwaysOnTop == false, "it is drawn in the world (walls hide it) and only within " .. Config.Number.TagRange .. " studs")
+-- being eliminated: the number goes away, and after 3 seconds you are back in the lobby
+local lobbyAt = Config.Map.Lobby
+me.lives = 1; me.protectedUntil = 0; bot.protectedUntil = 0
+local Combat = require(ModN.children.Combat)
+Combat.eliminate(me, bot, "guess")
+check(me.numberTag.gui.Enabled == false and not me.alive, "an eliminated player's floating number disappears")
+advance(Config.Lives.EliminatedDelay - 0.5)
+check(not (p1.Character.root.Position - lobbyAt).Magnitude or (p1.Character.root.Position - lobbyAt).Magnitude > 60, "still waiting during the respawn delay")
+advance(1)
+check((p1.Character.root.Position - lobbyAt).Magnitude < 60, "after " .. Config.Lives.EliminatedDelay .. " seconds the player is back in the lobby")
+check(Config.Lives.RespawnDelay == 3, "losing a life respawns you after 3 seconds")
+
 -- win streaks pay more
 local w2 = Rules.streakMultiplier(3)
 check(w2 == 1.5, "a 3-win streak pays x1.5")
