@@ -184,6 +184,9 @@ function Plates.hide(e)
 	if e.bountyTag and e.bountyTag.gui then
 		e.bountyTag.gui.Enabled = false
 	end
+	if e.flagTag and e.flagTag.gui then
+		e.flagTag.gui.Enabled = false
+	end
 end
 
 -- A small tag over the head of the bounty target: it names the prize, never the number.
@@ -214,6 +217,38 @@ function Plates.showBounty(e, on, reward)
 	if tag and tag.gui then
 		tag.gui.Enabled = on
 		tag.label.Text = on and ("🎯 BOUNTY +" .. reward) or ""
+	end
+end
+
+-- The flag carrier's tag: everybody can see who has a flag.
+function Plates.attachFlagTag(char)
+	local head = char:FindFirstChild("Head")
+	if not head then
+		return nil
+	end
+	local old = head:FindFirstChild("FlagTag")
+	if old then
+		old:Destroy()
+	end
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "FlagTag"
+	gui.Size = UDim2.fromOffset(150, 28)
+	gui.StudsOffset = Vector3.new(0, 6.6, 0)
+	gui.AlwaysOnTop = true
+	gui.LightInfluence = 0
+	gui.Enabled = false
+	gui.Adornee = head
+	gui.Parent = head
+	local text = label(gui, { Text = "", TextColor3 = Color3.new(1, 1, 1), TextStrokeTransparency = 0.2, TextScaled = false, TextSize = 16 })
+	return { gui = gui, label = text }
+end
+
+function Plates.showFlag(e, on, teamDef)
+	local tag = e.flagTag
+	if tag and tag.gui then
+		tag.gui.Enabled = on
+		tag.label.Text = on and ("🚩 " .. teamDef.Name .. " FLAG") or ""
+		tag.label.TextColor3 = on and teamDef.Color or Color3.new(1, 1, 1)
 	end
 end
 
@@ -306,6 +341,7 @@ function Plates.setup(e)
 	e.tag = Plates.attachTag(char, e.icon .. " " .. e.code, e.color)
 	e.reveal = Plates.attachReveal(char)
 	e.bountyTag = Plates.attachBounty(char)
+	e.flagTag = Plates.attachFlagTag(char)
 	e.trail = Plates.attachTrail(char, e.trailDef)
 	e.shown = e.number
 	return e.plate ~= nil

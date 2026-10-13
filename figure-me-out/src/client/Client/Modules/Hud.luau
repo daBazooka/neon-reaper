@@ -74,8 +74,10 @@ function Hud.init(screen, d)
 	})
 
 	-- chips under the timer: bounty and alliance
-	refs.chips = UI.new("Frame", { Position = UDim2.new(0.5, -150, 0, 82), Size = UDim2.fromOffset(300, 60), BackgroundTransparency = 1 }, root)
+	refs.chips = UI.new("Frame", { Position = UDim2.new(0.5, -150, 0, 82), Size = UDim2.fromOffset(300, 100), BackgroundTransparency = 1 }, root)
 	UI.new("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 4), HorizontalAlignment = Enum.HorizontalAlignment.Center }, refs.chips)
+	refs.modeChip = UI.panel(refs.chips, { Size = UDim2.fromOffset(280, 40), Radius = 8, BackgroundColor3 = Color3.fromRGB(24, 40, 64), Visible = false, LayoutOrder = 0 })
+	refs.modeText = UI.label(refs.modeChip, { Size = UDim2.fromScale(1, 1), Font = UI.Fonts.Bold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = true, Text = "" })
 	refs.bountyChip = UI.panel(refs.chips, { Size = UDim2.fromOffset(280, 26), Radius = 8, BackgroundColor3 = Color3.fromRGB(150, 110, 20), Visible = false, LayoutOrder = 1 })
 	refs.bountyText = UI.label(refs.bountyChip, { Size = UDim2.fromScale(1, 1), Font = UI.Fonts.Bold, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "" })
 	refs.allyChip = UI.panel(refs.chips, { Size = UDim2.fromOffset(280, 26), Radius = 8, BackgroundColor3 = Color3.fromRGB(30, 130, 70), Visible = false, LayoutOrder = 2 })
@@ -358,9 +360,50 @@ function Hud.update()
 	-- you (in a match) or your profile (in the lobby)
 	refs.meBox.Visible = playing
 	refs.profile.Visible = not playing and phase ~= "results"
+	-- mode banner: team scores (and where the flags are) while playing; what comes next in the lobby
+	local mode = workspace:GetAttribute("Mode")
+	local teamMode = mode == "team" or mode == "ctf"
+	local nextName = workspace:GetAttribute("NextModeName")
+	local modeLine
+	if (phase == "play" or phase == "countdown") and mode then
+		if string.sub(refs.phase.Text, 1, 1) ~= "⚠" then
+			refs.phase.Text = (workspace:GetAttribute("ModeName") or "") .. (phase == "countdown" and "  •  GET READY" or "")
+		end
+		if teamMode then
+			local c1, c2 = Config.Teams[1], Config.Teams[2]
+			local limit = workspace:GetAttribute("ScoreLimit") or 0
+			modeLine = c1.Icon .. " " .. (workspace:GetAttribute("Team1Score") or 0) .. "   first to " .. limit .. "   " .. (workspace:GetAttribute("Team2Score") or 0) .. " " .. c2.Icon
+			if mode == "ctf" then
+				local function flagText(t)
+					local st = workspace:GetAttribute("Flag" .. t)
+					if st == "carried" then
+						return "taken by " .. (workspace:GetAttribute("FlagCarrier" .. t) or "?")
+					end
+					return st or "home"
+				end
+				modeLine = modeLine .. "\n🚩 " .. Config.Teams[1].Name .. ": " .. flagText(1) .. "  |  " .. Config.Teams[2].Name .. ": " .. flagText(2)
+			end
+			local mine = player:GetAttribute("Team")
+			refs.modeChip.BackgroundColor3 = mine and Config.Teams[mine].Color:Lerp(Color3.fromRGB(10, 20, 40), 0.55) or Color3.fromRGB(24, 40, 64)
+		end
+	elseif phase == "lobby" and nextName then
+		modeLine = "NEXT: " .. nextName
+		refs.modeChip.BackgroundColor3 = Color3.fromRGB(24, 40, 64)
+	end
+	refs.modeChip.Visible = modeLine ~= nil
+	if modeLine then
+		refs.modeText.Text = modeLine
+	end
 	if playing then
+		refs.hearts.Visible = not teamMode
 		refs.meName.Text = (player:GetAttribute("Icon") or "") .. " " .. (player:GetAttribute("Code") or "")
 		local lives = player:GetAttribute("Lives") or 0
+		local myTeam = player:GetAttribute("Team")
+		if teamMode and myTeam then
+			refs.meTitle.Text = Config.Teams[myTeam].Icon .. " TEAM " .. Config.Teams[myTeam].Name
+		else
+			refs.meTitle.Text = "YOUR CODENAME"
+		end
 		refs.hearts.Text = string.rep("❤", lives) .. string.rep("🖤", math.max(0, Config.Lives.Start - lives))
 		refs.score.Text = "⭐ " .. (player:GetAttribute("Score") or 0)
 		local bullets = player:GetAttribute("Bullets") or 0

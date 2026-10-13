@@ -355,6 +355,74 @@ function Rules.clues(n, count, next)
 	return out
 end
 
+--------------------------------------------------------------------------------
+-- Modes and teams
+--------------------------------------------------------------------------------
+-- Which mode a match uses: `setting` is Config.Modes.Mode ("rotate" or an id), `index` counts matches from 1.
+function Rules.modeFor(setting, index)
+	local list = Config.Modes.Rotation
+	if setting ~= "rotate" and Config.Modes.List[setting] then
+		return setting
+	end
+	return list[(index - 1) % #list + 1]
+end
+
+-- Splits `count` players into two teams as evenly as possible. `humans` is the number of real players: they are spread
+-- evenly across the teams first (so one team is not all humans), then bots fill the rest. Returns a list of team ids (1 or 2)
+-- for the entities in order (humans first, then bots).
+function Rules.assignTeams(count, humans, first)
+	local teams, sizes = {}, { 0, 0 }
+	first = first or 1
+	for i = 1, count do
+		local pick
+		if sizes[1] ~= sizes[2] then
+			pick = sizes[1] < sizes[2] and 1 or 2
+		else
+			pick = first
+			first = 3 - first
+		end
+		-- keep the humans balanced too: the next human goes to the team with fewer humans
+		teams[i] = pick
+		sizes[pick] += 1
+	end
+	if humans > 0 then
+		-- re-deal so the real players alternate between the teams while the sizes stay equal
+		local want = { 0, 0 }
+		for i = 1, count do
+			want[teams[i]] += 1
+		end
+		local dealt = { 0, 0 }
+		for i = 1, count do
+			local pick
+			if i <= humans then
+				pick = (i + first) % 2 + 1
+				if dealt[pick] >= want[pick] then
+					pick = 3 - pick
+				end
+			else
+				pick = dealt[1] < want[1] and 1 or 2
+				if dealt[pick] >= want[pick] then
+					pick = 3 - pick
+				end
+			end
+			teams[i] = pick
+			dealt[pick] += 1
+		end
+	end
+	return teams
+end
+
+-- The winning team of a team match: the higher score; if level, the higher total of individual points; if still level, 0 (a draw).
+function Rules.winningTeam(scores, points)
+	if scores[1] ~= scores[2] then
+		return scores[1] > scores[2] and 1 or 2
+	end
+	if (points[1] or 0) ~= (points[2] or 0) then
+		return (points[1] or 0) > (points[2] or 0) and 1 or 2
+	end
+	return 0
+end
+
 function Rules.unlockedStyles(wins)
 	local list = {}
 	for _, s in Config.PlateStyles do

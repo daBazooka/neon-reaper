@@ -317,6 +317,37 @@ send("results", {}, 0); frames(2)
 check(X.seen("NO WINNER"), "empty results are handled")
 attrsWS.Phase = "lobby"; frames(8)
 
+-- ===== team modes: banner, flags, results =====
+a.Alive = true; a.Team = 1
+attrsWS.Phase = "play"; attrsWS.PhaseEnd = clock + 100
+attrsWS.Mode = "ctf"; attrsWS.ModeName = "CAPTURE THE FLAG"; attrsWS.ScoreLimit = 3
+attrsWS.Team1Score = 1; attrsWS.Team2Score = 2; attrsWS.Flag1 = "home"; attrsWS.Flag2 = "carried"; attrsWS.FlagCarrier2 = "🦊 Red Fox"
+frames(3)
+check(X.seen("CAPTURE THE FLAG") and X.seen("first to 3") and X.seen("taken by 🦊 Red Fox"), "the banner shows the mode, the captures and who carries a flag")
+check(X.seen("TEAM RED"), "my team is shown")
+send("flag", "taken", 2, "🦊 Red Fox"); frames(2)
+check(X.seen("took the BLUE flag"), "flag taken shows in the feed")
+send("flag", "captured", 2, "🦊 Red Fox"); frames(2)
+check(X.seen("captured the RED flag"), "a capture shows in the feed")
+send("captured", 150); frames(2)
+check(X.seen("CAPTURE!"), "the capturer is congratulated")
+send("flag", "dropped", 1, "x"); send("flag", "returned", 1, "x"); frames(1)
+check(true, "dropped and returned don't error")
+attrsWS.Mode = "team"; attrsWS.ModeName = "TEAM DEATHMATCH"; attrsWS.ScoreLimit = 25; attrsWS.Team1Score = 7; attrsWS.Team2Score = 5
+frames(3)
+check(X.seen("TEAM DEATHMATCH") and X.seen("first to 25"), "team deathmatch banner")
+attrsWS.Phase = "results"; attrsWS.PhaseEnd = clock + 12
+send("results", {
+	{id = 1, rank = 1, label = "🦊 Red Fox", who = "Me", kills = 3, score = 900, lives = 3, survived = 240, alive = true, team = 1},
+	{id = -1, rank = 2, label = "🦉 Blue Owl", who = "Bot", kills = 1, score = 300, lives = 3, survived = 240, alive = true, team = 2},
+}, 1, 1, "team", {25, 18}); frames(2)
+check(X.seen("RED TEAM WINS - YOU WIN!") and X.seen("25") and X.seen("18"), "team results name the winning team and the scores")
+send("results", {{id = 1, rank = 1, label = "🦊 Red Fox", who = "Me", kills = 0, score = 0, lives = 3, survived = 1, alive = true, team = 1}}, 0, 0, "ctf", {1, 1}); frames(2)
+check(X.seen("DRAW"), "a level match is a draw")
+attrsWS.Phase = "lobby"; attrsWS.Mode = nil; attrsWS.NextModeName = "TEAM DEATHMATCH"; a.Alive = false; frames(8)
+check(X.seen("NEXT: TEAM DEATHMATCH"), "the lobby announces the next mode")
+a.Team = nil; attrsWS.NextModeName = nil
+
 -- ===== camera: first person in a match, third person otherwise =====
 do
 	local Camera = require(ModN.children.Camera)

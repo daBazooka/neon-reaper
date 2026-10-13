@@ -164,7 +164,7 @@ local function candidates(e)
 	end
 	for _, other in State.aliveList() do
 		local head = Vision.head(other)
-		if other ~= e and head then
+		if other ~= e and head and not (State.mode.Teams and other.team == e.team) then
 			local offset = mine.Position - head.Position
 			local d = offset.Magnitude
 			if d <= Bots.SightRange and d > 1 and head.CFrame.LookVector:Dot(offset.Unit) > 0.55 and not Vision.blocked(mine.Position, head.Position, true) then

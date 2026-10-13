@@ -173,16 +173,19 @@ function Combat.eliminate(victim, killer, how)
 	return true
 end
 
--- A correct guess: the victim loses a life. With lives left they glitch away and come back, protected, somewhere else.
+-- A correct guess: the victim loses a life (never, in team modes). They glitch away and come back, protected, somewhere else.
 function Combat.strike(victim, killer, how)
 	if not victim or not victim.alive then
 		return false
 	end
 	Combat.credit(killer, victim)
-	if (victim.lives or 1) <= 1 then
+	if State.mode.Respawn then
+		-- team modes: nobody is ever out, you just come back
+	elseif (victim.lives or 1) <= 1 then
 		return Combat.eliminate(victim, killer, how)
+	else
+		victim.lives -= 1
 	end
-	victim.lives -= 1
 	local delay = Config.Lives.RespawnDelay
 	victim.stunUntil = State.now() + delay
 	victim.scoped = false

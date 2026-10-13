@@ -369,6 +369,23 @@ local function buildArena()
 	Terminals.build(folder("Terminals"))
 end
 
+-- The two team bases (used by team deathmatch and capture the flag): a coloured pad, corner posts and a sign.
+local function buildBases()
+	local bases = folder("Bases")
+	for team, at in Config.Map.Bases do
+		local t = Config.Teams[team]
+		local toward = team == 1 and "+x" or "-x" -- the sign faces the plaza
+		local pad = neon(bases, "BasePad" .. team, Vector3.new(18, 0.15, 18), Vector3.new(at.X, 0.55, at.Z), t.Color)
+		pad.Transparency = 0.45
+		for _, dx in { -9, 9 } do
+			for _, dz in { -9, 9 } do
+				neon(bases, "BasePost", Vector3.new(0.8, 9, 0.8), Vector3.new(at.X + dx, 4.5, at.Z + dz), t.Color)
+			end
+		end
+		sign(bases, t.Icon .. " " .. t.Name .. " BASE", 14, 3, Vector3.new(at.X + (team == 1 and 9.5 or -9.5), 10.5, at.Z), toward, C(20, 30, 60), t.Color)
+	end
+end
+
 local board
 
 local function buildLobby()
@@ -569,6 +586,7 @@ function World.build()
 	end
 	step("lighting", lighting)
 	step("arena", buildArena)
+	step("bases", buildBases)
 	step("lobby", buildLobby)
 	step("scenery", scenery)
 	step("folders", function()

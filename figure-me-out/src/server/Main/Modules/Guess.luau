@@ -49,6 +49,9 @@ function Guess.attempt(e, targetId, text)
 	if (from.Position - to.Position).Magnitude > Config.Guess.MaxDistance or Vision.blocked(from.Position, to.Position, true) then
 		return fail(e, "You can't see them")
 	end
+	if State.mode.Teams and target.team == e.team and not Config.Team.FriendlyFire then
+		return fail(e, "That's your teammate")
+	end
 	if (target.protectedUntil or 0) > now and not target.model then
 		return fail(e, "They are protected for a moment")
 	end

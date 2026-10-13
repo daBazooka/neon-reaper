@@ -70,6 +70,10 @@ function Alliance.propose(from, toId)
 	if State.phase ~= "play" or not from or not from.alive or not from.player or not to or not to.alive or not to.player or to == from then
 		return false
 	end
+	if State.mode.Teams then
+		Net.toast(from.player, "Teams are fixed in this mode", "bad")
+		return false
+	end
 	if from.ally or to.ally then
 		if from.player then
 			Net.toast(from.player, "One of you already has an ally", "bad")

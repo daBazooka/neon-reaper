@@ -53,6 +53,10 @@ Only use sounds you are allowed to use. If an id can't load, the game skips it s
 | Two players: aim, press T | An alliance offer appears for them. |
 | Leave a player mid-match | They are removed without breaking the match. |
 
+## Testing the modes
+
+Set `Config.Modes.Mode` in `Config.luau` to `"team"` or `"ctf"` and press Play (or use Test > Start with 2+ players). Check: team colours and spawn sides, the score banner at the top, no way to guess a teammate, flags at the two base pads (west red, east blue), taking/dropping/returning/capturing, and the results screen naming the winning team.
+
 ## 4. Common problems
 
 * **Nothing happens when I press Play:** open View > Output and look for red text. Send it to me.

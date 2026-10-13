@@ -236,5 +236,37 @@ local terminalsOk = #Config.Map.Terminals >= 3
 for _, t in Config.Map.Terminals do if insideBuilding(t, 1) then terminalsOk = false end end
 check(terminalsOk, "information terminals are on open ground")
 
+-- modes and teams ---------------------------------------------------------------------------------
+check(Rules.modeFor("rotate", 1) == "deathmatch" and Rules.modeFor("rotate", 2) == "team" and Rules.modeFor("rotate", 3) == "ctf" and Rules.modeFor("rotate", 4) == "deathmatch", "matches rotate deathmatch, team, capture the flag")
+check(Rules.modeFor("ctf", 1) == "ctf" and Rules.modeFor("nonsense", 2) == "team", "a fixed mode is always used; an unknown setting falls back to the rotation")
+for _, m in Config.Modes.Rotation do check(Config.Modes.List[m] ~= nil, "mode '" .. m .. "' is defined") end
+check(Config.Modes.List.team.Respawn and Config.Modes.List.ctf.Respawn and not Config.Modes.List.deathmatch.Respawn, "team modes respawn, deathmatch does not")
+check(#Config.Teams == 2 and Config.Teams[1].Name ~= Config.Teams[2].Name, "two teams with different names")
+local balanced = true
+for count = 2, 20 do
+	for humans = 0, count do
+		for first = 1, 2 do
+			local t = Rules.assignTeams(count, humans, first)
+			local sizes, humanSizes = {0, 0}, {0, 0}
+			for i, team in t do
+				sizes[team] += 1
+				if i <= humans then humanSizes[team] += 1 end
+			end
+			if #t ~= count or math.abs(sizes[1] - sizes[2]) > 1 or math.abs(humanSizes[1] - humanSizes[2]) > 1 then balanced = false end
+		end
+	end
+end
+check(balanced, "teams are balanced for every group size from 2 to 20, humans included")
+check(Rules.winningTeam({ 5, 3 }, { 100, 900 }) == 1 and Rules.winningTeam({ 2, 7 }, {}) == 2, "the higher team score wins")
+check(Rules.winningTeam({ 4, 4 }, { 300, 200 }) == 1 and Rules.winningTeam({ 4, 4 }, { 100, 400 }) == 2 and Rules.winningTeam({ 4, 4 }, { 100, 100 }) == 0, "a level score is decided by individual points, then it is a draw")
+local sideOk = true
+for _, b in Config.Map.Bases do
+	for _, cy in Config.Map.Courtyards do end
+end
+check(Config.Map.Bases[1].X < 0 and Config.Map.Bases[2].X > 0 and Config.Flag.CaptureRadius > Config.Flag.PickupRadius, "the red base is west, the blue base east, and the capture zone is bigger than the pickup zone")
+local leftSpawns, rightSpawns = 0, 0
+for _, sp in Config.Map.Spawns do if sp.X < 0 then leftSpawns += 1 elseif sp.X > 0 then rightSpawns += 1 end end
+check(leftSpawns >= 10 and rightSpawns >= 10, "each team has at least 10 spawn points on its own side (" .. leftSpawns .. " / " .. rightSpawns .. ")")
+
 print(string.format("RULES TEST: %d passed, %d failed", passes, fails))
 if fails > 0 then error("rules test failed") end

@@ -36,6 +36,16 @@ Or run `rojo serve` and click Connect in the Rojo plugin to live-edit.
 
 On a phone or tablet: tap the buttons in the gadget bar, the GUESS button and the on-screen keypad. On a controller: X guess, R2 photo, hold L2 for binoculars, Y notebook, L1/R1 choose a gadget and A to use it, Start for the menu.
 
+## Game modes
+
+Matches rotate between three modes (set `Config.Modes.Mode` to `"deathmatch"`, `"team"` or `"ctf"` to lock one; `"rotate"` cycles). The lobby shows which one is next.
+
+- **Deathmatch** - everybody for themselves, 3 lives, last one standing (or most points when time runs out).
+- **Team Deathmatch** - RED (west) against BLUE (east), balanced teams, plates and name tags in team colours. A correct guess on the other team scores a point for your team and sends them back to their base protected; nobody is ever out. First to 25 (or the leading team at time-up). Teammates can't be guessed unless `Config.Team.FriendlyFire = true`.
+- **Capture the Flag** - each base holds a flag. Walk into the enemy flag to take it (everyone is told, you wear a flag tag), carry it to your own base while your own flag is home to score. Getting hit drops it where you stand; touch your own dropped flag to send it home, or it returns by itself after 20s. A carrier who leaves drops it. First to 3 captures.
+
+All of it is decided on the server; clients only ask. Flags and captures are checked every quarter second from where the players really are, so there is nothing to send that could fake a capture.
+
 ## Folder map
 
 ```

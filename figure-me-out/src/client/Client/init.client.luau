@@ -331,8 +331,34 @@ function handlers.reveal()
 	Fx.flash(C.Gold, 0.35, 0.5)
 end
 
-function handlers.results(rows, winnerId)
-	Results.show(rows, winnerId)
+function handlers.flag(what, team, who)
+	local t = Config.Teams[team]
+	if not t then
+		return
+	end
+	local mine = player:GetAttribute("Team")
+	local ours = mine == team
+	if what == "taken" then
+		Hud.feed("🚩 " .. who .. " took the " .. t.Name .. " flag!", t.Color)
+		Fx.announce(ours and "THEY HAVE OUR FLAG!" or "FLAG TAKEN!", who .. " has the " .. t.Name .. " flag", ours and C.Danger or C.Gold, 0.24)
+	elseif what == "dropped" then
+		Hud.feed("🚩 The " .. t.Name .. " flag was dropped", t.Color)
+	elseif what == "returned" then
+		Hud.feed("🚩 The " .. t.Name .. " flag is back at its base" .. (who ~= "" and (" (" .. who .. ")") or ""), t.Color)
+	elseif what == "captured" then
+		local other = Config.Teams[3 - team]
+		Hud.feed("🏁 " .. who .. " captured the " .. (other and other.Name or "") .. " flag!", C.Gold)
+		Fx.announce(ours and "CAPTURE!" or "THEY SCORED!", who .. " scored for " .. t.Name, ours and C.Good or C.Danger, 0.24)
+	end
+	Audio.kill()
+end
+
+function handlers.captured(points)
+	Fx.announce("CAPTURE!  +" .. tostring(points), "You brought the flag home", C.Good, 0.24)
+end
+
+function handlers.results(rows, winnerId, winnerTeam, modeId, scores)
+	Results.show(rows, winnerId, winnerTeam, modeId, scores)
 end
 
 Notify.OnClientEvent:Connect(function(kind, ...)

@@ -108,7 +108,7 @@ function Results.isOpen()
 end
 
 -- rows: { { id, rank, label, who, kills, score, lives, survived, alive } }
-function Results.show(rows, winnerId)
+function Results.show(rows, winnerId, winnerTeam, modeId, scores)
 	if type(rows) ~= "table" then
 		return
 	end
@@ -125,14 +125,31 @@ function Results.show(rows, winnerId)
 		end
 	end
 	local winner = rows[1]
-	if winnerId == 0 or not winner then
+	local teamMode = modeId == "team" or modeId == "ctf"
+	heading.TextColor3 = C.Text
+	if teamMode then
+		local t = Config.Teams[winnerTeam]
+		local s1, s2 = (scores or {})[1] or 0, (scores or {})[2] or 0
+		local myTeam = mine and mine.team
+		if not t then
+			heading.Text = "🤝 DRAW"
+		elseif myTeam == winnerTeam then
+			heading.Text = "🏆 " .. t.Name .. " TEAM WINS - YOU WIN!"
+		else
+			heading.Text = "🏆 " .. t.Name .. " TEAM WINS"
+		end
+		heading.TextColor3 = t and t.Color or C.Text
+		sub.Text = Config.Teams[1].Icon .. " " .. s1 .. "  -  " .. s2 .. " " .. Config.Teams[2].Icon .. (mine and ("   •   you: " .. mine.kills .. " hits  ⭐ " .. (mine.score or 0)) or "")
+	elseif winnerId == 0 or not winner then
 		heading.Text = "NO WINNER"
 	elseif winner.id == myId then
 		heading.Text = "🏆 YOU WIN!"
 	else
 		heading.Text = "🏆 " .. winner.label .. " WINS"
 	end
-	if mine then
+	if teamMode then
+		-- (the line above already says how it ended)
+	elseif mine then
 		sub.Text = "You finished #" .. mine.rank .. " of " .. #rows .. "  •  " .. mine.kills .. " hits  •  ⭐ " .. (mine.score or 0)
 	else
 		sub.Text = "Spectating"
@@ -161,7 +178,7 @@ function Results.show(rows, winnerId)
 			Font = UI.Fonts.Bold,
 			TextSize = 14,
 			TextWrapped = false,
-			Text = r.label .. (r.who ~= "Bot" and ("  (" .. r.who .. ")") or ""),
+			Text = (teamMode and Config.Teams[r.team] and (Config.Teams[r.team].Icon .. " ") or "") .. r.label .. (r.who ~= "Bot" and ("  (" .. r.who .. ")") or ""),
 			ZIndex = 58,
 		})
 		UI.label(row, {
@@ -171,7 +188,7 @@ function Results.show(rows, winnerId)
 			TextSize = 13,
 			TextColor3 = C.Danger,
 			TextXAlignment = Enum.TextXAlignment.Center,
-			Text = (r.lives or 0) > 0 and string.rep("❤", r.lives) or "💀",
+			Text = teamMode and "" or ((r.lives or 0) > 0 and string.rep("❤", r.lives) or "💀"),
 			ZIndex = 58,
 		})
 		UI.label(row, {

@@ -13,6 +13,8 @@ State.entities = {} -- id -> entity
 State.order = {} -- ids in the order they were added
 State.decoys = {} -- id (1,000,000 and up) -> { id, owner, number, model, code, icon, expires }
 State.revealing = false
+State.mode = Config.Modes.List.deathmatch -- the mode being played (a Config.Modes.List entry)
+State.teamScore = { 0, 0 } -- team modes: hits (team deathmatch) or captures (capture the flag)
 State.matchId = 0
 State.onChange = nil -- set by Match: called when the alive list changes
 
@@ -91,6 +93,11 @@ function State.writeWorld()
 	workspace:SetAttribute("Total", #State.order)
 	workspace:SetAttribute("Reveal", State.revealing)
 	workspace:SetAttribute("MatchId", State.matchId)
+	workspace:SetAttribute("Mode", State.mode.Id)
+	workspace:SetAttribute("ModeName", State.mode.Name)
+	workspace:SetAttribute("Team1Score", State.teamScore[1])
+	workspace:SetAttribute("Team2Score", State.teamScore[2])
+	workspace:SetAttribute("ScoreLimit", State.mode.ScoreLimit or State.mode.CaptureLimit or 0)
 end
 
 -- Per-entity attributes: shown to spectators and used by the HUD. Humans get them on the Player, bots on their model.
@@ -109,6 +116,7 @@ function State.writeEntity(e)
 		t:SetAttribute("Protected", (e.protectedUntil or 0) > State.now())
 		t:SetAttribute("Bounty", e.bounty == true)
 		t:SetAttribute("Ally", e.ally or 0)
+		t:SetAttribute("Team", e.team or 0)
 		t:SetAttribute("Code", e.code or "")
 		t:SetAttribute("Icon", e.icon or "")
 		t:SetAttribute("EntityId", e.id)

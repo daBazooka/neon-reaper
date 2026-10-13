@@ -88,3 +88,7 @@ A compact 3x3 city grid, bright but not washed out (slate streets, white sidewal
 1. Custom animated characters, a real song and sound effects from the Creator Store (the game makes its own sounds and music until then).
 2. A second map and a 2-team mode.
 3. Ranked mode with seasons, daily quests, a season pass.
+
+## Modes
+
+Deathmatch (3 lives, last one standing), Team Deathmatch (RED vs BLUE, first to 25 hits, respawn instead of elimination) and Capture the Flag (first to 3 captures). One shared round manager; the mode only changes teams, spawns, scoring and the end condition.

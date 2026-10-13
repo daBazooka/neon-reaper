@@ -21,6 +21,8 @@ local Alliance = require(script.Parent.Alliance)
 local Bounty = require(script.Parent.Bounty)
 local Terminals = require(script.Parent.Terminals)
 local Events = require(script.Parent.Events)
+local Modes = require(script.Parent.Modes)
+local Flags = require(script.Parent.Flags)
 
 local Match = {}
 
@@ -111,13 +113,15 @@ function Match.setup()
 	local spawnOrder = shuffled(#Config.Map.Spawns)
 	local now = State.now()
 
-	local function finish(e, index, spawnIndex)
+	local function finish(e, index)
 		local nameInfo = names[index]
 		local color = Config.Colors[nameInfo.color]
 		local animal = Config.Animals[nameInfo.animal]
 		e.code = color.Name .. " " .. animal.Name
 		e.icon = animal.Icon
-		e.color = color.Color
+		if not e.team then
+			e.color = color.Color
+		end
 		e.number = Rules.newNumber(roll, State.takenNumbers())
 		e.alive = true
 		e.kills = 0
@@ -144,7 +148,10 @@ function Match.setup()
 		hookDeath(e)
 	end
 
-	for i, p in humans do
+	-- first make everybody (so teams can be dealt), then place them
+	Modes.begin()
+	local list = {}
+	for _, p in humans do
 		local char = ensureCharacter(p)
 		local e = { id = p.UserId, player = p, char = char, style = styleFor(p) }
 		local data = Data.get(p)
@@ -156,19 +163,41 @@ function Match.setup()
 				e.effectDef = Config.EffectById[data.Effect]
 			end
 		end
-		local spawn = Config.Map.Spawns[spawnOrder[(i - 1) % #spawnOrder + 1]]
-		if char then
-			char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
-		end
-		finish(e, i, spawnOrder[(i - 1) % #spawnOrder + 1])
+		table.insert(list, e)
 	end
 	for b = 1, botCount do
-		local index = #humans + b
-		local model = Bots.makeModel("Bot" .. b)
-		local e = { id = -b, bot = true, char = model, style = "classic" }
-		local spawn = Config.Map.Spawns[spawnOrder[(index - 1) % #spawnOrder + 1]]
-		Bots.place(e, spawn)
-		finish(e, index, spawnOrder[(index - 1) % #spawnOrder + 1])
+		table.insert(list, { id = -b, bot = true, char = Bots.makeModel("Bot" .. b), style = "classic" })
+	end
+	Modes.assignTeams(list)
+	-- team modes: each team spawns on its own side of the map (red west, blue east)
+	local pools, taken = {}, { 0, 0 }
+	for team = 1, 2 do
+		local side = {}
+		for _, sp in Config.Map.Spawns do
+			if (team == 1 and sp.X < 0) or (team == 2 and sp.X > 0) then
+				table.insert(side, sp)
+			end
+		end
+		for i = #side, 2, -1 do
+			local j = 1 + math.floor(roll() * i)
+			side[i], side[j] = side[j], side[i]
+		end
+		pools[team] = side
+	end
+	for index, e in list do
+		local spawn
+		if e.team then
+			taken[e.team] += 1
+			spawn = pools[e.team][(taken[e.team] - 1) % #pools[e.team] + 1]
+		else
+			spawn = Config.Map.Spawns[spawnOrder[(index - 1) % #spawnOrder + 1]]
+		end
+		if e.bot then
+			Bots.place(e, spawn)
+		elseif e.char then
+			e.char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
+		end
+		finish(e, index)
 	end
 	Pickups.reset()
 	Alliance.reset()
@@ -180,9 +209,12 @@ end
 -- During a match
 --------------------------------------------------------------------------------
 -- A spawn point with nobody close, for somebody who lost a life and is coming back.
-function Match.safeSpawn()
+function Match.safeSpawn(team)
 	local best, bestScore = nil, -1
 	for _, spawn in Config.Map.Spawns do
+		if team and ((team == 1 and spawn.X > 0) or (team == 2 and spawn.X < 0)) then
+			continue
+		end
 		local nearest = math.huge
 		for _, other in State.aliveList() do
 			local root = other.char and other.char:FindFirstChild("HumanoidRootPart")
@@ -241,17 +273,18 @@ function Match.tick(dt)
 	Alliance.tick(now)
 	Bounty.tick(now)
 	Events.tick(now)
+	Flags.tick(now)
 	if not State.revealing and State.phaseEnd - now <= Config.Match.RevealAt then
 		Match.reveal()
 	end
 	State.writeWorld()
-	return State.aliveCount() <= 1 or now >= State.phaseEnd or not humansAlive()
+	return Modes.over() or now >= State.phaseEnd or not humansAlive()
 end
 
 --------------------------------------------------------------------------------
 -- Results
 --------------------------------------------------------------------------------
-local function award(e, winnerId, count)
+local function award(e, won)
 	local p = e.player
 	local data = p and Data.get(p)
 	if not data then
@@ -260,7 +293,7 @@ local function award(e, winnerId, count)
 	data.Games += 1
 	data.Kills += e.kills
 	data.BestKills = math.max(data.BestKills, e.kills)
-	if e.id == winnerId then
+	if won then
 		local before = data.Wins
 		data.Wins += 1
 		data.Streak += 1
@@ -285,31 +318,43 @@ local function award(e, winnerId, count)
 	end
 end
 
--- Works out the winner, saves stats and tells everybody. Returns the winner's id (or nil).
+-- Works out the winner, saves stats and tells everybody. Returns (winner entity id or nil, winning team or 0).
 function Match.finish()
+	local mode = State.mode
 	local entries = {}
 	for _, e in State.list() do
 		table.insert(entries, { id = e.id, alive = e.alive, lives = e.lives, score = e.score, kills = e.kills, diedAt = e.diedAt })
 	end
 	local order = Rules.standings(entries)
-	local winnerId = order[1]
-	local winner = winnerId and State.entities[winnerId]
-	if winner and not winner.alive then
-		winnerId = nil
-	end
-	if winner and winner.alive then
-		winner.score = (winner.score or 0) + Config.Score.Win
+	local winnerId, winnerTeam = nil, 0
+	if mode.Teams then
+		winnerTeam = Modes.winningTeam()
+		for _, e in State.list() do
+			if winnerTeam ~= 0 and e.team == winnerTeam then
+				e.score = (e.score or 0) + Config.Score.Win
+			end
+		end
+	else
+		winnerId = order[1]
+		local winner = winnerId and State.entities[winnerId]
+		if winner and not winner.alive then
+			winnerId = nil
+		elseif winner then
+			winner.score = (winner.score or 0) + Config.Score.Win
+		end
 	end
 	local now = State.now()
 	local rows = {}
 	for rank, id in order do
 		local e = State.entities[id]
 		rows[rank] = {
-			lives = e.lives,
-			score = e.score,
-			survived = math.floor((e.diedAt or now) - (e.startedAt or now)),
 			id = e.id,
 			rank = rank,
+			team = e.team or 0,
+			lives = e.lives,
+			score = e.score,
+			captures = e.captures or 0,
+			survived = math.floor((e.diedAt or now) - (e.startedAt or now)),
 			label = e.icon .. " " .. e.code,
 			who = e.player and e.player.Name or "Bot",
 			kills = e.kills,
@@ -317,9 +362,10 @@ function Match.finish()
 		}
 	end
 	for _, e in State.list() do
-		award(e, winnerId, #order)
+		local won = (mode.Teams and winnerTeam ~= 0 and e.team == winnerTeam) or (not mode.Teams and e.id == winnerId)
+		award(e, won)
 		if e.player then
-			Progress.award(e.player, e.score or 0, e.id == winnerId, State.matchId, e.bonusCoins)
+			Progress.award(e.player, e.score or 0, won, State.matchId, e.bonusCoins)
 		end
 	end
 	Events.stop()
@@ -331,14 +377,15 @@ function Match.finish()
 		end
 	end
 	State.setPhase("results", State.now() + Config.Match.ResultsTime)
-	Net.sendAll("results", rows, winnerId or 0)
-	return winnerId
+	Net.sendAll("results", rows, winnerId or 0, winnerTeam, mode.Id, { State.teamScore[1], State.teamScore[2] })
+	return winnerId, winnerTeam
 end
 
 -- Clears the arena and brings everybody back to the lobby.
 function Match.cleanup()
 	Items.clearAll()
 	Bots.clear()
+	Flags.clear()
 	Events.stop()
 	Bounty.clear()
 	Alliance.reset()
@@ -402,6 +449,7 @@ function Match.onLeave(p)
 	local e = State.byPlayer(p)
 	if e then
 		Alliance.leave(e)
+		Flags.dropCarried(e, "left")
 		e.player = nil
 		if e.alive and State.phase ~= "lobby" then
 			Combat.eliminate(e, nil, "left")
@@ -448,7 +496,7 @@ end
 
 function Match.run()
 	Combat.onRespawn = function(victim)
-		local spawn = Match.safeSpawn()
+		local spawn = Match.safeSpawn(victim.team)
 		if victim.char then
 			victim.char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
 		end
@@ -467,8 +515,10 @@ function Match.run()
 			end
 		end
 		Bounty.claim(killer, victim)
+		Modes.onHit(killer, victim)
 	end
 	Combat.onEliminated = function(victim)
+		Flags.dropCarried(victim, "out")
 		local p = victim.player
 		if p then
 			task.delay(3, function()
@@ -480,6 +530,7 @@ function Match.run()
 	end
 	while true do
 		State.setPhase("lobby", State.now() + Config.Match.Intermission)
+		Modes.chooseNext()
 		Net.sendAll("phase", "lobby", State.phaseEnd)
 		waitUntil(function()
 			if #Players:GetPlayers() < Config.Match.MinHumans then

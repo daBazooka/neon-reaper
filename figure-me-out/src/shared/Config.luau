@@ -19,6 +19,36 @@ Config.Match = {
 	ResultsTime = 12,
 }
 
+-- Game modes. Matches rotate through them (or set Mode to one id to always play that mode).
+--   deathmatch: everybody for themselves, 3 lives, last one standing (or most lives/points when time runs out)
+--   team:       two teams, unlimited respawns, a point for every hit on the other team, first to ScoreLimit
+--   ctf:        two teams, unlimited respawns, steal the other team's flag and bring it home, first to CaptureLimit
+Config.Modes = {
+	Rotation = { "deathmatch", "team", "ctf" },
+	Mode = "rotate", -- "rotate" or one of the ids above
+	List = {
+		deathmatch = { Id = "deathmatch", Name = "DEATHMATCH", Icon = "💀", Teams = false, Respawn = false, Tip = "Everybody for themselves. 3 lives." },
+		team = { Id = "team", Name = "TEAM DEATHMATCH", Icon = "⚔️", Teams = true, Respawn = true, ScoreLimit = 25, Tip = "Two teams. Every hit on the other team scores. First to 25." },
+		ctf = { Id = "ctf", Name = "CAPTURE THE FLAG", Icon = "🚩", Teams = true, Respawn = true, CaptureLimit = 3, Tip = "Grab the enemy flag and bring it home. First to 3 captures." },
+	},
+}
+Config.Teams = {
+	{ Id = 1, Name = "RED", Icon = "🔴", Color = C(235, 70, 70) },
+	{ Id = 2, Name = "BLUE", Icon = "🔵", Color = C(70, 130, 245) },
+}
+Config.Team = { FriendlyFire = false } -- true = you can guess your own teammates (it costs them a life like anybody else)
+
+-- Capture the flag. The bases are the two MARKET courtyards (red west, blue east).
+Config.Flag = {
+	PickupRadius = 5, -- walk this close to a flag to take it (or to return your own dropped flag)
+	CaptureRadius = 9, -- bring the flag this close to your own base to score
+	ReturnTime = 20, -- a dropped flag goes home by itself after this long
+	NeedOwnFlagHome = true, -- you can only score while your own flag is safe at your base
+	CapturePoints = 150, -- individual points for a capture
+	ReturnPoints = 30, -- ... and for returning your own dropped flag
+	TakePoints = 20, -- ... and for taking the enemy flag
+}
+
 Config.Number = { Digits = 3, Min = 1, Max = 999 } -- shown with leading zeros: 007, 042, 512
 
 -- Lives: a correct guess takes one life. You come back after a moment, protected, until your lives run out.
@@ -267,6 +297,8 @@ end
 -- 4 information terminals in the corners of the plaza
 Config.Map.Terminals = { Vector3.new(-24, 2, -24), Vector3.new(24, 2, -24), Vector3.new(-24, 2, 24), Vector3.new(24, 2, 24) }
 -- where supply drops land: open ground in the plaza
+-- the CTF bases (the flag stands in the middle of each courtyard, under the walkway)
+Config.Map.Bases = { [1] = Vector3.new(-86, 0, 0), [2] = Vector3.new(86, 0, 0) }
 Config.Map.DropSpots = { Vector3.new(18, 0, 6), Vector3.new(-18, 0, -6), Vector3.new(6, 0, -18), Vector3.new(-6, 0, 18) }
 -- 16 crate spots: the four crossroads, the plaza, and along the streets.
 Config.Map.Crates = {}

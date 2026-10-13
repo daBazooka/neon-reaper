@@ -293,6 +293,7 @@ local function makeDecoy(e)
 		model = model,
 		code = e.code,
 		icon = e.icon,
+		team = e.team,
 		expires = State.now() + Config.Decoy.Duration,
 	}
 	return true
