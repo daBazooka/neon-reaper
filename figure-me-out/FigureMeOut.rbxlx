@@ -661,8 +661,8 @@ Config.Features = {
 
 Config.Match = {
 	MaxPlayers = 20,
-	MinHumans = 1, -- real players needed before a match starts (bots fill the rest up to MinTotal)
-	MinTotal = 10, -- bots fill the match up to this many players, so there is always a game (and 2 "players" is the minimum)
+	MinHumans = 2, -- real players needed before a match starts (the lobby waits until this many are here)
+	MinTotal = 0, -- 0 = real players only. (A number here would add bots up to that many players: handy for testing alone in Studio.)
 	Intermission = 10, -- lobby wait between matches (seconds)
 	Countdown = 5, -- before the start whistle
 	Length = 90, -- the match: a minute and a half
@@ -700,7 +700,7 @@ Config.Flag = {
 	TakePoints = 20, -- ... and for taking the enemy flag
 }
 
-Config.Number = { Digits = 3, Min = 1, Max = 999, TagRange = 110 } -- shown with leading zeros: 007, 042, 512
+Config.Number = { Digits = 3, Min = 1, Max = 999, TagRange = 110, ShowOwn = true } -- ShowOwn: you can see your own number (HUD, and your own plate and floating tag), so you know what to hide -- shown with leading zeros: 007, 042, 512
 
 -- Lives: a correct guess takes one life. You come back after a moment, protected, until your lives run out.
 Config.Lives = {
@@ -732,7 +732,7 @@ Config.Guess = {
 	BulletRegen = 25, -- seconds to get one bullet back
 	KillBullets = 2, -- bullets back for a successful guess
 	WarnTime = 4, -- how long the guessed player sees "someone guessed you" with an arrow
-	AutoSubmit = false, -- true = fires on the third digit; false = you press CONFIRM (or Enter)
+	AutoSubmit = true, -- true = the guess is sent the moment you type the third digit; false = you press CONFIRM (or Enter)
 }
 
 -- Covering your number: facing a wall or dead end for too long. You are warned, then exposed. Repeat offenders are
@@ -1035,6 +1035,19 @@ Config.Sounds = {
 	Flash = "rbxasset://sounds/flashbulb.wav",
 	Footsteps = "rbxasset://sounds/action_footsteps_plastic.mp3",
 }
+-- Colour grading. The screen's look changes with the moment, to keep it lively and the eyes interested:
+--   lobby   warm golden afternoon (calm, inviting)      play    bright and vivid (clear to read, rich colours)
+--   final   the last seconds: punchier, warmer, pulsing  results celebratory (extra colour, extra glow)
+-- Clock = time of day, Brightness = sun strength, Saturation/Contrast/Shift = colour correction (Shift is a small brightness
+-- nudge), Tint = overall colour cast, Bloom = glow on bright things. The client blends smoothly from one look to the next.
+Config.Look = {
+	Speed = 1.4, -- how fast it blends (bigger = quicker)
+	lobby = { Clock = 16.2, Brightness = 2.2, Saturation = 0.24, Contrast = 0.10, Shift = 0.0, Tint = C(255, 238, 216), Bloom = 0.34 },
+	play = { Clock = 14.0, Brightness = 2.4, Saturation = 0.20, Contrast = 0.14, Shift = 0.0, Tint = C(247, 252, 255), Bloom = 0.22 },
+	final = { Clock = 13.2, Brightness = 2.35, Saturation = 0.30, Contrast = 0.22, Shift = -0.02, Tint = C(255, 232, 222), Bloom = 0.30, Pulse = 0.035 },
+	results = { Clock = 15.4, Brightness = 2.3, Saturation = 0.34, Contrast = 0.12, Shift = 0.02, Tint = C(255, 244, 226), Bloom = 0.42 },
+}
+
 -- Waterfall Canyon: how fast the ripple patterns slide (screens per second; flip the sign if they run the wrong way).
 Config.Water = { FallSpeed = 0.9, RiverSpeed = -0.25, PushScale = 1, HighAbove = 9 } -- PushScale: how strong the current is (1 = normal, 0 = off). HighAbove: above this height you are on a bridge or rock, not in the water.
 Config.Sounds.Waterfall = "" -- optional looping waterfall sound: put an asset id from the Creator Store here
@@ -1369,6 +1382,19 @@ function Rules.planePose(t, planes, index)
 	local x = planes.Center.X + radius * math.cos(angle)
 	local z = planes.Center.Z + radius * math.sin(angle)
 	return x, planes.Height, z, -angle - math.pi
+end
+
+-- Which colour grade to show: "lobby", "play", "final" (the last seconds of a match) or "results".
+function Rules.lookFor(phase, secondsLeft)
+	if phase == "play" or phase == "countdown" then
+		if phase == "play" and secondsLeft <= Config.Match.RevealAt then
+			return "final"
+		end
+		return "play"
+	elseif phase == "results" then
+		return "results"
+	end
+	return "lobby"
 end
 
 -- Turns a direction (x, z) by `degrees` around the up axis. Returns the new x, z.
@@ -4755,6 +4781,18 @@ function Match.safeSpawn(team)
 	return best or arena[1]
 end
 
+-- Tells every real player their own number (and nobody else's), so they know what to hide.
+function Match.tellNumbers()
+	if not Config.Number.ShowOwn then
+		return
+	end
+	for _, e in State.list() do
+		if e.player then
+			Net.send(e.player, "myNumber", e.number)
+		end
+	end
+end
+
 function Match.reveal()
 	if State.revealing then
 		return
@@ -5077,11 +5115,13 @@ function Match.run()
 		Match.setup()
 		State.setPhase("countdown", State.now() + Config.Match.Countdown)
 		Net.sendAll("phase", "countdown", State.phaseEnd)
+		Match.tellNumbers()
 		waitUntil(function()
 			return State.now() >= State.phaseEnd
 		end)
 
 		State.setPhase("play", State.now() + Config.Match.Length)
+		Match.tellNumbers()
 		for _, e in State.list() do
 			Combat.applySpeed(e)
 		end
@@ -5192,8 +5232,21 @@ end
 -- Is the match over (before the clock runs out)?
 function Modes.over()
 	local mode = State.mode
+	local started = #State.order >= 2 -- (a match somebody plays alone, for practice, just runs until the clock ends)
 	if not mode.Teams then
-		return State.aliveCount() <= 1
+		return started and State.aliveCount() <= 1
+	end
+	if started then
+		-- a team with nobody left in it has lost (everybody on it left the game)
+		local alive = { 0, 0 }
+		for _, e in State.aliveList() do
+			if e.team then
+				alive[e.team] += 1
+			end
+		end
+		if alive[1] == 0 or alive[2] == 0 then
+			return true
+		end
 	end
 	local limit = mode.ScoreLimit or mode.CaptureLimit
 	return State.teamScore[1] >= limit or State.teamScore[2] >= limit
@@ -5201,6 +5254,19 @@ end
 
 -- The winning team (1 or 2), or 0 for a draw. Only for team modes.
 function Modes.winningTeam()
+	if #State.order >= 2 then
+		local alive = { 0, 0 }
+		for _, e in State.aliveList() do
+			if e.team then
+				alive[e.team] += 1
+			end
+		end
+		if alive[1] == 0 and alive[2] > 0 then
+			return 2
+		elseif alive[2] == 0 and alive[1] > 0 then
+			return 1
+		end
+	end
 	return Rules.winningTeam(State.teamScore, Modes.teamPoints())
 end
 
@@ -7015,7 +7081,7 @@ local function buildLobby()
 	local how = board:Clone()
 	how.Name = "Lines"
 	how.TextSize = 25
-	how.Text = "• Everyone has a secret 3-digit number on their forehead.\n• Aim at someone, press G and type THEIR number: they are out!\n• Hide yours, but don't stare at walls: you'll be exposed.\n• 🔭 zoom  📷 photo  💥 flash  💨 smoke\n• Last one standing wins."
+	how.Text = "• Everyone has a 3-digit number over their head.\n• Yours is on your screen: keep it hidden!\n• Look at someone and type THEIR number: it goes in by itself.\n• Right = they lose a life. Wrong = you freeze.\n• Last one standing wins."
 	how.Parent = hgui
 
 	for i = 1, Config.Match.MaxPlayers do
@@ -7099,8 +7165,9 @@ end
 
 -- A bright but not washed-out afternoon: moderate exposure, strong contrast, a little bloom.
 local function lighting()
-	Lighting.ClockTime = 14
-	Lighting.Brightness = 2.4
+	local look = Config.Look.play
+	Lighting.ClockTime = look.Clock
+	Lighting.Brightness = look.Brightness
 	Lighting.Ambient = C(120, 134, 158)
 	Lighting.OutdoorAmbient = C(140, 154, 178)
 	Lighting.ColorShift_Top = C(255, 244, 220)
@@ -7111,9 +7178,9 @@ local function lighting()
 	Lighting.FogEnd = 2500
 	effect(Lighting, "Sky", { StarCount = 0 })
 	effect(Lighting, "Atmosphere", { Density = 0.25, Color = C(190, 220, 250), Decay = C(120, 170, 230), Haze = 0.6, Glare = 0.1 })
-	effect(Lighting, "BloomEffect", { Intensity = 0.2, Size = 20, Threshold = 1.1 })
+	effect(Lighting, "BloomEffect", { Intensity = look.Bloom, Size = 20, Threshold = 1.1 })
 	effect(Lighting, "SunRaysEffect", { Intensity = 0.06, Spread = 0.8 })
-	effect(Lighting, "ColorCorrectionEffect", { Saturation = 0.12, Contrast = 0.12, TintColor = C(246, 252, 255) })
+	effect(Lighting, "ColorCorrectionEffect", { Saturation = look.Saturation, Contrast = look.Contrast, Brightness = look.Shift, TintColor = look.Tint })
 	effect(workspace.Terrain, "Clouds", { Cover = 0.55, Density = 0.5 })
 end
 
@@ -7226,6 +7293,7 @@ local Menu = require(Modules.Menu)
 local Controls = require(Modules.Controls)
 local OwnPlate = require(Modules.OwnPlate)
 local Ambient = require(Modules.Ambient)
+local Grade = require(Modules.Grade)
 local Markers = require(Modules.Markers)
 local Inventory = require(Modules.Inventory)
 local Emotes = require(Modules.Emotes)
@@ -7290,6 +7358,7 @@ Markers.init()
 Controls.init(deps)
 OwnPlate.init()
 Ambient.init()
+Grade.init()
 Camera.init()
 Audio.startMusic()
 
@@ -7306,10 +7375,10 @@ local function loadingScreen()
 	bar.fill.ZIndex = 202
 	task.spawn(function()
 		local tips = {
-			"Everyone can see your number. Except you.",
-			"Hold right mouse for binoculars.",
-			"Smoke blocks sight. Flashbangs blind. Use them!",
+			"Your number is on your screen: keep it hidden.",
+			"Look at someone and just type their number.",
 			"Don't stare at walls or sit still: the game exposes campers.",
+			"The river carries you. Waterfalls hide what is behind them.",
 			"Someone is always watching.",
 		}
 		local waited = 0
@@ -7341,6 +7410,12 @@ function handlers.toast(text, kind)
 	Toasts.push(text, kind)
 end
 
+function handlers.myNumber(text)
+	if type(text) == "string" then
+		Hud.setMyNumber(text)
+	end
+end
+
 function handlers.phase(phase)
 	if phase == "countdown" then
 		if player:GetAttribute("Seen") == false then
@@ -7356,6 +7431,7 @@ function handlers.phase(phase)
 		Audio.horn()
 		Fx.flash(Color3.new(1, 1, 1), 0.3, 0.4)
 	elseif phase == "lobby" then
+		Hud.setMyNumber(nil)
 		Album.reset()
 		Inventory.resetClues()
 		Keypad.close()
@@ -7475,6 +7551,8 @@ function handlers.guessResult(result)
 		Audio.miss()
 		Fx.flash(C.Danger, 0.35, 0.4)
 		Toasts.push("Wrong number! -1 bullet, frozen", "bad")
+	elseif result == "hit" then
+		Fx.flash(C.Good, 0.3, 0.3)
 	elseif result == "invalid" then
 		Audio.error()
 	end
@@ -8476,15 +8554,16 @@ local function canAct()
 	return View.phase() == "play" and View.amAlive() and player:GetAttribute("Stunned") ~= true and not deps.Alerts.isStunned()
 end
 
+-- Opens (or closes) the number pad. Returns true when it is open afterwards.
 function Controls.guess()
 	if deps.Keypad.isOpen() then
 		deps.Keypad.close()
-		return
+		return false
 	end
 	if not canAct() then
-		return
+		return false
 	end
-	deps.Keypad.open()
+	return deps.Keypad.open()
 end
 
 -- Ask the player you are aiming at to team up, or end your alliance if you have one.
@@ -8617,9 +8696,14 @@ function Controls.init(d)
 			deps.Spectate.cycle(-1)
 		elseif kc == Enum.KeyCode.Right then
 			deps.Spectate.cycle(1)
-		elseif HOTKEYS[kc] then
-			if F.Gadgets or HOTKEYS[kc] == "binos" and F.Binoculars or HOTKEYS[kc] == "camera" and F.Photos then
-				deps.Hud.activate(HOTKEYS[kc])
+		elseif HOTKEYS[kc] and (F.Gadgets or HOTKEYS[kc] == "binos" and F.Binoculars or HOTKEYS[kc] == "camera" and F.Photos) then
+			deps.Hud.activate(HOTKEYS[kc])
+		elseif kc == Enum.KeyCode.Return or kc == Enum.KeyCode.KeypadEnter then
+			Controls.guess() -- Enter opens the number pad too
+		elseif deps.Keypad.digitOf(kc) and View.phase() == "play" and not deps.Menu.isOpen() and not deps.Album.isOpen() then
+			-- just start typing the number: the pad opens on whoever you are looking at, and the digit goes in
+			if Controls.guess() then
+				deps.Keypad.press(deps.Keypad.digitOf(kc))
 			end
 		elseif kind == Enum.UserInputType.MouseButton1 and not deps.Menu.isOpen() and not deps.Album.isOpen() then
 			if F.Photos then
@@ -8990,6 +9074,99 @@ return Fx
           </Item>
           <Item class="ModuleScript" referent="46">
             <Properties>
+              <string name="Name">Grade</string>
+              <string name="Source"><![CDATA[-- FIGURE ME OUT: colour grading on your own screen. The look blends smoothly from one moment to the next (warm lobby, vivid
+-- match, punchy last seconds, celebratory results; see Config.Look), because a screen that changes keeps people watching.
+-- Switch it off in Settings > Effects (the "Fx" setting) and the match look stays.
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Rules = require(Shared:WaitForChild("Rules"))
+local View = require(script.Parent:WaitForChild("View"))
+
+local Grade = {}
+
+local player = Players.LocalPlayer
+local current -- the numbers on screen right now
+local name = "play"
+local effects = {}
+
+local function copy(look)
+	return {
+		Clock = look.Clock, Brightness = look.Brightness, Saturation = look.Saturation, Contrast = look.Contrast,
+		Shift = look.Shift, Bloom = look.Bloom, Tint = { look.Tint.R, look.Tint.G, look.Tint.B },
+	}
+end
+
+local function find(class)
+	local ok, e = pcall(function()
+		return Lighting:FindFirstChildOfClass(class)
+	end)
+	if ok and typeof(e) == "Instance" then
+		return e
+	end
+	return nil
+end
+
+-- The numbers shown right now (for the tests).
+function Grade.current()
+	return current, name
+end
+
+-- One frame of blending (dt seconds, t = a steady clock for the pulse).
+function Grade.step(dt, t)
+	if not current then
+		current = copy(Config.Look.play)
+	end
+	local wantName = Rules.lookFor(View.phase(), View.timeLeft())
+	if player:GetAttribute("Fx") == false then
+		wantName = "play"
+	end
+	name = wantName
+	local want = Config.Look[wantName]
+	local k = 1 - math.exp(-Config.Look.Speed * dt)
+	for _, key in { "Clock", "Brightness", "Saturation", "Contrast", "Shift", "Bloom" } do
+		current[key] += (want[key] - current[key]) * k
+	end
+	current.Tint[1] += (want.Tint.R - current.Tint[1]) * k
+	current.Tint[2] += (want.Tint.G - current.Tint[2]) * k
+	current.Tint[3] += (want.Tint.B - current.Tint[3]) * k
+	-- the last seconds throb a little, like a heartbeat
+	local pulse = want.Pulse and (math.sin(t * 5) * 0.5 + 0.5) * want.Pulse or 0
+	pcall(function()
+		Lighting.ClockTime = current.Clock
+		Lighting.Brightness = current.Brightness
+		effects.cc = effects.cc or find("ColorCorrectionEffect")
+		effects.bloom = effects.bloom or find("BloomEffect")
+		if effects.cc then
+			effects.cc.Saturation = current.Saturation
+			effects.cc.Contrast = current.Contrast
+			effects.cc.Brightness = current.Shift + pulse
+			effects.cc.TintColor = Color3.new(current.Tint[1], current.Tint[2], current.Tint[3])
+		end
+		if effects.bloom then
+			effects.bloom.Intensity = current.Bloom
+		end
+	end)
+end
+
+function Grade.init()
+	current = copy(Config.Look.play)
+	RunService.RenderStepped:Connect(function(dt)
+		Grade.step(dt, os.clock())
+	end)
+end
+
+return Grade
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="47">
+            <Properties>
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the always-on screen: timer and alive count, your codename, lives, points and bullets, the kill feed, the
 -- gadget hotbar with cooldowns, the crosshair with the name of whoever you are aiming at, bounty and alliance chips,
@@ -9015,6 +9192,7 @@ local gui
 local refs = {}
 local feed = {}
 local slots = {}
+local myDigits = nil
 local lastSecond = -1
 local snapReadyAt = 0
 local aimAt, aimTarget, aimDistance = 0, nil, 0
@@ -9085,10 +9263,15 @@ function Hud.init(screen, d)
 		Size = UDim2.fromOffset(270, 104),
 	})
 	refs.meBox = me
-	refs.meTitle = UI.label(me, { Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -24, 0, 14), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "YOUR CODENAME" })
-	refs.meName = UI.label(me, { Position = UDim2.fromOffset(12, 20), Size = UDim2.new(1, -24, 0, 26), Font = UI.Fonts.Title, TextSize = 20, Text = "-" })
+	refs.meTitle = UI.label(me, { Position = UDim2.fromOffset(12, 6), Size = UDim2.fromOffset(134, 14), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "YOUR CODENAME" })
+	refs.meName = UI.label(me, { Position = UDim2.fromOffset(12, 20), Size = UDim2.fromOffset(136, 26), Font = UI.Fonts.Title, TextSize = 16, TextWrapped = false, Text = "-" })
+	-- your own digits, big: you must know them to hide them
+	refs.meCaption = UI.label(me, { Position = UDim2.fromOffset(150, 6), Size = UDim2.fromOffset(108, 14), Font = UI.Fonts.Bold, TextSize = 11, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Center, Text = "YOUR NUMBER" })
+	refs.meDigits = UI.label(me, { Position = UDim2.fromOffset(150, 18), Size = UDim2.fromOffset(108, 44), Font = UI.Fonts.Title, TextSize = 40, TextWrapped = false, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.5, Text = "---" })
+	refs.meCaption.Visible = Config.Number.ShowOwn
+	refs.meDigits.Visible = Config.Number.ShowOwn
 	refs.hearts = UI.label(me, { Position = UDim2.fromOffset(12, 48), Size = UDim2.fromOffset(120, 22), Font = UI.Fonts.Title, TextSize = 20, TextWrapped = false, Text = "" })
-	refs.score = UI.label(me, { Position = UDim2.fromOffset(130, 50), Size = UDim2.new(1, -142, 0, 20), Font = UI.Fonts.Title, TextSize = 16, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Right, Text = "" })
+	refs.score = UI.label(me, { Position = UDim2.fromOffset(150, 60), Size = UDim2.fromOffset(108, 18), Font = UI.Fonts.Title, TextSize = 15, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Center, Text = "" })
 	refs.pips = {}
 	for i = 1, Config.Guess.Bullets do
 		local pip = UI.new("Frame", { Position = UDim2.fromOffset(12 + (i - 1) * 26, 78), Size = UDim2.fromOffset(20, 16), BackgroundColor3 = C.Gold, BorderSizePixel = 0 }, me)
@@ -9096,7 +9279,7 @@ function Hud.init(screen, d)
 		UI.stroke(pip, C.Stroke, 2)
 		refs.pips[i] = pip
 	end
-	refs.meHint = UI.label(me, { Position = UDim2.fromOffset(150, 76), Size = UDim2.new(1, -162, 0, 20), Font = UI.Fonts.Bold, TextSize = 11, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Right, Text = "bullets" })
+	refs.meHint = UI.label(me, { Position = UDim2.fromOffset(150, 80), Size = UDim2.fromOffset(108, 16), Font = UI.Fonts.Bold, TextSize = 11, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Center, Text = "bullets" })
 
 	local profile = UI.panel(root, {
 		Name = "Profile",
@@ -9227,7 +9410,7 @@ function Hud.init(screen, d)
 	})
 	-- one short line at the start of a match, then it gets out of the way
 	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-	refs.tips = UI.label(root, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, #shown > 0 and -84 or -24), Size = UDim2.fromOffset(520, 34), Font = UI.Fonts.Title, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Gold, TextStrokeTransparency = 0.4, Text = touch and "LOOK AT HEADS ➔ TAP ➔ TYPE THEIR NUMBER ➔ WIN!" or "LOOK AT HEADS ➔ PRESS G ➔ TYPE THEIR NUMBER ➔ WIN!" })
+	refs.tips = UI.label(root, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, #shown > 0 and -84 or -24), Size = UDim2.fromOffset(520, 34), Font = UI.Fonts.Title, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Gold, TextStrokeTransparency = 0.4, Text = touch and "TAP A PLAYER ➔ TYPE THEIR NUMBER ➔ WIN!" or "LOOK AT HEADS ➔ TYPE THEIR NUMBER ➔ WIN!" })
 	-- everything important can shrink on small screens (phones, small windows)
 	for _, thing in { me, profile, refs.quick, bar, guess, refs.feed } do
 		table.insert(scaleObjects, UI.new("UIScale", {}, thing))
@@ -9249,6 +9432,14 @@ function Hud.activate(id)
 		c.snap()
 	else
 		c.use(id)
+	end
+end
+
+-- Your own digits, as the server told you (nil clears them).
+function Hud.setMyNumber(text)
+	myDigits = text
+	if refs.meDigits then
+		refs.meDigits.Text = text or "---"
 	end
 end
 
@@ -9347,17 +9538,22 @@ function Hud.update()
 	local alive = View.aliveCount()
 	local playing = player:GetAttribute("Alive") == true and (phase == "play" or phase == "countdown")
 	refs.phase.Text = PHASE_TEXT[phase] or ""
+	-- not enough real players yet: the lobby waits (the clock does not run)
+	local waiting = phase == "lobby" and Players.NumPlayers < Config.Match.MinHumans
+	if waiting then
+		refs.phase.Text = "WAITING FOR PLAYERS"
+	end
 	if phase == "play" and alive <= 3 and alive > 0 then
 		refs.phase.Text = "⚠ ONLY " .. alive .. " LEFT"
 	end
-	refs.timer.Text = Util.clock(left)
+	refs.timer.Text = waiting and (Players.NumPlayers .. "/" .. Config.Match.MinHumans) or Util.clock(left)
 	local final = phase == "play" and left <= Config.Match.RevealAt
 	refs.timer.TextColor3 = final and C.Danger or C.Text
 	if final then
 		refs.topScale.Scale = uiScale * (1 + 0.05 * math.abs(math.sin(os.clock() * 5)))
 		if not finalShown then
 			finalShown = true
-			deps.Fx.announce("30 SECONDS LEFT!", "Every plate glows. Make it count!", C.Danger, 0.2)
+			deps.Fx.announce(Config.Match.RevealAt .. " SECONDS LEFT!", "Every plate glows. Make it count!", C.Danger, 0.2)
 			Audio.setIntensity(true)
 		end
 	else
@@ -9513,7 +9709,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="47">
+          <Item class="ModuleScript" referent="48">
             <Properties>
               <string name="Name">Inventory</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the gadget inventory (🎒 or I). Every gadget with its charges, cooldown and what it does, plus the clues you
@@ -9634,11 +9830,12 @@ return Inventory
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="48">
+          <Item class="ModuleScript" referent="49">
             <Properties>
               <string name="Name">Keypad</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the guess panel. Press G (or tap GUESS): pick who you mean from the list of people you can see (the one under
--- the crosshair is chosen for you), type their three digits and press CONFIRM (or Enter). The panel tells you what a wrong
+-- the crosshair is chosen for you) and type their three digits: the guess goes in by itself on the third digit (with
+-- Config.Guess.AutoSubmit off you press CONFIRM or Enter instead). The panel tells you what a wrong
 -- guess costs before you commit, and shows the cooldown. Nothing here ever shows a number: you have to find it yourself.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9667,6 +9864,11 @@ for i = 0, 9 do
 	DIGIT_KEYS[Enum.KeyCode[({ "KeypadZero", "KeypadOne", "KeypadTwo", "KeypadThree", "KeypadFour", "KeypadFive", "KeypadSix", "KeypadSeven", "KeypadEight", "KeypadNine" })[i + 1]]] = tostring(i)
 end
 
+-- The digit a key stands for ("0".."9"), or nil.
+function Keypad.digitOf(keyCode)
+	return DIGIT_KEYS[keyCode]
+end
+
 function Keypad.isOpen()
 	return panel ~= nil and panel.Visible
 end
@@ -9681,9 +9883,11 @@ local function redraw()
 		l.Text = ch ~= "" and ch or "_"
 		l.TextColor3 = ch ~= "" and C.Text or C.Muted
 	end
-	local ready = #typed == Config.Number.Digits and target ~= nil
-	confirm.BackgroundColor3 = ready and C.Good or C.Disabled
-	confirm.Text = ready and "CONFIRM" or "TYPE 3 DIGITS"
+	if not Config.Guess.AutoSubmit then
+		local ready = #typed == Config.Number.Digits and target ~= nil
+		confirm.BackgroundColor3 = ready and C.Good or C.Disabled
+		confirm.Text = ready and "CONFIRM" or "TYPE 3 DIGITS"
+	end
 end
 
 -- People you could guess right now: alive, in sight, in range. Nearest first, the crosshair target first of all.
@@ -9766,7 +9970,7 @@ function Keypad.init(gui, d)
 		Name = "Keypad",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -84),
-		Size = UDim2.fromOffset(340, 430),
+		Size = UDim2.fromOffset(340, Config.Guess.AutoSubmit and 384 or 430), -- (no CONFIRM button when the guess goes in by itself)
 		Visible = false,
 		ZIndex = 30,
 	})
@@ -9812,6 +10016,7 @@ function Keypad.init(gui, d)
 		Keypad.close()
 	end)
 	confirm = UI.button(panel, { Position = UDim2.fromOffset(40, 204 + 4 * 42 + 4), Size = UDim2.fromOffset(260, 40), Text = "TYPE 3 DIGITS", TextSize = 18, BackgroundColor3 = C.Disabled, ZIndex = 31 })
+	confirm.Visible = not Config.Guess.AutoSubmit
 	confirm.MouseButton1Click:Connect(function()
 		Keypad.submit()
 	end)
@@ -9938,7 +10143,7 @@ return Keypad
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="49">
+          <Item class="ModuleScript" referent="50">
             <Properties>
               <string name="Name">Markers</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: little markers drawn only on your screen: the green 🤝 over your ally, and the pings from your scanner.
@@ -10027,7 +10232,7 @@ return Markers
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="50">
+          <Item class="ModuleScript" referent="51">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the menu window: how to play, forehead plates you unlock by winning, your stats and the settings.
@@ -10056,8 +10261,8 @@ local cosmeticCards = {}
 local profileLabel
 
 local STEPS = {
-	{ "🪪", "Look at heads", "Everybody has a secret 3-digit number on their forehead. You can't see yours, but everybody else can. You have 3 lives." },
-	{ "🎯", "Type their number", "Look at someone and press G (or tap them). Type THEIR number and press CONFIRM. Right = they lose a life. Wrong = you freeze for a moment." },
+	{ "🪪", "Look at heads", "Everybody has a 3-digit number on their forehead and floating over their head. Yours is shown on your screen, so you know what to hide. You have 3 lives." },
+	{ "🎯", "Type their number", "Look at someone and just type their 3 digits (or press G / Enter, or tap them). It goes in by itself. Right = they lose a life. Wrong = you freeze for a moment." },
 	{ "🏆", "Be the last one standing", "Rounds are short. In Team and Flag matches you respawn and your team scores. Don't sit still: campers get exposed!" },
 }
 -- the optional extras (all switched off in Config.Features unless you turn them on)
@@ -10351,12 +10556,14 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="51">
+          <Item class="ModuleScript" referent="52">
             <Properties>
               <string name="Name">OwnPlate</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: you must never see your own number (forehead plate or the floating one). The plate is hidden on your screen only; everybody else
 -- still sees it.
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
 local OwnPlate = {}
 
@@ -10382,6 +10589,9 @@ local function watch(char)
 end
 
 function OwnPlate.init()
+	if Config.Number.ShowOwn then
+		return -- you may see your own number (that is how you know what to hide)
+	end
 	if player.Character then
 		watch(player.Character)
 	end
@@ -10392,7 +10602,7 @@ return OwnPlate
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="52">
+          <Item class="ModuleScript" referent="53">
             <Properties>
               <string name="Name">Results</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the scoreboard at the end of every match.
@@ -10626,7 +10836,7 @@ return Results
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="53">
+          <Item class="ModuleScript" referent="54">
             <Properties>
               <string name="Name">Scope</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the binoculars. Hold the right mouse button (or Z, or tap the 🔭 slot) to zoom far across the map and
@@ -10789,7 +10999,7 @@ return Scope
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="54">
+          <Item class="ModuleScript" referent="55">
             <Properties>
               <string name="Name">Spectate</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: once you are out, you watch the others. The camera follows a living player; press ◀ ▶ (or the arrow
@@ -10926,7 +11136,7 @@ return Spectate
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="55">
+          <Item class="ModuleScript" referent="56">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -11036,7 +11246,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="56">
+          <Item class="ModuleScript" referent="57">
             <Properties>
               <string name="Name">View</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the client's picture of the match. Reads the attributes the server writes and finds the people in the
@@ -11252,7 +11462,7 @@ return View
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="57">
+  <Item class="Workspace" referent="58">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>
