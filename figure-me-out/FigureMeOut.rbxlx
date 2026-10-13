@@ -346,6 +346,36 @@ Config.Match = {
 	ResultsTime = 12,
 }
 
+-- Game modes. Matches rotate through them (or set Mode to one id to always play that mode).
+--   deathmatch: everybody for themselves, 3 lives, last one standing (or most lives/points when time runs out)
+--   team:       two teams, unlimited respawns, a point for every hit on the other team, first to ScoreLimit
+--   ctf:        two teams, unlimited respawns, steal the other team's flag and bring it home, first to CaptureLimit
+Config.Modes = {
+	Rotation = { "deathmatch", "team", "ctf" },
+	Mode = "rotate", -- "rotate" or one of the ids above
+	List = {
+		deathmatch = { Id = "deathmatch", Name = "DEATHMATCH", Icon = "💀", Teams = false, Respawn = false, Tip = "Everybody for themselves. 3 lives." },
+		team = { Id = "team", Name = "TEAM DEATHMATCH", Icon = "⚔️", Teams = true, Respawn = true, ScoreLimit = 25, Tip = "Two teams. Every hit on the other team scores. First to 25." },
+		ctf = { Id = "ctf", Name = "CAPTURE THE FLAG", Icon = "🚩", Teams = true, Respawn = true, CaptureLimit = 3, Tip = "Grab the enemy flag and bring it home. First to 3 captures." },
+	},
+}
+Config.Teams = {
+	{ Id = 1, Name = "RED", Icon = "🔴", Color = C(235, 70, 70) },
+	{ Id = 2, Name = "BLUE", Icon = "🔵", Color = C(70, 130, 245) },
+}
+Config.Team = { FriendlyFire = false } -- true = you can guess your own teammates (it costs them a life like anybody else)
+
+-- Capture the flag. The bases are the two MARKET courtyards (red west, blue east).
+Config.Flag = {
+	PickupRadius = 5, -- walk this close to a flag to take it (or to return your own dropped flag)
+	CaptureRadius = 9, -- bring the flag this close to your own base to score
+	ReturnTime = 20, -- a dropped flag goes home by itself after this long
+	NeedOwnFlagHome = true, -- you can only score while your own flag is safe at your base
+	CapturePoints = 150, -- individual points for a capture
+	ReturnPoints = 30, -- ... and for returning your own dropped flag
+	TakePoints = 20, -- ... and for taking the enemy flag
+}
+
 Config.Number = { Digits = 3, Min = 1, Max = 999 } -- shown with leading zeros: 007, 042, 512
 
 -- Lives: a correct guess takes one life. You come back after a moment, protected, until your lives run out.
@@ -594,6 +624,8 @@ end
 -- 4 information terminals in the corners of the plaza
 Config.Map.Terminals = { Vector3.new(-24, 2, -24), Vector3.new(24, 2, -24), Vector3.new(-24, 2, 24), Vector3.new(24, 2, 24) }
 -- where supply drops land: open ground in the plaza
+-- the CTF bases (the flag stands in the middle of each courtyard, under the walkway)
+Config.Map.Bases = { [1] = Vector3.new(-86, 0, 0), [2] = Vector3.new(86, 0, 0) }
 Config.Map.DropSpots = { Vector3.new(18, 0, 6), Vector3.new(-18, 0, -6), Vector3.new(6, 0, -18), Vector3.new(-6, 0, 18) }
 -- 16 crate spots: the four crossroads, the plaza, and along the streets.
 Config.Map.Crates = {}
@@ -982,6 +1014,74 @@ function Rules.clues(n, count, next)
 		out[i] = pool[i]
 	end
 	return out
+end
+
+--------------------------------------------------------------------------------
+-- Modes and teams
+--------------------------------------------------------------------------------
+-- Which mode a match uses: `setting` is Config.Modes.Mode ("rotate" or an id), `index` counts matches from 1.
+function Rules.modeFor(setting, index)
+	local list = Config.Modes.Rotation
+	if setting ~= "rotate" and Config.Modes.List[setting] then
+		return setting
+	end
+	return list[(index - 1) % #list + 1]
+end
+
+-- Splits `count` players into two teams as evenly as possible. `humans` is the number of real players: they are spread
+-- evenly across the teams first (so one team is not all humans), then bots fill the rest. Returns a list of team ids (1 or 2)
+-- for the entities in order (humans first, then bots).
+function Rules.assignTeams(count, humans, first)
+	local teams, sizes = {}, { 0, 0 }
+	first = first or 1
+	for i = 1, count do
+		local pick
+		if sizes[1] ~= sizes[2] then
+			pick = sizes[1] < sizes[2] and 1 or 2
+		else
+			pick = first
+			first = 3 - first
+		end
+		-- keep the humans balanced too: the next human goes to the team with fewer humans
+		teams[i] = pick
+		sizes[pick] += 1
+	end
+	if humans > 0 then
+		-- re-deal so the real players alternate between the teams while the sizes stay equal
+		local want = { 0, 0 }
+		for i = 1, count do
+			want[teams[i]] += 1
+		end
+		local dealt = { 0, 0 }
+		for i = 1, count do
+			local pick
+			if i <= humans then
+				pick = (i + first) % 2 + 1
+				if dealt[pick] >= want[pick] then
+					pick = 3 - pick
+				end
+			else
+				pick = dealt[1] < want[1] and 1 or 2
+				if dealt[pick] >= want[pick] then
+					pick = 3 - pick
+				end
+			end
+			teams[i] = pick
+			dealt[pick] += 1
+		end
+	end
+	return teams
+end
+
+-- The winning team of a team match: the higher score; if level, the higher total of individual points; if still level, 0 (a draw).
+function Rules.winningTeam(scores, points)
+	if scores[1] ~= scores[2] then
+		return scores[1] > scores[2] and 1 or 2
+	end
+	if (points[1] or 0) ~= (points[2] or 0) then
+		return (points[1] or 0) > (points[2] or 0) and 1 or 2
+	end
+	return 0
 end
 
 function Rules.unlockedStyles(wins)
@@ -1573,6 +1673,10 @@ function Alliance.propose(from, toId)
 	if State.phase ~= "play" or not from or not from.alive or not from.player or not to or not to.alive or not to.player or to == from then
 		return false
 	end
+	if State.mode.Teams then
+		Net.toast(from.player, "Teams are fixed in this mode", "bad")
+		return false
+	end
 	if from.ally or to.ally then
 		if from.player then
 			Net.toast(from.player, "One of you already has an ally", "bad")
@@ -1840,7 +1944,7 @@ local function candidates(e)
 	end
 	for _, other in State.aliveList() do
 		local head = Vision.head(other)
-		if other ~= e and head then
+		if other ~= e and head and not (State.mode.Teams and other.team == e.team) then
 			local offset = mine.Position - head.Position
 			local d = offset.Magnitude
 			if d <= Bots.SightRange and d > 1 and head.CFrame.LookVector:Dot(offset.Unit) > 0.55 and not Vision.blocked(mine.Position, head.Position, true) then
@@ -2180,16 +2284,19 @@ function Combat.eliminate(victim, killer, how)
 	return true
 end
 
--- A correct guess: the victim loses a life. With lives left they glitch away and come back, protected, somewhere else.
+-- A correct guess: the victim loses a life (never, in team modes). They glitch away and come back, protected, somewhere else.
 function Combat.strike(victim, killer, how)
 	if not victim or not victim.alive then
 		return false
 	end
 	Combat.credit(killer, victim)
-	if (victim.lives or 1) <= 1 then
+	if State.mode.Respawn then
+		-- team modes: nobody is ever out, you just come back
+	elseif (victim.lives or 1) <= 1 then
 		return Combat.eliminate(victim, killer, how)
+	else
+		victim.lives -= 1
 	end
-	victim.lives -= 1
 	local delay = Config.Lives.RespawnDelay
 	victim.stunUntil = State.now() + delay
 	victim.scoped = false
@@ -2609,6 +2716,257 @@ return Events
         </Item>
         <Item class="ModuleScript" referent="18">
           <Properties>
+            <string name="Name">Flags</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: capture the flag. Each team has one flag standing in the middle of its base (the MARKET courtyards: red west,
+-- blue east). Walk into the enemy flag to take it (real players only), carry it to your own base to score, and your own flag
+-- must be home for a capture to count. Whoever carries a flag is shown to everybody; if the carrier is hit or leaves, the flag
+-- drops where they were. A dropped flag goes home by itself after a while, or at once if a teammate touches it. Everything is
+-- decided here on the server: there is no request a client could send to take, move or capture a flag.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local State = require(script.Parent.State)
+local Net = require(script.Parent.Net)
+local Plates = require(script.Parent.Plates)
+local Combat = require(script.Parent.Combat)
+
+local Flags = {}
+
+local flags = {} -- team id -> flag
+local folder
+
+local function label(e)
+	return e.icon .. " " .. e.code
+end
+
+
+-- Where the flag is right now.
+local function position(f)
+	if f.carrier and f.carrier.char then
+		local root = f.carrier.char:FindFirstChild("HumanoidRootPart")
+		if root then
+			return root.Position
+		end
+	end
+	return f.pos
+end
+
+local function publish(f)
+	workspace:SetAttribute("Flag" .. f.team, f.state)
+	workspace:SetAttribute("FlagCarrier" .. f.team, f.carrier and label(f.carrier) or "")
+end
+
+local function makeParts(f)
+	local def = Config.Teams[f.team]
+	local pole = Instance.new("Part")
+	pole.Name = "FlagPole" .. f.team
+	pole.Size = Vector3.new(0.6, 9, 0.6)
+	pole.Color = Color3.fromRGB(235, 240, 250)
+	pole.Material = Enum.Material.Metal
+	pole.CanQuery = false
+	pole.CanTouch = false
+	pole.Parent = folder
+	local cloth = Instance.new("Part")
+	cloth.Name = "FlagCloth" .. f.team
+	cloth.Size = Vector3.new(4, 2.6, 0.25)
+	cloth.Color = def.Color
+	cloth.Material = Enum.Material.Neon
+	cloth.CanQuery = false
+	cloth.CanTouch = false
+	cloth.Parent = folder
+	local light = Instance.new("PointLight")
+	light.Color = def.Color
+	light.Range = 16
+	light.Brightness = 2
+	light.Parent = cloth
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = pole
+	weld.Part1 = cloth
+	weld.Parent = cloth
+	f.pole, f.cloth = pole, cloth
+end
+
+-- Puts a flag on the ground (anchored) at `where`.
+local function planted(f, where)
+	if f.carryWeld then
+		f.carryWeld:Destroy()
+		f.carryWeld = nil
+	end
+	f.pole.Anchored = true
+	f.cloth.Anchored = true
+	f.pole.CanCollide = false
+	f.cloth.CanCollide = false
+	f.pole.Position = where + Vector3.new(0, 4.5, 0)
+	f.cloth.Position = where + Vector3.new(2.3, 7.4, 0)
+	f.pos = where
+end
+
+local function goHome(f)
+	f.carrier = nil
+	f.state = "home"
+	f.returnAt = nil
+	planted(f, f.home)
+	publish(f)
+end
+
+function Flags.clear()
+	for _, f in flags do
+		if f.carrier then
+			Plates.showFlag(f.carrier, false, Config.Teams[f.team])
+		end
+	end
+	flags = {}
+	if folder then
+		folder:Destroy()
+		folder = nil
+	end
+	for team = 1, 2 do
+		workspace:SetAttribute("Flag" .. team, nil)
+		workspace:SetAttribute("FlagCarrier" .. team, nil)
+	end
+end
+
+-- Builds both flags at their bases for a new capture-the-flag match.
+function Flags.reset()
+	Flags.clear()
+	folder = Instance.new("Folder")
+	folder.Name = "Flags"
+	folder.Parent = workspace
+	for team = 1, 2 do
+		local f = { team = team, home = Config.Map.Bases[team], state = "home", captures = 0 }
+		flags[team] = f
+		makeParts(f)
+		goHome(f)
+	end
+end
+
+function Flags.state(team)
+	return flags[team] and flags[team].state
+end
+
+function Flags.carrierOf(team)
+	return flags[team] and flags[team].carrier
+end
+
+-- The flag this entity is carrying, or nil.
+function Flags.carrying(e)
+	for _, f in flags do
+		if f.carrier == e then
+			return f
+		end
+	end
+	return nil
+end
+
+-- The carrier lost the flag (was hit, left, or the match ended): it falls where they were.
+function Flags.dropCarried(e, why)
+	local f = Flags.carrying(e)
+	if not f then
+		return false
+	end
+	local where = position(f)
+	Plates.showFlag(e, false, Config.Teams[f.team])
+	f.carrier = nil
+	f.state = "dropped"
+	f.returnAt = State.now() + Config.Flag.ReturnTime
+	planted(f, Vector3.new(where.X, 0.2, where.Z))
+	publish(f)
+	Net.sendAll("flag", "dropped", f.team, label(e))
+	return true
+end
+
+local function take(f, e)
+	f.carrier = e
+	f.state = "carried"
+	f.returnAt = nil
+	local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+	if root then
+		f.pole.Anchored = false
+		f.cloth.Anchored = false
+		f.pole.Massless = true
+		f.cloth.Massless = true
+		f.pole.CFrame = root.CFrame * CFrame.new(0, 3, 1.8)
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = root
+		weld.Part1 = f.pole
+		weld.Parent = f.pole
+		f.carryWeld = weld
+	end
+	Plates.showFlag(e, true, Config.Teams[f.team])
+	e.score = (e.score or 0) + Config.Flag.TakePoints
+	State.writeEntity(e)
+	publish(f)
+	Net.sendAll("flag", "taken", f.team, label(e))
+end
+
+local function near(a, b, radius)
+	local dx, dz = a.X - b.X, a.Z - b.Z
+	return dx * dx + dz * dz <= radius * radius and math.abs(a.Y - b.Y) < 12
+end
+
+local function capture(f, e)
+	local team = e.team
+	e.score = (e.score or 0) + Config.Flag.CapturePoints * Combat.multiplier()
+	e.captures = (e.captures or 0) + 1
+	State.teamScore[team] += 1
+	Plates.showFlag(e, false, Config.Teams[f.team])
+	State.writeEntity(e)
+	goHome(f)
+	State.writeWorld()
+	Net.sendAll("flag", "captured", team, label(e))
+	if e.player then
+		Net.send(e.player, "captured", Config.Flag.CapturePoints)
+	end
+end
+
+-- Every quarter second during a capture-the-flag match.
+function Flags.tick(now)
+	for _, f in flags do
+		if f.carrier then
+			local e = f.carrier
+			if not e.alive or State.entities[e.id] ~= e then
+				Flags.dropCarried(e, "out")
+			else
+				local own = flags[e.team]
+				local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+				if root and near(root.Position, Config.Map.Bases[e.team], Config.Flag.CaptureRadius) and (not Config.Flag.NeedOwnFlagHome or own.state == "home") then
+					capture(f, e)
+				end
+			end
+		else
+			if f.state == "dropped" and f.returnAt and now >= f.returnAt then
+				goHome(f)
+				Net.sendAll("flag", "returned", f.team, "")
+			else
+				for _, e in State.aliveList() do
+					local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+					if e.player and root and e.team and (e.stunUntil or 0) <= now and near(root.Position, f.pos, Config.Flag.PickupRadius) then
+						if e.team ~= f.team then
+							if not Flags.carrying(e) then
+								take(f, e)
+								break
+							end
+						elseif f.state == "dropped" then
+							goHome(f)
+							e.score = (e.score or 0) + Config.Flag.ReturnPoints
+							State.writeEntity(e)
+							Net.sendAll("flag", "returned", f.team, label(e))
+							break
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+return Flags
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="19">
+          <Properties>
             <string name="Name">Guess</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: typing someone's number. Right = they lose a life. Wrong = you lose a bullet and freeze for a moment, and
 -- the person you guessed gets an arrow pointing at you. All of it is decided here on the server.
@@ -2660,6 +3018,9 @@ function Guess.attempt(e, targetId, text)
 	end
 	if (from.Position - to.Position).Magnitude > Config.Guess.MaxDistance or Vision.blocked(from.Position, to.Position, true) then
 		return fail(e, "You can't see them")
+	end
+	if State.mode.Teams and target.team == e.team and not Config.Team.FriendlyFire then
+		return fail(e, "That's your teammate")
 	end
 	if (target.protectedUntil or 0) > now and not target.model then
 		return fail(e, "They are protected for a moment")
@@ -2728,7 +3089,7 @@ return Guess
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="19">
+        <Item class="ModuleScript" referent="20">
           <Properties>
             <string name="Name">Items</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the gadgets you carry. Flashbang, smoke grenade, distraction grenade, scanner, sprint boost and decoy
@@ -3026,6 +3387,7 @@ local function makeDecoy(e)
 		model = model,
 		code = e.code,
 		icon = e.icon,
+		team = e.team,
 		expires = State.now() + Config.Decoy.Duration,
 	}
 	return true
@@ -3172,7 +3534,7 @@ return Items
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="20">
+        <Item class="ModuleScript" referent="21">
           <Properties>
             <string name="Name">Match</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the match from start to finish: lobby wait, countdown, play, THE REVEAL, results, back to the lobby.
@@ -3198,6 +3560,8 @@ local Alliance = require(script.Parent.Alliance)
 local Bounty = require(script.Parent.Bounty)
 local Terminals = require(script.Parent.Terminals)
 local Events = require(script.Parent.Events)
+local Modes = require(script.Parent.Modes)
+local Flags = require(script.Parent.Flags)
 
 local Match = {}
 
@@ -3288,13 +3652,15 @@ function Match.setup()
 	local spawnOrder = shuffled(#Config.Map.Spawns)
 	local now = State.now()
 
-	local function finish(e, index, spawnIndex)
+	local function finish(e, index)
 		local nameInfo = names[index]
 		local color = Config.Colors[nameInfo.color]
 		local animal = Config.Animals[nameInfo.animal]
 		e.code = color.Name .. " " .. animal.Name
 		e.icon = animal.Icon
-		e.color = color.Color
+		if not e.team then
+			e.color = color.Color
+		end
 		e.number = Rules.newNumber(roll, State.takenNumbers())
 		e.alive = true
 		e.kills = 0
@@ -3321,7 +3687,10 @@ function Match.setup()
 		hookDeath(e)
 	end
 
-	for i, p in humans do
+	-- first make everybody (so teams can be dealt), then place them
+	Modes.begin()
+	local list = {}
+	for _, p in humans do
 		local char = ensureCharacter(p)
 		local e = { id = p.UserId, player = p, char = char, style = styleFor(p) }
 		local data = Data.get(p)
@@ -3333,19 +3702,41 @@ function Match.setup()
 				e.effectDef = Config.EffectById[data.Effect]
 			end
 		end
-		local spawn = Config.Map.Spawns[spawnOrder[(i - 1) % #spawnOrder + 1]]
-		if char then
-			char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
-		end
-		finish(e, i, spawnOrder[(i - 1) % #spawnOrder + 1])
+		table.insert(list, e)
 	end
 	for b = 1, botCount do
-		local index = #humans + b
-		local model = Bots.makeModel("Bot" .. b)
-		local e = { id = -b, bot = true, char = model, style = "classic" }
-		local spawn = Config.Map.Spawns[spawnOrder[(index - 1) % #spawnOrder + 1]]
-		Bots.place(e, spawn)
-		finish(e, index, spawnOrder[(index - 1) % #spawnOrder + 1])
+		table.insert(list, { id = -b, bot = true, char = Bots.makeModel("Bot" .. b), style = "classic" })
+	end
+	Modes.assignTeams(list)
+	-- team modes: each team spawns on its own side of the map (red west, blue east)
+	local pools, taken = {}, { 0, 0 }
+	for team = 1, 2 do
+		local side = {}
+		for _, sp in Config.Map.Spawns do
+			if (team == 1 and sp.X < 0) or (team == 2 and sp.X > 0) then
+				table.insert(side, sp)
+			end
+		end
+		for i = #side, 2, -1 do
+			local j = 1 + math.floor(roll() * i)
+			side[i], side[j] = side[j], side[i]
+		end
+		pools[team] = side
+	end
+	for index, e in list do
+		local spawn
+		if e.team then
+			taken[e.team] += 1
+			spawn = pools[e.team][(taken[e.team] - 1) % #pools[e.team] + 1]
+		else
+			spawn = Config.Map.Spawns[spawnOrder[(index - 1) % #spawnOrder + 1]]
+		end
+		if e.bot then
+			Bots.place(e, spawn)
+		elseif e.char then
+			e.char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
+		end
+		finish(e, index)
 	end
 	Pickups.reset()
 	Alliance.reset()
@@ -3357,9 +3748,12 @@ end
 -- During a match
 --------------------------------------------------------------------------------
 -- A spawn point with nobody close, for somebody who lost a life and is coming back.
-function Match.safeSpawn()
+function Match.safeSpawn(team)
 	local best, bestScore = nil, -1
 	for _, spawn in Config.Map.Spawns do
+		if team and ((team == 1 and spawn.X > 0) or (team == 2 and spawn.X < 0)) then
+			continue
+		end
 		local nearest = math.huge
 		for _, other in State.aliveList() do
 			local root = other.char and other.char:FindFirstChild("HumanoidRootPart")
@@ -3418,17 +3812,18 @@ function Match.tick(dt)
 	Alliance.tick(now)
 	Bounty.tick(now)
 	Events.tick(now)
+	Flags.tick(now)
 	if not State.revealing and State.phaseEnd - now <= Config.Match.RevealAt then
 		Match.reveal()
 	end
 	State.writeWorld()
-	return State.aliveCount() <= 1 or now >= State.phaseEnd or not humansAlive()
+	return Modes.over() or now >= State.phaseEnd or not humansAlive()
 end
 
 --------------------------------------------------------------------------------
 -- Results
 --------------------------------------------------------------------------------
-local function award(e, winnerId, count)
+local function award(e, won)
 	local p = e.player
 	local data = p and Data.get(p)
 	if not data then
@@ -3437,7 +3832,7 @@ local function award(e, winnerId, count)
 	data.Games += 1
 	data.Kills += e.kills
 	data.BestKills = math.max(data.BestKills, e.kills)
-	if e.id == winnerId then
+	if won then
 		local before = data.Wins
 		data.Wins += 1
 		data.Streak += 1
@@ -3462,31 +3857,43 @@ local function award(e, winnerId, count)
 	end
 end
 
--- Works out the winner, saves stats and tells everybody. Returns the winner's id (or nil).
+-- Works out the winner, saves stats and tells everybody. Returns (winner entity id or nil, winning team or 0).
 function Match.finish()
+	local mode = State.mode
 	local entries = {}
 	for _, e in State.list() do
 		table.insert(entries, { id = e.id, alive = e.alive, lives = e.lives, score = e.score, kills = e.kills, diedAt = e.diedAt })
 	end
 	local order = Rules.standings(entries)
-	local winnerId = order[1]
-	local winner = winnerId and State.entities[winnerId]
-	if winner and not winner.alive then
-		winnerId = nil
-	end
-	if winner and winner.alive then
-		winner.score = (winner.score or 0) + Config.Score.Win
+	local winnerId, winnerTeam = nil, 0
+	if mode.Teams then
+		winnerTeam = Modes.winningTeam()
+		for _, e in State.list() do
+			if winnerTeam ~= 0 and e.team == winnerTeam then
+				e.score = (e.score or 0) + Config.Score.Win
+			end
+		end
+	else
+		winnerId = order[1]
+		local winner = winnerId and State.entities[winnerId]
+		if winner and not winner.alive then
+			winnerId = nil
+		elseif winner then
+			winner.score = (winner.score or 0) + Config.Score.Win
+		end
 	end
 	local now = State.now()
 	local rows = {}
 	for rank, id in order do
 		local e = State.entities[id]
 		rows[rank] = {
-			lives = e.lives,
-			score = e.score,
-			survived = math.floor((e.diedAt or now) - (e.startedAt or now)),
 			id = e.id,
 			rank = rank,
+			team = e.team or 0,
+			lives = e.lives,
+			score = e.score,
+			captures = e.captures or 0,
+			survived = math.floor((e.diedAt or now) - (e.startedAt or now)),
 			label = e.icon .. " " .. e.code,
 			who = e.player and e.player.Name or "Bot",
 			kills = e.kills,
@@ -3494,9 +3901,10 @@ function Match.finish()
 		}
 	end
 	for _, e in State.list() do
-		award(e, winnerId, #order)
+		local won = (mode.Teams and winnerTeam ~= 0 and e.team == winnerTeam) or (not mode.Teams and e.id == winnerId)
+		award(e, won)
 		if e.player then
-			Progress.award(e.player, e.score or 0, e.id == winnerId, State.matchId, e.bonusCoins)
+			Progress.award(e.player, e.score or 0, won, State.matchId, e.bonusCoins)
 		end
 	end
 	Events.stop()
@@ -3508,14 +3916,15 @@ function Match.finish()
 		end
 	end
 	State.setPhase("results", State.now() + Config.Match.ResultsTime)
-	Net.sendAll("results", rows, winnerId or 0)
-	return winnerId
+	Net.sendAll("results", rows, winnerId or 0, winnerTeam, mode.Id, { State.teamScore[1], State.teamScore[2] })
+	return winnerId, winnerTeam
 end
 
 -- Clears the arena and brings everybody back to the lobby.
 function Match.cleanup()
 	Items.clearAll()
 	Bots.clear()
+	Flags.clear()
 	Events.stop()
 	Bounty.clear()
 	Alliance.reset()
@@ -3579,6 +3988,7 @@ function Match.onLeave(p)
 	local e = State.byPlayer(p)
 	if e then
 		Alliance.leave(e)
+		Flags.dropCarried(e, "left")
 		e.player = nil
 		if e.alive and State.phase ~= "lobby" then
 			Combat.eliminate(e, nil, "left")
@@ -3625,7 +4035,7 @@ end
 
 function Match.run()
 	Combat.onRespawn = function(victim)
-		local spawn = Match.safeSpawn()
+		local spawn = Match.safeSpawn(victim.team)
 		if victim.char then
 			victim.char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
 		end
@@ -3644,8 +4054,10 @@ function Match.run()
 			end
 		end
 		Bounty.claim(killer, victim)
+		Modes.onHit(killer, victim)
 	end
 	Combat.onEliminated = function(victim)
+		Flags.dropCarried(victim, "out")
 		local p = victim.player
 		if p then
 			task.delay(3, function()
@@ -3657,6 +4069,7 @@ function Match.run()
 	end
 	while true do
 		State.setPhase("lobby", State.now() + Config.Match.Intermission)
+		Modes.chooseNext()
 		Net.sendAll("phase", "lobby", State.phaseEnd)
 		waitUntil(function()
 			if #Players:GetPlayers() < Config.Match.MinHumans then
@@ -3700,7 +4113,103 @@ return Match
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="21">
+        <Item class="ModuleScript" referent="22">
+          <Properties>
+            <string name="Name">Modes</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: the game modes. One framework, three rule sets (see Config.Modes): deathmatch, team deathmatch and capture the
+-- flag. This module decides which mode the next match uses, splits people into teams, scores team hits and says when a match is over.
+-- Guessing, gadgets, photos, bounties and everything else are shared by all modes.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Rules = require(Shared:WaitForChild("Rules"))
+local State = require(script.Parent.State)
+local Flags = require(script.Parent.Flags)
+
+local Modes = {}
+
+local rng = Random.new()
+Modes.next = "deathmatch" -- the mode of the upcoming match (shown in the lobby)
+
+-- Chooses the mode of the upcoming match and announces it in the lobby.
+function Modes.chooseNext()
+	Modes.next = Rules.modeFor(Config.Modes.Mode, State.matchId + 1)
+	workspace:SetAttribute("NextMode", Modes.next)
+	workspace:SetAttribute("NextModeName", Config.Modes.List[Modes.next].Name)
+	return Modes.next
+end
+
+-- Starts the mode for the match being set up.
+function Modes.begin()
+	State.mode = Config.Modes.List[Modes.next] or Config.Modes.List.deathmatch
+	State.teamScore = { 0, 0 }
+	if State.mode.Id == "ctf" then
+		Flags.reset()
+	else
+		Flags.clear()
+	end
+	State.writeWorld()
+	return State.mode
+end
+
+-- Assigns every entity a team (team modes). `list` is the entities, real players first.
+function Modes.assignTeams(list)
+	if not State.mode.Teams then
+		return
+	end
+	local humans = 0
+	for _, e in list do
+		if e.player then
+			humans += 1
+		end
+	end
+	local teams = Rules.assignTeams(#list, humans, rng:NextInteger(1, 2))
+	for i, e in list do
+		e.team = teams[i]
+		e.color = Config.Teams[e.team].Color
+	end
+end
+
+-- A hit was scored: team deathmatch scores it for the killer's team, and a flag carrier who was hit drops the flag.
+function Modes.onHit(killer, victim)
+	Flags.dropCarried(victim, "hit")
+	if State.mode.Id == "team" and killer.team and killer.team ~= victim.team then
+		State.teamScore[killer.team] += 1
+		State.writeWorld()
+	end
+end
+
+function Modes.teamPoints()
+	local points = { 0, 0 }
+	for _, e in State.list() do
+		if e.team then
+			points[e.team] += e.score or 0
+		end
+	end
+	return points
+end
+
+-- Is the match over (before the clock runs out)?
+function Modes.over()
+	local mode = State.mode
+	if not mode.Teams then
+		return State.aliveCount() <= 1
+	end
+	local limit = mode.ScoreLimit or mode.CaptureLimit
+	return State.teamScore[1] >= limit or State.teamScore[2] >= limit
+end
+
+-- The winning team (1 or 2), or 0 for a draw. Only for team modes.
+function Modes.winningTeam()
+	return Rules.winningTeam(State.teamScore, Modes.teamPoints())
+end
+
+return Modes
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="23">
           <Properties>
             <string name="Name">Net</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the server's way of talking to players.
@@ -3733,7 +4242,7 @@ return Net
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="22">
+        <Item class="ModuleScript" referent="24">
           <Properties>
             <string name="Name">Photos</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the camera. The server works out who is in the picture and which digits you could actually read, so
@@ -3846,7 +4355,7 @@ return Photos
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="23">
+        <Item class="ModuleScript" referent="25">
           <Properties>
             <string name="Name">Pickups</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: glowing item crates around the map. Walk into one to get a random item (never more than you can carry).
@@ -4051,7 +4560,7 @@ return Pickups
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="24">
+        <Item class="ModuleScript" referent="26">
           <Properties>
             <string name="Name">Plates</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: everything on a player's body for the game. The number plate on the forehead (only visible from the
@@ -4240,6 +4749,9 @@ function Plates.hide(e)
 	if e.bountyTag and e.bountyTag.gui then
 		e.bountyTag.gui.Enabled = false
 	end
+	if e.flagTag and e.flagTag.gui then
+		e.flagTag.gui.Enabled = false
+	end
 end
 
 -- A small tag over the head of the bounty target: it names the prize, never the number.
@@ -4270,6 +4782,38 @@ function Plates.showBounty(e, on, reward)
 	if tag and tag.gui then
 		tag.gui.Enabled = on
 		tag.label.Text = on and ("🎯 BOUNTY +" .. reward) or ""
+	end
+end
+
+-- The flag carrier's tag: everybody can see who has a flag.
+function Plates.attachFlagTag(char)
+	local head = char:FindFirstChild("Head")
+	if not head then
+		return nil
+	end
+	local old = head:FindFirstChild("FlagTag")
+	if old then
+		old:Destroy()
+	end
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "FlagTag"
+	gui.Size = UDim2.fromOffset(150, 28)
+	gui.StudsOffset = Vector3.new(0, 6.6, 0)
+	gui.AlwaysOnTop = true
+	gui.LightInfluence = 0
+	gui.Enabled = false
+	gui.Adornee = head
+	gui.Parent = head
+	local text = label(gui, { Text = "", TextColor3 = Color3.new(1, 1, 1), TextStrokeTransparency = 0.2, TextScaled = false, TextSize = 16 })
+	return { gui = gui, label = text }
+end
+
+function Plates.showFlag(e, on, teamDef)
+	local tag = e.flagTag
+	if tag and tag.gui then
+		tag.gui.Enabled = on
+		tag.label.Text = on and ("🚩 " .. teamDef.Name .. " FLAG") or ""
+		tag.label.TextColor3 = on and teamDef.Color or Color3.new(1, 1, 1)
 	end
 end
 
@@ -4362,6 +4906,7 @@ function Plates.setup(e)
 	e.tag = Plates.attachTag(char, e.icon .. " " .. e.code, e.color)
 	e.reveal = Plates.attachReveal(char)
 	e.bountyTag = Plates.attachBounty(char)
+	e.flagTag = Plates.attachFlagTag(char)
 	e.trail = Plates.attachTrail(char, e.trailDef)
 	e.shown = e.number
 	return e.plate ~= nil
@@ -4371,7 +4916,7 @@ return Plates
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="25">
+        <Item class="ModuleScript" referent="27">
           <Properties>
             <string name="Name">Progress</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: what you keep between matches: coins, XP, levels and cosmetics (number plates, trails, elimination
@@ -4514,7 +5059,7 @@ return Progress
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="26">
+        <Item class="ModuleScript" referent="28">
           <Properties>
             <string name="Name">State</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: who is in the match right now. Every player and bot in a match is an "entity" with an id (a player's
@@ -4532,6 +5077,8 @@ State.entities = {} -- id -> entity
 State.order = {} -- ids in the order they were added
 State.decoys = {} -- id (1,000,000 and up) -> { id, owner, number, model, code, icon, expires }
 State.revealing = false
+State.mode = Config.Modes.List.deathmatch -- the mode being played (a Config.Modes.List entry)
+State.teamScore = { 0, 0 } -- team modes: hits (team deathmatch) or captures (capture the flag)
 State.matchId = 0
 State.onChange = nil -- set by Match: called when the alive list changes
 
@@ -4610,6 +5157,11 @@ function State.writeWorld()
 	workspace:SetAttribute("Total", #State.order)
 	workspace:SetAttribute("Reveal", State.revealing)
 	workspace:SetAttribute("MatchId", State.matchId)
+	workspace:SetAttribute("Mode", State.mode.Id)
+	workspace:SetAttribute("ModeName", State.mode.Name)
+	workspace:SetAttribute("Team1Score", State.teamScore[1])
+	workspace:SetAttribute("Team2Score", State.teamScore[2])
+	workspace:SetAttribute("ScoreLimit", State.mode.ScoreLimit or State.mode.CaptureLimit or 0)
 end
 
 -- Per-entity attributes: shown to spectators and used by the HUD. Humans get them on the Player, bots on their model.
@@ -4628,6 +5180,7 @@ function State.writeEntity(e)
 		t:SetAttribute("Protected", (e.protectedUntil or 0) > State.now())
 		t:SetAttribute("Bounty", e.bounty == true)
 		t:SetAttribute("Ally", e.ally or 0)
+		t:SetAttribute("Team", e.team or 0)
 		t:SetAttribute("Code", e.code or "")
 		t:SetAttribute("Icon", e.icon or "")
 		t:SetAttribute("EntityId", e.id)
@@ -4652,7 +5205,7 @@ return State
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="27">
+        <Item class="ModuleScript" referent="29">
           <Properties>
             <string name="Name">Terminals</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: information terminals. Hack one to learn something TRUE about your own number (greater than, even or odd,
@@ -4768,7 +5321,7 @@ return Terminals
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="28">
+        <Item class="ModuleScript" referent="30">
           <Properties>
             <string name="Name">Vision</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: what can see what. A number can only be read, photographed or guessed when nothing solid is in the
@@ -4846,7 +5399,7 @@ return Vision
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="29">
+        <Item class="ModuleScript" referent="31">
           <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: builds the world from plain parts: "Plaza Park" (the arena, a city of 8 buildings around a park, with
@@ -5220,6 +5773,23 @@ local function buildArena()
 	Terminals.build(folder("Terminals"))
 end
 
+-- The two team bases (used by team deathmatch and capture the flag): a coloured pad, corner posts and a sign.
+local function buildBases()
+	local bases = folder("Bases")
+	for team, at in Config.Map.Bases do
+		local t = Config.Teams[team]
+		local toward = team == 1 and "+x" or "-x" -- the sign faces the plaza
+		local pad = neon(bases, "BasePad" .. team, Vector3.new(18, 0.15, 18), Vector3.new(at.X, 0.55, at.Z), t.Color)
+		pad.Transparency = 0.45
+		for _, dx in { -9, 9 } do
+			for _, dz in { -9, 9 } do
+				neon(bases, "BasePost", Vector3.new(0.8, 9, 0.8), Vector3.new(at.X + dx, 4.5, at.Z + dz), t.Color)
+			end
+		end
+		sign(bases, t.Icon .. " " .. t.Name .. " BASE", 14, 3, Vector3.new(at.X + (team == 1 and 9.5 or -9.5), 10.5, at.Z), toward, C(20, 30, 60), t.Color)
+	end
+end
+
 local board
 
 local function buildLobby()
@@ -5420,6 +5990,7 @@ function World.build()
 	end
 	step("lighting", lighting)
 	step("arena", buildArena)
+	step("bases", buildBases)
 	step("lobby", buildLobby)
 	step("scenery", scenery)
 	step("folders", function()
@@ -5437,15 +6008,15 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="30">
+  <Item class="StarterPlayer" referent="32">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="31">
+    <Item class="StarterPlayerScripts" referent="33">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="32">
+      <Item class="LocalScript" referent="34">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[-- FIGURE ME OUT: client entry point. Builds the screen, wires every module together and routes the server's messages.
@@ -5781,8 +6352,34 @@ function handlers.reveal()
 	Fx.flash(C.Gold, 0.35, 0.5)
 end
 
-function handlers.results(rows, winnerId)
-	Results.show(rows, winnerId)
+function handlers.flag(what, team, who)
+	local t = Config.Teams[team]
+	if not t then
+		return
+	end
+	local mine = player:GetAttribute("Team")
+	local ours = mine == team
+	if what == "taken" then
+		Hud.feed("🚩 " .. who .. " took the " .. t.Name .. " flag!", t.Color)
+		Fx.announce(ours and "THEY HAVE OUR FLAG!" or "FLAG TAKEN!", who .. " has the " .. t.Name .. " flag", ours and C.Danger or C.Gold, 0.24)
+	elseif what == "dropped" then
+		Hud.feed("🚩 The " .. t.Name .. " flag was dropped", t.Color)
+	elseif what == "returned" then
+		Hud.feed("🚩 The " .. t.Name .. " flag is back at its base" .. (who ~= "" and (" (" .. who .. ")") or ""), t.Color)
+	elseif what == "captured" then
+		local other = Config.Teams[3 - team]
+		Hud.feed("🏁 " .. who .. " captured the " .. (other and other.Name or "") .. " flag!", C.Gold)
+		Fx.announce(ours and "CAPTURE!" or "THEY SCORED!", who .. " scored for " .. t.Name, ours and C.Good or C.Danger, 0.24)
+	end
+	Audio.kill()
+end
+
+function handlers.captured(points)
+	Fx.announce("CAPTURE!  +" .. tostring(points), "You brought the flag home", C.Good, 0.24)
+end
+
+function handlers.results(rows, winnerId, winnerTeam, modeId, scores)
+	Results.show(rows, winnerId, winnerTeam, modeId, scores)
 end
 
 Notify.OnClientEvent:Connect(function(kind, ...)
@@ -5810,11 +6407,11 @@ task.spawn(function()
 end)
 ]]></string>
         </Properties>
-        <Item class="Folder" referent="33">
+        <Item class="Folder" referent="35">
           <Properties>
             <string name="Name">Modules</string>
           </Properties>
-          <Item class="ModuleScript" referent="34">
+          <Item class="ModuleScript" referent="36">
             <Properties>
               <string name="Name">Album</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the photo notebook. Every photo fills in the digits you could read; several blurry photos of the same
@@ -6170,7 +6767,7 @@ return Album
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="35">
+          <Item class="ModuleScript" referent="37">
             <Properties>
               <string name="Name">Alerts</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: everything the game shouts at you: flashbang blindness, stun, the "don't hide your number" warning,
@@ -6470,7 +7067,7 @@ return Alerts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="36">
+          <Item class="ModuleScript" referent="38">
             <Properties>
               <string name="Name">Camera</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the camera. During a match (while you are alive) you play in first person: you see through your own eyes, your own
@@ -6542,7 +7139,7 @@ return Camera
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="37">
+          <Item class="ModuleScript" referent="39">
             <Properties>
               <string name="Name">Controls</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: keyboard and mouse. G guess, hold right mouse (or Z) for binoculars, click or F for a photo, V for
@@ -6714,7 +7311,7 @@ return Controls
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="38">
+          <Item class="ModuleScript" referent="40">
             <Properties>
               <string name="Name">Emotes</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the quick emote panel (💬 button). Tap an emoji and it pops up over your head for a few seconds. Great for
@@ -6817,7 +7414,7 @@ return Emotes
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="39">
+          <Item class="ModuleScript" referent="41">
             <Properties>
               <string name="Name">Fx</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
@@ -7055,7 +7652,7 @@ return Fx
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="40">
+          <Item class="ModuleScript" referent="42">
             <Properties>
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the always-on screen: timer and alive count, your codename, lives, points and bullets, the kill feed, the
@@ -7134,8 +7731,10 @@ function Hud.init(screen, d)
 	})
 
 	-- chips under the timer: bounty and alliance
-	refs.chips = UI.new("Frame", { Position = UDim2.new(0.5, -150, 0, 82), Size = UDim2.fromOffset(300, 60), BackgroundTransparency = 1 }, root)
+	refs.chips = UI.new("Frame", { Position = UDim2.new(0.5, -150, 0, 82), Size = UDim2.fromOffset(300, 100), BackgroundTransparency = 1 }, root)
 	UI.new("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 4), HorizontalAlignment = Enum.HorizontalAlignment.Center }, refs.chips)
+	refs.modeChip = UI.panel(refs.chips, { Size = UDim2.fromOffset(280, 40), Radius = 8, BackgroundColor3 = Color3.fromRGB(24, 40, 64), Visible = false, LayoutOrder = 0 })
+	refs.modeText = UI.label(refs.modeChip, { Size = UDim2.fromScale(1, 1), Font = UI.Fonts.Bold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = true, Text = "" })
 	refs.bountyChip = UI.panel(refs.chips, { Size = UDim2.fromOffset(280, 26), Radius = 8, BackgroundColor3 = Color3.fromRGB(150, 110, 20), Visible = false, LayoutOrder = 1 })
 	refs.bountyText = UI.label(refs.bountyChip, { Size = UDim2.fromScale(1, 1), Font = UI.Fonts.Bold, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "" })
 	refs.allyChip = UI.panel(refs.chips, { Size = UDim2.fromOffset(280, 26), Radius = 8, BackgroundColor3 = Color3.fromRGB(30, 130, 70), Visible = false, LayoutOrder = 2 })
@@ -7418,9 +8017,50 @@ function Hud.update()
 	-- you (in a match) or your profile (in the lobby)
 	refs.meBox.Visible = playing
 	refs.profile.Visible = not playing and phase ~= "results"
+	-- mode banner: team scores (and where the flags are) while playing; what comes next in the lobby
+	local mode = workspace:GetAttribute("Mode")
+	local teamMode = mode == "team" or mode == "ctf"
+	local nextName = workspace:GetAttribute("NextModeName")
+	local modeLine
+	if (phase == "play" or phase == "countdown") and mode then
+		if string.sub(refs.phase.Text, 1, 1) ~= "⚠" then
+			refs.phase.Text = (workspace:GetAttribute("ModeName") or "") .. (phase == "countdown" and "  •  GET READY" or "")
+		end
+		if teamMode then
+			local c1, c2 = Config.Teams[1], Config.Teams[2]
+			local limit = workspace:GetAttribute("ScoreLimit") or 0
+			modeLine = c1.Icon .. " " .. (workspace:GetAttribute("Team1Score") or 0) .. "   first to " .. limit .. "   " .. (workspace:GetAttribute("Team2Score") or 0) .. " " .. c2.Icon
+			if mode == "ctf" then
+				local function flagText(t)
+					local st = workspace:GetAttribute("Flag" .. t)
+					if st == "carried" then
+						return "taken by " .. (workspace:GetAttribute("FlagCarrier" .. t) or "?")
+					end
+					return st or "home"
+				end
+				modeLine = modeLine .. "\n🚩 " .. Config.Teams[1].Name .. ": " .. flagText(1) .. "  |  " .. Config.Teams[2].Name .. ": " .. flagText(2)
+			end
+			local mine = player:GetAttribute("Team")
+			refs.modeChip.BackgroundColor3 = mine and Config.Teams[mine].Color:Lerp(Color3.fromRGB(10, 20, 40), 0.55) or Color3.fromRGB(24, 40, 64)
+		end
+	elseif phase == "lobby" and nextName then
+		modeLine = "NEXT: " .. nextName
+		refs.modeChip.BackgroundColor3 = Color3.fromRGB(24, 40, 64)
+	end
+	refs.modeChip.Visible = modeLine ~= nil
+	if modeLine then
+		refs.modeText.Text = modeLine
+	end
 	if playing then
+		refs.hearts.Visible = not teamMode
 		refs.meName.Text = (player:GetAttribute("Icon") or "") .. " " .. (player:GetAttribute("Code") or "")
 		local lives = player:GetAttribute("Lives") or 0
+		local myTeam = player:GetAttribute("Team")
+		if teamMode and myTeam then
+			refs.meTitle.Text = Config.Teams[myTeam].Icon .. " TEAM " .. Config.Teams[myTeam].Name
+		else
+			refs.meTitle.Text = "YOUR CODENAME"
+		end
 		refs.hearts.Text = string.rep("❤", lives) .. string.rep("🖤", math.max(0, Config.Lives.Start - lives))
 		refs.score.Text = "⭐ " .. (player:GetAttribute("Score") or 0)
 		local bullets = player:GetAttribute("Bullets") or 0
@@ -7498,7 +8138,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="41">
+          <Item class="ModuleScript" referent="43">
             <Properties>
               <string name="Name">Inventory</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the gadget inventory (🎒 or I). Every gadget with its charges, cooldown and what it does, plus the clues you
@@ -7619,7 +8259,7 @@ return Inventory
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="42">
+          <Item class="ModuleScript" referent="44">
             <Properties>
               <string name="Name">Keypad</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the guess panel. Press G (or tap GUESS): pick who you mean from the list of people you can see (the one under
@@ -7923,7 +8563,7 @@ return Keypad
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="43">
+          <Item class="ModuleScript" referent="45">
             <Properties>
               <string name="Name">Markers</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: little markers drawn only on your screen: the green 🤝 over your ally, and the pings from your scanner.
@@ -8012,7 +8652,7 @@ return Markers
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="44">
+          <Item class="ModuleScript" referent="46">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the menu window: how to play, forehead plates you unlock by winning, your stats and the settings.
@@ -8325,7 +8965,7 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="45">
+          <Item class="ModuleScript" referent="47">
             <Properties>
               <string name="Name">OwnPlate</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: you must never see your own forehead number. The plate is hidden on your screen only; everybody else
@@ -8366,7 +9006,7 @@ return OwnPlate
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="46">
+          <Item class="ModuleScript" referent="48">
             <Properties>
               <string name="Name">Results</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the scoreboard at the end of every match.
@@ -8479,7 +9119,7 @@ function Results.isOpen()
 end
 
 -- rows: { { id, rank, label, who, kills, score, lives, survived, alive } }
-function Results.show(rows, winnerId)
+function Results.show(rows, winnerId, winnerTeam, modeId, scores)
 	if type(rows) ~= "table" then
 		return
 	end
@@ -8496,14 +9136,31 @@ function Results.show(rows, winnerId)
 		end
 	end
 	local winner = rows[1]
-	if winnerId == 0 or not winner then
+	local teamMode = modeId == "team" or modeId == "ctf"
+	heading.TextColor3 = C.Text
+	if teamMode then
+		local t = Config.Teams[winnerTeam]
+		local s1, s2 = (scores or {})[1] or 0, (scores or {})[2] or 0
+		local myTeam = mine and mine.team
+		if not t then
+			heading.Text = "🤝 DRAW"
+		elseif myTeam == winnerTeam then
+			heading.Text = "🏆 " .. t.Name .. " TEAM WINS - YOU WIN!"
+		else
+			heading.Text = "🏆 " .. t.Name .. " TEAM WINS"
+		end
+		heading.TextColor3 = t and t.Color or C.Text
+		sub.Text = Config.Teams[1].Icon .. " " .. s1 .. "  -  " .. s2 .. " " .. Config.Teams[2].Icon .. (mine and ("   •   you: " .. mine.kills .. " hits  ⭐ " .. (mine.score or 0)) or "")
+	elseif winnerId == 0 or not winner then
 		heading.Text = "NO WINNER"
 	elseif winner.id == myId then
 		heading.Text = "🏆 YOU WIN!"
 	else
 		heading.Text = "🏆 " .. winner.label .. " WINS"
 	end
-	if mine then
+	if teamMode then
+		-- (the line above already says how it ended)
+	elseif mine then
 		sub.Text = "You finished #" .. mine.rank .. " of " .. #rows .. "  •  " .. mine.kills .. " hits  •  ⭐ " .. (mine.score or 0)
 	else
 		sub.Text = "Spectating"
@@ -8532,7 +9189,7 @@ function Results.show(rows, winnerId)
 			Font = UI.Fonts.Bold,
 			TextSize = 14,
 			TextWrapped = false,
-			Text = r.label .. (r.who ~= "Bot" and ("  (" .. r.who .. ")") or ""),
+			Text = (teamMode and Config.Teams[r.team] and (Config.Teams[r.team].Icon .. " ") or "") .. r.label .. (r.who ~= "Bot" and ("  (" .. r.who .. ")") or ""),
 			ZIndex = 58,
 		})
 		UI.label(row, {
@@ -8542,7 +9199,7 @@ function Results.show(rows, winnerId)
 			TextSize = 13,
 			TextColor3 = C.Danger,
 			TextXAlignment = Enum.TextXAlignment.Center,
-			Text = (r.lives or 0) > 0 and string.rep("❤", r.lives) or "💀",
+			Text = teamMode and "" or ((r.lives or 0) > 0 and string.rep("❤", r.lives) or "💀"),
 			ZIndex = 58,
 		})
 		UI.label(row, {
@@ -8583,7 +9240,7 @@ return Results
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="47">
+          <Item class="ModuleScript" referent="49">
             <Properties>
               <string name="Name">Scope</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the binoculars. Hold the right mouse button (or Z, or tap the 🔭 slot) to zoom far across the map and
@@ -8746,7 +9403,7 @@ return Scope
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="48">
+          <Item class="ModuleScript" referent="50">
             <Properties>
               <string name="Name">Spectate</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: once you are out, you watch the others. The camera follows a living player; press ◀ ▶ (or the arrow
@@ -8883,7 +9540,7 @@ return Spectate
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="49">
+          <Item class="ModuleScript" referent="51">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -8993,7 +9650,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="50">
+          <Item class="ModuleScript" referent="52">
             <Properties>
               <string name="Name">View</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the client's picture of the match. Reads the attributes the server writes and finds the people in the
@@ -9209,7 +9866,7 @@ return View
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="51">
+  <Item class="Workspace" referent="53">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>
