@@ -1,12 +1,12 @@
 # Roblox listing kit — Figure Me Out
 
 All art is in `docs/icons/` (regenerate with `python3 docs/icons/make_icons.py`; needs Pillow).
-The art is stylised, drawn by script — blocky characters, not real Roblox renders. For the best results, also add 2–3 real screenshots from Studio/Play.
+The art is stylised, drawn by script — classic Roblox-style blocky avatars (R6 proportions, smiley face), not real Roblox renders. For the best results, also add 2–3 real screenshots from Studio/Play.
 
 ## Files
 | Use | Files | Size |
 |---|---|---|
-| Game icon (pick one) | `icons/icon_1_hero.png`, `icon_2_number.png`, `icon_3_canyon.png`, `icon_4_crowd.png` | square |
+| Game icon (pick one) | `icons/game_icon_1_hero.png`, `game_icon_2_number.png`, `game_icon_3_canyon.png`, `game_icon_4_crowd.png` | square |
 | Thumbnails (up to 10) | `thumbnails/thumbnail_1_hero.png` … `thumbnail_5_lobby.png` | 1920×1080 |
 | Badge icons (8) | `badges/badge_*.png` | 512×512 |
 | Logo (transparent) | `logo.png` | 1400×520 |

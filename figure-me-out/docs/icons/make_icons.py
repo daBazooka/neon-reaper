@@ -8,9 +8,9 @@ for d in ("icons", "thumbnails", "badges"):
     os.makedirs(os.path.join(HERE, d), exist_ok=True)
 
 SKY1, SKY2 = "#62c8ff", "#e6f8ff"
-SKINS = ["#ffd9a0", "#f3b98a", "#c98e5f", "#8d5a3b", "#ffe2c0"]
+SKINS = ["#f5cd30", "#cc8e69", "#f5cd30", "#8d5524", "#e7b78f"]
 SHIRTS = ["#ff6b8b", "#ffb142", "#5ad26e", "#4aa3ff", "#a56bff", "#ff6bd6", "#2ed3c0", "#ff7b54"]
-PANTS = ["#3b5bdb", "#364fc7", "#2b8a3e", "#5f3dc4", "#1c7ed6", "#c2255c"]
+PANTS = ["#a3c429", "#2b6f3a", "#3b3f55", "#a3c429", "#1c4e8a", "#6a3fa0"]
 
 def scenery(c, w, h, horizon, rainbow=True, hills=True):
     c.rays(w / 2, horizon + h * 0.2, 22, (255, 255, 255, 38), spread=0.45)

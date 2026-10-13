@@ -144,55 +144,60 @@ class Canvas:
         self.paste(l)
 
     # ---- the blocky character (a stand-in in the game's style, not a Roblox avatar) -------------------------------------
-    def avatar(self, cx, base, s, shirt="#ff6b8b", pants="#3b5bdb", skin="#ffd9a0", number=None, tag=True, plate=True, mood="smile", flip=False, arm_up=None, hair=None):
-        """cx = centre x, base = y of the feet, s = height of the whole figure in px."""
+    def avatar(self, cx, base, s, shirt="#0d69ac", pants="#a3c429", skin="#f5cd30", number=None, tag=True, plate=True, mood="smile", flip=False, arm_up=None, hair=None):
+        """Classic Roblox (R6) figure: 2x2 torso, 1x2 arms and legs, rounded head with the classic smile.
+        cx = centre x, base = y of the feet, s = height of the whole figure in px."""
         l, d = self.layer()
-        u = s / 10.0
-        outline = (20, 30, 60, 255)
-        ow = max(2, self.S(u * 0.22))
-        def rr(x0, y0, x1, y1, color, rad=0.6):
-            d.rounded_rectangle([self.S(x0), self.S(y0), self.S(x1), self.S(y1)], radius=self.S(u * rad), fill=rgb(color) if isinstance(color, str) else color, outline=outline, width=ow)
-        # legs
-        rr(cx - 2.1 * u, base - 3.8 * u, cx - 0.1 * u, base, pants)
-        rr(cx + 0.1 * u, base - 3.8 * u, cx + 2.1 * u, base, pants)
-        # shoes
-        for sx in (-2.2, 0.0):
-            d.rounded_rectangle([self.S(cx + sx * u - 0.05 * u), self.S(base - 0.9 * u), self.S(cx + (sx + 2.3) * u), self.S(base)], radius=self.S(u * 0.4), fill=(255, 255, 255, 255), outline=outline, width=ow)
-        # torso (with a light stripe across the chest)
-        rr(cx - 2.3 * u, base - 7.0 * u, cx + 2.3 * u, base - 3.6 * u, shirt)
-        d.rectangle([self.S(cx - 2.15 * u), self.S(base - 5.9 * u), self.S(cx + 2.15 * u), self.S(base - 5.2 * u)], fill=(255, 255, 255, 120))
-        # arms
-        up = arm_up
-        rr(cx - 4.0 * u, base - 6.9 * u, cx - 2.3 * u, base - 4.0 * u, skin, 0.5)
-        if up:
-            rr(cx + 2.3 * u, base - 9.2 * u, cx + 4.0 * u, base - 6.2 * u, skin, 0.5)
+        u = s / 5.5
+        def shade(c, f):
+            r, g, b = rgb(c)[:3]
+            return (max(0, min(255, int(r * f))), max(0, min(255, int(g * f))), max(0, min(255, int(b * f))), 255)
+        def blk(x0, y0, x1, y1, color, rad=0.08, hi=True):
+            X0, Y0, X1, Y1 = self.S(x0), self.S(y0), self.S(x1), self.S(y1)
+            w, h = max(2, X1 - X0), max(2, Y1 - Y0)
+            grad = Image.new("RGBA", (w, h))
+            gd = ImageDraw.Draw(grad)
+            for yy in range(h):
+                f = 1.12 - 0.3 * yy / h
+                gd.line([(0, yy), (w, yy)], fill=shade(color, f))
+            if hi:
+                ov = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+                ImageDraw.Draw(ov).rounded_rectangle([w * 0.1, h * 0.07, w * 0.28, h * 0.88], radius=self.S(u * 0.08), fill=(255, 255, 255, 40))
+                grad = Image.alpha_composite(grad, ov)
+            mask = Image.new("L", (w, h), 0)
+            ImageDraw.Draw(mask).rounded_rectangle([0, 0, w - 1, h - 1], radius=self.S(u * rad), fill=255)
+            l.paste(grad, (X0, Y0), mask)
+            d.rounded_rectangle([X0, Y0, X1, Y1], radius=self.S(u * rad), outline=shade(color, 0.62), width=max(2, self.S(u * 0.045)))
+        # legs, torso, arms
+        blk(cx - 1.0 * u, base - 2.0 * u, cx - 0.02 * u, base, pants)
+        blk(cx + 0.02 * u, base - 2.0 * u, cx + 1.0 * u, base, pants)
+        blk(cx - 1.0 * u, base - 4.0 * u, cx + 1.0 * u, base - 1.96 * u, shirt)
+        blk(cx - 2.04 * u, base - 4.0 * u, cx - 1.02 * u, base - 2.0 * u, skin)
+        if arm_up:
+            blk(cx + 1.02 * u, base - 5.9 * u, cx + 2.04 * u, base - 3.9 * u, skin)
         else:
-            rr(cx + 2.3 * u, base - 6.9 * u, cx + 4.0 * u, base - 4.0 * u, skin, 0.5)
-        # head
-        rr(cx - 2.0 * u, base - 9.9 * u, cx + 2.0 * u, base - 7.1 * u, skin, 0.9)
-        # hair
-        hc = hair or ["#3b2a20", "#e8a33c", "#7a3e12", "#20242e", "#d94f4f"][int(abs(cx)) % 5]
-        d.rounded_rectangle([self.S(cx - 2.05 * u), self.S(base - 10.35 * u), self.S(cx + 2.05 * u), self.S(base - 9.2 * u)], radius=self.S(u * 0.55), fill=rgb(hc), outline=outline, width=ow)
-        # face
-        ey = base - 7.85 * u
-        for ex in (-0.9, 0.9):
-            d.ellipse([self.S(cx + ex * u - 0.28 * u), self.S(ey - 0.4 * u), self.S(cx + ex * u + 0.28 * u), self.S(ey + 0.45 * u)], fill=outline)
-            d.ellipse([self.S(cx + ex * u - 0.12 * u), self.S(ey - 0.3 * u), self.S(cx + ex * u + 0.1 * u), self.S(ey - 0.05 * u)], fill=(255, 255, 255, 255))
-        if mood == "smile":
-            d.arc([self.S(cx - 0.8 * u), self.S(ey + 0.1 * u), self.S(cx + 0.8 * u), self.S(ey + 1.0 * u)], 20, 160, fill=outline, width=ow)
-        elif mood == "wow":
-            d.ellipse([self.S(cx - 0.3 * u), self.S(ey + 0.5 * u), self.S(cx + 0.3 * u), self.S(ey + 1.1 * u)], fill=outline)
-        elif mood == "smirk":
-            d.arc([self.S(cx - 0.3 * u), self.S(ey + 0.2 * u), self.S(cx + 0.9 * u), self.S(ey + 0.9 * u)], 20, 150, fill=outline, width=ow)
-        # forehead plate
+            blk(cx + 1.02 * u, base - 4.0 * u, cx + 2.04 * u, base - 2.0 * u, skin)
+        # head: rounded, slightly narrower than the torso
+        hx0, hx1, hy0, hy1 = cx - 0.68 * u, cx + 0.68 * u, base - 5.3 * u, base - 4.04 * u
+        blk(hx0, hy0, hx1, hy1, skin, 0.3)
+        if hair:
+            d.rounded_rectangle([self.S(hx0 - 0.03 * u), self.S(hy0 - 0.12 * u), self.S(hx1 + 0.03 * u), self.S(hy0 + 0.3 * u)], radius=self.S(u * 0.22), fill=rgb(hair), outline=shade(hair, 0.6), width=max(2, self.S(u * 0.04)))
+        ey = hy0 + 0.62 * u
+        for ex in (-0.26, 0.26):
+            d.ellipse([self.S(cx + ex * u - 0.07 * u), self.S(ey - 0.12 * u), self.S(cx + ex * u + 0.07 * u), self.S(ey + 0.12 * u)], fill=(25, 25, 30, 255))
+        sw = max(2, self.S(u * 0.045))
+        if mood == "wow":
+            d.ellipse([self.S(cx - 0.1 * u), self.S(ey + 0.2 * u), self.S(cx + 0.1 * u), self.S(ey + 0.46 * u)], fill=(25, 25, 30, 255))
+        else:
+            d.arc([self.S(cx - 0.34 * u), self.S(ey - 0.02 * u), self.S(cx + 0.34 * u), self.S(ey + 0.42 * u)], 15, 165, fill=(25, 25, 30, 255), width=sw)
+        # forehead number plate sits across the top of the head
         if plate and number:
-            pw, ph = 1.9 * u, 0.62 * u
-            d.rounded_rectangle([self.S(cx - pw), self.S(base - 9.2 * u), self.S(cx + pw), self.S(base - 9.2 * u + ph * 1.5)], radius=self.S(u * 0.2), fill=(20, 30, 60, 255), outline=(255, 214, 60, 255), width=max(1, self.S(u * 0.08)))
+            d.rounded_rectangle([self.S(cx - 0.6 * u), self.S(hy0 + 0.06 * u), self.S(cx + 0.6 * u), self.S(hy0 + 0.4 * u)], radius=self.S(u * 0.06), fill=(16, 26, 56, 255), outline=(255, 214, 60, 255), width=max(1, self.S(u * 0.025)))
         self.paste(l)
         if plate and number:
-            self.text((cx, base - 9.2 * u + 0.45 * u), number, u * 0.62, fill="#ffe45a", stroke="#10325a", sw=0.1, shadow=False)
+            self.text((cx, hy0 + 0.235 * u), number, u * 0.3, fill="#ffe45a", stroke="#10325a", sw=0.05, shadow=False)
         if tag and number:
-            self.text((cx, base - 11.9 * u), number, u * 1.9, fill="#ffe45a", stroke="#10325a", sw=0.11)
+            self.text((cx, hy0 - 0.6 * u), number, u * 0.95, fill="#ffe45a", stroke="#10325a", sw=0.11)
 
     def done(self, path, size=None):
         out = self.img
