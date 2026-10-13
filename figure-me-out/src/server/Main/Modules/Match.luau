@@ -269,11 +269,17 @@ function Match.tick(dt)
 		State.writeEntity(e)
 	end
 	Items.tick(now)
-	Pickups.tick(now)
+	if Config.Features.Gadgets then
+		Pickups.tick(now)
+	end
 	Bots.tick(now)
 	Alliance.tick(now)
-	Bounty.tick(now)
-	Events.tick(now)
+	if Config.Features.Bounty then
+		Bounty.tick(now)
+	end
+	if Config.Features.Events then
+		Events.tick(now)
+	end
 	Flags.tick(now)
 	if not State.revealing and State.phaseEnd - now <= Config.Match.RevealAt then
 		Match.reveal()
@@ -554,8 +560,12 @@ function Match.run()
 			Combat.applySpeed(e)
 		end
 		Bots.startPlay(State.now())
-		Bounty.reset()
-		Events.reset(State.now())
+		if Config.Features.Bounty then
+			Bounty.reset()
+		end
+		if Config.Features.Events then
+			Events.reset(State.now())
+		end
 		Net.sendAll("phase", "play", State.phaseEnd)
 		local over = false
 		while not over do

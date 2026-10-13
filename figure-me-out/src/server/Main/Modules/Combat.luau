@@ -187,7 +187,8 @@ function Combat.strike(victim, killer, how)
 		victim.lives -= 1
 	end
 	local delay = Config.Lives.RespawnDelay
-	victim.stunUntil = State.now() + delay
+	-- (frozen a moment longer than the delay: the respawn below ends the freeze, so nothing can happen in between)
+	victim.stunUntil = State.now() + delay + 0.5
 	victim.scoped = false
 	Combat.protect(victim, delay + Config.Lives.Protect)
 	Combat.applySpeed(victim)

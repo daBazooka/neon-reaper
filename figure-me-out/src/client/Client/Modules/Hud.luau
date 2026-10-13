@@ -130,8 +130,12 @@ function Hud.init(screen, d)
 		return b
 	end
 	quick("💬", 1, function() deps.Emotes.toggle() end)
-	refs.allyButton = quick("🤝", 2, function() deps.Controls.ally() end)
-	quick("🎒", 3, function() deps.Inventory.toggle() end)
+	if Config.Features.Alliances then
+		refs.allyButton = quick("🤝", 2, function() deps.Controls.ally() end)
+	end
+	if Config.Features.Gadgets then
+		quick("🎒", 3, function() deps.Inventory.toggle() end)
+	end
 
 	-- top right: small buttons
 	local function cornerButton(text, x, onClick)
@@ -142,10 +146,17 @@ function Hud.init(screen, d)
 		end)
 		return b
 	end
-	cornerButton("☰", 0, function() deps.Menu.toggle() end)
-	cornerButton("📒", 52, function() deps.Album.toggle() end)
-	cornerButton("?", 104, function() deps.Menu.open("How to play") end)
-	cornerButton("⚙", 156, function() deps.Menu.open("Settings") end)
+	local slot = 0
+	local function nextSlot()
+		slot += 52
+		return slot - 52
+	end
+	cornerButton("☰", nextSlot(), function() deps.Menu.toggle() end)
+	if Config.Features.Photos then
+		cornerButton("📒", nextSlot(), function() deps.Album.toggle() end)
+	end
+	cornerButton("?", nextSlot(), function() deps.Menu.open("How to play") end)
+	cornerButton("⚙", nextSlot(), function() deps.Menu.open("Settings") end)
 
 	-- kill feed (right side)
 	refs.feed = UI.new("Frame", { Name = "Feed", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 70), Size = UDim2.fromOffset(330, 160), BackgroundTransparency = 1 }, root)
@@ -158,9 +169,16 @@ function Hud.init(screen, d)
 	refs.aimLabel = UI.label(root, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.5, 20), Size = UDim2.fromOffset(300, 44), Font = UI.Fonts.Title, TextSize = 18, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Accent, Text = "" })
 
 	-- gadget hotbar
-	local bar = UI.new("Frame", { Name = "Hotbar", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -12), Size = UDim2.fromOffset(#Config.Items * 62, 62), BackgroundTransparency = 1 }, root)
+	local F = Config.Features
+	local shown = {}
+	for _, item in Config.Items do
+		if (item.Id == "binos" and F.Binoculars) or (item.Id == "camera" and F.Photos) or (not item.Permanent and F.Gadgets) then
+			table.insert(shown, item)
+		end
+	end
+	local bar = UI.new("Frame", { Name = "Hotbar", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -12), Size = UDim2.fromOffset(math.max(1, #shown * 62), 62), BackgroundTransparency = 1, Visible = #shown > 0 }, root)
 	UI.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, bar)
-	for i, item in Config.Items do
+	for i, item in shown do
 		local b = UI.button(bar, { LayoutOrder = i, Size = UDim2.fromOffset(58, 58), Text = item.Icon, TextSize = 28, BackgroundColor3 = C.Card }, "card")
 		UI.label(b, { Position = UDim2.fromOffset(5, 2), Size = UDim2.fromOffset(16, 14), Font = UI.Fonts.Title, TextSize = 12, TextColor3 = C.Gold, Text = tostring(item.Key) })
 		local count = UI.label(b, { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -4, 1, -2), Size = UDim2.fromOffset(30, 16), Font = UI.Fonts.Title, TextSize = 15, TextXAlignment = Enum.TextXAlignment.Right, Text = "" })
@@ -175,14 +193,27 @@ function Hud.init(screen, d)
 	end
 
 	-- guess button (also G)
-	local guess = UI.button(root, {
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, #Config.Items * 31 + 70, 1, -16),
-		Size = UDim2.fromOffset(92, 50),
-		Text = "GUESS  G",
-		TextSize = 15,
-		BackgroundColor3 = C.Accent2,
-	})
+	local guess
+	if #shown > 0 then
+		guess = UI.button(root, {
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.new(0.5, #shown * 31 + 70, 1, -16),
+			Size = UDim2.fromOffset(92, 50),
+			Text = "GUESS  G",
+			TextSize = 15,
+			BackgroundColor3 = C.Accent2,
+		})
+	else
+		-- nothing else to press: one big friendly button in the thumb corner
+		guess = UI.button(root, {
+			AnchorPoint = Vector2.new(1, 1),
+			Position = UDim2.new(1, -24, 1, -24),
+			Size = UDim2.fromOffset(150, 70),
+			Text = "GUESS",
+			TextSize = 26,
+			BackgroundColor3 = C.Accent2,
+		})
+	end
 	refs.guessButton = guess
 	guess.MouseButton1Click:Connect(function()
 		deps.Controls.guess()
@@ -201,10 +232,9 @@ function Hud.init(screen, d)
 		ZIndex = 300,
 		Text = "",
 	})
-	refs.tips = UI.label(root, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 14, 1, -14), Size = UDim2.fromOffset(300, 60), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "G guess   T ally   RMB hold: binoculars   click / F: photo   V notebook   I gadgets   1-8 gadgets" })
-
-	-- the keyboard hints are no use on a phone
-	refs.tips.Visible = UserInputService.KeyboardEnabled
+	-- one short line at the start of a match, then it gets out of the way
+	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	refs.tips = UI.label(root, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, #shown > 0 and -84 or -24), Size = UDim2.fromOffset(520, 34), Font = UI.Fonts.Title, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.Gold, TextStrokeTransparency = 0.4, Text = touch and "LOOK AT HEADS ➔ TAP ➔ TYPE THEIR NUMBER ➔ WIN!" or "LOOK AT HEADS ➔ PRESS G ➔ TYPE THEIR NUMBER ➔ WIN!" })
 	-- everything important can shrink on small screens (phones, small windows)
 	for _, thing in { me, profile, refs.quick, bar, guess, refs.feed } do
 		table.insert(scaleObjects, UI.new("UIScale", {}, thing))
@@ -478,8 +508,8 @@ function Hud.update()
 	if refs.error.Visible then
 		refs.error.Text = "⚠ SERVER PROBLEM (please screenshot this):\n" .. bootError
 	end
-	-- the key hints only show at the start of a match, then get out of the way
-	refs.tips.Visible = playing and (phase == "countdown" or Config.Match.Length - left < 25)
+	-- the one-line hint only shows at the start of a match, then gets out of the way
+	refs.tips.Visible = playing and (phase == "countdown" or Config.Match.Length - left < 15)
 end
 
 return Hud

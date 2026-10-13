@@ -18,6 +18,9 @@ local parts = {}
 
 -- Builds the terminal props under `parent` (each one gets a ProximityPrompt).
 function Terminals.build(parent)
+	if not Config.Features.Terminals then
+		return
+	end
 	parts = {}
 	for i, pos in Config.Map.Terminals do
 		local base = Instance.new("Part")

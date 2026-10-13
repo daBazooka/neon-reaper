@@ -20,6 +20,7 @@ a.Music = true; a.Sfx = true; a.Fx = true; a.Alive = false
 a.Level = 1; a.Coins = 40; a.XP = 30; a.XPInto = 30; a.XPNeed = 100; a.Trail = "none"; a.Effect = "pixels"; a.Owned = "emote:wave,emote:laugh,emote:cool,emote:think,emote:eyes"; a.Lives = 3; a.Score = 0; a.Ally = 0
 attrsWS.Phase = "lobby"; attrsWS.PhaseEnd = clock + 12; attrsWS.Alive = 0; attrsWS.Total = 0; attrsWS.Reveal = false
 
+do local F = require(SharedN.children.Config).Features for k in F do F[k] = true end end -- this scenario tests the full game with every extra switched on
 local ok, err = pcall(sources[ClientN], ClientN)
 check(ok, "client starts " .. tostring(err))
 frames(3)
@@ -31,10 +32,8 @@ check(X.seen(":"), "timer is shown")
 check(X.seen("LEVEL 1") and X.seen("🪙 40") and X.seen("30 / 100 XP"), "the lobby shows your level, coins and XP")
 check(X.seen("waiting"), "the lobby counter shows players waiting")
 frames(20)
-check(X.seen("LET'S GO"), "first visit opens the how-to-play card")
-check(X.seen("Everybody has a secret number") and X.seen("No hiding in corners"), "how-to-play explains the game")
-check(X.click("LET'S GO"), "the card has a button")
-check(fired("Seen") == 1 and not X.seen("LET'S GO"), "Let's go closes the card and tells the server")
+check(not X.seen("LET'S GO"), "no tutorial wall pops up on the first visit")
+check(fired("Seen") == 0, "(the server isn't told yet)")
 
 -- ===== a match starts =====
 local function entity(id, name, icon, pos, look, alive)
@@ -531,7 +530,7 @@ local sf = fired("Setting")
 check(X.click("ON") and fired("Setting") == sf + 1 and lastFired("Setting")[2] == "Music" and lastFired("Setting")[3] == false, "music toggle sends the setting")
 check(a.Music == false and X.seen("OFF"), "setting shows OFF")
 X.click("OFF"); check(a.Music == true, "toggles back on")
-check(X.click("How to play") and X.seen("Everybody has a secret number"), "How to play tab")
+check(X.click("How to play") and X.seen("Look at heads") and X.seen("Type their number"), "How to play tab")
 press(KC.M)
 check(not Menu.isOpen(), "M closes the menu")
 X.click("☰"); check(Menu.isOpen(), "menu button"); X.click("✕"); check(not Menu.isOpen(), "close button")

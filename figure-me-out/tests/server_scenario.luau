@@ -1,5 +1,6 @@
 -- ===== scenario =====
 local function check(cond, msg) print((cond and "PASS  " or "FAIL  ") .. msg) end
+do local F = require(RS.children.Shared.children.Config).Features for k in F do F[k] = true end end -- these scenarios test the full game with every extra switched on
 local ok, err = pcall(sources[MainN], MainN)
 check(ok, "Main runs without error " .. tostring(err))
 local State = require(ModN.children.State)
@@ -89,7 +90,7 @@ advance(Config.Match.Countdown + 0.5)
 check(State.phase == "play", "play starts (" .. State.phase .. ")")
 check(p1.Character.hum.WalkSpeed == Config.Movement.Walk, "movement unlocked when play starts")
 check(attrsWS.Alive == Config.Match.MinTotal, "alive count replicated (" .. tostring(attrsWS.Alive) .. ")")
-check(State.phaseEnd - State.now() > 235 and State.phaseEnd - State.now() <= 240, "a match lasts four minutes")
+check(State.phaseEnd - State.now() > Config.Match.Length - 5 and State.phaseEnd - State.now() <= math.max(Config.Match.Length, 100), "a match lasts " .. Config.Match.Length .. " seconds")
 
 -- ===== helpers =====
 local me, buddy = State.byPlayer(p1), State.byPlayer(p2)

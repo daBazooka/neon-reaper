@@ -66,6 +66,12 @@ function Progress.award(p, score, won, matchId, extraCoins)
 	data.LastRewardMatch = matchId
 	local before = Rules.levelFor(data.XP)
 	local coins, xp = Rules.matchRewards(score, won)
+	local mult = won and Rules.streakMultiplier(data.Streak) or 1
+	coins = math.floor(coins * mult)
+	xp = math.floor(xp * mult)
+	if mult > 1 then
+		Net.toast(p, "🔥 " .. data.Streak .. " wins in a row: rewards x" .. string.format("%.2f", mult), "gold")
+	end
 	coins += extraCoins or 0
 	data.Coins += coins
 	data.XP += xp

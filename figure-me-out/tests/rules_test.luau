@@ -95,6 +95,9 @@ check(Rules.moveAllowed(30, Config.Movement.Walk, 10), "a lag spike followed by 
 check(Rules.cleanVector(Vector3.new(1, 2, 3)) ~= nil and Rules.cleanVector(Vector3.new(0 / 0, 0, 0)) == nil and Rules.cleanVector(Vector3.new(math.huge, 0, 0)) == nil and Rules.cleanVector(Vector3.new(1e9, 0, 0)) == nil and Rules.cleanVector("x") == nil and Rules.cleanVector(nil) == nil, "vectors from clients: NaN, infinity and huge values are refused")
 check(Rules.parseGuess(string.rep("1", 100000)) == nil and Rules.parseGuess(123) == nil and Rules.parseGuess("1 2 3") == "123", "guess text: huge or wrong types are refused, spaces are fine")
 
+check(Rules.streakMultiplier(0) == 1 and Rules.streakMultiplier(1) == 1 and Rules.streakMultiplier(2) == 1.25 and Rules.streakMultiplier(3) == 1.5, "win streak multiplier grows by a quarter per extra win")
+check(Rules.streakMultiplier(100) == 1 + Config.Rewards.Streak.Step * Config.Rewards.Streak.Max, "...up to a cap")
+
 -- photos ----------------------------------------------------------------------------------
 local all = Rules.photoReadable(10, 1, { 0.99, 0.99, 0.99 })
 check(all[1] and all[2] and all[3], "up close and facing you, every digit shows")
@@ -201,7 +204,7 @@ check(Config.Decoy.Duration >= 20 and Config.Decoy.Stun >= Config.Guess.Stun, "a
 local keys = {}
 for _, it in Config.Items do keys[it.Key] = true; if not it.Cooldown or it.Cooldown <= 0 then keys[0] = true end end
 check(keys[1] and keys[8] and not keys[0], "keys 1 to 8, every gadget has a cooldown")
-check(Config.Match.Length == 240 and Config.Lives.Start == 3, "four-minute matches and three lives")
+check(Config.Match.Length >= 60 and Config.Match.Length <= 120 and Config.Lives.Start == 3, "short matches (a minute or two) and three lives")
 
 -- clues are always true --------------------------------------------------------------------------
 local clueOk, clueDistinct = true, true

@@ -108,47 +108,76 @@ function Controls.init(d)
 		end
 		local kc = input.KeyCode
 		local kind = input.UserInputType
+		local F = Config.Features
 		if kc == Enum.KeyCode.G then
 			Controls.guess()
 		elseif kc == Enum.KeyCode.F then
-			Controls.snap()
+			if F.Photos then
+				Controls.snap()
+			end
 		elseif kc == Enum.KeyCode.V then
-			deps.Album.toggle()
+			if F.Photos then
+				deps.Album.toggle()
+			end
 		elseif kc == Enum.KeyCode.T then
-			Controls.ally()
+			if F.Alliances then
+				Controls.ally()
+			end
 		elseif kc == Enum.KeyCode.I then
-			deps.Inventory.toggle()
+			if F.Gadgets then
+				deps.Inventory.toggle()
+			end
 		elseif kc == Enum.KeyCode.B then
 			deps.Emotes.toggle()
 		-- game controller: X guess, R2 photo, L2 hold for binoculars, Y notebook, L1/R1 choose a gadget, A use it
 		elseif kc == Enum.KeyCode.ButtonX then
 			Controls.guess()
 		elseif kc == Enum.KeyCode.ButtonR2 then
-			Controls.snap()
+			if F.Photos then
+				Controls.snap()
+			end
 		elseif kc == Enum.KeyCode.ButtonL2 then
-			deps.Scope.set(true)
+			if F.Binoculars then
+				deps.Scope.set(true)
+			end
 		elseif kc == Enum.KeyCode.ButtonY then
-			deps.Album.toggle()
-		elseif kc == Enum.KeyCode.ButtonL1 or kc == Enum.KeyCode.ButtonR1 then
+			if F.Photos then
+				deps.Album.toggle()
+			end
+		elseif (kc == Enum.KeyCode.ButtonL1 or kc == Enum.KeyCode.ButtonR1) and F.Gadgets then
 			local step = kc == Enum.KeyCode.ButtonR1 and 1 or -1
 			padSelected = (padSelected - 3 + step) % #Config.CarriedItems + 3
 			deps.Toasts.push(Config.Items[padSelected].Icon .. " " .. Config.Items[padSelected].Name .. " ready (press A)", "info")
 		elseif kc == Enum.KeyCode.ButtonA and View.phase() == "play" and not deps.Keypad.isOpen() then
-			deps.Hud.activate(Config.Items[padSelected].Id)
+			if F.Gadgets then
+				deps.Hud.activate(Config.Items[padSelected].Id)
+			else
+				Controls.guess()
+			end
 		elseif kc == Enum.KeyCode.ButtonStart then
 			deps.Menu.toggle()
 		elseif kc == Enum.KeyCode.M then
 			deps.Menu.toggle()
 		elseif kc == Enum.KeyCode.Z or kind == Enum.UserInputType.MouseButton2 then
-			deps.Scope.set(true)
+			if F.Binoculars then
+				deps.Scope.set(true)
+			end
 		elseif kc == Enum.KeyCode.Left then
 			deps.Spectate.cycle(-1)
 		elseif kc == Enum.KeyCode.Right then
 			deps.Spectate.cycle(1)
 		elseif HOTKEYS[kc] then
-			deps.Hud.activate(HOTKEYS[kc])
+			if F.Gadgets or HOTKEYS[kc] == "binos" and F.Binoculars or HOTKEYS[kc] == "camera" and F.Photos then
+				deps.Hud.activate(HOTKEYS[kc])
+			end
 		elseif kind == Enum.UserInputType.MouseButton1 and not deps.Menu.isOpen() and not deps.Album.isOpen() then
-			Controls.snap()
+			if F.Photos then
+				Controls.snap()
+			elseif View.phase() == "play" and not deps.Keypad.isOpen() then
+				Controls.guess() -- click or tap on somebody: the number pad opens
+			end
+		elseif kind == Enum.UserInputType.Touch and not deps.Menu.isOpen() and not deps.Album.isOpen() and View.phase() == "play" and not deps.Keypad.isOpen() then
+			Controls.guess()
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input)

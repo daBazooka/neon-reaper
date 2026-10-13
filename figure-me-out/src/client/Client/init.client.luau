@@ -141,9 +141,12 @@ end
 
 function handlers.phase(phase)
 	if phase == "countdown" then
+		if player:GetAttribute("Seen") == false then
+			deps.send("Seen") -- (no tutorial pop-up: the one-line hint on screen is enough)
+		end
 		Album.reset()
 		Inventory.resetClues()
-		Fx.announce("GET READY", "Hide your number. Find theirs.", C.Accent, 0.22)
+		Fx.announce("GET READY", "Look at heads. Type their number.", C.Accent, 0.22)
 		Audio.reveal()
 	elseif phase == "play" then
 		Fx.announce("GO!", "Someone is always watching", C.Good, 0.22)
@@ -377,16 +380,3 @@ Notify.OnClientEvent:Connect(function(kind, ...)
 	end
 end)
 
--- First visit: show the how-to-play card once the server has told us we have not seen it.
-task.spawn(function()
-	for _ = 1, 40 do
-		if player:GetAttribute("Seen") ~= nil then
-			break
-		end
-		task.wait(0.25)
-	end
-	if player:GetAttribute("Seen") == false then
-		task.wait(1.5)
-		Menu.open("How to play")
-	end
-end)

@@ -71,16 +71,20 @@ function handlers.Guess(p, targetId, text)
 	Guess.handle(p, targetId, text)
 end
 function handlers.Snap(p, origin, look)
-	Photos.snap(p, origin, look)
+	if Config.Features.Photos then
+		Photos.snap(p, origin, look)
+	end
 end
 function handlers.Use(p, id, look)
 	local e = State.byPlayer(p)
-	if e and type(id) == "string" then
+	if e and Config.Features.Gadgets and type(id) == "string" then
 		Items.use(e, id, look)
 	end
 end
 function handlers.Scope(p, on)
-	Match.setScope(p, on == true)
+	if Config.Features.Binoculars then
+		Match.setScope(p, on == true)
+	end
 end
 function handlers.Style(p, id)
 	if type(id) == "string" then
@@ -105,13 +109,13 @@ function handlers.Equip(p, kind, id)
 end
 function handlers.AllyAsk(p, targetId)
 	local e = State.byPlayer(p)
-	if e and type(targetId) == "number" then
+	if e and Config.Features.Alliances and type(targetId) == "number" then
 		Alliance.propose(e, targetId)
 	end
 end
 function handlers.AllyReply(p, fromId, yes)
 	local e = State.byPlayer(p)
-	if e and type(fromId) == "number" then
+	if e and Config.Features.Alliances and type(fromId) == "number" then
 		Alliance.respond(e, fromId, yes == true)
 	end
 end
@@ -123,7 +127,7 @@ function handlers.AllyEnd(p)
 end
 function handlers.Share(p, entries)
 	local e = State.byPlayer(p)
-	if e then
+	if e and Config.Features.Alliances then
 		Alliance.share(e, entries)
 	end
 end

@@ -8,15 +8,27 @@ Config.GameName = "Figure Me Out"
 -- The idea: everybody wears a secret 3-digit number on their forehead that they cannot see.
 -- Type someone else's number correctly and they are out. Read numbers, hide yours, last one standing wins.
 --------------------------------------------------------------------------------
+-- QUICK-AND-SIMPLE MODE. The core game is: look at a head, type the number, win. Everything else is an optional extra
+-- that is switched OFF by default so the game stays easy to read and play. Set any of these to true to bring it back.
+Config.Features = {
+	Gadgets = false, -- the hotbar: flashbang, smoke, distraction, scanner, sprint, decoy (and the crates / supply drops that refill them)
+	Photos = false, -- the camera and the notebook
+	Binoculars = false, -- hold to zoom
+	Terminals = false, -- hack a terminal for a clue
+	Bounty = false, -- a gold-tagged target with a prize
+	Alliances = false, -- ask somebody to team up
+	Events = false, -- double points, low gravity, blackout...
+}
+
 Config.Match = {
 	MaxPlayers = 20,
 	MinHumans = 1, -- real players needed before a match starts (bots fill the rest up to MinTotal)
 	MinTotal = 10, -- bots fill the match up to this many players, so there is always a game (and 2 "players" is the minimum)
-	Intermission = 14, -- lobby wait between matches (seconds)
-	Countdown = 8, -- before the start whistle
-	Length = 240, -- the match: four minutes
-	RevealAt = 30, -- the final stretch: every plate glows, the timer turns red, the music speeds up
-	ResultsTime = 12,
+	Intermission = 10, -- lobby wait between matches (seconds)
+	Countdown = 5, -- before the start whistle
+	Length = 90, -- the match: a minute and a half
+	RevealAt = 20, -- the final stretch: every plate glows, the timer turns red, the music speeds up
+	ResultsTime = 8,
 }
 
 -- Game modes. Matches rotate through them (or set Mode to one id to always play that mode).
@@ -28,8 +40,8 @@ Config.Modes = {
 	Mode = "rotate", -- "rotate" or one of the ids above
 	List = {
 		deathmatch = { Id = "deathmatch", Name = "DEATHMATCH", Icon = "💀", Teams = false, Respawn = false, Tip = "Everybody for themselves. 3 lives." },
-		team = { Id = "team", Name = "TEAM DEATHMATCH", Icon = "⚔️", Teams = true, Respawn = true, ScoreLimit = 25, Tip = "Two teams. Every hit on the other team scores. First to 25." },
-		ctf = { Id = "ctf", Name = "CAPTURE THE FLAG", Icon = "🚩", Teams = true, Respawn = true, CaptureLimit = 3, Tip = "Grab the enemy flag and bring it home. First to 3 captures." },
+		team = { Id = "team", Name = "TEAM DEATHMATCH", Icon = "⚔️", Teams = true, Respawn = true, ScoreLimit = 15, Tip = "Two teams. Every hit on the other team scores. First to 15." },
+		ctf = { Id = "ctf", Name = "CAPTURE THE FLAG", Icon = "🚩", Teams = true, Respawn = true, CaptureLimit = 2, Tip = "Grab the enemy flag and bring it home. First to 2 captures." },
 	},
 }
 Config.Teams = {
@@ -75,7 +87,7 @@ Config.Score = {
 Config.Guess = {
 	Cooldown = 1.0,
 	MaxDistance = 170, -- you must be able to see them, and be this close
-	Stun = 3,
+	Stun = 1.5, -- a wrong guess freezes you for this long
 	Bullets = 5,
 	BulletRegen = 25, -- seconds to get one bullet back
 	KillBullets = 2, -- bullets back for a successful guess
@@ -194,7 +206,7 @@ Config.Events = {
 --------------------------------------------------------------------------------
 -- Progression: coins and XP after every match, levels, and cosmetics. Nothing here changes how strong you are.
 --------------------------------------------------------------------------------
-Config.Rewards = { Coins = { Play = 15, PerPoint = 0.1, Win = 60 }, XP = { Play = 20, PerPoint = 0.15, Win = 50 } }
+Config.Rewards = { Coins = { Play = 15, PerPoint = 0.1, Win = 60 }, XP = { Play = 20, PerPoint = 0.15, Win = 50 }, Streak = { Step = 0.25, Max = 4 } } -- win streak: each extra win in a row adds Step to the reward multiplier (up to Max extra)
 Config.Levels = { First = 100, Step = 40, Max = 99 } -- XP needed for level n = First + Step * (n - 1)
 
 -- Trail left behind you, elimination effect (the cartoon burst when you lose a life) and quick emotes.

@@ -34,7 +34,7 @@ end
 function Items.reset(e)
 	e.items = {}
 	for _, id in Config.CarriedItems do
-		e.items[id] = Config.ItemById[id].Start or 0
+		e.items[id] = Config.Features.Gadgets and (Config.ItemById[id].Start or 0) or 0
 	end
 	e.cooldowns = {}
 	e.sprintUntil = 0

@@ -1,4 +1,4 @@
-import os
+import os, sys
 here = os.path.dirname(os.path.abspath(__file__))
 root = os.path.join(here, "..", "src")
 def read(p): return open(os.path.join(root, p)).read()
@@ -11,5 +11,5 @@ out.append('local ClientN = node("Client", nil); local ModN = node("Modules", Cl
 for m in sorted(f[:-5] for f in os.listdir(os.path.join(root, "client/Client/Modules"))):
     out.append(f'addSrc(ModN, "{m}", function(script)\n{read("client/Client/Modules/"+m+".luau")}\nend)')
 out.append(f'sources[ClientN] = function(script)\n{read("client/Client/init.client.luau")}\nend')
-out.append(open(os.path.join(here, "client_scenario.luau")).read())
-open("/tmp/claude-0/lu/fmo_client_test.luau", "w").write("\n".join(out))
+out.append(open(os.path.join(here, sys.argv[1] if len(sys.argv) > 1 else "client_scenario.luau")).read())
+open("/tmp/claude-0/lu/" + (sys.argv[2] if len(sys.argv) > 2 else "fmo_client_test.luau"), "w").write("\n".join(out))

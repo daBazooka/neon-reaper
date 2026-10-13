@@ -28,6 +28,9 @@ local function setReady(c, on)
 end
 
 function Pickups.build(parent)
+	if not Config.Features.Gadgets then
+		return
+	end
 	crates = {}
 	drops = {}
 	dropParent = parent

@@ -32,8 +32,8 @@ UI.Colors = {
 }
 
 UI.Fonts = {
-	Title = Enum.Font.GothamBlack,
-	Bold = Enum.Font.GothamBold,
+	Title = Enum.Font.FredokaOne,
+	Bold = Enum.Font.FredokaOne,
 	Body = Enum.Font.GothamMedium,
 }
 

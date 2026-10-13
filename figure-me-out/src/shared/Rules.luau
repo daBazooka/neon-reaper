@@ -337,6 +337,12 @@ function Rules.matchRewards(score, won)
 	return coins, xp
 end
 
+-- Win-streak multiplier for the match rewards: 1 for the first win, then +Step for every win in a row (up to Max steps).
+function Rules.streakMultiplier(streak)
+	local s = Config.Rewards.Streak
+	return 1 + s.Step * math.clamp((streak or 0) - 1, 0, s.Max)
+end
+
 -- Can this player have this cosmetic yet? Returns (true) or (false, reason).
 function Rules.canBuy(item, level, coins)
 	if level < item.Level then

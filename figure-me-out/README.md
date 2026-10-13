@@ -36,6 +36,12 @@ Or run `rojo serve` and click Connect in the Rojo plugin to live-edit.
 
 On a phone or tablet: tap the buttons in the gadget bar, the GUESS button and the on-screen keypad. On a controller: X guess, R2 photo, hold L2 for binoculars, Y notebook, L1/R1 choose a gadget and A to use it, Start for the menu.
 
+## Quick-and-simple mode (the default)
+
+The game ships as: **look at heads, type their number, win.** Matches are 90 seconds, a wrong guess freezes you for 1.5 seconds, there is no tutorial wall (one line of hint at the start of each match), and the screen only shows hearts, points, bullets, the big GUESS button and the timer. Click or tap somebody to open the number pad; on a phone just tap.
+
+Everything else is still in the code but switched off in `Config.Features` (in `src/shared/Config.luau`). Set any of these to `true` to bring it back: `Gadgets` (the hotbar and crates), `Photos` (camera + notebook), `Binoculars`, `Terminals`, `Bounty`, `Alliances`, `Events`. Win in a row to earn a reward multiplier (x1.25, x1.5 ... up to x2).
+
 ## Game modes
 
 Matches rotate between three modes (set `Config.Modes.Mode` to `"deathmatch"`, `"team"` or `"ctf"` to lock one; `"rotate"` cycles). The lobby shows which one is next.

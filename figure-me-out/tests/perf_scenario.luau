@@ -2,6 +2,7 @@
 local function check(cond, msg) print((cond and "PASS  " or "FAIL  ") .. msg) end
 local Config0 = require(RS.children.Shared.children.Config)
 Config0.Modes.Mode = "ctf"
+do local F = require(RS.children.Shared.children.Config).Features for k in F do F[k] = true end end -- these scenarios test the full game with every extra switched on
 local ok, err = pcall(sources[MainN], MainN)
 check(ok, "Main runs without error " .. tostring(err))
 local State = require(ModN.children.State)

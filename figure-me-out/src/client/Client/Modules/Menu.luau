@@ -24,13 +24,24 @@ local cosmeticCards = {}
 local profileLabel
 
 local STEPS = {
-	{ "🪪", "Everybody has a secret number", "A 3-digit number is on every forehead. You can't see yours, but everybody else can. Each player has 3 lives." },
-	{ "🎯", "Guess to take lives", "Aim at someone, press G, type THEIR number and press CONFIRM. Right = they lose a life. Wrong = you lose a bullet, freeze for 3 seconds and they see an arrow pointing at you." },
-	{ "🔭", "Find the numbers", "Hold the right mouse button for binoculars and read digits from across the map. Click to snap a photo: the notebook (V) joins up digits from several photos." },
-	{ "💥", "Mess with their eyes", "Flashbangs blind, smoke blocks sight, the distraction grenade lures people, the scanner finds them, sprint boost gets you away and the decoy is a fake you. Grab 🎁 crates for more." },
-	{ "🔐", "Clues, bounties and friends", "Hack a terminal in the plaza for a true clue about YOUR number (it shows where you are!). Hit the 🎯 bounty target for bonus points. Press T to offer an alliance, and watch your back." },
-	{ "🚫", "No hiding in corners", "Staring at a wall hides your number, so the game warns you. Ignore it and your plate glows red with a 👁 marker above your head for everyone. Last one standing wins!" },
+	{ "🪪", "Look at heads", "Everybody has a secret 3-digit number on their forehead. You can't see yours, but everybody else can. You have 3 lives." },
+	{ "🎯", "Type their number", "Look at someone and press G (or tap them). Type THEIR number and press CONFIRM. Right = they lose a life. Wrong = you freeze for a moment." },
+	{ "🏆", "Be the last one standing", "Rounds are short. In Team and Flag matches you respawn and your team scores. Don't sit still: campers get exposed!" },
 }
+-- the optional extras (all switched off in Config.Features unless you turn them on)
+local EXTRAS = {
+	{ "Binoculars", "🔭", "Find the numbers", "Hold the right mouse button for binoculars and read digits from across the map." },
+	{ "Photos", "📷", "Photos and notebook", "Click to snap a photo: the notebook (V) joins up digits from several photos." },
+	{ "Gadgets", "💥", "Gadgets", "Flashbangs blind, smoke blocks sight, the distraction grenade lures people, the scanner finds them, sprint boost gets you away and the decoy is a fake you. Grab 🎁 crates for more." },
+	{ "Terminals", "🔐", "Terminals", "Hack a terminal in the plaza for a true clue about YOUR number (it shows where you are!)." },
+	{ "Bounty", "🎯", "Bounty", "Hit the gold bounty target for bonus points." },
+	{ "Alliances", "🤝", "Alliances", "Press T to offer an alliance, and watch your back." },
+}
+for _, x in EXTRAS do
+	if Config.Features[x[1]] then
+		table.insert(STEPS, { x[2], x[3], x[4] })
+	end
+end
 
 local function page(name)
 	local p = UI.new("ScrollingFrame", {
