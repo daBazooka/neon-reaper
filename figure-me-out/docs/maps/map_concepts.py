@@ -21,6 +21,7 @@ class Scene:
         self.name, self.tagline, self.floor, self.sky, self.notes = name, tagline, hexc(floor), hexc(sky), notes
         self.faces, self.colors, self.spawns, self.labels = [], [], [], []
         self.floor_shapes = []
+        self.lines = []
 
     def poly(self, pts, color, k=1.0, alpha=1.0):
         self.faces.append(pts); self.colors.append(shade(color, k) + (alpha,))
@@ -65,6 +66,39 @@ class Scene:
         self.box(x, z, 1.6 * s, 1.6 * s, 5 * s, trunk)
         self.cyl(x, z, 5 * s, 6 * s, leaves, y0=5 * s, n=12)
 
+    def line(self, pts, color, lw=2.5, style='-'):
+        self.lines.append((pts, color, lw, style))
+
+    def plane(self, x, z, y, yaw=0.0, s=1.0, color="#ff4d4d"):
+        # a little propeller plane: fuselage, wings, tail fin, tail plane (axis-aligned; yaw picks nose along x or z)
+        c = math.cos(yaw); sn = math.sin(yaw)
+        def at(dx, dz): return (x + dx * c - dz * sn, z + dx * sn + dz * c)
+        fx, fz = at(0, 0)
+        along_x = abs(c) > 0.7
+        L, W = 16 * s, 3 * s
+        if along_x:
+            self.box(fx, fz, L, W, 3 * s, color, y0=y)
+            self.box(fx - 1 * s, fz, 3 * s, 20 * s, 0.7 * s, "#ffffff", y0=y + 1.2 * s)
+            self.box(fx - 7 * s, fz, 3 * s, 8 * s, 0.6 * s, "#ffffff", y0=y + 1.4 * s)
+            self.box(fx - 7 * s, fz, 3 * s, 0.6 * s, 4 * s, color, y0=y + 1.4 * s)
+            self.box(fx + 8.5 * s, fz, 0.6 * s, 6 * s, 0.6 * s, "#444444", y0=y + 1.2 * s)
+        else:
+            self.box(fx, fz, W, L, 3 * s, color, y0=y)
+            self.box(fx, fz - 1 * s, 20 * s, 3 * s, 0.7 * s, "#ffffff", y0=y + 1.2 * s)
+            self.box(fx, fz - 7 * s, 8 * s, 3 * s, 0.6 * s, "#ffffff", y0=y + 1.4 * s)
+            self.box(fx, fz - 7 * s, 0.6 * s, 3 * s, 4 * s, color, y0=y + 1.4 * s)
+            self.box(fx, fz + 8.5 * s, 6 * s, 0.6 * s, 0.6 * s, "#444444", y0=y + 1.2 * s)
+
+    def waterfall(self, x, z, w, drop, face="z", color="#6fd6ff"):
+        # a sheet of falling water down a cliff face, white spray at the bottom
+        if face == "z":
+            self.box(x, z, w, 2.2, drop, color, y0=0, alpha=0.82)
+            self.box(x, z, w * 0.6, 2.4, drop, "#ffffff", y0=0, alpha=0.55)
+        else:
+            self.box(x, z, 2.2, w, drop, color, y0=0, alpha=0.82)
+            self.box(x, z, 2.4, w * 0.6, drop, "#ffffff", y0=0, alpha=0.55)
+        self.cyl(x, z + (4 if face == "z" else 0), w * 0.55, 1.2, "#ffffff", y0=0.1, alpha=0.8, n=16)
+
     def spawn_ring(self, pts):
         self.spawns = pts
 
@@ -84,6 +118,8 @@ def render(scene, path, w=1500, h=1050):
     for (x, z) in scene.spawns:
         t = [(x + 2.2 * math.cos(a), z + 2.2 * math.sin(a), 0.4 + 0.0) for a in [i * math.pi / 6 for i in range(12)]]
         sp = Poly3DCollection([t], facecolors=[(0.25, 0.95, 1.0, 1)], edgecolors=[(1, 1, 1, 1)], linewidths=0.8); sp.set_zorder(1.5); ax.add_collection3d(sp)
+    for pts, col, lw, st in scene.lines:
+        ax.plot([p[0] for p in pts], [p[1] for p in pts], [p[2] for p in pts], color=col, linewidth=lw, linestyle=st, zorder=3)
     ax.set_xlim(-H, H); ax.set_ylim(-H, H); ax.set_zlim(0, 2 * H * 0.62)
     ax.set_box_aspect((1, 1, 0.62), zoom=1.12)
     ax.view_init(elev=38, azim=-52)
@@ -313,14 +349,75 @@ def candy_factory():
     s.spawn_ring(grid_spawns([-115, -75, 75, 115], [-110, -50, 50, 110]) + [(0, 115), (0, -115), (98, 0), (-98, 0)])
     return s
 
+# ------------------------------------------------------------------------------------------------------------- 7
+def waterfall_canyon():
+    s = Scene("7  WATERFALL CANYON", "Three working waterfalls, a river that pushes you, a lake and planes flying overhead",
+              "#6fbf6a", "#bfe8ff",
+              "Waterfalls hide the paths behind them  |  the river current carries you  |  planes fly circuits and one has crashed on a ledge")
+    rnd = random.Random(7)
+    rock, rock2 = "#9a8f84", "#b3a79b"
+    # canyon cliffs along the north edge: stepped terraces with three waterfalls pouring off them
+    for i, x in enumerate(range(-120, 121, 30)):
+        s.box(x, -118, 30, 22, 26, rock if i % 2 else rock2)
+        s.box(x, -112, 26, 14, 14, rock2 if i % 2 else rock, y0=26)
+    for (fx, w, d) in [(-70, 16, 40), (0, 22, 46), (70, 16, 40)]:
+        s.waterfall(fx, -105, w, 26 + 8, "z")
+        s.box(fx, -118, w + 6, 12, 40, "#4aa8d8", y0=26, alpha=0.9)  # the stream running off the top
+    # the river: three streams from the falls join into one that runs south to the lake
+    river = "#3ab2f0"
+    for fx in (-70, 0, 70):
+        for k in range(8):
+            z = -96 + k * 10
+            s.box(fx + (0 - fx) * k / 14, z, 12, 10.5, 0.5, river, y0=0.0, alpha=0.95)
+    for k in range(10):
+        s.box(0, -20 + k * 10, 20, 10.5, 0.5, river, alpha=0.95)
+    s.cyl(0, 78, 44, 0.6, river, n=36)   # the lake
+    # lake island with a seaplane dock
+    s.cyl(0, 78, 12, 1.6, "#e8d9a8")
+    s.box(16, 78, 22, 4, 1.4, "#b08850", y0=0.6)
+    s.plane(26, 70, 2.2, yaw=math.pi / 2, s=0.9, color="#ffd84d")  # the seaplane
+    # bridges over the river and rock arches
+    for z in (-50, 10):
+        s.box(0, z, 28, 7, 1.4, "#b08850", y0=3)
+        for dx in (-13, 13): s.box(dx, z, 2, 7, 3, "#7b5a33")
+    for (x, z) in [(-100, 20), (100, 20), (-60, 55), (60, 55)]:
+        s.box(x - 6, z, 5, 5, 18, rock); s.box(x + 6, z, 5, 5, 18, rock); s.box(x, z, 17, 5, 5, rock2, y0=18)
+    # ledges behind the falls (dry paths)
+    for fx in (-70, 0, 70):
+        s.box(fx, -100, 24, 6, 1.2, "#cdbd9a", y0=0.0)
+    # jungle
+    for _ in range(46):
+        x, z = rnd.uniform(-125, 125), rnd.uniform(-95, 125)
+        if abs(x) < 16 and z < 60: continue
+        if math.hypot(x, z - 78) < 50: continue
+        s.tree(x, z, rnd.uniform(1.0, 1.7))
+    for _ in range(12):
+        s.cyl(rnd.uniform(-120, 120), rnd.uniform(-80, 120), rnd.uniform(4, 8), rnd.uniform(5, 12), "#8c8c96", n=7)
+    # crashed plane on the west ledge: a bunker
+    s.plane(-100, -60, 8, yaw=0.0, s=1.5, color="#d6453d")
+    s.box(-100, -60, 26, 10, 8, rock2)
+    # two planes flying a circuit overhead, and the flight path
+    ring = [(104 * math.cos(2 * math.pi * k / 40), 104 * math.sin(2 * math.pi * k / 40), 58) for k in range(41)]
+    s.line(ring, "#ffffff", 2.2, "--")
+    for ang, col in [(0.35, "#ff4d4d"), (3.5, "#4da6ff")]:
+        x, z = 104 * math.cos(ang), 104 * math.sin(ang)
+        yaw = ang + math.pi / 2
+        s.plane(x, z, 58, yaw=0.0 if abs(math.cos(yaw)) > 0.7 else math.pi / 2, s=1.5, color=col)
+    s.spawn_ring([(-110 + 44 * i, 45) for i in range(6)] + [(-110 + 44 * i, 118) for i in range(6)] + [(-115, -20), (115, -20), (-115, 80), (115, 80), (-30, 20), (30, 20), (-30, -20), (30, -20)])
+    # turn the map around so the cliffs and waterfalls are at the back, facing the viewer
+    s.faces = [[(x, -y, h) for (x, y, h) in f] for f in s.faces]
+    s.lines = [([(x, -y, h) for (x, y, h) in pts], c, lw, st) for (pts, c, lw, st) in s.lines]
+    s.spawns = [(x, -z) for (x, z) in s.spawns]
+    return s
+
 if __name__ == "__main__":
-    makers = [toy_box, sky_islands, mall, hedge_garden, pirate_cove, candy_factory]
+    makers = [toy_box, sky_islands, mall, hedge_garden, pirate_cove, candy_factory, waterfall_canyon]
     paths = []
     for i, mk in enumerate(makers, 1):
         sc = mk(); p = os.path.join(OUT, f"map{i}.png"); render(sc, p); paths.append(p); print("drew", sc.name, len(sc.faces), "faces")
     # contact sheet
     ims = [Image.open(p).convert("RGB").resize((750, 525), Image.LANCZOS) for p in paths]
-    sheet = Image.new("RGB", (750 * 3, 525 * 2), "white")
+    sheet = Image.new("RGB", (750 * 4, 525 * 2), "white")
     for i, im in enumerate(ims):
-        sheet.paste(im, ((i % 3) * 750, (i // 3) * 525))
+        sheet.paste(im, ((i % 4) * 750, (i // 4) * 525))
     sheet.save(os.path.join(OUT, "all_maps.png"))
