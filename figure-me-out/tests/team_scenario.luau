@@ -106,9 +106,12 @@ check(friendlyCredits == 0, "no hit was ever credited against a teammate")
 check(Alliance.propose(me, other.id) == false, "alliances are switched off (the teams are the alliances)")
 
 -- bots fight only the other side
+local realLimit = Config.Modes.List.team.ScoreLimit
+Config.Modes.List.team.ScoreLimit = 1e6 -- (the bots could reach the real limit and end the match early)
 botsWalk = true
 for _, e in State.list() do if e.bot then e.nextGuessAt = State.now() + 1 end end
 advance(90)
+Config.Modes.List.team.ScoreLimit = realLimit
 check(friendlyCredits == 0, "after 90s of bot fighting, still no hit on a teammate")
 botsWalk = false
 
