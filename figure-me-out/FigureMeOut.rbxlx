@@ -226,6 +226,20 @@ function Audio.bounty()
 	Audio.play("Bass", 0.8, 0.6)
 end
 
+function Audio.flagTaken() -- somebody picked up a flag
+	run({ 5, 8, 5 }, 0.09, 0.55)
+	Audio.play("Bass", 0.7, 0.6)
+end
+
+function Audio.flagDropped()
+	run({ 8, 5, 3 }, 0.08, 0.4)
+end
+
+function Audio.capture() -- a flag was brought home
+	run({ 1, 3, 5, 8, 10 }, 0.07, 0.65)
+	Audio.play("Bass", 0.9, 0.7)
+end
+
 function Audio.event()
 	run({ 8, 6, 8, 10 }, 0.12, 0.55)
 end
@@ -421,6 +435,17 @@ Config.Cover = {
 	Expose = 20, -- seconds your plate glows red and a marker shows over your head
 	RepeatBonus = 0.5, -- each earlier violation makes the exposure this much longer (x1.5, x2, ...)
 	Tick = 0.25,
+}
+
+-- Idle camping: staying inside a small circle for too long. Walking out of the circle (even just a few steps) resets it,
+-- so this only catches people who really sit still. Capture-the-flag defenders next to their own flag are never counted.
+Config.Camp = {
+	Radius = 7, -- studs: you count as "in the same spot" while you stay this close to where you started waiting
+	WarnAfter = 25, -- seconds in one spot before the warning appears
+	Limit = 40, -- seconds in one spot before you are exposed
+	Expose = 15, -- seconds your plate glows red and a marker shows over your head
+	RepeatBonus = 0.5, -- each earlier violation makes the exposure this much longer
+	BaseExempt = 30, -- capture the flag: staying this close to your own flag is allowed
 }
 
 Config.Movement = { Walk = 16, Jump = 50, ScopeWalk = 8 }
@@ -747,6 +772,29 @@ function Rules.coverStage(timer)
 	if timer >= Config.Cover.Limit then
 		return "expose"
 	elseif timer >= Config.Cover.WarnAfter then
+		return "warn"
+	end
+	return "ok"
+end
+
+-- Idle camping. `anchor` is where the player started waiting (a Vector3 or nil), `timer` how long they have been
+-- inside the circle around it. Moving out of the circle starts again from the new place.
+function Rules.campStep(anchor, timer, pos, dt)
+	if anchor == nil then
+		return pos, 0
+	end
+	local dx, dz = pos.X - anchor.X, pos.Z - anchor.Z
+	if dx * dx + dz * dz > Config.Camp.Radius * Config.Camp.Radius then
+		return pos, 0
+	end
+	return anchor, timer + dt
+end
+
+-- "ok", "warn" or "expose" for the idle timer.
+function Rules.campStage(timer)
+	if timer >= Config.Camp.Limit then
+		return "expose"
+	elseif timer >= Config.Camp.WarnAfter then
 		return "warn"
 	end
 	return "ok"
@@ -2348,6 +2396,11 @@ function Cover.reset(e)
 	e.coverStage = "ok"
 	e.exposedUntil = 0
 	e.violations = 0
+	e.campAnchor = nil
+	e.campLast = nil
+	e.campTimer = 0
+	e.campStage = "ok"
+	e.campViolations = 0
 end
 
 -- Is something solid right in front of this entity's forehead?
@@ -2375,6 +2428,58 @@ function Cover.expose(e, seconds)
 	Net.sendAll("exposed", e.icon .. " " .. e.code)
 end
 
+-- Is this player allowed to stay put? (Waiting for the match to start, being frozen, or defending your own flag.)
+local function mayRest(e)
+	if State.phase ~= "play" or (e.stunUntil or 0) > State.now() then
+		return true
+	end
+	if State.mode and State.mode.Id == "ctf" and e.team then
+		local base = Config.Map.Bases[e.team]
+		local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+		if base and root then
+			local dx, dz = root.Position.X - base.X, root.Position.Z - base.Z
+			if dx * dx + dz * dz <= Config.Camp.BaseExempt * Config.Camp.BaseExempt then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+-- The second anti-camping rule: sitting in one small area for too long.
+local function campStep(e)
+	-- real time since the last check (the tick loop runs a little slower than its nominal rate)
+	local now = State.now()
+	local dt = math.clamp(now - (e.campLast or now), 0, 1)
+	e.campLast = now
+	local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return
+	end
+	if mayRest(e) then
+		e.campAnchor, e.campTimer = root.Position, 0
+	else
+		e.campAnchor, e.campTimer = Rules.campStep(e.campAnchor, e.campTimer or 0, root.Position, dt)
+	end
+	local stage = Rules.campStage(e.campTimer)
+	if stage == "expose" then
+		local seconds = Config.Camp.Expose * (1 + Config.Camp.RepeatBonus * (e.campViolations or 0))
+		e.campViolations = (e.campViolations or 0) + 1
+		e.campTimer = 0
+		e.campAnchor = root.Position
+		Cover.expose(e, seconds)
+		Net.send(e.player, "camp", "exposed", math.floor(seconds), e.campViolations)
+		e.campStage = "ok"
+		return
+	end
+	if stage == "warn" then
+		Net.send(e.player, "camp", "warn", math.max(0, Config.Camp.Limit - e.campTimer))
+	elseif e.campStage == "warn" then
+		Net.send(e.player, "camp", "ok", 0)
+	end
+	e.campStage = stage
+end
+
 -- Called every Cover.Tick seconds for every living entity that is a real player.
 function Cover.step(e, dt)
 	local now = State.now()
@@ -2386,6 +2491,7 @@ function Cover.step(e, dt)
 	if not e.alive or not e.player then
 		return
 	end
+	campStep(e)
 	local covered = Cover.isCovered(e)
 	e.coverTimer = Rules.coverStep(e.coverTimer or 0, covered, dt)
 	local stage = Rules.coverStage(e.coverTimer)
@@ -6128,7 +6234,7 @@ local function loadingScreen()
 			"Everyone can see your number. Except you.",
 			"Hold right mouse for binoculars.",
 			"Smoke blocks sight. Flashbangs blind. Use them!",
-			"Don't stare at walls: the game exposes campers.",
+			"Don't stare at walls or sit still: the game exposes campers.",
 			"Someone is always watching.",
 		}
 		local waited = 0
@@ -6311,6 +6417,10 @@ function handlers.cover(stage, value, violations)
 	Alerts.cover(stage, value, violations)
 end
 
+function handlers.camp(stage, value, violations)
+	Alerts.camp(stage, value, violations)
+end
+
 function handlers.exposed(label)
 	Hud.feed(label .. " was EXPOSED!", C.Danger)
 end
@@ -6362,16 +6472,18 @@ function handlers.flag(what, team, who)
 	if what == "taken" then
 		Hud.feed("🚩 " .. who .. " took the " .. t.Name .. " flag!", t.Color)
 		Fx.announce(ours and "THEY HAVE OUR FLAG!" or "FLAG TAKEN!", who .. " has the " .. t.Name .. " flag", ours and C.Danger or C.Gold, 0.24)
+		Audio.flagTaken()
 	elseif what == "dropped" then
 		Hud.feed("🚩 The " .. t.Name .. " flag was dropped", t.Color)
+		Audio.flagDropped()
 	elseif what == "returned" then
 		Hud.feed("🚩 The " .. t.Name .. " flag is back at its base" .. (who ~= "" and (" (" .. who .. ")") or ""), t.Color)
 	elseif what == "captured" then
 		local other = Config.Teams[3 - team]
 		Hud.feed("🏁 " .. who .. " captured the " .. (other and other.Name or "") .. " flag!", C.Gold)
 		Fx.announce(ours and "CAPTURE!" or "THEY SCORED!", who .. " scored for " .. t.Name, ours and C.Good or C.Danger, 0.24)
+		Audio.capture()
 	end
-	Audio.kill()
 end
 
 function handlers.captured(points)
@@ -6908,6 +7020,26 @@ function Alerts.stun(seconds)
 	deps.Fx.shake(0.5, 0.25)
 	deps.Scope.set(false)
 	deps.Keypad.close()
+end
+
+-- Sitting still too long. stage: "warn" | "ok" | "exposed"
+function Alerts.camp(stage, value, violations)
+	if stage == "warn" then
+		refs.cover.Visible = true
+		refs.coverTitle.Text = "⚠️ KEEP MOVING!"
+		refs.coverSub.Text = "No camping! Move to a new spot or your position is revealed in " .. math.ceil(value) .. "s"
+		if (refs.lastWarnBeep or 0) + 1.5 < os.clock() then
+			refs.lastWarnBeep = os.clock()
+			Audio.warn()
+		end
+	elseif stage == "ok" then
+		refs.cover.Visible = false
+	else
+		refs.cover.Visible = false
+		Audio.siren()
+		deps.Fx.flash(C.Danger, 0.5, 0.6)
+		deps.Fx.announce("CAMPER REVEALED!", "You stayed in one spot. Your plate glows red for " .. value .. "s" .. ((violations or 1) > 1 and ("  •  violation #" .. violations) or ""), C.Danger, 0.28)
+	end
 end
 
 -- stage: "warn" | "ok" | "exposed"
