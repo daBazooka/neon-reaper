@@ -53,6 +53,10 @@ The arena is **Waterfall Canyon**: a tall cliff along one side with three waterf
 * **No Enter, no CONFIRM.** Look at somebody and just type their three digits (or press G / Enter, or tap them on a phone first): the guess goes in by itself on the third digit and you see right or wrong at once. `Config.Guess.AutoSubmit = false` brings the CONFIRM button back.
 * **Colour grading** follows the moment (warm golden lobby, bright vivid match, punchy pulsing last seconds, celebratory results). Tune it in `Config.Look`.
 
+## The lobby and the spawn pads
+
+The lobby is a floating garden island: stone plaza with a fountain, paths, benches, lamps, flower beds, trees, two small waterfalls spilling into the sky, a title banner, the winners board, a how-to board and a **big status screen** ("WAITING FOR PLAYERS 1 / 2", "NEXT: DEATHMATCH - starts in 8 s", "GET READY!", "MATCH IN PROGRESS - 7 alive"). The spawn pads in the arena (`Workspace.ArenaSpawns`) are **invisible and not solid** while you play; set `Config.Map.ShowSpawns = true` if you want to see them while moving them around in Studio. The code is in `src/server/Main/Modules/LobbyWorld.luau`; `docs/maps/lobby.png` is a picture of what it builds.
+
 ## Quick-and-simple mode (the default)
 
 The game ships as: **look at heads, type their number, win.** Matches are 90 seconds, a wrong guess freezes you for 1.5 seconds, there is no tutorial wall (one line of hint at the start of each match), and the screen only shows hearts, points, bullets, the big GUESS button and the timer. Click or tap somebody to open the number pad; on a phone just tap.

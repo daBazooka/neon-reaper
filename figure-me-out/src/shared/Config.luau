@@ -359,7 +359,8 @@ do
 		end
 		return out
 	end
-	Config.Map.Themes = {
+	Config.Map.ShowSpawns = false -- true = draw the spawn pads (useful while moving them in Studio); false = they are invisible and not solid
+Config.Map.Themes = {
 		city = {
 			Spawns = Config.Map.Spawns,
 			Bases = Config.Map.Bases,

@@ -8,6 +8,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Co
 local Pickups = require(script.Parent.Pickups)
 local Terminals = require(script.Parent.Terminals)
 local CanyonWorld = require(script.Parent.CanyonWorld)
+local LobbyWorld = require(script.Parent.LobbyWorld)
 
 local World = {}
 
@@ -381,7 +382,9 @@ local function buildArena()
 		pad.Duration = 0
 		pad.Material = Enum.Material.Neon
 		pad.Color = C(120, 230, 255)
-		pad.Transparency = 0.35
+		-- invisible during play (Config.Map.ShowSpawns = true shows them, to help while building the map)
+		pad.Transparency = Config.Map.ShowSpawns and 0.35 or 1
+		pad.CanCollide = Config.Map.ShowSpawns == true
 		pad.CanQuery = false
 		pad.TopSurface = Enum.SurfaceType.Smooth
 		pad.Parent = pads
@@ -409,114 +412,57 @@ local function buildBases()
 end
 
 local board
+local status = { title = nil, sub = nil, titleText = "", subText = "" }
 
 local function buildLobby()
 	local lobby = folder("Lobby")
-	local c = Config.Map.Lobby
-	local base = part(lobby, "Island", Vector3.new(2, 130, 130), c + Vector3.new(0, -1, 0), C(236, 246, 255), Enum.Material.SmoothPlastic)
-	base.Shape = Enum.PartType.Cylinder
-	base.CFrame = CFrame.new(c.X, c.Y - 1, c.Z) * CFrame.Angles(0, 0, math.pi / 2)
-	local ring = neon(lobby, "Ring", Vector3.new(0.6, 126, 126), c + Vector3.new(0, 0.05, 0), AQUA)
-	ring.Shape = Enum.PartType.Cylinder
-	ring.CFrame = CFrame.new(c.X, c.Y + 0.05, c.Z) * CFrame.Angles(0, 0, math.pi / 2)
-	ring.CanCollide = false
-	local inner = part(lobby, "Floor", Vector3.new(0.4, 118, 118), c + Vector3.new(0, 0.2, 0), C(196, 232, 252), Enum.Material.Glass)
-	inner.Shape = Enum.PartType.Cylinder
-	inner.CFrame = CFrame.new(c.X, c.Y + 0.2, c.Z) * CFrame.Angles(0, 0, math.pi / 2)
+	local made = LobbyWorld.build(lobby)
+	board = made.board
+	status.title, status.sub = made.status.title, made.status.sub
+end
 
-	-- big title sign
-	local sign = part(lobby, "Sign", Vector3.new(60, 16, 1), c + Vector3.new(0, 14, 50), C(22, 96, 150))
-	local gui = Instance.new("SurfaceGui")
-	gui.Face = Enum.NormalId.Back
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
-	gui.CanvasSize = Vector2.new(960, 256)
-	gui.LightInfluence = 0
-	gui.Parent = sign
-	local title = Instance.new("TextLabel")
-	title.Size = UDim2.fromScale(1, 0.62)
-	title.BackgroundTransparency = 1
-	title.Font = Enum.Font.GothamBlack
-	title.TextScaled = true
-	title.Text = "FIGURE ME OUT"
-	title.TextColor3 = WHITE
-	title.Parent = gui
-	local subtitle = Instance.new("TextLabel")
-	subtitle.Position = UDim2.fromScale(0, 0.64)
-	subtitle.Size = UDim2.fromScale(1, 0.3)
-	subtitle.BackgroundTransparency = 1
-	subtitle.Font = Enum.Font.GothamBold
-	subtitle.TextScaled = true
-	subtitle.Text = "Read their number. Hide yours."
-	subtitle.TextColor3 = C(180, 255, 150)
-	subtitle.Parent = gui
-
-	-- leaderboard board (text is set by World.setBoard)
-	local bpart = part(lobby, "Board", Vector3.new(26, 22, 1), c + Vector3.new(-42, 12, 28), C(22, 96, 150))
-	bpart.CFrame = CFrame.new(bpart.Position, Vector3.new(c.X, bpart.Position.Y, c.Z))
-	local bgui = Instance.new("SurfaceGui")
-	bgui.Face = Enum.NormalId.Front
-	bgui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
-	bgui.CanvasSize = Vector2.new(520, 440)
-	bgui.LightInfluence = 0
-	bgui.Parent = bpart
-	local head = Instance.new("TextLabel")
-	head.Size = UDim2.new(1, 0, 0, 70)
-	head.BackgroundTransparency = 1
-	head.Font = Enum.Font.GothamBlack
-	head.TextScaled = true
-	head.Text = "🏆 TOP WINNERS"
-	head.TextColor3 = C(255, 214, 60)
-	head.Parent = bgui
-	board = Instance.new("TextLabel")
-	board.Name = "Lines"
-	board.Position = UDim2.fromOffset(20, 80)
-	board.Size = UDim2.new(1, -40, 1, -90)
-	board.BackgroundTransparency = 1
-	board.Font = Enum.Font.GothamBold
-	board.TextSize = 30
-	board.TextXAlignment = Enum.TextXAlignment.Left
-	board.TextYAlignment = Enum.TextYAlignment.Top
-	board.TextColor3 = C(255, 255, 255)
-	board.Text = "Win a match to get on the board!"
-	board.Parent = bgui
-
-	-- how to play board
-	local hpart = part(lobby, "HowTo", Vector3.new(26, 22, 1), c + Vector3.new(42, 12, 28), C(22, 96, 150))
-	hpart.CFrame = CFrame.new(hpart.Position, Vector3.new(c.X, hpart.Position.Y, c.Z))
-	local hgui = Instance.new("SurfaceGui")
-	hgui.Face = Enum.NormalId.Front
-	hgui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
-	hgui.CanvasSize = Vector2.new(520, 440)
-	hgui.LightInfluence = 0
-	hgui.Parent = hpart
-	local htitle = head:Clone()
-	htitle.Text = "HOW TO PLAY"
-	htitle.TextColor3 = WHITE
-	htitle.Parent = hgui
-	local how = board:Clone()
-	how.Name = "Lines"
-	how.TextSize = 25
-	how.Text = "• Everyone has a 3-digit number over their head.\n• Yours is on your screen: keep it hidden!\n• Look at someone and type THEIR number: it goes in by itself.\n• Right = they lose a life. Wrong = you freeze.\n• Last one standing wins."
-	how.Parent = hgui
-
-	for i = 1, Config.Match.MaxPlayers do
-		local angle = (i / Config.Match.MaxPlayers) * math.pi * 2
-		local pad = part(lobby, "Pad", Vector3.new(4, 0.3, 4), c + Vector3.new(math.cos(angle) * 30, 0.35, math.sin(angle) * 30), C(130, 214, 250))
-		pad.CanQuery = false
+-- The big status screen in the lobby.
+function World.setStatus(title, sub)
+	if status.titleText == title and status.subText == sub then
+		return
 	end
-	-- the default spawn: anybody Roblox spawns on its own (joining, resetting) appears in the lobby
-	local home = Instance.new("SpawnLocation")
-	home.Name = "LobbySpawnLocation"
-	home.Size = Vector3.new(10, 0.4, 10)
-	home.Position = c + Vector3.new(0, 0.5, 0)
-	home.Anchored = true
-	home.Neutral = true
-	home.Duration = 0
-	home.Transparency = 0.6
-	home.Material = Enum.Material.Neon
-	home.Color = AQUA
-	home.TopSurface = Enum.SurfaceType.Smooth
-	home.Parent = lobby
+	status.titleText, status.subText = title, sub
+	if status.title then
+		status.title.Text = title
+	end
+	if status.sub then
+		status.sub.Text = sub
+	end
+end
+
+function World.status()
+	return status.titleText, status.subText
+end
+
+-- Keeps the status screen up to date from the world's attributes (phase, clock, players): twice a second.
+function World.watchStatus()
+	task.spawn(function()
+		while true do
+			local phase = workspace:GetAttribute("Phase") or "lobby"
+			local left = math.max(0, math.ceil((workspace:GetAttribute("PhaseEnd") or 0) - workspace:GetServerTimeNow()))
+			local n = #game:GetService("Players"):GetPlayers()
+			local nextName = workspace:GetAttribute("NextModeName") or ""
+			if phase == "lobby" then
+				if n < Config.Match.MinHumans then
+					World.setStatus("WAITING FOR PLAYERS", n .. " / " .. Config.Match.MinHumans .. " here. Invite a friend!")
+				else
+					World.setStatus("NEXT: " .. nextName, "starts in " .. left .. " s  •  " .. n .. " players")
+				end
+			elseif phase == "countdown" then
+				World.setStatus("GET READY!", "starts in " .. left .. " s")
+			elseif phase == "play" then
+				World.setStatus((workspace:GetAttribute("ModeName") or "MATCH") .. " IN PROGRESS", (workspace:GetAttribute("Alive") or 0) .. " alive  •  " .. left .. " s left")
+			else
+				World.setStatus("RESULTS", "next match soon")
+			end
+			task.wait(0.5)
+		end
+	end)
 end
 
 function World.lobbySpawn(i)

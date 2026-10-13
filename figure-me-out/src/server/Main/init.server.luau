@@ -40,6 +40,7 @@ if not okData then
 	report("Data.init", errData)
 end
 local okWorld, worldErrors = pcall(World.build)
+pcall(World.watchStatus)
 if not okWorld then
 	report("World.build", worldErrors)
 else

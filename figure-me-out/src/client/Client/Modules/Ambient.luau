@@ -28,7 +28,7 @@ end
 local function scan(now)
 	lastScan = now
 	flows = {}
-	for _, name in { "Arena", "Water" } do
+	for _, name in { "Arena", "Water", "Lobby" } do
 		local root = workspace:FindFirstChild(name)
 		if root then
 			for _, d in root:GetDescendants() do

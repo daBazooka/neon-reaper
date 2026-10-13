@@ -301,4 +301,6 @@ function CanyonWorld.build(arena, ground)
 	end
 end
 
+CanyonWorld.flowing = flowing -- (the lobby uses the same flowing-water look)
+
 return CanyonWorld
