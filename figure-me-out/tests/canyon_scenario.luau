@@ -67,7 +67,7 @@ local bot
 for _, e in State.list() do if e.bot and not bot then bot = e end end
 place(bot, 0, 4, 30); advance(0.6)
 check(bot.waterForce ~= nil, "bots feel the current too")
-place(bot, -100, 4, 30)
+place(bot, -100, 4, 30); bot.route = {}
 
 -- ---- spawns: ten different dry places, each team on its own half ----
 check(#State.order == 10, "10 in the match")

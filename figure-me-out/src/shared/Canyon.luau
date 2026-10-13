@@ -48,7 +48,7 @@ Canyon.Dock = { X1 = 10, X2 = 36, Z = -84, Width = 4 }
 Canyon.Bridges = { { X = 0, Z = 70 }, { X = 0, Z = 12 } }
 
 -- rock arches (two legs and a lintel)
-Canyon.Arches = { { X = -102, Z = -50 }, { X = 102, Z = -50 }, { X = -62, Z = -22 }, { X = 62, Z = -22 } }
+Canyon.Arches = { { X = -102, Z = -50 }, { X = 102, Z = -50 }, { X = -57, Z = -22 }, { X = 57, Z = -22 } }
 
 -- the wrecked plane on the west side, and the seaplane at the dock
 Canyon.Wreck = { X = -104, Z = 52 }
@@ -82,8 +82,8 @@ Canyon.Nodes = {
 	{ -105, -20 }, { -75, -20 }, { -40, -20 }, { -20, -20 }, { 20, -20 }, { 40, -20 }, { 75, -20 }, { 105, -20 },
 	{ -40, 75 }, { -100, 75 }, { 40, 75 }, { 100, 75 },
 	{ -88, 0 }, { 88, 0 }, { -45, 55 }, { 45, 55 },
-	{ -100, -75 }, { -75, -100 }, { 75, -100 }, { 100, -75 }, { -70, -60 }, { 70, -60 }, { -20, -34 }, { 20, -34 },
-	{ -84, -50 }, { 84, -50 }, { -118, -50 }, { 118, -50 }, { -88, -80 }, { 88, -80 },
+	{ -100, -75 }, { -92, -100 }, { 92, -100 }, { 100, -75 }, { -70, -60 }, { 70, -60 }, { -20, -34 }, { 20, -34 },
+	{ -84, -50 }, { 84, -50 }, { -118, -50 }, { 118, -50 }, { -88, -80 }, { 88, -80 }, { -60, -42 }, { 60, -42 }, { -100, -35 }, { 100, -35 },
 }
 
 -- Round things bots must walk around: { x, z, radius }. Trees and rocks are added below.
@@ -202,6 +202,83 @@ for _ = 1, 1500 do
 	if freeSpot(x, z, 2) then
 		table.insert(Canyon.Trees, { x, z, 0.9 + nextRandom() * 0.8 })
 		table.insert(Canyon.Blockers, { x, z, 2.2 })
+	end
+end
+
+-- Bots must be able to walk from any open spot to any other (round the trees, with room to spare). If the scenery boxed a spot in,
+-- the trees closest to it are taken down. (The same check runs in the tests.)
+local function clearLine(ax, az, bx, bz, pad)
+	local dx, dz = bx - ax, bz - az
+	local len2 = dx * dx + dz * dz
+	for _, o in Canyon.Blockers do
+		local t = 0
+		if len2 > 0 then
+			t = math.clamp(((o[1] - ax) * dx + (o[2] - az) * dz) / len2, 0, 1)
+		end
+		local px, pz = ax + dx * t, az + dz * t
+		local r = o[3] + pad
+		if (px - o[1]) ^ 2 + (pz - o[2]) ^ 2 < r * r then
+			return false
+		end
+	end
+	return true
+end
+Canyon.WalkPad = 4
+for _ = 1, 40 do
+	local comp, count = {}, 0
+	local nodes = Canyon.Nodes
+	for start = 1, #nodes do
+		if not comp[start] then
+			count += 1
+			comp[start] = count
+			local stack = { start }
+			while #stack > 0 do
+				local u = table.remove(stack)
+				for v = 1, #nodes do
+					if not comp[v] and clearLine(nodes[u][1], nodes[u][2], nodes[v][1], nodes[v][2], Canyon.WalkPad) then
+						comp[v] = count
+						table.insert(stack, v)
+					end
+				end
+			end
+		end
+	end
+	if count == 1 then
+		break
+	end
+	-- take down the trees around the nodes that are cut off (every component except the biggest)
+	local sizes = {}
+	for i = 1, #nodes do
+		sizes[comp[i]] = (sizes[comp[i]] or 0) + 1
+	end
+	local biggest = 1
+	for c, n in sizes do
+		if n > sizes[biggest] then
+			biggest = c
+		end
+	end
+	local removed = false
+	for i = 1, #nodes do
+		if comp[i] ~= biggest then
+			for k = #Canyon.Trees, 1, -1 do
+				local t = Canyon.Trees[k]
+				if (t[1] - nodes[i][1]) ^ 2 + (t[2] - nodes[i][2]) ^ 2 < 15 ^ 2 then
+					table.remove(Canyon.Trees, k)
+					for b = #Canyon.Blockers, 1, -1 do
+						local o = Canyon.Blockers[b]
+						if o[1] == t[1] and o[2] == t[2] then
+							table.remove(Canyon.Blockers, b)
+							break
+						end
+					end
+					removed = true
+					break
+				end
+			end
+		end
+	end
+	if not removed then
+		break
 	end
 end
 

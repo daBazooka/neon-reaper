@@ -247,8 +247,8 @@ end
 
 -- Waypoints from a to b that go round the blockers: straight when the way is clear, otherwise from open spot to open spot
 -- (`nodes` are { x, z }; the shortest chain of clear hops wins). Returns a list of { X, Z } ending at b, or nil if there is no way.
-function Rules.route(a, b, nodes, blockers)
-	if Rules.segmentClear(a, b, blockers) then
+function Rules.route(a, b, nodes, blockers, pad)
+	if Rules.segmentClear(a, b, blockers, pad) then
 		return { { X = b.X, Z = b.Z } }
 	end
 	local n = #nodes
@@ -258,7 +258,7 @@ function Rules.route(a, b, nodes, blockers)
 	-- shortest path (Dijkstra over the open spots; a and b join the graph through any spot they can see)
 	local dist, prev, done = {}, {}, {}
 	for i = 1, n do
-		if Rules.segmentClear(a, pos(i), blockers) then
+		if Rules.segmentClear(a, pos(i), blockers, pad) then
 			dist[i] = math.sqrt((a.X - nodes[i][1]) ^ 2 + (a.Z - nodes[i][2]) ^ 2)
 		end
 	end
@@ -274,7 +274,7 @@ function Rules.route(a, b, nodes, blockers)
 			break
 		end
 		done[u] = true
-		if Rules.segmentClear(pos(u), b, blockers) then
+		if Rules.segmentClear(pos(u), b, blockers, pad) then
 			local total = ud + math.sqrt((b.X - nodes[u][1]) ^ 2 + (b.Z - nodes[u][2]) ^ 2)
 			if not bestCost or total < bestCost then
 				best, bestCost = u, total
@@ -283,7 +283,7 @@ function Rules.route(a, b, nodes, blockers)
 		for v = 1, n do
 			if not done[v] then
 				local hop = math.sqrt((nodes[u][1] - nodes[v][1]) ^ 2 + (nodes[u][2] - nodes[v][2]) ^ 2)
-				if (not dist[v] or ud + hop < dist[v]) and Rules.segmentClear(pos(u), pos(v), blockers) then
+				if (not dist[v] or ud + hop < dist[v]) and Rules.segmentClear(pos(u), pos(v), blockers, pad) then
 					dist[v], prev[v] = ud + hop, u
 				end
 			end

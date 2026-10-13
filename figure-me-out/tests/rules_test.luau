@@ -315,19 +315,19 @@ check(bad == 0 and #Canyon.Crates == 16 and #Canyon.Terminals == 4 and #Canyon.D
 check(#Canyon.Trees >= 30 and #Canyon.Rocks >= 8, "the scenery got placed (" .. #Canyon.Trees .. " trees, " .. #Canyon.Rocks .. " boulders)")
 -- walking routes
 local nodeBad = 0
-for _, n in Canyon.Nodes do if nearBlocker(n[1], n[2], 2.5) or math.abs(n[1]) > 125 or n[2] > 95 then nodeBad += 1 end end
+for _, n in Canyon.Nodes do if nearBlocker(n[1], n[2], 4) or math.abs(n[1]) > 125 or n[2] > 95 then nodeBad += 1 end end
 check(nodeBad == 0, "no walking spot is inside a tree, rock or the lake")
 local missing, dirty, longest = 0, 0, 0
 for i, a in Canyon.Nodes do
 	for j, b in Canyon.Nodes do
 		if i ~= j then
-			local r = Rules.route({ X = a[1], Z = a[2] }, { X = b[1], Z = b[2] }, Canyon.Nodes, Canyon.Blockers)
+			local r = Rules.route({ X = a[1], Z = a[2] }, { X = b[1], Z = b[2] }, Canyon.Nodes, Canyon.Blockers, 4)
 			if not r then missing += 1
 			else
 				longest = math.max(longest, #r)
 				local from = { X = a[1], Z = a[2] }
 				for _, w in r do
-					if not Rules.segmentClear(from, w, Canyon.Blockers) then dirty += 1 end
+					if not Rules.segmentClear(from, w, Canyon.Blockers, 4) then dirty += 1 end
 					from = w
 				end
 			end
@@ -337,7 +337,7 @@ end
 check(missing == 0, "a walking route exists between every pair of walking spots")
 check(dirty == 0, "no step of any route goes through a tree, rock or the lake (longest route " .. longest .. " steps)")
 check(#Rules.route({ X = -85, Z = 30 }, { X = -30, Z = 30 }, Canyon.Nodes, Canyon.Blockers) == 1, "a clear way is walked straight")
-check(#Rules.route({ X = -75, Z = -100 }, { X = 75, Z = -100 }, Canyon.Nodes, Canyon.Blockers) >= 3, "the lake is walked around")
+check(#Rules.route({ X = -92, Z = -100 }, { X = 92, Z = -100 }, Canyon.Nodes, Canyon.Blockers) >= 3, "the lake is walked around")
 -- the river current
 local fx, fz, push = Rules.flowAt(0, 40, Canyon.Water)
 check(fx == 0 and fz == -1 and push > 0, "the river pushes you south")

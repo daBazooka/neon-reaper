@@ -112,7 +112,22 @@ local function pickDestination(e)
 		local s = nodes[rng:NextInteger(1, #nodes)]
 		local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
 		local from = root and { X = root.Position.X, Z = root.Position.Z } or e.node or { X = s[1], Z = s[2] }
-		e.route = Rules.route(from, { X = s[1], Z = s[2] }, nodes, Canyon.Blockers) or { { X = s[1], Z = s[2] } }
+		local goal = { X = s[1], Z = s[2] }
+		-- round the obstacles with room to spare; if the bot is already squeezed in somewhere, with less room; failing that,
+		-- walk to the nearest open spot first (never straight through a tree)
+		local route = Rules.route(from, goal, nodes, Canyon.Blockers, Canyon.WalkPad) or Rules.route(from, goal, nodes, Canyon.Blockers, 1.5)
+		if not route then
+			local nearest, best = nodes[1], math.huge
+			for _, n in nodes do
+				local d = (n[1] - from.X) ^ 2 + (n[2] - from.Z) ^ 2
+				if d < best then
+					nearest, best = n, d
+				end
+			end
+			route = { { X = nearest[1], Z = nearest[2] } }
+			s = nearest
+		end
+		e.route = route
 		e.node = { X = s[1], Z = s[2] }
 		e.routeIndex = 1
 		return
@@ -144,7 +159,8 @@ local function walk(e, now)
 	local goal = e.route[e.routeIndex]
 	local target = Vector3.new(goal.X, root.Position.Y, goal.Z)
 	local dx, dz = target.X - root.Position.X, target.Z - root.Position.Z
-	if dx * dx + dz * dz < 16 then
+	-- (in the canyon a bot must get right to each waypoint, or it would cut corners through trees and rocks)
+	if dx * dx + dz * dz < (Config.Map.Theme == "canyon" and 2.25 or 16) then
 		e.routeIndex += 1
 		e.stuckSince = nil
 		return

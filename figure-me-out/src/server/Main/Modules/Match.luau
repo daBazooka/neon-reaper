@@ -511,6 +511,7 @@ function Match.run()
 		if victim.char then
 			victim.char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
 			victim.sanePos = nil
+			victim.route = {} -- (a bot that was moved plans its walk again from where it now stands)
 		end
 	end
 	Combat.onCredit = function(killer, victim)
