@@ -11,6 +11,7 @@ State.phase = "lobby" -- lobby | countdown | play | results
 State.phaseEnd = 0
 State.entities = {} -- id -> entity
 State.order = {} -- ids in the order they were added
+State.decoys = {} -- id (1,000,000 and up) -> { id, owner, number, model, code, icon, expires }
 State.revealing = false
 State.matchId = 0
 State.onChange = nil -- set by Match: called when the alive list changes
@@ -27,6 +28,7 @@ end
 function State.clear()
 	State.entities = {}
 	State.order = {}
+	State.decoys = {}
 end
 
 function State.get(id)
@@ -68,6 +70,9 @@ function State.takenNumbers()
 	local taken = {}
 	for _, e in State.entities do
 		taken[e.number or ""] = true
+	end
+	for _, d in State.decoys do
+		taken[d.number] = true
 	end
 	return taken
 end

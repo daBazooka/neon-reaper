@@ -27,7 +27,7 @@ local STEPS = {
 	{ "🪪", "Everybody has a secret number", "A 3-digit number is on every forehead. You can't see yours, but everybody else can. Each player has 3 lives." },
 	{ "🎯", "Guess to take lives", "Aim at someone, press G, type THEIR number and press CONFIRM. Right = they lose a life. Wrong = you lose a bullet, freeze for 3 seconds and they see an arrow pointing at you." },
 	{ "🔭", "Find the numbers", "Hold the right mouse button for binoculars and read digits from across the map. Click to snap a photo: the notebook (V) joins up digits from several photos." },
-	{ "💥", "Mess with their eyes", "Flashbangs blind, smoke blocks sight, the decoy mask shows a fake number, the scanner finds people, the distraction device lures them and the scrambler flickers your plate. Grab 🎁 crates for more." },
+	{ "💥", "Mess with their eyes", "Flashbangs blind, smoke blocks sight, the distraction grenade lures people, the scanner finds them, sprint boost gets you away and the decoy is a fake you. Grab 🎁 crates for more." },
 	{ "🔐", "Clues, bounties and friends", "Hack a terminal in the plaza for a true clue about YOUR number (it shows where you are!). Hit the 🎯 bounty target for bonus points. Press T to offer an alliance, and watch your back." },
 	{ "🚫", "No hiding in corners", "Staring at a wall hides your number, so the game warns you. Ignore it and your plate glows red with a 👁 marker above your head for everyone. Last one standing wins!" },
 }

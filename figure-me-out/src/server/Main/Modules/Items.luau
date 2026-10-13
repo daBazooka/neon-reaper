@@ -1,5 +1,5 @@
--- FIGURE ME OUT: the gadgets you carry. Flashbang, smoke grenade, decoy mask, scanner, distraction device and number
--- scrambler (binoculars and the camera live in Match.setScope and Photos). Every gadget has a charge count and a cooldown,
+-- FIGURE ME OUT: the gadgets you carry. Flashbang, smoke grenade, distraction grenade, scanner, sprint boost and decoy
+-- (binoculars and the camera live in Match.setScope and Photos). Every gadget has a charge count and a cooldown,
 -- and everything is checked here on the server.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
@@ -11,7 +11,6 @@ local State = require(script.Parent.State)
 local Net = require(script.Parent.Net)
 local Vision = require(script.Parent.Vision)
 local Combat = require(script.Parent.Combat)
-local Plates = require(script.Parent.Plates)
 
 local Items = {}
 
@@ -38,8 +37,7 @@ function Items.reset(e)
 		e.items[id] = Config.ItemById[id].Start or 0
 	end
 	e.cooldowns = {}
-	e.scrambleUntil = 0
-	e.maskUntil = 0
+	e.sprintUntil = 0
 	e.blindUntil = 0
 	State.writeEntity(e)
 end
@@ -247,12 +245,57 @@ end
 --------------------------------------------------------------------------------
 -- Using a gadget
 --------------------------------------------------------------------------------
--- What is shown on the plate when nothing odd is going on: the decoy mask's fake number, or the real one.
-function Items.restingText(e)
-	if (e.maskUntil or 0) > State.now() and e.maskNumber then
-		return e.maskNumber
+-- A copy of the player that stands where they dropped it, wearing a DIFFERENT number. Shooting it right is a trap.
+local nextDecoy = 1000000
+local function makeDecoy(e)
+	local char = e.char
+	if not char then
+		return false
 	end
-	return e.number
+	char.Archivable = true
+	local model = char:Clone()
+	for _, d in model:GetDescendants() do
+		if d:IsA("Script") or d:IsA("LocalScript") then
+			d:Destroy()
+		elseif d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+		end
+	end
+	for _, tag in { "RevealTag", "BountyTag", "EmoteBubble" } do
+		local t = model:FindFirstChild(tag, true)
+		if t then
+			t:Destroy()
+		end
+	end
+	local number = Rules.newNumber(function()
+		return rng:NextNumber()
+	end, State.takenNumbers())
+	local label = model:FindFirstChild("Digits", true)
+	if label then
+		label.Text = number
+	end
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.WalkSpeed = 0
+	end
+	model.Name = "Decoy"
+	model:PivotTo(char:GetPivot() * CFrame.new(0, 0, -5))
+	nextDecoy += 1
+	model:SetAttribute("EntityId", nextDecoy)
+	model:SetAttribute("Decoy", true)
+	model:SetAttribute("Alive", true)
+	model.Parent = folder("Decoys")
+	State.decoys[nextDecoy] = {
+		id = nextDecoy,
+		owner = e.id,
+		number = number,
+		model = model,
+		code = e.code,
+		icon = e.icon,
+		expires = State.now() + Config.Decoy.Duration,
+	}
+	return true
 end
 
 local function scan(e)
@@ -302,24 +345,12 @@ function Items.use(e, id, look)
 		used = throw(e, look, Color3.fromRGB(150, 155, 165), Config.Smoke.Fuse, smokeBoom)
 	elseif id == "distraction" then
 		used = throw(e, look, Color3.fromRGB(255, 200, 90), Config.Distraction.Fuse, distractionBoom)
-	elseif id == "mask" then
-		local fake
-		for _ = 1, 10 do
-			fake = Rules.newNumber(function()
-				return rng:NextNumber()
-			end, State.takenNumbers())
-			if fake ~= e.number then
-				break
-			end
-		end
-		e.maskNumber = fake
-		e.maskUntil = now + Config.Mask.Duration
-		Plates.setText(e, fake)
-		Plates.refreshRim(e)
+	elseif id == "sprint" then
+		e.sprintUntil = now + Config.Sprint.Duration
+		Combat.applySpeed(e)
 		used = true
-	elseif id == "scramble" then
-		e.scrambleUntil = now + Config.Scramble.Duration
-		used = true
+	elseif id == "decoy" then
+		used = makeDecoy(e)
 	elseif id == "scanner" then
 		used = scan(e)
 	end
@@ -339,6 +370,14 @@ end
 -- Upkeep (called every quarter second while a match runs)
 --------------------------------------------------------------------------------
 function Items.tick(now)
+	for id, d in State.decoys do
+		if d.expires <= now then
+			State.decoys[id] = nil
+			if d.model then
+				d.model:Destroy()
+			end
+		end
+	end
 	for i = #Items.distractions, 1, -1 do
 		local d = Items.distractions[i]
 		if d.expires <= now then
@@ -366,23 +405,9 @@ function Items.tick(now)
 		end
 	end
 	for _, e in State.list() do
-		if (e.scrambleUntil or 0) > now and e.alive then
-			local fake = Rules.digitsOf(rng:NextInteger(Config.Number.Min, Config.Number.Max))
-			if fake == e.number then
-				fake = Rules.digitsOf(Config.Number.Max)
-			end
-			Plates.setText(e, fake)
-		elseif e.scrambleUntil and e.scrambleUntil > 0 then
-			e.scrambleUntil = 0
-			Plates.setText(e, Items.restingText(e))
-		end
-		if (e.maskUntil or 0) > 0 and e.maskUntil <= now then
-			e.maskUntil = 0
-			e.maskNumber = nil
-			if (e.scrambleUntil or 0) <= now then
-				Plates.setText(e, e.number)
-			end
-			Plates.refreshRim(e)
+		if (e.sprintUntil or 0) > 0 and e.sprintUntil <= now then
+			e.sprintUntil = 0
+			Combat.applySpeed(e)
 		end
 	end
 end
@@ -395,8 +420,14 @@ function Items.clearAll()
 	end
 	clouds = {}
 	Items.distractions = {}
+	for _, d in State.decoys do
+		if d.model then
+			d.model:Destroy()
+		end
+	end
+	State.decoys = {}
 	Vision.clearClouds()
-	for _, name in { "Effects", "Smoke" } do
+	for _, name in { "Effects", "Smoke", "Decoys" } do
 		local f = workspace:FindFirstChild(name)
 		if f then
 			f:ClearAllChildren()

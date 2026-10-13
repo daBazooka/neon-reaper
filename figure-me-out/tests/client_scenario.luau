@@ -162,7 +162,7 @@ frames(2)
 local used = fired("Use")
 press(KC.Three)
 check(fired("Use") == used + 1 and lastFired("Use")[2] == "flash" and typeof(lastFired("Use")[3]) == "Vector3", "key 3 throws a flashbang along the camera")
-a.It_mask = 0
+a.It_distraction = 0
 press(KC.Five)
 check(fired("Use") == used + 1, "a gadget you have none of does nothing")
 press(KC.Four)
@@ -174,6 +174,29 @@ check(X.seen("3.8") or X.seen("3.9") or X.seen("4.0"), "a gadget in cooldown sho
 check(Hud.cooldownLeft("smoke") > 3, "the cooldown is tracked")
 local u2 = fired("Use"); frames(14)
 check(X.click("💥") and fired("Use") == u2 + 1 and lastFired("Use")[2] == "flash", "hotbar buttons can be tapped")
+
+-- ===== gadget feedback and decoys =====
+send("used", "sprint"); check(X.seen("SPRINT!"), "sprint boost has feedback")
+send("used", "decoy"); check(X.seen("Decoy dropped"), "dropping a decoy has feedback")
+send("used", "distraction"); check(X.seen("Distraction thrown"), "throwing a distraction has feedback")
+do
+	local decoyChar = entity(1000001, "Blue Owl", "🦉", V3new(0, 3.5, 12), V3new(0, 0, -1))
+	decoyChar:SetAttribute("Decoy", true)
+	table.insert(X.folders.Decoys.kids, decoyChar)
+	frames(4)
+	local View2 = require(ModN.children.View)
+	local found = false
+	for _, t in View2.targets() do if t.id == 1000001 and t.decoy then found = true end end
+	check(found, "a decoy is something you can aim at, just like a person")
+	local aimed2 = View2.aimed()
+	check(aimed2 ~= nil and aimed2.id == 1000001, "the crosshair picks the decoy when it is the closest to the middle")
+	press(KC.G)
+	check(X.seen("WHO IS 🦉 BLUE OWL?"), "the guess panel can be opened on a decoy (it can't tell)")
+	type3("555"); press(KC.Return)
+	check(lastFired("Guess")[2] == 1000001 and lastFired("Guess")[3] == "555", "a guess at a decoy is sent like any other")
+	X.folders.Decoys.kids = {}
+	frames(3)
+end
 
 -- ===== binoculars =====
 local sc = fired("Scope")
@@ -373,7 +396,7 @@ a.Ally = 0
 send("clue", "Your number is even", 1, 3)
 check(X.seen("🔐 Clue 1/3: Your number is even"), "a terminal clue shows")
 press(KC.I)
-check(X.seen("🎒 GADGETS") and X.seen("Decoy Mask") and X.seen("Scanner") and X.seen("Distraction Device") and X.seen("Number Scrambler"), "the gadget inventory lists all eight")
+check(X.seen("🎒 GADGETS") and X.seen("Decoy") and X.seen("Scanner") and X.seen("Distraction Grenade") and X.seen("Sprint Boost"), "the gadget inventory lists all eight")
 check(X.seen("• Your number is even"), "...and your clues")
 check(X.seen("READY"), "...with the binoculars ready")
 press(KC.I)

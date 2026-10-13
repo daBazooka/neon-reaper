@@ -39,10 +39,10 @@ Press **G**. A panel opens with the people you can see (the one under the crossh
 | 2 | 📷 Snapshot Camera | Click or F. The server works out who is in frame and which digits were readable (close + facing you = all three, medium = some, back turned or far = none). Clear numbers go in your 📒 notebook, joined up across photos. Close up, the person may notice the flash. |
 | 3 | 💥 Flashbang | Thrown. Blinds whoever sees it go off, more if they look at it. A wall protects you. Turn away to blink less. |
 | 4 | 💨 Smoke Grenade | A cloud nobody can see through for 15 s: no photos, no guesses, no reading. Never counts as "covering". |
-| 5 | 🎭 Decoy Mask | Others see a fake number for 12 s (your real one is unchanged). Your plate rim turns purple, so careful players can spot it. |
+| 5 | 🔔 Distraction Grenade | Thrown. Fake footsteps for 8 s. Bots (and people) go to check. |
 | 6 | 📡 Scanner | Pings people within 45 studs, even through walls: you see where they are and their codename, never their number. Smoke blocks it. |
-| 7 | 🔔 Distraction Device | Thrown. Fake footsteps for 8 s. Bots (and people) go to check. |
-| 8 | 📺 Number Scrambler | Your plate flickers with random digits for 9 s. |
+| 7 | 👟 Sprint Boost | Run much faster for 5 s (never while frozen, and binoculars still slow you). |
+| 8 | 🎭 Decoy | Drops a copy of you for 30 s wearing a DIFFERENT number, with your codename. In a photo it looks like a person. Typing its number is a trap: it pops and freezes the shooter. Your real number never changes. |
 
 Every gadget has a cooldown and (except 1 and 2) a limited number of charges. You start with 2 flashbangs, 2 smokes and 1 of everything else. Find more in glowing 🎁 crates (they refill after 30 s) and supply drops.
 

@@ -37,18 +37,19 @@ function Guess.attempt(e, targetId, text)
 	if not digits then
 		return fail(e, "Type all 3 digits")
 	end
-	local target = State.entities[targetId]
-	if not target or target == e or not target.alive then
+	local target = State.entities[targetId] or State.decoys[targetId]
+	if not target or target == e or (not target.model and not target.alive) then
 		return fail(e, "Aim at someone first")
 	end
-	local from, to = Vision.head(e), Vision.head(target)
+	local from = Vision.head(e)
+	local to = target.model and target.model:FindFirstChild("Head") or Vision.head(target)
 	if not from or not to then
 		return fail(e, "Can't see them")
 	end
 	if (from.Position - to.Position).Magnitude > Config.Guess.MaxDistance or Vision.blocked(from.Position, to.Position, true) then
 		return fail(e, "You can't see them")
 	end
-	if (target.protectedUntil or 0) > now then
+	if (target.protectedUntil or 0) > now and not target.model then
 		return fail(e, "They are protected for a moment")
 	end
 	if now - ((e.hitTimes or {})[target.id] or -1000) < Config.Lives.AntiFarm then
@@ -60,6 +61,26 @@ function Guess.attempt(e, targetId, text)
 	e.lastGuess = now
 	if (e.bullets or 0) >= Config.Guess.Bullets then
 		e.chargeSince = now
+	end
+	if target.model then -- a decoy: typing its fake number correctly just wastes your time (and freezes you)
+		e.bullets -= 1
+		if digits == target.number then
+			State.decoys[target.id] = nil
+			target.model:Destroy()
+			Combat.stun(e, Config.Decoy.Stun)
+			State.writeEntity(e)
+			if e.player then
+				Net.toast(e.player, "That was a DECOY! Frozen for " .. Config.Decoy.Stun .. "s", "gold")
+				Net.send(e.player, "guessResult", "decoy")
+			end
+			return "decoy"
+		end
+		Combat.stun(e, Config.Guess.Stun)
+		State.writeEntity(e)
+		if e.player then
+			Net.send(e.player, "guessResult", "miss")
+		end
+		return "miss"
 	end
 	if Alliance.areAllies(e, target) then
 		Alliance.betray(e, target) -- shooting your ally ends the deal (and tells them)

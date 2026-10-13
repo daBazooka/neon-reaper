@@ -161,7 +161,7 @@ place(me, V3new(0, 3.5, 0), V3new(0, 0, 1))
 wait(Config.Guess.Cooldown + 0.2)
 local b2, b3, b4, b5, b6 = bot(2), bot(3), bot(4), bot(5), bot(6)
 check(me.items.smoke == 2 and me.items.flash == 2, "start with 2 smoke and 2 flashbangs")
-check(me.items.mask == 1 and me.items.scanner == 1 and me.items.distraction == 1 and me.items.scramble == 1, "...and one each of the other gadgets")
+check(me.items.distraction == 1 and me.items.scanner == 1 and me.items.sprint == 1 and me.items.decoy == 1, "...and one each of the other gadgets")
 place(b2, V3new(0, 3.5, 20), V3new(0, 0, -1))
 check(Items.use(me, "smoke", V3new(0, 0.2, 1)) == true, "smoke grenade can be thrown")
 check(me.items.smoke == 1, "smoke is used up")
@@ -274,26 +274,69 @@ check(Guess.attempt(buddy, b3.id, b3.number) == "hit", "buddy gets b3")
 check(me.score == s2 + Config.Score.Assist and countNotes("assist") == assists + 1, "I earn an assist for photographing them")
 park()
 
--- ===== decoy mask, scanner, distraction device, scrambler =====
+-- ===== decoy and sprint boost, then scanner, distraction grenade =====
 place(me, V3new(0, 3.5, 0), V3new(0, 0, 1))
 wait(10)
-fresh(me)
+fresh(me, buddy)
 local real = me.number
-check(Items.use(me, "mask", V3new(0, 0, 1)) == true and me.items.mask == 0, "decoy mask used")
-check(me.shown ~= real and me.number == real, "others see a fake number, the real one is unchanged")
-check(me.plate.label.Text == me.shown, "the plate shows the fake")
-check(me.revealed ~= true and me.maskUntil > State.now(), "the plate rim changes colour (counterplay for careful players)")
-local fakeSeen = {}
-place(b3, V3new(0, 3.5, 20), V3new(0, 0, -1))
-local snap = Photos.shotsFrom(V3new(0, 5.5, 20 + 1), V3new(0, 0, -1), nil)
-local mine
-for _, s in snap do if s.id == me.id then mine = s end end
-check(mine ~= nil and mine.text == me.shown and mine.text ~= real, "a photo shows the fake number")
-check(mine ~= nil and not mine.complete, "...and a masked plate never counts as complete intel")
-check(Guess.attempt(buddy, me.id, me.shown) == "miss", "guessing the FAKE number is a miss")
-wait(Config.Mask.Duration + 0.5)
-check(me.plate.label.Text == real and me.maskNumber == nil, "the mask wears off and the plate returns to normal")
-check(Items.use(me, "mask", V3new(0, 0, 1)) == false, "no mask charges left")
+check(Items.use(me, "decoy", V3new(0, 0, 1)) == true and me.items.decoy == 0, "decoy dropped")
+local decoy
+local count = 0
+for _, d in State.decoys do decoy = d; count += 1 end
+check(count == 1 and decoy.id >= 1000000, "one decoy with its own id")
+check(decoy.number ~= real and me.number == real and me.plate.label.Text == real, "the decoy wears a different number; mine is untouched")
+local clash = false
+for _, e in State.list() do if e.number == decoy.number then clash = true end end
+check(not clash, "the decoy's number is unique")
+check(decoy.code == me.code, "it carries my codename, so two of me show up")
+-- a photo of the decoy looks just like a photo of a person, but it is never real intel
+place(b3, V3new(0, 3.5, 40), V3new(0, 0, -1))
+local snap = Photos.shotsFrom(V3new(0, 5.5, 15), V3new(0, 0, -1), nil)
+local seenDecoy
+for _, sh in snap do if sh.id == decoy.id then seenDecoy = sh end end
+check(seenDecoy ~= nil and seenDecoy.text == decoy.number, "a photo shows the decoy's fake number")
+check(seenDecoy ~= nil and not seenDecoy.complete, "...and it never counts as intel")
+-- guessing the decoy
+local bulletsBuddy = buddy.bullets
+check(Guess.attempt(buddy, decoy.id, decoy.number == "123" and "321" or "123") == "miss", "a wrong guess at the decoy is just a miss")
+wait(Config.Guess.Stun + 0.5)
+buddy.lastGuess = -100
+check(Guess.attempt(buddy, decoy.id, decoy.number) == "decoy", "typing the decoy's number is a trap")
+check(State.decoys[decoy.id] == nil and decoy.model.destroyed, "the decoy pops")
+check(buddy.char.hum.WalkSpeed == 0 and buddy.bullets <= bulletsBuddy - 1, "the shooter is frozen and loses a bullet")
+wait(Config.Decoy.Stun + 0.5)
+-- a decoy expires by itself, and stays harmless to my real number
+Items.give(me, "decoy", 1)
+wait(Items.cooldownLeft(me, "decoy") + 0.1)
+check(Items.use(me, "decoy", V3new(0, 0, 1)) == true, "a second decoy")
+wait(Config.Decoy.Duration + 1)
+local left = 0
+for _ in State.decoys do left += 1 end
+check(left == 0, "a decoy disappears after " .. Config.Decoy.Duration .. "s")
+check(me.number == real, "my real number never changed")
+check(Items.give(me, "decoy", 9) == Config.ItemById.decoy.Max, "decoy charges are capped at " .. Config.ItemById.decoy.Max)
+
+-- sprint boost
+wait(5)
+fresh(me)
+check(me.items.sprint == 1 and Items.use(me, "sprint", V3new(0, 0, 1)) == true, "sprint boost used")
+check(me.char.hum.WalkSpeed == Config.Sprint.Speed, "faster during the boost (" .. me.char.hum.WalkSpeed .. ")")
+check(Items.use(me, "sprint", V3new(0, 0, 1)) == false, "no second boost while it runs (charges and cooldown)")
+check(lastNote("cooldown") ~= nil and lastNote("cooldown")[2] == "sprint" and lastNote("cooldown")[3] == Config.ItemById.sprint.Cooldown, "its cooldown is sent to the screen")
+Match.setScope(p1, true)
+check(me.char.hum.WalkSpeed == Config.Movement.ScopeWalk, "looking through binoculars still slows you down")
+Match.setScope(p1, false)
+check(me.char.hum.WalkSpeed == Config.Sprint.Speed, "...and the boost comes back")
+Combat.stun(me, 1)
+check(me.char.hum.WalkSpeed == 0, "being frozen beats the boost")
+wait(1.3)
+check(me.char.hum.WalkSpeed == Config.Sprint.Speed, "after the freeze the boost continues")
+wait(Config.Sprint.Duration)
+check(me.char.hum.WalkSpeed == Config.Movement.Walk and me.sprintUntil == 0, "the boost ends after " .. Config.Sprint.Duration .. "s")
+check(Items.give(me, "sprint", 9) == 2, "sprint charges are capped at " .. Config.ItemById.sprint.Max)
+wait(Config.ItemById.sprint.Cooldown)
+check(Items.use(me, "sprint", V3new(0, 0, 1)) == true, "a refilled charge can be used once the cooldown is over")
+wait(Config.Sprint.Duration + 0.5)
 
 park()
 place(me, V3new(0, 3.5, 0), V3new(0, 0, 1))
@@ -313,7 +356,7 @@ for _, row in sc[2] do for _, v in row do if v == b2.number or v == b3.number th
 check(not leaked, "the scanner never reveals a number")
 X.clearWalls()
 check(Items.use(me, "scanner", V3new(0, 0, 1)) == false, "scanner has a cooldown (and no charges left)")
-check(Items.give(me, "scanner", 5) == 3, "scanner charges are capped at " .. Config.ItemById.scanner.Max)
+check(Items.give(me, "scanner", 5) == Config.ItemById.scanner.Max, "scanner charges are capped at " .. Config.ItemById.scanner.Max)
 wait(Config.ItemById.scanner.Cooldown + 0.1)
 -- smoke hides people from the scanner
 Items.use(me, "smoke", V3new(1, 0, 0))
@@ -344,21 +387,6 @@ check((after - lure).Magnitude < (startB2 - lure).Magnitude - 5, "a bot walks to
 botsWalk = false
 wait(Config.Distraction.Duration)
 check(#Items.distractions == 0, "the noise stops")
-
--- scrambler
-wait(10)
-fresh(me)
-check(Items.use(me, "scramble", V3new(0, 0, 1)) == true, "scrambler used")
-wait(1)
-check(me.plate.label.Text ~= me.number, "plate shows fake digits while scrambled")
-local flick = {}
-for _ = 1, 6 do wait(0.3); flick[me.plate.label.Text] = true end
-local nf = 0
-for _ in flick do nf += 1 end
-check(nf >= 2, "digits keep changing (" .. nf .. " different)")
-check(me.number == real, "the real number never changed")
-wait(Config.Scramble.Duration)
-check(me.plate.label.Text == me.number, "plate returns to the real number")
 
 -- ===== covering: warn, expose, and it gets longer each time =====
 place(me, V3new(0, 3.5, 0), V3new(0, 0, 1))

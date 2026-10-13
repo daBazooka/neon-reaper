@@ -77,10 +77,10 @@ Config.Items = {
 	{ Id = "camera", Name = "Snapshot Camera", Icon = "📷", Key = 2, Permanent = true, Cooldown = 1.4, Tip = "Photograph everyone in frame. Clear numbers go into your notebook." },
 	{ Id = "flash", Name = "Flashbang", Icon = "💥", Key = 3, Start = 2, Max = 3, Weight = 22, Cooldown = 4, Tip = "Throw it: blinds whoever sees it go off. Turn away to blink less." },
 	{ Id = "smoke", Name = "Smoke Grenade", Icon = "💨", Key = 4, Start = 2, Max = 3, Weight = 22, Cooldown = 4, Tip = "Throw it: a thick cloud nobody can see through for 15s." },
-	{ Id = "mask", Name = "Decoy Mask", Icon = "🎭", Key = 5, Start = 1, Max = 2, Weight = 14, Cooldown = 10, Tip = "Others see a fake number for 12s (your plate turns purple)." },
+	{ Id = "distraction", Name = "Distraction Grenade", Icon = "🔔", Key = 5, Start = 1, Max = 2, Weight = 16, Cooldown = 6, Tip = "Throw it: fake footsteps for 8s. Bots (and people) go to check." },
 	{ Id = "scanner", Name = "Scanner", Icon = "📡", Key = 6, Start = 1, Max = 3, Weight = 16, Cooldown = 8, Tip = "Pings people nearby: you see where they are, never their number." },
-	{ Id = "distraction", Name = "Distraction Device", Icon = "🔔", Key = 7, Start = 1, Max = 2, Weight = 14, Cooldown = 6, Tip = "Throw it: fake footsteps for 8s. Bots (and people) go to check." },
-	{ Id = "scramble", Name = "Number Scrambler", Icon = "📺", Key = 8, Start = 1, Max = 2, Weight = 14, Cooldown = 10, Tip = "Your plate flickers with random digits for 9s." },
+	{ Id = "sprint", Name = "Sprint Boost", Icon = "👟", Key = 7, Start = 1, Max = 2, Weight = 16, Cooldown = 12, Tip = "Run much faster for 5 seconds." },
+	{ Id = "decoy", Name = "Decoy", Icon = "🎭", Key = 8, Start = 1, Max = 2, Weight = 14, Cooldown = 10, Tip = "Drops a copy of you wearing a fake number for 30s. Your real number never changes." },
 }
 Config.ItemById = {}
 Config.ItemOrder = {}
@@ -88,12 +88,12 @@ for _, item in Config.Items do
 	Config.ItemById[item.Id] = item
 	table.insert(Config.ItemOrder, item.Id)
 end
-Config.CarriedItems = { "flash", "smoke", "mask", "scanner", "distraction", "scramble" }
+Config.CarriedItems = { "flash", "smoke", "distraction", "scanner", "sprint", "decoy" }
 
 Config.Flash = { Radius = 80, Fuse = 1.6, MaxBlind = 6.5, MinBlind = 1.2, ThrowSpeed = 55, ThrowUp = 22 }
 Config.Smoke = { Radius = 9, Duration = 15, Fuse = 1.3, Fade = 3 }
-Config.Mask = { Duration = 12 }
-Config.Scramble = { Duration = 9 }
+Config.Sprint = { Speed = 28, Duration = 5 }
+Config.Decoy = { Duration = 30, Stun = 4 } -- how long the copy stays; how long someone who shoots it is frozen
 Config.Scanner = { Radius = 45, Show = 4 }
 Config.Distraction = { Duration = 8, Fuse = 1.2, Radius = 70 }
 

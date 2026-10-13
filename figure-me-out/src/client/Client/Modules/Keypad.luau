@@ -56,7 +56,7 @@ local function candidates()
 	end
 	local camera = View.camera()
 	local origin = camera and camera.CFrame.Position or head.Position
-	for _, e in View.aliveOthers() do
+	for _, e in View.targets() do
 		local distance = (e.head.Position - head.Position).Magnitude
 		if distance <= Config.Guess.MaxDistance and not View.blocked(origin, e.head.Position) then
 			e.distance = distance
@@ -202,7 +202,7 @@ function Keypad.update()
 	-- the person left sight or went out: forget them
 	if target then
 		local e = View.byId(target.id)
-		if not e or not e.alive then
+		if not e or not (e.alive or e.decoy) then
 			typed = ""
 			setTarget(nil)
 		end

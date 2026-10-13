@@ -56,7 +56,7 @@ function View.amAlive()
 	return player:GetAttribute("Alive") == true and (View.phase() == "play" or View.phase() == "countdown")
 end
 
-local function describe(model, source, alive)
+local function describe(model, source, alive, decoy)
 	local id = source:GetAttribute("EntityId")
 	if not id or not model then
 		return nil
@@ -72,6 +72,7 @@ local function describe(model, source, alive)
 		code = source:GetAttribute("Code") or "?",
 		icon = source:GetAttribute("Icon") or "",
 		alive = alive,
+		decoy = decoy,
 	}
 end
 
@@ -100,6 +101,15 @@ function View.entities()
 			end
 		end
 	end
+	local decoys = workspace:FindFirstChild("Decoys")
+	if decoys then
+		for _, model in decoys:GetChildren() do
+			local e = describe(model, model, true, true)
+			if e then
+				table.insert(list, e)
+			end
+		end
+	end
 	cache = list
 	return list
 end
@@ -111,6 +121,17 @@ function View.byId(id)
 		end
 	end
 	return nil
+end
+
+-- Everyone you could aim at: other living players, and decoys (which look exactly like players).
+function View.targets()
+	local list = {}
+	for _, e in View.entities() do
+		if (e.alive or e.decoy) and not e.me then
+			table.insert(list, e)
+		end
+	end
+	return list
 end
 
 function View.aliveOthers()
@@ -166,13 +187,15 @@ function View.aimed()
 	local limit = math.max(1.4, 5 * fov / 70) -- degrees; tighter when zoomed in
 	local best, bestAngle, bestDistance
 	for _, e in View.entities() do
-		if not e.me and e.alive then
+		if not e.me and (e.alive or e.decoy) then
 			local to = e.head.Position - origin
 			local distance = to.Magnitude
 			if distance > 1 and distance <= Config.Guess.MaxDistance then
 				local angle = math.deg(math.acos(math.clamp(to.Unit:Dot(look), -1, 1)))
-				if angle <= limit and (not bestAngle or angle < bestAngle) and not View.blocked(origin, e.head.Position) then
-					best, bestAngle, bestDistance = e, angle, distance
+				-- the person nearest the middle wins; when two are lined up, the nearer one does
+				local score = angle + distance * 0.002
+				if angle <= limit and (not bestAngle or score < bestAngle) and not View.blocked(origin, e.head.Position) then
+					best, bestAngle, bestDistance = e, score, distance
 				end
 			end
 		end

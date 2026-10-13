@@ -174,7 +174,12 @@ check(free, "every building has a name, a colour and a trim colour (the roof sig
 local weight = 0
 for _, id in Config.CarriedItems do weight += Config.ItemById[id].Weight end
 check(weight > 0 and Config.ItemById.flash.Start == 2 and Config.ItemById.smoke.Start == 2, "you start with 2 flashbangs and 2 smoke grenades")
-check(#Config.Items == 8 and Config.ItemById.mask and Config.ItemById.scanner and Config.ItemById.distraction and Config.ItemById.scramble, "the eight gadgets: binoculars, camera, flashbang, smoke, mask, scanner, distraction, scrambler")
+local order = {"binos", "camera", "flash", "smoke", "distraction", "scanner", "sprint", "decoy"}
+local inOrder = #Config.Items == 8
+for i, id in order do if not Config.Items[i] or Config.Items[i].Id ~= id or Config.Items[i].Key ~= i then inOrder = false end end
+check(inOrder, "the eight gadgets in order: binoculars, camera, flashbang, smoke, distraction grenade, scanner, sprint boost, decoy")
+check(Config.Sprint.Speed > Config.Movement.Walk and Config.Sprint.Duration < Config.ItemById.sprint.Cooldown, "sprint is faster than walking and its cooldown outlasts the boost")
+check(Config.Decoy.Duration >= 20 and Config.Decoy.Stun >= Config.Guess.Stun, "a decoy lasts a while and is a bigger trap than a plain miss")
 local keys = {}
 for _, it in Config.Items do keys[it.Key] = true; if not it.Cooldown or it.Cooldown <= 0 then keys[0] = true end end
 check(keys[1] and keys[8] and not keys[0], "keys 1 to 8, every gadget has a cooldown")

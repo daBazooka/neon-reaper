@@ -35,6 +35,9 @@ function Combat.speedOf(e)
 	if e.scoped then
 		return Config.Movement.ScopeWalk
 	end
+	if (e.sprintUntil or 0) > now then
+		return Config.Sprint.Speed
+	end
 	return Config.Movement.Walk
 end
 

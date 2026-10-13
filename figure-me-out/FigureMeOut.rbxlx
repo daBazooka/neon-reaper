@@ -404,10 +404,10 @@ Config.Items = {
 	{ Id = "camera", Name = "Snapshot Camera", Icon = "📷", Key = 2, Permanent = true, Cooldown = 1.4, Tip = "Photograph everyone in frame. Clear numbers go into your notebook." },
 	{ Id = "flash", Name = "Flashbang", Icon = "💥", Key = 3, Start = 2, Max = 3, Weight = 22, Cooldown = 4, Tip = "Throw it: blinds whoever sees it go off. Turn away to blink less." },
 	{ Id = "smoke", Name = "Smoke Grenade", Icon = "💨", Key = 4, Start = 2, Max = 3, Weight = 22, Cooldown = 4, Tip = "Throw it: a thick cloud nobody can see through for 15s." },
-	{ Id = "mask", Name = "Decoy Mask", Icon = "🎭", Key = 5, Start = 1, Max = 2, Weight = 14, Cooldown = 10, Tip = "Others see a fake number for 12s (your plate turns purple)." },
+	{ Id = "distraction", Name = "Distraction Grenade", Icon = "🔔", Key = 5, Start = 1, Max = 2, Weight = 16, Cooldown = 6, Tip = "Throw it: fake footsteps for 8s. Bots (and people) go to check." },
 	{ Id = "scanner", Name = "Scanner", Icon = "📡", Key = 6, Start = 1, Max = 3, Weight = 16, Cooldown = 8, Tip = "Pings people nearby: you see where they are, never their number." },
-	{ Id = "distraction", Name = "Distraction Device", Icon = "🔔", Key = 7, Start = 1, Max = 2, Weight = 14, Cooldown = 6, Tip = "Throw it: fake footsteps for 8s. Bots (and people) go to check." },
-	{ Id = "scramble", Name = "Number Scrambler", Icon = "📺", Key = 8, Start = 1, Max = 2, Weight = 14, Cooldown = 10, Tip = "Your plate flickers with random digits for 9s." },
+	{ Id = "sprint", Name = "Sprint Boost", Icon = "👟", Key = 7, Start = 1, Max = 2, Weight = 16, Cooldown = 12, Tip = "Run much faster for 5 seconds." },
+	{ Id = "decoy", Name = "Decoy", Icon = "🎭", Key = 8, Start = 1, Max = 2, Weight = 14, Cooldown = 10, Tip = "Drops a copy of you wearing a fake number for 30s. Your real number never changes." },
 }
 Config.ItemById = {}
 Config.ItemOrder = {}
@@ -415,12 +415,12 @@ for _, item in Config.Items do
 	Config.ItemById[item.Id] = item
 	table.insert(Config.ItemOrder, item.Id)
 end
-Config.CarriedItems = { "flash", "smoke", "mask", "scanner", "distraction", "scramble" }
+Config.CarriedItems = { "flash", "smoke", "distraction", "scanner", "sprint", "decoy" }
 
 Config.Flash = { Radius = 80, Fuse = 1.6, MaxBlind = 6.5, MinBlind = 1.2, ThrowSpeed = 55, ThrowUp = 22 }
 Config.Smoke = { Radius = 9, Duration = 15, Fuse = 1.3, Fade = 3 }
-Config.Mask = { Duration = 12 }
-Config.Scramble = { Duration = 9 }
+Config.Sprint = { Speed = 28, Duration = 5 }
+Config.Decoy = { Duration = 30, Stun = 4 } -- how long the copy stays; how long someone who shoots it is frozen
 Config.Scanner = { Radius = 45, Show = 4 }
 Config.Distraction = { Duration = 8, Fuse = 1.2, Radius = 70 }
 
@@ -2042,6 +2042,9 @@ function Combat.speedOf(e)
 	if e.scoped then
 		return Config.Movement.ScopeWalk
 	end
+	if (e.sprintUntil or 0) > now then
+		return Config.Sprint.Speed
+	end
 	return Config.Movement.Walk
 end
 
@@ -2646,18 +2649,19 @@ function Guess.attempt(e, targetId, text)
 	if not digits then
 		return fail(e, "Type all 3 digits")
 	end
-	local target = State.entities[targetId]
-	if not target or target == e or not target.alive then
+	local target = State.entities[targetId] or State.decoys[targetId]
+	if not target or target == e or (not target.model and not target.alive) then
 		return fail(e, "Aim at someone first")
 	end
-	local from, to = Vision.head(e), Vision.head(target)
+	local from = Vision.head(e)
+	local to = target.model and target.model:FindFirstChild("Head") or Vision.head(target)
 	if not from or not to then
 		return fail(e, "Can't see them")
 	end
 	if (from.Position - to.Position).Magnitude > Config.Guess.MaxDistance or Vision.blocked(from.Position, to.Position, true) then
 		return fail(e, "You can't see them")
 	end
-	if (target.protectedUntil or 0) > now then
+	if (target.protectedUntil or 0) > now and not target.model then
 		return fail(e, "They are protected for a moment")
 	end
 	if now - ((e.hitTimes or {})[target.id] or -1000) < Config.Lives.AntiFarm then
@@ -2669,6 +2673,26 @@ function Guess.attempt(e, targetId, text)
 	e.lastGuess = now
 	if (e.bullets or 0) >= Config.Guess.Bullets then
 		e.chargeSince = now
+	end
+	if target.model then -- a decoy: typing its fake number correctly just wastes your time (and freezes you)
+		e.bullets -= 1
+		if digits == target.number then
+			State.decoys[target.id] = nil
+			target.model:Destroy()
+			Combat.stun(e, Config.Decoy.Stun)
+			State.writeEntity(e)
+			if e.player then
+				Net.toast(e.player, "That was a DECOY! Frozen for " .. Config.Decoy.Stun .. "s", "gold")
+				Net.send(e.player, "guessResult", "decoy")
+			end
+			return "decoy"
+		end
+		Combat.stun(e, Config.Guess.Stun)
+		State.writeEntity(e)
+		if e.player then
+			Net.send(e.player, "guessResult", "miss")
+		end
+		return "miss"
 	end
 	if Alliance.areAllies(e, target) then
 		Alliance.betray(e, target) -- shooting your ally ends the deal (and tells them)
@@ -2707,8 +2731,8 @@ return Guess
         <Item class="ModuleScript" referent="19">
           <Properties>
             <string name="Name">Items</string>
-            <string name="Source"><![CDATA[-- FIGURE ME OUT: the gadgets you carry. Flashbang, smoke grenade, decoy mask, scanner, distraction device and number
--- scrambler (binoculars and the camera live in Match.setScope and Photos). Every gadget has a charge count and a cooldown,
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: the gadgets you carry. Flashbang, smoke grenade, distraction grenade, scanner, sprint boost and decoy
+-- (binoculars and the camera live in Match.setScope and Photos). Every gadget has a charge count and a cooldown,
 -- and everything is checked here on the server.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
@@ -2720,7 +2744,6 @@ local State = require(script.Parent.State)
 local Net = require(script.Parent.Net)
 local Vision = require(script.Parent.Vision)
 local Combat = require(script.Parent.Combat)
-local Plates = require(script.Parent.Plates)
 
 local Items = {}
 
@@ -2747,8 +2770,7 @@ function Items.reset(e)
 		e.items[id] = Config.ItemById[id].Start or 0
 	end
 	e.cooldowns = {}
-	e.scrambleUntil = 0
-	e.maskUntil = 0
+	e.sprintUntil = 0
 	e.blindUntil = 0
 	State.writeEntity(e)
 end
@@ -2956,12 +2978,57 @@ end
 --------------------------------------------------------------------------------
 -- Using a gadget
 --------------------------------------------------------------------------------
--- What is shown on the plate when nothing odd is going on: the decoy mask's fake number, or the real one.
-function Items.restingText(e)
-	if (e.maskUntil or 0) > State.now() and e.maskNumber then
-		return e.maskNumber
+-- A copy of the player that stands where they dropped it, wearing a DIFFERENT number. Shooting it right is a trap.
+local nextDecoy = 1000000
+local function makeDecoy(e)
+	local char = e.char
+	if not char then
+		return false
 	end
-	return e.number
+	char.Archivable = true
+	local model = char:Clone()
+	for _, d in model:GetDescendants() do
+		if d:IsA("Script") or d:IsA("LocalScript") then
+			d:Destroy()
+		elseif d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+		end
+	end
+	for _, tag in { "RevealTag", "BountyTag", "EmoteBubble" } do
+		local t = model:FindFirstChild(tag, true)
+		if t then
+			t:Destroy()
+		end
+	end
+	local number = Rules.newNumber(function()
+		return rng:NextNumber()
+	end, State.takenNumbers())
+	local label = model:FindFirstChild("Digits", true)
+	if label then
+		label.Text = number
+	end
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.WalkSpeed = 0
+	end
+	model.Name = "Decoy"
+	model:PivotTo(char:GetPivot() * CFrame.new(0, 0, -5))
+	nextDecoy += 1
+	model:SetAttribute("EntityId", nextDecoy)
+	model:SetAttribute("Decoy", true)
+	model:SetAttribute("Alive", true)
+	model.Parent = folder("Decoys")
+	State.decoys[nextDecoy] = {
+		id = nextDecoy,
+		owner = e.id,
+		number = number,
+		model = model,
+		code = e.code,
+		icon = e.icon,
+		expires = State.now() + Config.Decoy.Duration,
+	}
+	return true
 end
 
 local function scan(e)
@@ -3011,24 +3078,12 @@ function Items.use(e, id, look)
 		used = throw(e, look, Color3.fromRGB(150, 155, 165), Config.Smoke.Fuse, smokeBoom)
 	elseif id == "distraction" then
 		used = throw(e, look, Color3.fromRGB(255, 200, 90), Config.Distraction.Fuse, distractionBoom)
-	elseif id == "mask" then
-		local fake
-		for _ = 1, 10 do
-			fake = Rules.newNumber(function()
-				return rng:NextNumber()
-			end, State.takenNumbers())
-			if fake ~= e.number then
-				break
-			end
-		end
-		e.maskNumber = fake
-		e.maskUntil = now + Config.Mask.Duration
-		Plates.setText(e, fake)
-		Plates.refreshRim(e)
+	elseif id == "sprint" then
+		e.sprintUntil = now + Config.Sprint.Duration
+		Combat.applySpeed(e)
 		used = true
-	elseif id == "scramble" then
-		e.scrambleUntil = now + Config.Scramble.Duration
-		used = true
+	elseif id == "decoy" then
+		used = makeDecoy(e)
 	elseif id == "scanner" then
 		used = scan(e)
 	end
@@ -3048,6 +3103,14 @@ end
 -- Upkeep (called every quarter second while a match runs)
 --------------------------------------------------------------------------------
 function Items.tick(now)
+	for id, d in State.decoys do
+		if d.expires <= now then
+			State.decoys[id] = nil
+			if d.model then
+				d.model:Destroy()
+			end
+		end
+	end
 	for i = #Items.distractions, 1, -1 do
 		local d = Items.distractions[i]
 		if d.expires <= now then
@@ -3075,23 +3138,9 @@ function Items.tick(now)
 		end
 	end
 	for _, e in State.list() do
-		if (e.scrambleUntil or 0) > now and e.alive then
-			local fake = Rules.digitsOf(rng:NextInteger(Config.Number.Min, Config.Number.Max))
-			if fake == e.number then
-				fake = Rules.digitsOf(Config.Number.Max)
-			end
-			Plates.setText(e, fake)
-		elseif e.scrambleUntil and e.scrambleUntil > 0 then
-			e.scrambleUntil = 0
-			Plates.setText(e, Items.restingText(e))
-		end
-		if (e.maskUntil or 0) > 0 and e.maskUntil <= now then
-			e.maskUntil = 0
-			e.maskNumber = nil
-			if (e.scrambleUntil or 0) <= now then
-				Plates.setText(e, e.number)
-			end
-			Plates.refreshRim(e)
+		if (e.sprintUntil or 0) > 0 and e.sprintUntil <= now then
+			e.sprintUntil = 0
+			Combat.applySpeed(e)
 		end
 	end
 end
@@ -3104,8 +3153,14 @@ function Items.clearAll()
 	end
 	clouds = {}
 	Items.distractions = {}
+	for _, d in State.decoys do
+		if d.model then
+			d.model:Destroy()
+		end
+	end
+	State.decoys = {}
 	Vision.clearClouds()
-	for _, name in { "Effects", "Smoke" } do
+	for _, name in { "Effects", "Smoke", "Decoys" } do
 		local f = workspace:FindFirstChild(name)
 		if f then
 			f:ClearAllChildren()
@@ -3718,10 +3773,22 @@ function Photos.shotsFrom(origin, look, exceptId)
 						icon = other.icon,
 						text = text,
 						distance = distance,
-						-- only a photo of the REAL number counts as intel (a scrambled or masked plate shows something else)
+						-- only a photo of the REAL number counts as intel
 						complete = not string.find(text, "?", 1, true) and shown == other.number,
 					})
 				end
+			end
+		end
+	end
+	-- decoys look exactly like people in a photo (their number is fake, so it is never real intel)
+	for _, d in State.decoys do
+		local head = d.model and d.model:FindFirstChild("Head")
+		if head then
+			local inside, distance = Rules.inCone(origin, look, head.Position, Config.Photo.HalfAngle, Config.Photo.MaxDistance)
+			if inside and not Vision.blocked(origin, head.Position, true) then
+				local facing = head.CFrame.LookVector:Dot((origin - head.Position).Unit)
+				local readable = Rules.photoReadable(distance, facing, { rng:NextNumber(), rng:NextNumber(), rng:NextNumber() })
+				table.insert(out, { id = d.id, code = d.code, icon = d.icon, text = Rules.photoText(d.number, readable), distance = distance, complete = false })
 			end
 		end
 	end
@@ -4131,7 +4198,7 @@ function Plates.attachReveal(char)
 	return { gui = gui, label = text }
 end
 
--- The rim colour tells a story: red = exposed / reveal, purple = wearing a decoy mask, otherwise the plate's own colour.
+-- The rim is red when you are exposed (or in the final stretch), otherwise the plate's own colour.
 function Plates.refreshRim(e)
 	local plate = e.plate
 	if not plate or not plate.rim then
@@ -4142,8 +4209,6 @@ function Plates.refreshRim(e)
 	local lit = false
 	if e.revealed then
 		color, lit = Color3.fromRGB(255, 60, 60), true
-	elseif (e.maskUntil or 0) > now then
-		color, lit = Color3.fromRGB(190, 90, 255), false
 	end
 	plate.rim.Color = color
 	plate.light.Color = color
@@ -4465,6 +4530,7 @@ State.phase = "lobby" -- lobby | countdown | play | results
 State.phaseEnd = 0
 State.entities = {} -- id -> entity
 State.order = {} -- ids in the order they were added
+State.decoys = {} -- id (1,000,000 and up) -> { id, owner, number, model, code, icon, expires }
 State.revealing = false
 State.matchId = 0
 State.onChange = nil -- set by Match: called when the alive list changes
@@ -4481,6 +4547,7 @@ end
 function State.clear()
 	State.entities = {}
 	State.order = {}
+	State.decoys = {}
 end
 
 function State.get(id)
@@ -4522,6 +4589,9 @@ function State.takenNumbers()
 	local taken = {}
 	for _, e in State.entities do
 		taken[e.number or ""] = true
+	end
+	for _, d in State.decoys do
+		taken[d.number] = true
 	end
 	return taken
 end
@@ -5678,8 +5748,23 @@ function handlers.photo(entries)
 	Album.add(entries)
 end
 
+-- Feedback when one of your gadgets goes off.
+local USED = {
+	flash = "💥 Flashbang thrown",
+	smoke = "💨 Smoke thrown",
+	distraction = "🔔 Distraction thrown",
+	sprint = "👟 SPRINT!",
+	decoy = "🎭 Decoy dropped",
+}
 function handlers.used(id)
 	Audio.use()
+	if USED[id] then
+		Toasts.push(USED[id], "info")
+	end
+	if id == "sprint" then
+		Fx.punch(16)
+		Fx.flash(C.Accent, 0.25, 0.4)
+	end
 end
 
 function handlers.pickup(id)
@@ -7595,7 +7680,7 @@ local function candidates()
 	end
 	local camera = View.camera()
 	local origin = camera and camera.CFrame.Position or head.Position
-	for _, e in View.aliveOthers() do
+	for _, e in View.targets() do
 		local distance = (e.head.Position - head.Position).Magnitude
 		if distance <= Config.Guess.MaxDistance and not View.blocked(origin, e.head.Position) then
 			e.distance = distance
@@ -7741,7 +7826,7 @@ function Keypad.update()
 	-- the person left sight or went out: forget them
 	if target then
 		local e = View.byId(target.id)
-		if not e or not e.alive then
+		if not e or not (e.alive or e.decoy) then
 			typed = ""
 			setTarget(nil)
 		end
@@ -7959,7 +8044,7 @@ local STEPS = {
 	{ "🪪", "Everybody has a secret number", "A 3-digit number is on every forehead. You can't see yours, but everybody else can. Each player has 3 lives." },
 	{ "🎯", "Guess to take lives", "Aim at someone, press G, type THEIR number and press CONFIRM. Right = they lose a life. Wrong = you lose a bullet, freeze for 3 seconds and they see an arrow pointing at you." },
 	{ "🔭", "Find the numbers", "Hold the right mouse button for binoculars and read digits from across the map. Click to snap a photo: the notebook (V) joins up digits from several photos." },
-	{ "💥", "Mess with their eyes", "Flashbangs blind, smoke blocks sight, the decoy mask shows a fake number, the scanner finds people, the distraction device lures them and the scrambler flickers your plate. Grab 🎁 crates for more." },
+	{ "💥", "Mess with their eyes", "Flashbangs blind, smoke blocks sight, the distraction grenade lures people, the scanner finds them, sprint boost gets you away and the decoy is a fake you. Grab 🎁 crates for more." },
 	{ "🔐", "Clues, bounties and friends", "Hack a terminal in the plaza for a true clue about YOUR number (it shows where you are!). Hit the 🎯 bounty target for bonus points. Press T to offer an alliance, and watch your back." },
 	{ "🚫", "No hiding in corners", "Staring at a wall hides your number, so the game warns you. Ignore it and your plate glows red with a 👁 marker above your head for everyone. Last one standing wins!" },
 }
@@ -8969,7 +9054,7 @@ function View.amAlive()
 	return player:GetAttribute("Alive") == true and (View.phase() == "play" or View.phase() == "countdown")
 end
 
-local function describe(model, source, alive)
+local function describe(model, source, alive, decoy)
 	local id = source:GetAttribute("EntityId")
 	if not id or not model then
 		return nil
@@ -8985,6 +9070,7 @@ local function describe(model, source, alive)
 		code = source:GetAttribute("Code") or "?",
 		icon = source:GetAttribute("Icon") or "",
 		alive = alive,
+		decoy = decoy,
 	}
 end
 
@@ -9013,6 +9099,15 @@ function View.entities()
 			end
 		end
 	end
+	local decoys = workspace:FindFirstChild("Decoys")
+	if decoys then
+		for _, model in decoys:GetChildren() do
+			local e = describe(model, model, true, true)
+			if e then
+				table.insert(list, e)
+			end
+		end
+	end
 	cache = list
 	return list
 end
@@ -9024,6 +9119,17 @@ function View.byId(id)
 		end
 	end
 	return nil
+end
+
+-- Everyone you could aim at: other living players, and decoys (which look exactly like players).
+function View.targets()
+	local list = {}
+	for _, e in View.entities() do
+		if (e.alive or e.decoy) and not e.me then
+			table.insert(list, e)
+		end
+	end
+	return list
 end
 
 function View.aliveOthers()
@@ -9079,13 +9185,15 @@ function View.aimed()
 	local limit = math.max(1.4, 5 * fov / 70) -- degrees; tighter when zoomed in
 	local best, bestAngle, bestDistance
 	for _, e in View.entities() do
-		if not e.me and e.alive then
+		if not e.me and (e.alive or e.decoy) then
 			local to = e.head.Position - origin
 			local distance = to.Magnitude
 			if distance > 1 and distance <= Config.Guess.MaxDistance then
 				local angle = math.deg(math.acos(math.clamp(to.Unit:Dot(look), -1, 1)))
-				if angle <= limit and (not bestAngle or angle < bestAngle) and not View.blocked(origin, e.head.Position) then
-					best, bestAngle, bestDistance = e, angle, distance
+				-- the person nearest the middle wins; when two are lined up, the nearer one does
+				local score = angle + distance * 0.002
+				if angle <= limit and (not bestAngle or score < bestAngle) and not View.blocked(origin, e.head.Position) then
+					best, bestAngle, bestDistance = e, score, distance
 				end
 			end
 		end

@@ -2,7 +2,7 @@
 
 A Roblox game for up to 20 players. Everybody wears a secret 3-digit number on their forehead that they cannot see.
 Type someone else's number to take one of their three lives. Read numbers with binoculars and photos, hide yours with smoke,
-flashbangs, a decoy mask and a scrambler, scan for enemies, hack terminals for clues, ally and betray, collect bounties, and don't
+flashbangs, distraction grenades and decoys, sprint away, scan for enemies, hack terminals for clues, ally and betray, collect bounties, and don't
 get caught staring at a wall: the game exposes campers. Last one standing wins.
 
 See [docs/GAME_CONCEPT.md](docs/GAME_CONCEPT.md) for the full design and [docs/SETUP_AND_TESTING.md](docs/SETUP_AND_TESTING.md) for setup, a testing checklist and troubleshooting.
@@ -27,7 +27,7 @@ Or run `rojo serve` and click Connect in the Rojo plugin to live-edit.
 | **Hold right mouse** or **Z** | Binoculars (scroll to zoom) |
 | **Click** or **F** | Take a photo |
 | **V** | Notebook (your photos, joined up) |
-| **3 to 8** | Use a gadget (flashbang, smoke, decoy mask, scanner, distraction, scrambler) |
+| **3 to 8** | Use a gadget (flashbang, smoke, distraction grenade, scanner, sprint boost, decoy) |
 | **T** | Offer an alliance to the player you aim at (or end yours) |
 | **I** | Gadget inventory and your clues |
 | **B** | Quick emotes |
@@ -65,7 +65,7 @@ It runs four suites and a static check:
   rewards, the shop, and that every terminal clue is true for every number from 1 to 999...).
 * **server**: whole matches with a fake lobby: joining, bots filling, countdown, lives and respawn protection, the
   anti-farm pause, wrong and right guesses, walls and smoke blocking guesses, flashbangs, photos (intel points, assists,
-  the flash notice), decoy mask, scanner, distraction device, scrambler, binoculars and gadget cooldowns, cover warnings and
+  the flash notice), decoy (photos, traps, expiry), sprint boost (stun and binoculars rules), scanner, distraction grenade, binoculars and gadget cooldowns, cover warnings and
   repeat exposure, terminals and their clues, bounties, alliances and betrayals, all five bonus events, crates, THE REVEAL,
   the lives-then-points tiebreak, results, coins/XP paid once, buying and equipping cosmetics, emotes, second match,
   leaving, and garbage sent to the remotes.

@@ -142,7 +142,7 @@ function Plates.attachReveal(char)
 	return { gui = gui, label = text }
 end
 
--- The rim colour tells a story: red = exposed / reveal, purple = wearing a decoy mask, otherwise the plate's own colour.
+-- The rim is red when you are exposed (or in the final stretch), otherwise the plate's own colour.
 function Plates.refreshRim(e)
 	local plate = e.plate
 	if not plate or not plate.rim then
@@ -153,8 +153,6 @@ function Plates.refreshRim(e)
 	local lit = false
 	if e.revealed then
 		color, lit = Color3.fromRGB(255, 60, 60), true
-	elseif (e.maskUntil or 0) > now then
-		color, lit = Color3.fromRGB(190, 90, 255), false
 	end
 	plate.rim.Color = color
 	plate.light.Color = color

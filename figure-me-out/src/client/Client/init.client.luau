@@ -298,8 +298,23 @@ function handlers.photo(entries)
 	Album.add(entries)
 end
 
+-- Feedback when one of your gadgets goes off.
+local USED = {
+	flash = "💥 Flashbang thrown",
+	smoke = "💨 Smoke thrown",
+	distraction = "🔔 Distraction thrown",
+	sprint = "👟 SPRINT!",
+	decoy = "🎭 Decoy dropped",
+}
 function handlers.used(id)
 	Audio.use()
+	if USED[id] then
+		Toasts.push(USED[id], "info")
+	end
+	if id == "sprint" then
+		Fx.punch(16)
+		Fx.flash(C.Accent, 0.25, 0.4)
+	end
 end
 
 function handlers.pickup(id)

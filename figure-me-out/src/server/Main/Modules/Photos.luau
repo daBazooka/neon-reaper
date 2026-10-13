@@ -35,10 +35,22 @@ function Photos.shotsFrom(origin, look, exceptId)
 						icon = other.icon,
 						text = text,
 						distance = distance,
-						-- only a photo of the REAL number counts as intel (a scrambled or masked plate shows something else)
+						-- only a photo of the REAL number counts as intel
 						complete = not string.find(text, "?", 1, true) and shown == other.number,
 					})
 				end
+			end
+		end
+	end
+	-- decoys look exactly like people in a photo (their number is fake, so it is never real intel)
+	for _, d in State.decoys do
+		local head = d.model and d.model:FindFirstChild("Head")
+		if head then
+			local inside, distance = Rules.inCone(origin, look, head.Position, Config.Photo.HalfAngle, Config.Photo.MaxDistance)
+			if inside and not Vision.blocked(origin, head.Position, true) then
+				local facing = head.CFrame.LookVector:Dot((origin - head.Position).Unit)
+				local readable = Rules.photoReadable(distance, facing, { rng:NextNumber(), rng:NextNumber(), rng:NextNumber() })
+				table.insert(out, { id = d.id, code = d.code, icon = d.icon, text = Rules.photoText(d.number, readable), distance = distance, complete = false })
 			end
 		end
 	end
