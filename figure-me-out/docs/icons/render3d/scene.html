@@ -1,0 +1,135 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script></head><body>
+<script type="module">
+import * as THREE from 'three';
+import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
+const q=new URLSearchParams(location.search);
+const MODE=q.get('mode')||'thumb', W=+q.get('w')||1920, H=+q.get('h')||1080;
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+renderer.setSize(W,H);renderer.setPixelRatio(1);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+document.body.appendChild(renderer.domElement);
+const scene=new THREE.Scene();
+// ---- backdrop: red/blue split with rays (a big canvas texture on a plane far behind)
+function backdrop(){
+  const c=document.createElement('canvas');c.width=2048;c.height=1152;const g=c.getContext('2d');
+  const gr=g.createLinearGradient(0,0,2048,0);gr.addColorStop(0,'#ff1f2d');gr.addColorStop(0.47,'#ff4a3a');gr.addColorStop(0.53,'#2f74ff');gr.addColorStop(1,'#1238e0');
+  g.fillStyle=gr;g.fillRect(0,0,2048,1152);
+  g.save();g.translate(1024,620);
+  for(let i=0;i<28;i++){g.rotate(Math.PI*2/28);g.fillStyle=i%2?'rgba(255,255,255,0.10)':'rgba(255,255,255,0.0)';g.beginPath();g.moveTo(0,0);g.lineTo(2600,-90);g.lineTo(2600,90);g.fill();}
+  g.restore();
+  const rg=g.createRadialGradient(1024,560,50,1024,560,900);rg.addColorStop(0,'rgba(255,255,255,0.10)');rg.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=rg;g.fillRect(0,0,2048,1152);
+  const vg=g.createRadialGradient(1024,576,500,1024,576,1300);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(10,10,40,0.45)');g.fillStyle=vg;g.fillRect(0,0,2048,1152);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
+}
+const bg=new THREE.Mesh(new THREE.PlaneGeometry(190,107),new THREE.MeshBasicMaterial({map:backdrop(),toneMapped:false,color:0xffffff}));bg.position.set(0,24,-50);scene.add(bg);
+// ---- floor: glossy blue court with white lines
+const floorC=document.createElement('canvas');floorC.width=1024;floorC.height=1024;{const g=floorC.getContext('2d');g.fillStyle='#2f86f0';g.fillRect(0,0,1024,1024);g.strokeStyle='rgba(255,255,255,.9)';g.lineWidth=12;g.strokeRect(40,40,944,944);g.beginPath();g.arc(512,512,160,0,7);g.stroke();g.beginPath();g.moveTo(40,512);g.lineTo(984,512);g.stroke();}
+const ft=new THREE.CanvasTexture(floorC);ft.colorSpace=THREE.SRGBColorSpace;ft.anisotropy=8;
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.MeshStandardMaterial({map:ft,roughness:0.28,metalness:0.0}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+// ---- lights
+scene.add(new THREE.HemisphereLight(0xffffff,0x6d7fb8,1.1));
+const key=new THREE.DirectionalLight(0xffffff,3.0);key.position.set(6,14,12);key.castShadow=true;key.shadow.mapSize.set(2048,2048);Object.assign(key.shadow.camera,{left:-20,right:20,top:20,bottom:-20,near:1,far:60});key.shadow.radius=5;scene.add(key);
+const rim=new THREE.DirectionalLight(0xffd9a0,2.2);rim.position.set(-8,6,-10);scene.add(rim);
+// ---- characters (R6 proportions)
+const FONT='900 120px "Arial Black", Impact, sans-serif';
+function faceTex(skin,mood){
+  const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.fillStyle=skin;g.fillRect(0,0,256,256);
+  g.fillStyle='#14141a';
+  const eye=(x,y,rx,ry)=>{g.beginPath();g.ellipse(x,y,rx,ry,0,0,7);g.fill();};
+  if(mood==='scared'){eye(88,118,17,30);eye(168,118,17,30);g.fillStyle='#fff';g.beginPath();g.arc(82,106,6,0,7);g.arc(162,106,6,0,7);g.fill();g.fillStyle='#14141a';g.beginPath();g.ellipse(128,190,17,26,0,0,7);g.fill();
+    g.strokeStyle='#14141a';g.lineWidth=9;g.lineCap='round';g.beginPath();g.moveTo(64,70);g.lineTo(106,84);g.moveTo(192,70);g.lineTo(150,84);g.stroke();}
+  else{eye(90,118,13,24);eye(166,118,13,24);g.strokeStyle='#14141a';g.lineWidth=9;g.lineCap='round';g.beginPath();g.arc(128,150,52,0.35,Math.PI-0.35);g.stroke();
+    if(mood==='mean'){g.lineWidth=10;g.beginPath();g.moveTo(60,84);g.lineTo(108,100);g.moveTo(196,84);g.lineTo(148,100);g.stroke();}}
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
+}
+function signTex(n){
+  const c=document.createElement('canvas');c.width=512;c.height=160;const g=c.getContext('2d');
+  g.fillStyle='#f2c230';g.fillRect(0,0,512,160);g.strokeStyle='#8c6208';g.lineWidth=14;g.strokeRect(7,7,498,146);
+  g.fillStyle='#17140d';g.font='900 128px "Arial Black", Impact, sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(n,256,86);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t;
+}
+const mat=(c,r=0.42)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:0.0});
+function person({shirt,pants,skin,number,mood,glow,armsForward,armsUp}){
+  const g=new THREE.Group();
+  const add=(geo,m,x,y,z)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;g.add(o);return o;};
+  const lg=new RoundedBoxGeometry(0.98,2,1,4,0.08),tg=new RoundedBoxGeometry(2,2,1,4,0.1),ag=new RoundedBoxGeometry(0.98,2,1,4,0.08);
+  add(lg,mat(pants),-0.5,1,0);add(lg,mat(pants),0.5,1,0);
+  add(tg,mat(shirt),0,3,0);
+  const armM=mat(skin);
+  const aL=add(ag,armM,-1.5,3,0),aR=add(ag,armM,1.5,3,0);
+  if(armsForward){aR.geometry=new RoundedBoxGeometry(0.98,2,1,4,0.08);aR.position.set(1.5,3.55,0.9);aR.rotation.x=-Math.PI/2+0.08;
+    aL.position.set(-1.5,3.55,0.9);aL.rotation.x=-Math.PI/2+0.08;}
+  if(armsUp){aL.position.set(-1.75,4.1,0);aL.rotation.z=-0.35;aR.position.set(1.75,4.1,0);aR.rotation.z=0.35;}
+  const hg=new RoundedBoxGeometry(1.35,1.25,1.25,6,0.4);
+  const faceM=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.4,map:faceTex('#'+new THREE.Color(skin).getHexString(),mood)});
+  const sk=mat(skin,0.4);
+  const head=new THREE.Mesh(hg,[sk,sk,sk,sk,faceM,sk]);head.position.set(0,4.65,0);head.castShadow=true;g.add(head);
+  // the mustard sign on the forehead
+  const sg=new RoundedBoxGeometry(1.42,0.42,0.1,2,0.03);
+  const sm=new THREE.MeshStandardMaterial({color:0xffffff,map:signTex(number),roughness:0.5,emissive:glow?0x6a4a00:0x000000,emissiveMap:glow?signTex(number):null,emissiveIntensity:glow?0.9:0});
+  const sign=new THREE.Mesh(sg,sm);sign.position.set(0,5.13,0.64);sign.castShadow=true;g.add(sign);
+  g.userData={sign,head};return g;
+}
+const R=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+let seed=7;Math.random=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646;};
+const hero=person({shirt:0x2e7cff,pants:0x24366b,skin:0xf5cd30,number:'4271',mood:'scared',glow:true});
+const skins=[0xf5cd30,0xcc8e69,0x8d5524,0xe7b78f,0xf5cd30];
+const reds=[];
+if(MODE==='thumb'){
+  hero.position.set(-1.6,0,3.2);hero.rotation.y=0.38;hero.scale.setScalar(1.2);scene.add(hero);
+  const spots=[[5.2,-1.5],[8.2,-4],[11.2,-1],[13.5,-5.5],[9,-8.5],[4,-7]];
+  spots.forEach((p,i)=>{const e=person({shirt:0xe8383d,pants:[0x3b3f55,0x2b6f3a,0x1c4e8a][i%3],skin:skins[i%5],number:String(R(1000,9999)),mood:'mean',glow:false,armsForward:true});
+    e.position.set(p[0],0,p[1]);e.rotation.y=-1.3-Math.random()*0.25;e.scale.setScalar(1.15);scene.add(e);reds.push(e);});
+  const cam=new THREE.PerspectiveCamera(34,W/H,0.1,200);cam.position.set(-5.5,3.3,15.4);cam.lookAt(1.9,4.6,0);
+  var camera=cam;
+} 
+else if(MODE==='teams'){
+  const mk=(shirt,x,z,rotY,i,mood)=>{const p=person({shirt,pants:[0x24366b,0x3b3f55,0x2b6f3a][i%3],skin:skins[i%5],number:String(R(1000,9999)),mood,glow:false});p.position.set(x,0,z);p.rotation.y=rotY;scene.add(p);return p;};
+  for(let row=0;row<2;row++){
+    for(let i=0;i<5;i++){
+      const x=-10+i*5+(row?2.5:0);
+      mk(0x2e7cff,x,12+row*6.5,Math.PI+((i%2)?0.1:-0.1),i+row,'smile');   // blue: backs to us
+      mk(0xe8383d,x*0.8,-9-row*6,((i%2)?0.08:-0.08),i+row+1,i%2?'mean':'scared'); // red: faces to us
+    }
+  }
+  var camera=new THREE.PerspectiveCamera(40,W/H,0.1,300);camera.position.set(0,9.2,31);camera.lookAt(0,3.2,-7);
+  hero.visible=false;
+}
+else if(MODE==='win'){
+  hero.position.set(-1.8,0,2);hero.rotation.y=0.2;hero.scale.setScalar(1.15);scene.remove(hero);
+  const w=person({shirt:0x2e7cff,pants:0x24366b,skin:0xf5cd30,number:'4271',mood:'smile',glow:true,armsUp:true});
+  w.position.set(-1.8,0,2);w.rotation.y=0.2;w.scale.setScalar(1.15);scene.add(w);hero.userData=w.userData;
+  // trophy
+  const gold=new THREE.MeshStandardMaterial({color:0xffd34a,roughness:0.3,metalness:0.3,emissive:0xb07800,emissiveIntensity:0.45});
+  const tr=new THREE.Group();
+  const cup=new THREE.Mesh(new THREE.CylinderGeometry(1.5,0.9,2,32),gold);cup.position.y=3.1;cup.castShadow=true;tr.add(cup);
+  const stem=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.35,1.2,20),gold);stem.position.y=1.5;tr.add(stem);
+  const base=new THREE.Mesh(new RoundedBoxGeometry(2.2,0.5,1.4,3,0.1),gold);base.position.y=0.45;tr.add(base);
+  for(const sx of [-1,1]){const h=new THREE.Mesh(new THREE.TorusGeometry(0.6,0.12,12,24),gold);h.position.set(sx*1.6,3.3,0);tr.add(h);}
+  tr.position.set(4.2,0,1.2);tr.scale.setScalar(1.35);tr.rotation.y=-0.35;scene.add(tr);
+  // confetti
+  const cols=[0xff3b3b,0x3b7bff,0xffd23b,0x3bd96a,0xff7bd6];
+  for(let i=0;i<140;i++){const m=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.05,0.32),new THREE.MeshBasicMaterial({color:cols[i%5]}));
+    m.position.set((Math.random()-0.5)*26,2+Math.random()*13,(Math.random()-0.2)*10);m.rotation.set(Math.random()*6,Math.random()*6,Math.random()*6);scene.add(m);}
+  var camera=new THREE.PerspectiveCamera(34,W/H,0.1,200);camera.position.set(-1.2,3.2,15.5);camera.lookAt(0.6,4.6,0);
+}
+else {
+  // icon: extreme close-up of the hero's head and sign
+  hero.position.set(0,-0.3,0);hero.rotation.y=0.15;hero.scale.setScalar(1.0);scene.add(hero);
+  const cam=new THREE.PerspectiveCamera(24,W/H,0.1,200);cam.position.set(0.2,4.3,6.4);cam.lookAt(0,4.55,0);var camera=cam;
+}
+// ---- post: bloom
+const comp=new EffectComposer(renderer);comp.setSize(W,H);comp.addPass(new RenderPass(scene,camera));
+comp.addPass(new UnrealBloomPass(new THREE.Vector2(W,H),0.22,0.6,0.92));comp.addPass(new OutputPass());
+comp.render();
+// report where the sign is on screen (for the overlays)
+const sp=new THREE.Vector3();hero.userData.sign.getWorldPosition(sp);sp.project(camera);
+const hp=new THREE.Vector3();hero.userData.head.getWorldPosition(hp);hp.project(camera);
+window.__info={sign:[(sp.x*0.5+0.5)*W,(-sp.y*0.5+0.5)*H],head:[(hp.x*0.5+0.5)*W,(-hp.y*0.5+0.5)*H]};
+window.__done=true;
+</script></body></html>

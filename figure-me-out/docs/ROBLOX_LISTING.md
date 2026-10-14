@@ -6,9 +6,11 @@ Everything you need for the Creator Hub page, in the order the page asks for it.
 | Use | File | Size |
 |---|---|---|
 | **Icon** (pick one, best first) | `icons/game_icon_1_hero.png` (big face + number sign + crosshair, the best hook), `game_icon_3_teams.png`, `game_icon_2_number.png`, `game_icon_4_crowd.png` | square |
-| **Thumbnails** (up to 10, upload in this order) | `thumbnails/thumbnail_1_hero.png`, `_2_guess`, `_3_elim`, `_4_items`, `_5_rewards`, `_6_quick`, `_7_lobby` | 1920 x 1080 |
+| **Thumbnails** (up to 10, upload in this order) | **3D set:** `thumbnails/thumbnail_1_hero.png`, `_3_elim.png`, `_5_rewards.png`. **Flat set:** `_2_guess`, `_4_items`, `_6_quick`, `_7_lobby` | 1920 x 1080 |
 | Logo (transparent) | `logo.png` | 1400 x 520 |
 | Badge icons (8) | `badges/badge_*.png` | 512 x 512 |
+
+Upload order I suggest: 1, 3, 5 (the 3D ones) first, then 2, 4, 6, 7. The 3D pictures are lit 3D renders (see `docs/icons/render3d/`), closer to how Roblox games look than the flat ones.
 
 Order matters: thumbnail 1 is the one people see in search, so it is the hero; the next ones explain the game in the order a new player needs it (type the number, red vs blue, gadgets, rewards, short rounds, lobby).
 
