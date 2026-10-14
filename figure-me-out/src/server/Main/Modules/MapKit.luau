@@ -5,6 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Maps = require(Shared:WaitForChild("Maps"))
+local Config = require(Shared:WaitForChild("Config"))
+local Players = game:GetService("Players")
 
 local MapKit = {}
 
@@ -647,6 +649,41 @@ local function wallDetail(parent, id, spec)
 	end
 end
 
+-- A jump pad: stand on it and you are thrown up and forward (onto a deck, over cover, across open ground). The server does the throw.
+local lastLaunch = {} -- userId -> time of the last throw
+local function launch(hit)
+	local char = hit and hit.Parent
+	local p = char and Players:GetPlayerFromCharacter(char)
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not p or not root then
+		return
+	end
+	local now = os.clock()
+	if now - (lastLaunch[p.UserId] or -10) < Config.Pads.Gap then
+		return
+	end
+	lastLaunch[p.UserId] = now
+	local v = root.AssemblyLinearVelocity
+	local flat = Vector3.new(v.X, 0, v.Z)
+	local dir = flat.Magnitude > 2 and flat.Unit or root.CFrame.LookVector
+	root.AssemblyLinearVelocity = Vector3.new(dir.X * Config.Pads.Forward, Config.Pads.Up, dir.Z * Config.Pads.Forward)
+end
+
+local function jumpPad(parent, x, z)
+	cyl(parent, "JumpPadBase", x, z, 8, 0.6, 0, C(36, 40, 56), M.Metal)
+	local top = cyl(parent, "JumpPad", x, z, 6.6, 0.3, 0.6, C(70, 235, 255), M.Neon, true)
+	top.CanTouch = true
+	for i = 1, 3 do
+		box(parent, "JumpPadArrow", x, z - 1.4 + i * 1.1, 2.6 - i * 0.5, 0.1, 0.5, 0.9, 0, C(255, 255, 255), M.Neon, true)
+	end
+	local light = Instance.new("PointLight")
+	light.Color = C(80, 235, 255)
+	light.Range = 14
+	light.Brightness = 1.5
+	light.Parent = top
+	top.Touched:Connect(launch)
+end
+
 -- Builds the map `id` into the `arena` and `ground` folders.
 function MapKit.build(arena, ground, id)
 	local spec = Maps.List[id]
@@ -660,6 +697,9 @@ function MapKit.build(arena, ground, id)
 	CENTERS[id](arena)
 	for _, d in layout.Decks do
 		deck(arena, id, d)
+	end
+	for _, pd in layout.Pads do
+		jumpPad(arena, pd[1], pd[2])
 	end
 	local props = PROPS[id]
 	for _, p in layout.Props do

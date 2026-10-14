@@ -13,6 +13,7 @@ local Camera = {}
 
 local player = Players.LocalPlayer
 local mode = nil -- "first" or "third"
+local scoped = false -- looking through the binoculars: the camera moves into your head, so you see the open ground and not the back of your own head
 
 function Camera.mode()
 	return mode
@@ -20,7 +21,7 @@ end
 
 -- The mode we want right now.
 function Camera.wanted()
-	if Config.Camera.FirstPerson and View.amAlive() then
+	if scoped or (Config.Camera.FirstPerson and View.amAlive()) then
 		return "first"
 	end
 	return "third"
@@ -48,15 +49,19 @@ local function apply(want)
 		else
 			player.CameraMode = Enum.CameraMode.Classic
 			setup()
-			if Config.Camera.FirstPerson then
-				-- pull back out of first person: ask for a minimum distance for a moment, then allow zooming in again
-				player.CameraMinZoomDistance = 12
-				task.delay(0.2, function()
-					player.CameraMinZoomDistance = Config.Camera.MinZoom
-				end)
-			end
+			-- pull back out of first person: ask for a minimum distance for a moment, then allow zooming in again
+			player.CameraMinZoomDistance = 12
+			task.delay(0.2, function()
+				player.CameraMinZoomDistance = Config.Camera.MinZoom
+			end)
 		end
 	end)
+end
+
+-- The binoculars call this: while they are up the view is first person (from your eyes), and it goes back when they come down.
+function Camera.setScoped(on)
+	scoped = on == true
+	apply(Camera.wanted())
 end
 
 function Camera.init()

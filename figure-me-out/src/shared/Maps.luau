@@ -202,7 +202,7 @@ function Maps.layout(id)
 		seed += string.byte(id, i) * i
 	end
 	local rnd = lcg(seed)
-	local L = { Spawns = {}, Bases = { { -100, 0 }, { 100, 0 } }, Terminals = {}, DropSpots = {}, Crates = {}, Decks = {}, Props = {}, Footprints = {} }
+	local L = { Spawns = {}, Bases = { { -100, 0 }, { 100, 0 } }, Terminals = {}, DropSpots = {}, Crates = {}, Decks = {}, Pads = {}, Props = {}, Footprints = {} }
 	local foot = L.Footprints
 	local function clear(x, z, r)
 		for _, f in foot do
@@ -261,6 +261,10 @@ function Maps.layout(id)
 		local a = math.rad(k * 22.5 + 11.25)
 		local radius = k % 2 == 0 and 52 or 78
 		place(L.Crates, math.cos(a) * radius, math.sin(a) * radius, 3)
+	end
+	-- four jump pads, two each side between the bases and the middle
+	for _, t in { { -66, -26 }, { -66, 26 }, { 66, -26 }, { 66, 26 } } do
+		place(L.Pads, t[1], t[2], 4.5)
 	end
 	-- the scattered cover
 	local kinds, total = Maps.Props[id], 0

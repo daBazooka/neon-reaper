@@ -69,8 +69,10 @@ check(Hud.held() == nil, "...and nothing is left in your hands")
 frames(3)
 press(KC.G)
 check(Scope.isOn() and Hud.held() == "G", "G once looks through the binoculars")
+local CameraView = require(ModN.children.Camera)
+check(CameraView.mode() == "first", "...from your own eyes (first person), so you see the far ground and not the back of your own head")
 press(KC.G)
-check(not Scope.isOn() and Hud.held() == nil, "G again lowers them")
+check(not Scope.isOn() and Hud.held() == nil and CameraView.mode() == "third", "G again lowers them, and the camera goes back behind you")
 mouse(UT.MouseButton2)
 check(Scope.isOn(), "holding the right mouse button zooms too")
 fireAll("inputEnd", {KeyCode = nil, UserInputType = UT.MouseButton2})
@@ -89,6 +91,16 @@ local u2 = fired("Use")
 press(KC.F)
 check(fired("Use") == u2 + 1 and lastFired("Use")[2] == "flash", "F once throws the stun grenade")
 a.SlotF = "camera"; a.It_flash = 0; frames(3)
+
+-- dash, streak popup
+local dashes = fired("Dash")
+press(KC.Q)
+check(fired("Dash") == dashes + 1, "Q dashes")
+a.DashReady = clock + 3; press(KC.Q)
+check(fired("Dash") == dashes + 1, "...not while it is cooling down")
+a.DashReady = 0
+send("streak", 2, "DOUBLE HIT!", 10); frames(3)
+check(X.seen("DOUBLE HIT!"), "a hit streak shows a popup")
 
 -- typing a number: nothing but big digits
 local DIG = {KC.Zero, KC.One, KC.Two, KC.Three, KC.Four, KC.Five, KC.Six, KC.Seven, KC.Eight, KC.Nine}
@@ -109,7 +121,7 @@ frames(2)
 check(not X.seen("_"), "G is a slot, not a guess button")
 -- messages
 send("gotKill", "Michael", "", 2, 100); frames(2)
-check(X.seen("You killed Michael") and not X.seen("HIT!"), "your hit shows as the small line 'You killed Michael'")
+check(X.seen("You killed Michael") and not X.seen("HIT!  +"), "your hit shows as the small line 'You killed Michael'")
 send("lifeLost", "Michael", 2, 3); frames(2)
 check(X.seen("Michael killed you"), "and so does being hit")
 -- cover warning
@@ -123,8 +135,10 @@ check(X.seen("92?3") and X.seen("Michael"), "a photo drops in as a polaroid with
 -- results and lobby
 attrsWS.Phase = "results"; attrsWS.PhaseEnd = clock + 8; attrsWS.Mode = nil; a.Alive = false; frames(6)
 check(X.seen("RESULTS") or true, "results")
+a.Quests = "play=1/3,hit=5/5,photo=0/3"
 attrsWS.Phase = "lobby"; attrsWS.PhaseEnd = clock + 10; frames(6)
 check(X.seen("NEXT MATCH"), "back to the lobby")
+check(X.seen("Play 3 matches  1/3") and X.seen("✅ Hit 5 players  5/5") and X.seen("Take 3 photos  0/3"), "the lobby shows today's quests and which are done")
 -- ===== somebody who arrived late: the waiting card =====
 a.Alive = false; a.Playing = false; a.QueuePos = 2
 attrsWS.Phase = "play"; attrsWS.PhaseEnd = clock + 1301; attrsWS.Mode = "ctf"; attrsWS.ModeName = "CAPTURE THE FLAG"; attrsWS.MapName = "School Yard"
@@ -133,6 +147,11 @@ check(X.seen("MATCH IN PROGRESS") and X.seen("CAPTURE THE FLAG") and X.seen("Sch
 check(X.seen("21:4") and X.seen("18/20 playing") and X.seen("3 waiting"), "...how long it has left, how many play (of 20) and how many wait")
 check(X.seen("You play the next match") and X.seen("starts in about 21:5"), "...and when their match starts (about 22 minutes)")
 check(X.seen("#2 in line"), "...and their place in the queue")
+check(X.seen("WATCH THE MATCH"), "...and a button to watch the match while they wait")
+local clicked = X.click("WATCH THE MATCH"); frames(3)
+check(clicked and X.seen("BACK TO THE LOBBY"), "pressing it starts watching (and the card shrinks to a button back)")
+clicked = X.click("BACK TO THE LOBBY"); frames(3)
+check(clicked and X.seen("WATCH THE MATCH"), "and back again")
 attrsWS.PhaseEnd = clock + 41; frames(4)
 check(X.seen("MATCH ENDING SOON!"), "when the match is about to end it says so")
 attrsWS.Phase = "results"; attrsWS.PhaseEnd = clock + 8; frames(4)

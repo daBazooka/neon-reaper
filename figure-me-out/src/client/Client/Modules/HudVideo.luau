@@ -153,7 +153,7 @@ end
 -- The waiting card: shown to everybody who is not playing right now (somebody who arrived late, or who is out). It says what is
 -- going on and exactly when they will be in a match.
 local function buildWaiting(root)
-	local card = UI.new("Frame", { Name = "Waiting", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.2, 0), Size = UDim2.fromOffset(460, 150), BackgroundColor3 = Color3.fromRGB(16, 20, 26), BackgroundTransparency = 0.35, BorderSizePixel = 0, Visible = false, ZIndex = 18 }, root)
+	local card = UI.new("Frame", { Name = "Waiting", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.2, 0), Size = UDim2.fromOffset(460, 198), BackgroundColor3 = Color3.fromRGB(16, 20, 26), BackgroundTransparency = 0.35, BorderSizePixel = 0, Visible = false, ZIndex = 18 }, root)
 	UI.corner(card, 16)
 	UI.stroke(card, Color3.new(1, 1, 1), 2, 0.45)
 	scaled(card)
@@ -161,6 +161,11 @@ local function buildWaiting(root)
 	refs.waitTitle = UI.label(card, { Position = UDim2.fromOffset(0, 10), Size = UDim2.new(1, 0, 0, 34), Font = UI.Fonts.Title, TextSize = 28, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "", ZIndex = 19 })
 	refs.waitMode = UI.label(card, { Position = UDim2.fromOffset(0, 46), Size = UDim2.new(1, 0, 0, 24), Font = UI.Fonts.Bold, TextSize = 19, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "", ZIndex = 19 })
 	refs.waitInfo = UI.label(card, { Position = UDim2.fromOffset(0, 72), Size = UDim2.new(1, 0, 0, 24), Font = UI.Fonts.Bold, TextSize = 18, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "", ZIndex = 19 })
+	refs.waitWatch = UI.button(card, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 150), Size = UDim2.fromOffset(250, 40), Text = "👁 WATCH THE MATCH", TextSize = 18, BackgroundColor3 = Color3.fromRGB(70, 130, 210), ZIndex = 20, Visible = false }, "card")
+	refs.waitWatch.MouseButton1Click:Connect(function()
+		Audio.click()
+		deps.Spectate.toggleWatch()
+	end)
 	refs.waitNext = UI.label(card, { Position = UDim2.fromOffset(10, 100), Size = UDim2.new(1, -20, 0, 42), Font = UI.Fonts.Bold, TextSize = 18, TextColor3 = C.Mint, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = true, Text = "", ZIndex = 19 })
 end
 
@@ -189,13 +194,14 @@ function Hud.init(screen, d)
 	refs.sign.Visible = false
 
 	-- the lobby: your level and coins (small, bottom left) and the emote button
-	local profile = UI.new("Frame", { Name = "Profile", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 14, 1, -14), Size = UDim2.fromOffset(240, 62), BackgroundTransparency = 1 }, root)
+	local profile = UI.new("Frame", { Name = "Profile", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 14, 1, -14), Size = UDim2.fromOffset(260, 124), BackgroundTransparency = 1 }, root)
 	scaled(profile)
 	refs.profile = profile
 	refs.level = UI.label(profile, { Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(150, 24), Font = UI.Fonts.Title, TextSize = 20, TextWrapped = false, Text = "LEVEL 1" })
 	refs.coins = UI.label(profile, { Position = UDim2.fromOffset(120, 2), Size = UDim2.fromOffset(120, 22), Font = UI.Fonts.Title, TextSize = 18, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Right, TextWrapped = false, Text = "🪙 0" })
 	refs.xpBar = UI.bar(profile, { Position = UDim2.fromOffset(0, 28), Size = UDim2.fromOffset(240, 10) }, C.Good)
 	refs.xpText = UI.label(profile, { Position = UDim2.fromOffset(0, 40), Size = UDim2.fromOffset(240, 16), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "" })
+	refs.quests = UI.label(profile, { Position = UDim2.fromOffset(0, 60), Size = UDim2.fromOffset(260, 64), Font = UI.Fonts.Bold, TextSize = 14, TextColor3 = C.Mint, TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = false, Text = "" })
 
 	-- small round buttons, top right: menu, help, settings, emotes
 	local function cornerButton(text, x, onClick)
@@ -213,6 +219,19 @@ function Hud.init(screen, d)
 	cornerButton("⚙", 88, function() deps.Menu.open("Settings") end)
 	cornerButton("💬", 132, function() deps.Emotes.toggle() end)
 	cornerButton("👥", 176, function() Hud.invite() end)
+
+	-- the dash button (bottom right; also the Q key)
+	local dash = UI.new("TextButton", { Name = "Dash", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -22, 1, -26), Size = UDim2.fromOffset(96, 96), BackgroundColor3 = Color3.fromRGB(20, 24, 28), BackgroundTransparency = 0.45, AutoButtonColor = false, BorderSizePixel = 0, Text = "", Visible = false }, root)
+	UI.corner(dash, 48)
+	UI.stroke(dash, Color3.new(1, 1, 1), 2.5, 0.05)
+	scaled(dash)
+	UI.label(dash, { Size = UDim2.new(1, 0, 0, 50), Position = UDim2.fromOffset(0, 12), Font = UI.Fonts.Title, TextSize = 36, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 1, Text = "💨" })
+	refs.dashLabel = UI.label(dash, { Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 62), Font = UI.Fonts.Title, TextSize = 17, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 1, Text = "DASH  Q" })
+	refs.dashShade = box(dash, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 5 }, Color3.new(0, 0, 0), 48)
+	dash.MouseButton1Click:Connect(function()
+		Hud.dash()
+	end)
+	refs.dash = dash
 
 	-- the one-line hint for the first three matches (never in the way afterwards)
 	refs.tip = UI.label(root, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -128), Size = UDim2.fromOffset(640, 30), Font = UI.Fonts.Bold, TextSize = 19, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 0.4, Text = "", Visible = false, ZIndex = 16 })
@@ -367,6 +386,22 @@ function Hud.invite()
 	else
 		deps.Toasts.push("Share the game link with your friends: they can join you from your profile", "info")
 	end
+end
+
+-- The dash (Q or the DASH button): a quick burst forward. The server decides; this only asks and plays the sound.
+function Hud.dash()
+	if View.phase() ~= "play" or not View.amAlive() or player:GetAttribute("Stunned") == true then
+		return false
+	end
+	if (player:GetAttribute("DashReady") or 0) > View.now() then
+		Audio.error()
+		return false
+	end
+	local camera = View.camera()
+	deps.send("Dash", camera and camera.CFrame.LookVector or nil)
+	deps.Fx.punch(5)
+	Audio.play("Tone", 1.6, 0.4)
+	return true
 end
 
 function Hud.select(id) end -- (the slot highlight follows what you hold; kept for the older callers)
@@ -539,6 +574,15 @@ function Hud.update()
 		local into, need = player:GetAttribute("XPInto") or 0, player:GetAttribute("XPNeed") or 1
 		refs.xpBar.set(into / math.max(1, need))
 		refs.xpText.Text = into .. " / " .. need .. " XP"
+		-- today's quests: "play=1/3,hit=0/5,photo=0/3" -> three lines, a tick when done
+		local lines = {}
+		local raw = player:GetAttribute("Quests")
+		for _, def in Config.Quests.List do
+			local got, goal = string.match(type(raw) == "string" and raw or "", def.Id .. "=(%d+)/(%d+)")
+			local done = got ~= nil and tonumber(got) >= tonumber(goal)
+			table.insert(lines, (done and "✅ " or "📅 ") .. def.Name .. "  " .. (got or "0") .. "/" .. def.Goal .. "  (+" .. def.Coins .. " 🪙)")
+		end
+		refs.quests.Text = table.concat(lines, "\n")
 	end
 
 	-- the waiting card: for everybody who is not in the match that is on (arrived late, or out)
@@ -548,6 +592,16 @@ function Hud.update()
 		showWait = true
 	end
 	refs.wait.Visible = showWait
+	-- waiting players can watch the match instead of standing about (a button on the card); while they watch the card shrinks to that button
+	local canWatch = showWait and not inMatch and (phase == "play" or phase == "countdown")
+	local watching = canWatch and deps.Spectate.wantsToWatch() == true
+	refs.waitWatch.Visible = canWatch
+	refs.waitWatch.Text = watching and "↩ BACK TO THE LOBBY" or "👁 WATCH THE MATCH"
+	for _, l in { refs.waitTitle, refs.waitMode, refs.waitInfo, refs.waitNext } do
+		l.Visible = not watching
+	end
+	refs.wait.Size = watching and UDim2.fromOffset(300, 60) or UDim2.fromOffset(460, canWatch and 198 or 150)
+	refs.waitWatch.Position = watching and UDim2.new(0.5, 0, 0, 10) or UDim2.new(0.5, 0, 0, 150)
 	if showWait then
 		local waiters = workspace:GetAttribute("Waiting") or 0
 		local total = View.total()
@@ -625,6 +679,10 @@ function Hud.update()
 		slot.icon.TextColor3 = isHeld and Color3.fromRGB(30, 32, 38) or Color3.new(1, 1, 1)
 	end
 	refs.slotBar.Visible = playing
+	refs.dash.Visible = playing and phase == "play"
+	local dashWait = math.max(0, (player:GetAttribute("DashReady") or 0) - View.now())
+	refs.dashShade.BackgroundTransparency = dashWait > 0 and 0.55 or 1
+	refs.dashLabel.Text = dashWait > 0.05 and string.format("%.1f", dashWait) or "DASH  Q"
 
 	-- what you hold, drawn at the bottom of the screen (the binoculars hide while you look through them)
 	local id = Hud.heldItem()

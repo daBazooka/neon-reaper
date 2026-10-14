@@ -15,6 +15,7 @@ local C = UI.Colors
 local bar, nameLabel
 local watching = nil -- entity id
 local active = false
+local optIn = false -- somebody waiting for the next match (never in this one) only watches when they ask to
 
 function Spectate.isActive()
 	return active
@@ -70,6 +71,17 @@ local function living()
 	return list
 end
 
+-- The "watch the match" button on the waiting card: waiting players walk about the lobby until they choose to watch.
+function Spectate.toggleWatch()
+	optIn = not optIn
+	Spectate.update()
+	return optIn
+end
+
+function Spectate.wantsToWatch()
+	return optIn
+end
+
 function Spectate.cycle(step)
 	local list = living()
 	if #list == 0 then
@@ -97,7 +109,12 @@ end
 
 function Spectate.update()
 	local phase = View.phase()
-	local out = player:GetAttribute("Alive") ~= true and (phase == "play" or phase == "countdown")
+	local inMatchPhase = phase == "play" or phase == "countdown"
+	if not inMatchPhase then
+		optIn = false
+	end
+	local waiting = player:GetAttribute("Playing") == false -- (never in this match)
+	local out = player:GetAttribute("Alive") ~= true and inMatchPhase and (not waiting or optIn)
 	local list = out and living() or {}
 	if #list == 0 then
 		if active then

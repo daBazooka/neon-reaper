@@ -10,6 +10,7 @@ local State = require(script.Parent.State)
 local Net = require(script.Parent.Net)
 local Vision = require(script.Parent.Vision)
 local Items = require(script.Parent.Items)
+local Quests = require(script.Parent.Quests)
 
 local Photos = {}
 
@@ -91,6 +92,9 @@ function Photos.snap(p, origin, look)
 		return
 	end
 	e.lastSnap = now
+	if p then
+		Quests.bump(p, "photo", 1)
+	end
 	local shots = Photos.shotsFrom(origin, look.Unit, e.id)
 	local list = {}
 	e.intelAt = e.intelAt or {}

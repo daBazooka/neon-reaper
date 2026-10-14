@@ -80,7 +80,7 @@ Evidence is thin and much of what is written online is SEO filler, so here is wh
 
 **Risks, in order of how likely they are to hurt you**
 1. **Empty or near-empty servers (cold start).** With 1-3 players the best part (reading other people's numbers) does not exist. *Mitigation now:* a 3-minute practice round for a lone player, and a status screen that says when the next match starts. *Further options:* keep servers small and full (set **Max players** to the number you can actually fill, e.g. 12-16 early on, 20+ later), **fill with bots** when fewer than ~6 humans (`Config.Match.MinTotal`, already in the code, off by default), and consider shorter rounds early on.
-2. **25-minute matches are long.** The original game uses them, but for a new game with few players, a long wait for late joiners is a bounce risk. *Mitigation:* `Config.Match.Length` and the per-mode `Length` (try **6-10 minutes** while you are small), and lobby text that says exactly when the next match starts (done).
+2. **Long matches mean long waits.** The original game uses 25-minute matches; this version now uses **4-minute matches**, an 8-second lobby and a 45-second late-join window, and waiting players can watch the match live. If you ever see people leaving while they wait, shorten `Config.Match.Length` more.
 3. **First-play bounce.** A new player must succeed at something in the first minute. *Mitigation now:* a one-line hint for the first three matches, a practice round, a clear HUD. *Further:* a 20-second scripted "type this number" tutorial target.
 4. **Typing on a phone.** The number pad helps, but test on a real phone.
 5. **Learning curve for strategy** (strikes, items). Keep the first match simple; reveal depth over time.

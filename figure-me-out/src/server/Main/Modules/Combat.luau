@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
+local Rules = require(Shared:WaitForChild("Rules"))
 local State = require(script.Parent.State)
 local Net = require(script.Parent.Net)
 local Plates = require(script.Parent.Plates)
@@ -50,6 +51,34 @@ function Combat.applySpeed(e)
 	hum.WalkSpeed = speed
 	hum.JumpPower = speed > 0 and Config.Movement.Jump or 0
 	hum.UseJumpPower = true
+end
+
+-- The dash: a quick burst of speed in the direction you look (flat on the ground), with a short cooldown. Works out everything on the
+-- server. Returns true when it happened.
+function Combat.dash(e, look)
+	local now = State.now()
+	if State.phase ~= "play" or not e or not e.alive or (e.stunUntil or 0) > now or now < (e.dashReadyAt or 0) then
+		return false
+	end
+	local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return false
+	end
+	look = Rules.cleanVector(look)
+	if not look or look.Magnitude < 0.1 then
+		look = root.CFrame.LookVector
+	end
+	local flat = Vector3.new(look.X, 0, look.Z)
+	if flat.Magnitude < 0.1 then
+		flat = root.CFrame.LookVector
+	end
+	flat = flat.Unit
+	root.AssemblyLinearVelocity = Vector3.new(flat.X * Config.Dash.Speed, Config.Dash.Lift, flat.Z * Config.Dash.Speed)
+	e.dashReadyAt = now + Config.Dash.Cooldown
+	if e.player then
+		e.player:SetAttribute("DashReady", workspace:GetServerTimeNow() + Config.Dash.Cooldown)
+	end
+	return true
 end
 
 function Combat.stun(e, seconds)
@@ -130,6 +159,16 @@ function Combat.credit(killer, victim)
 	killer.score = (killer.score or 0) + points
 	killer.hitTimes = killer.hitTimes or {}
 	killer.hitTimes[victim.id] = now
+	-- hit again and again without being hit yourself: a popup and bonus points
+	killer.streak = (killer.streak or 0) + 1
+	victim.streak = 0
+	if killer.streak >= 2 then
+		local bonus = Config.Streaks.Bonus * (killer.streak - 1)
+		killer.score = (killer.score or 0) + bonus
+		if killer.player then
+			Net.send(killer.player, "streak", killer.streak, Config.Streaks.Names[math.min(killer.streak - 1, #Config.Streaks.Names)], bonus)
+		end
+	end
 	State.writeEntity(killer)
 	if killer.player then
 		Net.send(killer.player, "gotKill", victim.code, victim.icon, victim.lives or 0, points)

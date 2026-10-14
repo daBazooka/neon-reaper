@@ -123,6 +123,8 @@ function Controls.init(d)
 			if not deps.Hud.useHeld() then
 				Controls.guess()
 			end
+		elseif kc == Enum.KeyCode.Q and Config.Loadout.Enabled then
+			deps.Hud.dash()
 		elseif kc == Enum.KeyCode.G then
 			Controls.guess()
 		elseif kc == Enum.KeyCode.F then

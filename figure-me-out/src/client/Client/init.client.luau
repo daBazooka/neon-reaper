@@ -262,6 +262,14 @@ function handlers.gotKill(code, icon, lives, points)
 	Fx.punch(6)
 end
 
+-- Hits in a row: a short popup with bonus points.
+function handlers.streak(count, name, bonus)
+	if type(name) == "string" then
+		Fx.announce(name, (type(bonus) == "number" and bonus > 0) and ("+" .. bonus .. " bonus") or "", C.Gold, 0.22)
+		Audio.hit()
+	end
+end
+
 function handlers.lifeLost(killer, lives, delay)
 	if VIDEO and type(killer) == "string" and killer ~= "" then
 		Hud.say(killer .. " killed you")

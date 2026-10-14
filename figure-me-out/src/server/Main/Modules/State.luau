@@ -13,6 +13,7 @@ State.entities = {} -- id -> entity
 State.order = {} -- ids in the order they were added
 State.decoys = {} -- id (1,000,000 and up) -> { id, owner, number, model, code, icon, expires }
 State.revealing = false
+State.playStart = -1e9 -- when the match began playing (the late-join window counts from here)
 State.mode = Config.Modes.List.deathmatch -- the mode being played (a Config.Modes.List entry)
 State.teamScore = { 0, 0 } -- team modes: hits (team deathmatch) or captures (capture the flag)
 State.matchId = 0

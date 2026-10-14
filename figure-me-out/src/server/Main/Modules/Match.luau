@@ -26,6 +26,7 @@ local Flags = require(script.Parent.Flags)
 local Water = require(script.Parent.Water)
 local Votes = require(script.Parent.Votes)
 local Badges = require(script.Parent.Badges)
+local Quests = require(script.Parent.Quests)
 local Maps = require(Shared:WaitForChild("Maps"))
 
 local Match = {}
@@ -289,6 +290,9 @@ function Match.canDropIn(p)
 	if State.byPlayer(p) or not p.Parent then
 		return false
 	end
+	if State.mode and State.mode.Practice then
+		return false -- (a practice round ends when somebody arrives)
+	end
 	if State.phase == "countdown" then
 		return #State.order < Config.Match.MaxPlayers
 	end
@@ -499,6 +503,9 @@ function Match.finish()
 		local won = (mode.Teams and winnerTeam ~= 0 and e.team == winnerTeam) or (not mode.Teams and e.id == winnerId)
 		won = won and State.peak >= 2 -- (winning a match nobody else was in is not a win)
 		award(e, won)
+		if e.player and not mode.Practice and State.peak >= 2 then
+			Quests.bump(e.player, "play", 1)
+		end
 		if e.player then
 			Progress.award(e.player, e.score or 0, won, State.matchId, e.bonusCoins)
 		end
@@ -561,6 +568,7 @@ function Match.onJoin(p)
 		Net.toast(p, "🔥 Day " .. streak .. " in a row! +" .. coins .. " 🪙" .. (streak < Config.Daily.MaxDays and "  Come back tomorrow for more." or ""), "gold")
 	end
 	Badges.award(p, "welcome")
+	Quests.publish(p)
 	p:SetAttribute("Seen", data.Seen)
 	p:SetAttribute("Music", data.Settings.Music)
 	p:SetAttribute("Sfx", data.Settings.Sfx)
@@ -585,8 +593,10 @@ function Match.onJoin(p)
 	end)
 	task.spawn(function()
 		Match.respawnLobby(p)
-		if Config.Match.DropIn then
-			Match.dropIn(p) -- (a match is on: straight into it)
+		-- a match is on: straight into it when always allowed, or while it is only just under way (the countdown and its first seconds)
+		local early = State.phase == "countdown" or (State.phase == "play" and State.now() - (State.playStart or -1e9) <= Config.Match.DropInWindow)
+		if Config.Match.DropIn or early then
+			Match.dropIn(p)
 		end
 		Match.publishQueue()
 	end)
@@ -672,6 +682,7 @@ function Match.run()
 		Modes.onHit(killer, victim)
 		if killer.player then
 			Badges.award(killer.player, "first_hit")
+			Quests.bump(killer.player, "hit", 1)
 		end
 	end
 	Combat.onEliminated = function(victim)
@@ -732,6 +743,7 @@ function Match.run()
 		end)
 
 		State.setPhase("play", State.now() + (State.mode.Length or Config.Match.Length))
+		State.playStart = State.now()
 		Match.tellNumbers()
 		for _, e in State.list() do
 			Combat.applySpeed(e)

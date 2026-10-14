@@ -767,16 +767,17 @@ Config.Features = {
 Config.Match = {
 	MaxPlayers = 20,
 	MinHumans = 1, -- real players needed before a match starts. 1 = the lobby starts a match as soon as somebody is here
-	DropIn = false, -- false: somebody who arrives while a match is on WAITS in the lobby (the screen shows the time left and when the next match starts) and plays the next one. true: they jump into the running match
+	DropIn = false, -- false: somebody who arrives while a match is well under way WAITS in the lobby (the screen shows the time left and when the next match starts, and they can watch it). true: they always jump into the running match
+	DropInWindow = 45, -- ...but somebody who arrives in the first seconds of a match (or during the countdown) still jumps straight in, so nobody waits for nothing
 	SoloPractice = true, -- with only one player the match is a short practice round (to try the items); it ends the moment somebody else arrives, so nobody waits long
 	PracticeLength = 180, -- seconds
 	FirstMatchAtOnce = true, -- the first match after the server starts begins the moment somebody is here (no lobby wait); after that, the lobby counts down
 	MinTotal = 0, -- 0 = real players only. (A number here would add bots up to that many players: handy for testing alone in Studio.)
-	Intermission = 10, -- lobby wait between matches (seconds)
-	Countdown = 5, -- before the start whistle
-	Length = 1500, -- the match: 25 minutes (a mode can set its own Length below; the timer counts down like 21:32)
+	Intermission = 8, -- lobby wait between matches (seconds)
+	Countdown = 4, -- before the start whistle
+	Length = 240, -- the match: 4 minutes. Short on purpose: nobody waits long, and "one more match" is easy (a mode can set its own Length below)
 	RevealAt = 20, -- the final stretch: the timer turns red and the music speeds up
-	ResultsTime = 8,
+	ResultsTime = 6,
 }
 
 -- Game modes. Matches rotate through them (or set Mode to one id to always play that mode).
@@ -788,9 +789,9 @@ Config.Modes = {
 	Mode = "rotate", -- "rotate" or one of the ids above
 	List = {
 		practice = { Id = "practice", Name = "PRACTICE", Icon = "🎯", Teams = false, Respawn = false, Length = 180, Practice = true, Tip = "You are the only player: try the items. The real match starts when somebody else arrives." },
-		deathmatch = { Id = "deathmatch", Name = "DEATHMATCH", Icon = "💀", Teams = false, Respawn = false, Length = 600, Tip = "Everybody for themselves. 3 lives." },
-		team = { Id = "team", Name = "TEAM DEATHMATCH", Icon = "⚔️", Teams = true, Respawn = true, ScoreLimit = 50, Tip = "Two teams. Every hit on the other team scores. First to 50." },
-		ctf = { Id = "ctf", Name = "CAPTURE THE FLAG", Icon = "🚩", Teams = true, Respawn = true, CaptureLimit = 10, Tip = "Grab the enemy flag and bring it home. First to 10 captures." },
+		deathmatch = { Id = "deathmatch", Name = "DEATHMATCH", Icon = "💀", Teams = false, Respawn = false, Length = 180, Tip = "Everybody for themselves. 3 lives." },
+		team = { Id = "team", Name = "TEAM DEATHMATCH", Icon = "⚔️", Teams = true, Respawn = true, ScoreLimit = 25, Tip = "Two teams. Every hit on the other team scores. First to 25." },
+		ctf = { Id = "ctf", Name = "CAPTURE THE FLAG", Icon = "🚩", Teams = true, Respawn = true, CaptureLimit = 5, Tip = "Grab the enemy flag and bring it home. First to 5 captures." },
 	},
 }
 Config.Teams = {
@@ -943,7 +944,7 @@ Config.Camera = { FirstPerson = false, MinZoom = 0.5, MaxZoom = 30, Occlusion = 
 Config.Scope = { Fov = 14, MinFov = 6, MaxFov = 24, NormalFov = 70 }
 
 -- Crates that hand out gadgets. Positions are on the map (see Config.Map).
-Config.Pickups = { Respawn = 30, Radius = 4.5 }
+Config.Pickups = { Respawn = 15, Radius = 4.5 }
 
 --------------------------------------------------------------------------------
 -- Bounty, alliances, information terminals and bonus events
@@ -1171,6 +1172,22 @@ Config.Map.Themes = {
 end
 
 --------------------------------------------------------------------------------
+-- Streaks: hit again and again without being hit yourself and you get a popup and bonus points.
+Config.Streaks = { Names = { "DOUBLE HIT!", "TRIPLE HIT!", "ON FIRE!", "UNSTOPPABLE!" }, Bonus = 10 }
+-- The dash (Q, or the DASH button): a quick burst forward to dodge, cross open ground or chase a flag carrier.
+Config.Dash = { Cooldown = 3.5, Speed = 62, Lift = 10 }
+-- Jump pads on the maps (touch one and you are thrown up and forward).
+Config.Pads = { Up = 78, Forward = 26, Gap = 0.9 }
+-- Daily quests: three small goals a day, each pays coins (and doing all three pays a bonus). They reset every day.
+Config.Quests = {
+	List = {
+		{ Id = "play", Name = "Play 3 matches", Goal = 3, Coins = 40 },
+		{ Id = "hit", Name = "Hit 5 players", Goal = 5, Coins = 40 },
+		{ Id = "photo", Name = "Take 3 photos", Goal = 3, Coins = 30 },
+	},
+	AllBonus = 50,
+}
+
 -- Badges and the daily streak: reasons to come back tomorrow.
 --  * Badges: create them on the Roblox website and paste each number here (0 = not made yet, skipped). Names: Welcome, First Hit, First Win,
 --    10 Wins, Win Streak (3 in a row), Capture! (flag), Canyon Explorer (play on Waterfall Canyon).
@@ -1423,7 +1440,7 @@ function Maps.layout(id)
 		seed += string.byte(id, i) * i
 	end
 	local rnd = lcg(seed)
-	local L = { Spawns = {}, Bases = { { -100, 0 }, { 100, 0 } }, Terminals = {}, DropSpots = {}, Crates = {}, Decks = {}, Props = {}, Footprints = {} }
+	local L = { Spawns = {}, Bases = { { -100, 0 }, { 100, 0 } }, Terminals = {}, DropSpots = {}, Crates = {}, Decks = {}, Pads = {}, Props = {}, Footprints = {} }
 	local foot = L.Footprints
 	local function clear(x, z, r)
 		for _, f in foot do
@@ -1482,6 +1499,10 @@ function Maps.layout(id)
 		local a = math.rad(k * 22.5 + 11.25)
 		local radius = k % 2 == 0 and 52 or 78
 		place(L.Crates, math.cos(a) * radius, math.sin(a) * radius, 3)
+	end
+	-- four jump pads, two each side between the bases and the middle
+	for _, t in { { -66, -26 }, { -66, 26 }, { 66, -26 }, { 66, 26 } } do
+		place(L.Pads, t[1], t[2], 4.5)
 	end
 	-- the scattered cover
 	local kinds, total = Maps.Props[id], 0
@@ -2430,6 +2451,7 @@ local Progress = require(Modules.Progress)
 local Alliance = require(Modules.Alliance)
 local State = require(Modules.State)
 local Votes = require(Modules.Votes)
+local Combat = require(Modules.Combat)
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
 Players.CharacterAutoLoads = false
@@ -2469,7 +2491,7 @@ end
 
 -- Every request is checked and rate limited, and a bad one can never crash the server.
 -- the shortest time allowed between two requests of the same kind from one player
-local MIN_GAP = { Guess = 0.25, Use = 0.3, Snap = 0.5, Emote = 1, Buy = 0.5, Equip = 0.3, AllyAsk = 1, AllyReply = 0.3, Share = 1, Vote = Config.Vote.MinGap }
+local MIN_GAP = { Guess = 0.25, Use = 0.3, Snap = 0.5, Emote = 1, Buy = 0.5, Equip = 0.3, AllyAsk = 1, AllyReply = 0.3, Share = 1, Vote = Config.Vote.MinGap, Dash = 0.3 }
 local lastCall = {} -- userId -> { kind -> time of the last call }
 local function allowed(p, kind)
 	local now = os.clock()
@@ -2552,6 +2574,12 @@ function handlers.Share(p, entries)
 end
 function handlers.Vote(p, id)
 	Votes.cast(p, id)
+end
+function handlers.Dash(p, look)
+	local e = State.byPlayer(p)
+	if e then
+		Combat.dash(e, look)
+	end
 end
 function handlers.Seen(p)
 	local data = Data.get(p)
@@ -3657,6 +3685,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
+local Rules = require(Shared:WaitForChild("Rules"))
 local State = require(script.Parent.State)
 local Net = require(script.Parent.Net)
 local Plates = require(script.Parent.Plates)
@@ -3703,6 +3732,34 @@ function Combat.applySpeed(e)
 	hum.WalkSpeed = speed
 	hum.JumpPower = speed > 0 and Config.Movement.Jump or 0
 	hum.UseJumpPower = true
+end
+
+-- The dash: a quick burst of speed in the direction you look (flat on the ground), with a short cooldown. Works out everything on the
+-- server. Returns true when it happened.
+function Combat.dash(e, look)
+	local now = State.now()
+	if State.phase ~= "play" or not e or not e.alive or (e.stunUntil or 0) > now or now < (e.dashReadyAt or 0) then
+		return false
+	end
+	local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return false
+	end
+	look = Rules.cleanVector(look)
+	if not look or look.Magnitude < 0.1 then
+		look = root.CFrame.LookVector
+	end
+	local flat = Vector3.new(look.X, 0, look.Z)
+	if flat.Magnitude < 0.1 then
+		flat = root.CFrame.LookVector
+	end
+	flat = flat.Unit
+	root.AssemblyLinearVelocity = Vector3.new(flat.X * Config.Dash.Speed, Config.Dash.Lift, flat.Z * Config.Dash.Speed)
+	e.dashReadyAt = now + Config.Dash.Cooldown
+	if e.player then
+		e.player:SetAttribute("DashReady", workspace:GetServerTimeNow() + Config.Dash.Cooldown)
+	end
+	return true
 end
 
 function Combat.stun(e, seconds)
@@ -3783,6 +3840,16 @@ function Combat.credit(killer, victim)
 	killer.score = (killer.score or 0) + points
 	killer.hitTimes = killer.hitTimes or {}
 	killer.hitTimes[victim.id] = now
+	-- hit again and again without being hit yourself: a popup and bonus points
+	killer.streak = (killer.streak or 0) + 1
+	victim.streak = 0
+	if killer.streak >= 2 then
+		local bonus = Config.Streaks.Bonus * (killer.streak - 1)
+		killer.score = (killer.score or 0) + bonus
+		if killer.player then
+			Net.send(killer.player, "streak", killer.streak, Config.Streaks.Names[math.min(killer.streak - 1, #Config.Streaks.Names)], bonus)
+		end
+	end
 	State.writeEntity(killer)
 	if killer.player then
 		Net.send(killer.player, "gotKill", victim.code, victim.icon, victim.lives or 0, points)
@@ -4089,6 +4156,7 @@ local function defaults()
 		Trail = "none",
 		Effect = "pixels",
 		Owned = { Trails = { none = true }, Effects = { pixels = true }, Emotes = {} },
+		Quests = { Day = 0, Progress = {}, Done = {} }, -- today's quests: progress per id and which are paid
 		LastDay = 0, -- the last day (UTC) they visited, and how many days in a row
 		DayStreak = 0,
 		LastRewardMatch = 0, -- the last match that paid out (so one match never pays twice)
@@ -5572,6 +5640,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Maps = require(Shared:WaitForChild("Maps"))
+local Config = require(Shared:WaitForChild("Config"))
+local Players = game:GetService("Players")
 
 local MapKit = {}
 
@@ -6214,6 +6284,41 @@ local function wallDetail(parent, id, spec)
 	end
 end
 
+-- A jump pad: stand on it and you are thrown up and forward (onto a deck, over cover, across open ground). The server does the throw.
+local lastLaunch = {} -- userId -> time of the last throw
+local function launch(hit)
+	local char = hit and hit.Parent
+	local p = char and Players:GetPlayerFromCharacter(char)
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not p or not root then
+		return
+	end
+	local now = os.clock()
+	if now - (lastLaunch[p.UserId] or -10) < Config.Pads.Gap then
+		return
+	end
+	lastLaunch[p.UserId] = now
+	local v = root.AssemblyLinearVelocity
+	local flat = Vector3.new(v.X, 0, v.Z)
+	local dir = flat.Magnitude > 2 and flat.Unit or root.CFrame.LookVector
+	root.AssemblyLinearVelocity = Vector3.new(dir.X * Config.Pads.Forward, Config.Pads.Up, dir.Z * Config.Pads.Forward)
+end
+
+local function jumpPad(parent, x, z)
+	cyl(parent, "JumpPadBase", x, z, 8, 0.6, 0, C(36, 40, 56), M.Metal)
+	local top = cyl(parent, "JumpPad", x, z, 6.6, 0.3, 0.6, C(70, 235, 255), M.Neon, true)
+	top.CanTouch = true
+	for i = 1, 3 do
+		box(parent, "JumpPadArrow", x, z - 1.4 + i * 1.1, 2.6 - i * 0.5, 0.1, 0.5, 0.9, 0, C(255, 255, 255), M.Neon, true)
+	end
+	local light = Instance.new("PointLight")
+	light.Color = C(80, 235, 255)
+	light.Range = 14
+	light.Brightness = 1.5
+	light.Parent = top
+	top.Touched:Connect(launch)
+end
+
 -- Builds the map `id` into the `arena` and `ground` folders.
 function MapKit.build(arena, ground, id)
 	local spec = Maps.List[id]
@@ -6227,6 +6332,9 @@ function MapKit.build(arena, ground, id)
 	CENTERS[id](arena)
 	for _, d in layout.Decks do
 		deck(arena, id, d)
+	end
+	for _, pd in layout.Pads do
+		jumpPad(arena, pd[1], pd[2])
 	end
 	local props = PROPS[id]
 	for _, p in layout.Props do
@@ -6272,6 +6380,7 @@ local Flags = require(script.Parent.Flags)
 local Water = require(script.Parent.Water)
 local Votes = require(script.Parent.Votes)
 local Badges = require(script.Parent.Badges)
+local Quests = require(script.Parent.Quests)
 local Maps = require(Shared:WaitForChild("Maps"))
 
 local Match = {}
@@ -6535,6 +6644,9 @@ function Match.canDropIn(p)
 	if State.byPlayer(p) or not p.Parent then
 		return false
 	end
+	if State.mode and State.mode.Practice then
+		return false -- (a practice round ends when somebody arrives)
+	end
 	if State.phase == "countdown" then
 		return #State.order < Config.Match.MaxPlayers
 	end
@@ -6745,6 +6857,9 @@ function Match.finish()
 		local won = (mode.Teams and winnerTeam ~= 0 and e.team == winnerTeam) or (not mode.Teams and e.id == winnerId)
 		won = won and State.peak >= 2 -- (winning a match nobody else was in is not a win)
 		award(e, won)
+		if e.player and not mode.Practice and State.peak >= 2 then
+			Quests.bump(e.player, "play", 1)
+		end
 		if e.player then
 			Progress.award(e.player, e.score or 0, won, State.matchId, e.bonusCoins)
 		end
@@ -6807,6 +6922,7 @@ function Match.onJoin(p)
 		Net.toast(p, "🔥 Day " .. streak .. " in a row! +" .. coins .. " 🪙" .. (streak < Config.Daily.MaxDays and "  Come back tomorrow for more." or ""), "gold")
 	end
 	Badges.award(p, "welcome")
+	Quests.publish(p)
 	p:SetAttribute("Seen", data.Seen)
 	p:SetAttribute("Music", data.Settings.Music)
 	p:SetAttribute("Sfx", data.Settings.Sfx)
@@ -6831,8 +6947,10 @@ function Match.onJoin(p)
 	end)
 	task.spawn(function()
 		Match.respawnLobby(p)
-		if Config.Match.DropIn then
-			Match.dropIn(p) -- (a match is on: straight into it)
+		-- a match is on: straight into it when always allowed, or while it is only just under way (the countdown and its first seconds)
+		local early = State.phase == "countdown" or (State.phase == "play" and State.now() - (State.playStart or -1e9) <= Config.Match.DropInWindow)
+		if Config.Match.DropIn or early then
+			Match.dropIn(p)
 		end
 		Match.publishQueue()
 	end)
@@ -6918,6 +7036,7 @@ function Match.run()
 		Modes.onHit(killer, victim)
 		if killer.player then
 			Badges.award(killer.player, "first_hit")
+			Quests.bump(killer.player, "hit", 1)
 		end
 	end
 	Combat.onEliminated = function(victim)
@@ -6978,6 +7097,7 @@ function Match.run()
 		end)
 
 		State.setPhase("play", State.now() + (State.mode.Length or Config.Match.Length))
+		State.playStart = State.now()
 		Match.tellNumbers()
 		for _, e in State.list() do
 			Combat.applySpeed(e)
@@ -7211,6 +7331,7 @@ local State = require(script.Parent.State)
 local Net = require(script.Parent.Net)
 local Vision = require(script.Parent.Vision)
 local Items = require(script.Parent.Items)
+local Quests = require(script.Parent.Quests)
 
 local Photos = {}
 
@@ -7292,6 +7413,9 @@ function Photos.snap(p, origin, look)
 		return
 	end
 	e.lastSnap = now
+	if p then
+		Quests.bump(p, "photo", 1)
+	end
 	local shots = Photos.shotsFrom(origin, look.Unit, e.id)
 	local list = {}
 	e.intelAt = e.intelAt or {}
@@ -8224,6 +8348,93 @@ return Progress
         </Item>
         <Item class="ModuleScript" referent="34">
           <Properties>
+            <string name="Name">Quests</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: daily quests. Three small goals a day (play 3 matches, hit 5 players, take 3 photos). Each pays coins when it is done,
+-- and finishing all three pays a bonus. They start again every day, which is a gentle reason to come back tomorrow.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Data = require(script.Parent.Data)
+local Net = require(script.Parent.Net)
+local Progress = require(script.Parent.Progress)
+
+local Quests = {}
+
+local function today(now)
+	return math.floor((now or os.time()) / 86400)
+end
+
+-- Today's quest record (a new day clears it).
+local function record(p, now)
+	local data = Data.get(p)
+	if not data then
+		return nil
+	end
+	local q = data.Quests
+	if q.Day ~= today(now) then
+		q.Day = today(now)
+		q.Progress = {}
+		q.Done = {}
+	end
+	return q
+end
+
+-- "play=1/3,hit=0/5,photo=0/3" for the screens.
+function Quests.publish(p, now)
+	local q = record(p, now)
+	if not q then
+		return
+	end
+	local parts = {}
+	for _, def in Config.Quests.List do
+		table.insert(parts, def.Id .. "=" .. math.min(def.Goal, q.Progress[def.Id] or 0) .. "/" .. def.Goal)
+	end
+	p:SetAttribute("Quests", table.concat(parts, ","))
+end
+
+-- Adds `n` to a quest. Pays and tells the player when it is completed. Returns true when it was completed by this call.
+function Quests.bump(p, id, n, now)
+	local q = record(p, now)
+	local data = Data.get(p)
+	if not q or not data then
+		return false
+	end
+	local def
+	for _, d in Config.Quests.List do
+		if d.Id == id then
+			def = d
+		end
+	end
+	if not def or q.Done[id] then
+		return false
+	end
+	q.Progress[id] = (q.Progress[id] or 0) + (n or 1)
+	local finished = false
+	if q.Progress[id] >= def.Goal then
+		q.Done[id] = true
+		finished = true
+		data.Coins += def.Coins
+		Net.toast(p, "✅ Daily quest done: " .. def.Name .. "  +" .. def.Coins .. " 🪙", "gold")
+		local all = true
+		for _, d in Config.Quests.List do
+			all = all and q.Done[d.Id] == true
+		end
+		if all then
+			data.Coins += Config.Quests.AllBonus
+			Net.toast(p, "🎉 All daily quests done! +" .. Config.Quests.AllBonus .. " 🪙 Come back tomorrow for new ones.", "gold")
+		end
+		Progress.publish(p)
+	end
+	Quests.publish(p, now)
+	return finished
+end
+
+return Quests
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="35">
+          <Properties>
             <string name="Name">State</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: who is in the match right now. Every player and bot in a match is an "entity" with an id (a player's
 -- user id; bots count down from -1). This module only keeps the list and writes the
@@ -8240,6 +8451,7 @@ State.entities = {} -- id -> entity
 State.order = {} -- ids in the order they were added
 State.decoys = {} -- id (1,000,000 and up) -> { id, owner, number, model, code, icon, expires }
 State.revealing = false
+State.playStart = -1e9 -- when the match began playing (the late-join window counts from here)
 State.mode = Config.Modes.List.deathmatch -- the mode being played (a Config.Modes.List entry)
 State.teamScore = { 0, 0 } -- team modes: hits (team deathmatch) or captures (capture the flag)
 State.matchId = 0
@@ -8376,7 +8588,7 @@ return State
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="35">
+        <Item class="ModuleScript" referent="36">
           <Properties>
             <string name="Name">Terminals</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: information terminals. Hack one to learn something TRUE about your own number (greater than, even or odd,
@@ -8495,7 +8707,7 @@ return Terminals
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="36">
+        <Item class="ModuleScript" referent="37">
           <Properties>
             <string name="Name">Vision</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: what can see what. A number can only be read, photographed or guessed when nothing solid is in the
@@ -8573,7 +8785,7 @@ return Vision
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="37">
+        <Item class="ModuleScript" referent="38">
           <Properties>
             <string name="Name">Votes</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the map vote. From the moment a match ends until the lobby wait is over, everybody can vote for the next map
@@ -8666,7 +8878,7 @@ return Votes
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="38">
+        <Item class="ModuleScript" referent="39">
           <Properties>
             <string name="Name">Water</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the river current in Waterfall Canyon. Anybody standing in the river, a side stream, a plunge pool or
@@ -8738,7 +8950,7 @@ return Water
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="39">
+        <Item class="ModuleScript" referent="40">
           <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: builds the world from plain parts: "Plaza Park" (the arena, a city of 8 buildings around a park, with
@@ -9426,7 +9638,7 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="40">
+  <Item class="StarterPlayer" referent="41">
     <Properties>
       <string name="Name">StarterPlayer</string>
       <float name="CameraMaxZoomDistance">30</float>
@@ -9435,11 +9647,11 @@ return World
       <token name="DevComputerCameraMovementMode">0</token>
       <token name="DevTouchCameraMovementMode">0</token>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="41">
+    <Item class="StarterPlayerScripts" referent="42">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="42">
+      <Item class="LocalScript" referent="43">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[-- FIGURE ME OUT: client entry point. Builds the screen, wires every module together and routes the server's messages.
@@ -9706,6 +9918,14 @@ function handlers.gotKill(code, icon, lives, points)
 	Fx.punch(6)
 end
 
+-- Hits in a row: a short popup with bonus points.
+function handlers.streak(count, name, bonus)
+	if type(name) == "string" then
+		Fx.announce(name, (type(bonus) == "number" and bonus > 0) and ("+" .. bonus .. " bonus") or "", C.Gold, 0.22)
+		Audio.hit()
+	end
+end
+
 function handlers.lifeLost(killer, lives, delay)
 	if VIDEO and type(killer) == "string" and killer ~= "" then
 		Hud.say(killer .. " killed you")
@@ -9914,11 +10134,11 @@ end)
 
 ]]></string>
         </Properties>
-        <Item class="Folder" referent="43">
+        <Item class="Folder" referent="44">
           <Properties>
             <string name="Name">Modules</string>
           </Properties>
-          <Item class="ModuleScript" referent="44">
+          <Item class="ModuleScript" referent="45">
             <Properties>
               <string name="Name">Album</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the photo notebook. Every photo fills in the digits you could read; several blurry photos of the same
@@ -10315,7 +10535,7 @@ return Album
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="45">
+          <Item class="ModuleScript" referent="46">
             <Properties>
               <string name="Name">Alerts</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: everything the game shouts at you: flashbang blindness, stun, the "don't hide your number" warning,
@@ -10672,7 +10892,7 @@ return Alerts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="46">
+          <Item class="ModuleScript" referent="47">
             <Properties>
               <string name="Name">Ambient</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the moving scenery of Waterfall Canyon, animated on your own screen (no network traffic): the ripples on the
@@ -10774,7 +10994,7 @@ return Ambient
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="47">
+          <Item class="ModuleScript" referent="48">
             <Properties>
               <string name="Name">Camera</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the camera. By default you play in third person with mouse-wheel zoom (0.5 to 30 studs) and wall-proof "Zoom" occlusion,
@@ -10792,6 +11012,7 @@ local Camera = {}
 
 local player = Players.LocalPlayer
 local mode = nil -- "first" or "third"
+local scoped = false -- looking through the binoculars: the camera moves into your head, so you see the open ground and not the back of your own head
 
 function Camera.mode()
 	return mode
@@ -10799,7 +11020,7 @@ end
 
 -- The mode we want right now.
 function Camera.wanted()
-	if Config.Camera.FirstPerson and View.amAlive() then
+	if scoped or (Config.Camera.FirstPerson and View.amAlive()) then
 		return "first"
 	end
 	return "third"
@@ -10827,15 +11048,19 @@ local function apply(want)
 		else
 			player.CameraMode = Enum.CameraMode.Classic
 			setup()
-			if Config.Camera.FirstPerson then
-				-- pull back out of first person: ask for a minimum distance for a moment, then allow zooming in again
-				player.CameraMinZoomDistance = 12
-				task.delay(0.2, function()
-					player.CameraMinZoomDistance = Config.Camera.MinZoom
-				end)
-			end
+			-- pull back out of first person: ask for a minimum distance for a moment, then allow zooming in again
+			player.CameraMinZoomDistance = 12
+			task.delay(0.2, function()
+				player.CameraMinZoomDistance = Config.Camera.MinZoom
+			end)
 		end
 	end)
+end
+
+-- The binoculars call this: while they are up the view is first person (from your eyes), and it goes back when they come down.
+function Camera.setScoped(on)
+	scoped = on == true
+	apply(Camera.wanted())
 end
 
 function Camera.init()
@@ -10861,7 +11086,7 @@ return Camera
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="48">
+          <Item class="ModuleScript" referent="49">
             <Properties>
               <string name="Name">Controls</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: keyboard and mouse. G guess, hold right mouse (or Z) for binoculars, click or F for a photo, V for
@@ -10989,6 +11214,8 @@ function Controls.init(d)
 			if not deps.Hud.useHeld() then
 				Controls.guess()
 			end
+		elseif kc == Enum.KeyCode.Q and Config.Loadout.Enabled then
+			deps.Hud.dash()
 		elseif kc == Enum.KeyCode.G then
 			Controls.guess()
 		elseif kc == Enum.KeyCode.F then
@@ -11083,7 +11310,7 @@ return Controls
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="49">
+          <Item class="ModuleScript" referent="50">
             <Properties>
               <string name="Name">Emotes</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the quick emote panel (💬 button). Tap an emoji and it pops up over your head for a few seconds. Great for
@@ -11186,7 +11413,7 @@ return Emotes
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="50">
+          <Item class="ModuleScript" referent="51">
             <Properties>
               <string name="Name">Fx</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
@@ -11424,7 +11651,7 @@ return Fx
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="51">
+          <Item class="ModuleScript" referent="52">
             <Properties>
               <string name="Name">Grade</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: colour grading on your own screen. The look blends smoothly from one moment to the next (warm lobby, vivid
@@ -11519,7 +11746,7 @@ return Grade
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="52">
+          <Item class="ModuleScript" referent="53">
             <Properties>
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the always-on screen: timer and alive count, your codename, lives, points and bullets, the kill feed, the
@@ -12064,7 +12291,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="53">
+          <Item class="ModuleScript" referent="54">
             <Properties>
               <string name="Name">HudVideo</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the screen of the original game, and nothing else. A red box and a blue box with the team scores (a little flag
@@ -12222,7 +12449,7 @@ end
 -- The waiting card: shown to everybody who is not playing right now (somebody who arrived late, or who is out). It says what is
 -- going on and exactly when they will be in a match.
 local function buildWaiting(root)
-	local card = UI.new("Frame", { Name = "Waiting", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.2, 0), Size = UDim2.fromOffset(460, 150), BackgroundColor3 = Color3.fromRGB(16, 20, 26), BackgroundTransparency = 0.35, BorderSizePixel = 0, Visible = false, ZIndex = 18 }, root)
+	local card = UI.new("Frame", { Name = "Waiting", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.2, 0), Size = UDim2.fromOffset(460, 198), BackgroundColor3 = Color3.fromRGB(16, 20, 26), BackgroundTransparency = 0.35, BorderSizePixel = 0, Visible = false, ZIndex = 18 }, root)
 	UI.corner(card, 16)
 	UI.stroke(card, Color3.new(1, 1, 1), 2, 0.45)
 	scaled(card)
@@ -12230,6 +12457,11 @@ local function buildWaiting(root)
 	refs.waitTitle = UI.label(card, { Position = UDim2.fromOffset(0, 10), Size = UDim2.new(1, 0, 0, 34), Font = UI.Fonts.Title, TextSize = 28, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "", ZIndex = 19 })
 	refs.waitMode = UI.label(card, { Position = UDim2.fromOffset(0, 46), Size = UDim2.new(1, 0, 0, 24), Font = UI.Fonts.Bold, TextSize = 19, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "", ZIndex = 19 })
 	refs.waitInfo = UI.label(card, { Position = UDim2.fromOffset(0, 72), Size = UDim2.new(1, 0, 0, 24), Font = UI.Fonts.Bold, TextSize = 18, TextColor3 = C.Muted, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, Text = "", ZIndex = 19 })
+	refs.waitWatch = UI.button(card, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 150), Size = UDim2.fromOffset(250, 40), Text = "👁 WATCH THE MATCH", TextSize = 18, BackgroundColor3 = Color3.fromRGB(70, 130, 210), ZIndex = 20, Visible = false }, "card")
+	refs.waitWatch.MouseButton1Click:Connect(function()
+		Audio.click()
+		deps.Spectate.toggleWatch()
+	end)
 	refs.waitNext = UI.label(card, { Position = UDim2.fromOffset(10, 100), Size = UDim2.new(1, -20, 0, 42), Font = UI.Fonts.Bold, TextSize = 18, TextColor3 = C.Mint, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = true, Text = "", ZIndex = 19 })
 end
 
@@ -12258,13 +12490,14 @@ function Hud.init(screen, d)
 	refs.sign.Visible = false
 
 	-- the lobby: your level and coins (small, bottom left) and the emote button
-	local profile = UI.new("Frame", { Name = "Profile", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 14, 1, -14), Size = UDim2.fromOffset(240, 62), BackgroundTransparency = 1 }, root)
+	local profile = UI.new("Frame", { Name = "Profile", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 14, 1, -14), Size = UDim2.fromOffset(260, 124), BackgroundTransparency = 1 }, root)
 	scaled(profile)
 	refs.profile = profile
 	refs.level = UI.label(profile, { Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(150, 24), Font = UI.Fonts.Title, TextSize = 20, TextWrapped = false, Text = "LEVEL 1" })
 	refs.coins = UI.label(profile, { Position = UDim2.fromOffset(120, 2), Size = UDim2.fromOffset(120, 22), Font = UI.Fonts.Title, TextSize = 18, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Right, TextWrapped = false, Text = "🪙 0" })
 	refs.xpBar = UI.bar(profile, { Position = UDim2.fromOffset(0, 28), Size = UDim2.fromOffset(240, 10) }, C.Good)
 	refs.xpText = UI.label(profile, { Position = UDim2.fromOffset(0, 40), Size = UDim2.fromOffset(240, 16), Font = UI.Fonts.Bold, TextSize = 12, TextColor3 = C.Muted, Text = "" })
+	refs.quests = UI.label(profile, { Position = UDim2.fromOffset(0, 60), Size = UDim2.fromOffset(260, 64), Font = UI.Fonts.Bold, TextSize = 14, TextColor3 = C.Mint, TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = false, Text = "" })
 
 	-- small round buttons, top right: menu, help, settings, emotes
 	local function cornerButton(text, x, onClick)
@@ -12282,6 +12515,19 @@ function Hud.init(screen, d)
 	cornerButton("⚙", 88, function() deps.Menu.open("Settings") end)
 	cornerButton("💬", 132, function() deps.Emotes.toggle() end)
 	cornerButton("👥", 176, function() Hud.invite() end)
+
+	-- the dash button (bottom right; also the Q key)
+	local dash = UI.new("TextButton", { Name = "Dash", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -22, 1, -26), Size = UDim2.fromOffset(96, 96), BackgroundColor3 = Color3.fromRGB(20, 24, 28), BackgroundTransparency = 0.45, AutoButtonColor = false, BorderSizePixel = 0, Text = "", Visible = false }, root)
+	UI.corner(dash, 48)
+	UI.stroke(dash, Color3.new(1, 1, 1), 2.5, 0.05)
+	scaled(dash)
+	UI.label(dash, { Size = UDim2.new(1, 0, 0, 50), Position = UDim2.fromOffset(0, 12), Font = UI.Fonts.Title, TextSize = 36, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 1, Text = "💨" })
+	refs.dashLabel = UI.label(dash, { Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 62), Font = UI.Fonts.Title, TextSize = 17, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 1, Text = "DASH  Q" })
+	refs.dashShade = box(dash, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 5 }, Color3.new(0, 0, 0), 48)
+	dash.MouseButton1Click:Connect(function()
+		Hud.dash()
+	end)
+	refs.dash = dash
 
 	-- the one-line hint for the first three matches (never in the way afterwards)
 	refs.tip = UI.label(root, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -128), Size = UDim2.fromOffset(640, 30), Font = UI.Fonts.Bold, TextSize = 19, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 0.4, Text = "", Visible = false, ZIndex = 16 })
@@ -12436,6 +12682,22 @@ function Hud.invite()
 	else
 		deps.Toasts.push("Share the game link with your friends: they can join you from your profile", "info")
 	end
+end
+
+-- The dash (Q or the DASH button): a quick burst forward. The server decides; this only asks and plays the sound.
+function Hud.dash()
+	if View.phase() ~= "play" or not View.amAlive() or player:GetAttribute("Stunned") == true then
+		return false
+	end
+	if (player:GetAttribute("DashReady") or 0) > View.now() then
+		Audio.error()
+		return false
+	end
+	local camera = View.camera()
+	deps.send("Dash", camera and camera.CFrame.LookVector or nil)
+	deps.Fx.punch(5)
+	Audio.play("Tone", 1.6, 0.4)
+	return true
 end
 
 function Hud.select(id) end -- (the slot highlight follows what you hold; kept for the older callers)
@@ -12608,6 +12870,15 @@ function Hud.update()
 		local into, need = player:GetAttribute("XPInto") or 0, player:GetAttribute("XPNeed") or 1
 		refs.xpBar.set(into / math.max(1, need))
 		refs.xpText.Text = into .. " / " .. need .. " XP"
+		-- today's quests: "play=1/3,hit=0/5,photo=0/3" -> three lines, a tick when done
+		local lines = {}
+		local raw = player:GetAttribute("Quests")
+		for _, def in Config.Quests.List do
+			local got, goal = string.match(type(raw) == "string" and raw or "", def.Id .. "=(%d+)/(%d+)")
+			local done = got ~= nil and tonumber(got) >= tonumber(goal)
+			table.insert(lines, (done and "✅ " or "📅 ") .. def.Name .. "  " .. (got or "0") .. "/" .. def.Goal .. "  (+" .. def.Coins .. " 🪙)")
+		end
+		refs.quests.Text = table.concat(lines, "\n")
 	end
 
 	-- the waiting card: for everybody who is not in the match that is on (arrived late, or out)
@@ -12617,6 +12888,16 @@ function Hud.update()
 		showWait = true
 	end
 	refs.wait.Visible = showWait
+	-- waiting players can watch the match instead of standing about (a button on the card); while they watch the card shrinks to that button
+	local canWatch = showWait and not inMatch and (phase == "play" or phase == "countdown")
+	local watching = canWatch and deps.Spectate.wantsToWatch() == true
+	refs.waitWatch.Visible = canWatch
+	refs.waitWatch.Text = watching and "↩ BACK TO THE LOBBY" or "👁 WATCH THE MATCH"
+	for _, l in { refs.waitTitle, refs.waitMode, refs.waitInfo, refs.waitNext } do
+		l.Visible = not watching
+	end
+	refs.wait.Size = watching and UDim2.fromOffset(300, 60) or UDim2.fromOffset(460, canWatch and 198 or 150)
+	refs.waitWatch.Position = watching and UDim2.new(0.5, 0, 0, 10) or UDim2.new(0.5, 0, 0, 150)
 	if showWait then
 		local waiters = workspace:GetAttribute("Waiting") or 0
 		local total = View.total()
@@ -12694,6 +12975,10 @@ function Hud.update()
 		slot.icon.TextColor3 = isHeld and Color3.fromRGB(30, 32, 38) or Color3.new(1, 1, 1)
 	end
 	refs.slotBar.Visible = playing
+	refs.dash.Visible = playing and phase == "play"
+	local dashWait = math.max(0, (player:GetAttribute("DashReady") or 0) - View.now())
+	refs.dashShade.BackgroundTransparency = dashWait > 0 and 0.55 or 1
+	refs.dashLabel.Text = dashWait > 0.05 and string.format("%.1f", dashWait) or "DASH  Q"
 
 	-- what you hold, drawn at the bottom of the screen (the binoculars hide while you look through them)
 	local id = Hud.heldItem()
@@ -12727,7 +13012,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="54">
+          <Item class="ModuleScript" referent="55">
             <Properties>
               <string name="Name">Inventory</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the gadget inventory (🎒 or I). Every gadget with its charges, cooldown and what it does, plus the clues you
@@ -12848,7 +13133,7 @@ return Inventory
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="55">
+          <Item class="ModuleScript" referent="56">
             <Properties>
               <string name="Name">Keypad</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the guess panel. Press G (or tap GUESS): pick who you mean from the list of people you can see (the one under
@@ -13231,7 +13516,7 @@ return Keypad
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="56">
+          <Item class="ModuleScript" referent="57">
             <Properties>
               <string name="Name">MapVote</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the map vote. Six cards along the bottom of the screen while the vote is open (from the results screen until
@@ -13371,7 +13656,7 @@ return MapVote
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="57">
+          <Item class="ModuleScript" referent="58">
             <Properties>
               <string name="Name">Markers</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: little markers drawn only on your screen: the green 🤝 over your ally, and the pings from your scanner.
@@ -13460,7 +13745,7 @@ return Markers
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="58">
+          <Item class="ModuleScript" referent="59">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the menu window: how to play, forehead plates you unlock by winning, your stats and the settings.
@@ -13788,7 +14073,7 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="59">
+          <Item class="ModuleScript" referent="60">
             <Properties>
               <string name="Name">OwnPlate</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: you must never see your own number (forehead plate or the floating one). The plate is hidden on your screen only; everybody else
@@ -13834,7 +14119,7 @@ return OwnPlate
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="60">
+          <Item class="ModuleScript" referent="61">
             <Properties>
               <string name="Name">Results</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the scoreboard at the end of every match.
@@ -14068,7 +14353,7 @@ return Results
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="61">
+          <Item class="ModuleScript" referent="62">
             <Properties>
               <string name="Name">Scope</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the binoculars. Hold the right mouse button (or Z, or tap the 🔭 slot) to zoom far across the map and
@@ -14082,6 +14367,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local UI = require(Shared:WaitForChild("UI"))
 local Audio = require(Shared:WaitForChild("Audio"))
 local View = require(script.Parent:WaitForChild("View"))
+local CameraView = require(script.Parent:WaitForChild("Camera"))
 
 local Scope = {}
 local VIDEO = Config.Hud.Style == "video" -- the original game: a black figure-8 view, no crosshair lines
@@ -14217,6 +14503,7 @@ function Scope.set(value)
 		return
 	end
 	on = value
+	CameraView.setScoped(on) -- (first person while looking through them: you see the far ground, not your own head)
 	if on then
 		layout()
 	end
@@ -14255,7 +14542,7 @@ return Scope
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="62">
+          <Item class="ModuleScript" referent="63">
             <Properties>
               <string name="Name">Spectate</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: once you are out, you watch the others. The camera follows a living player; press ◀ ▶ (or the arrow
@@ -14275,6 +14562,7 @@ local C = UI.Colors
 local bar, nameLabel
 local watching = nil -- entity id
 local active = false
+local optIn = false -- somebody waiting for the next match (never in this one) only watches when they ask to
 
 function Spectate.isActive()
 	return active
@@ -14330,6 +14618,17 @@ local function living()
 	return list
 end
 
+-- The "watch the match" button on the waiting card: waiting players walk about the lobby until they choose to watch.
+function Spectate.toggleWatch()
+	optIn = not optIn
+	Spectate.update()
+	return optIn
+end
+
+function Spectate.wantsToWatch()
+	return optIn
+end
+
 function Spectate.cycle(step)
 	local list = living()
 	if #list == 0 then
@@ -14357,7 +14656,12 @@ end
 
 function Spectate.update()
 	local phase = View.phase()
-	local out = player:GetAttribute("Alive") ~= true and (phase == "play" or phase == "countdown")
+	local inMatchPhase = phase == "play" or phase == "countdown"
+	if not inMatchPhase then
+		optIn = false
+	end
+	local waiting = player:GetAttribute("Playing") == false -- (never in this match)
+	local out = player:GetAttribute("Alive") ~= true and inMatchPhase and (not waiting or optIn)
 	local list = out and living() or {}
 	if #list == 0 then
 		if active then
@@ -14392,7 +14696,7 @@ return Spectate
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="63">
+          <Item class="ModuleScript" referent="64">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -14502,7 +14806,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="64">
+          <Item class="ModuleScript" referent="65">
             <Properties>
               <string name="Name">View</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the client's picture of the match. Reads the attributes the server writes and finds the people in the
@@ -14718,7 +15022,7 @@ return View
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="65">
+  <Item class="Workspace" referent="66">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

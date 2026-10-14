@@ -15,3 +15,5 @@ for k in C0.Features do C0.Features[k] = false end
 C0.Map.use("canyon") -- (the older scenarios were written for Waterfall Canyon; the shipped game starts on the School Yard)
 C0.Match.DropIn = true; C0.Match.SoloPractice = false -- (the older scenarios drop late joiners straight into the running match)
 C0.Daily.Coins = 0 -- (no daily coins in the older scenarios)
+C0.Match.Intermission = 10; C0.Match.Countdown = 5; C0.Match.ResultsTime = 8; C0.Match.DropInWindow = 0; C0.Pickups.Respawn = 30
+C0.Streaks.Bonus = 0; C0.Quests.AllBonus = 0; for _, q in C0.Quests.List do q.Coins = 0 end -- (no streak points or quest coins in the older scenarios)

@@ -38,11 +38,16 @@ local e1, e2 = State.byPlayer(p1), State.byPlayer(p2)
 check(e1.team ~= e2.team and e1.outline ~= nil, "they are on different teams, each with a team outline")
 check(e1.char:FindFirstChild("Humanoid") ~= nil or true, "real skin kept")
 advance(Config.Match.Countdown + 1)
--- a third player arrives during the match: waits, and sees the time
+-- somebody who arrives in the first seconds of the match jumps straight in
+local pEarly = join(30, "Early")
+advance(1)
+check(State.byPlayer(pEarly) ~= nil and pEarly.attrs.Playing == true, "a player who arrives in the first seconds of a match jumps straight in")
+-- a later arrival waits, and sees the time
+advance(Config.Match.DropInWindow + 5)
 local p3 = join(3, "Cara")
 advance(1)
-check(State.byPlayer(p3) == nil and p3.attrs.Playing == false and attrsWS.Waiting == 1 and attrsWS.Total == 2, "a late joiner waits; the match still has 2 playing and 1 waiting")
-check(attrsWS.Phase == "play" and attrsWS.PhaseEnd - State.now() > 1400, "the screens know how long the match has left")
+check(State.byPlayer(p3) == nil and p3.attrs.Playing == false and attrsWS.Waiting == 1 and attrsWS.Total == 3, "a late joiner waits; the match still has 3 playing and 1 waiting")
+check(attrsWS.Phase == "play" and attrsWS.PhaseEnd - State.now() > 100 and attrsWS.PhaseEnd - State.now() < 200, "the screens know how long the match has left")
 local w1, w2 = World.status()
 check(string.find(w1, "IN PROGRESS", 1, true) ~= nil and string.find(w2, "waiting", 1, true) ~= nil and string.find(w2, "next match in about", 1, true) ~= nil, "the lobby status screen says: in progress, time left, who is waiting, when the next match is (" .. tostring(w2) .. ")")
 -- more players than the limit: only 20 play, the rest queue
@@ -56,10 +61,10 @@ check(#State.order == 20, "at most 20 play (" .. #State.order .. ")")
 check(State.byPlayer(p3) ~= nil, "the one who waited longest is in")
 local sitting = 0
 for _, p in players do if not State.byPlayer(p) then sitting += 1 end end
-check(sitting == 4 and attrsWS.Waiting == 4, "the other 4 wait for the one after (" .. sitting .. ")")
+check(sitting == 5 and attrsWS.Waiting == 5, "the other 5 wait for the one after (" .. sitting .. ")")
 local queued = 0
 for _, p in players do if p.attrs.QueuePos and p.attrs.QueuePos > 0 and not State.byPlayer(p) then queued += 1 end end
-check(queued == 4, "each of them has a place in the queue")
+check(queued == 5, "each of them has a place in the queue")
 -- the stun grenade freezes and blinds
 local a, b = State.list()[1], State.list()[2]
 for _, e in State.list() do e.protectedUntil = 0 end

@@ -1,6 +1,6 @@
 # Figure Me Out
 
-A Roblox game for up to 20 players, made to match the reference trailer of the original (see [docs/VIDEO_SPEC.md](docs/VIDEO_SPEC.md) for exactly what the video shows and how each thing is done here). Everybody wears a secret **4-digit number on a mustard sign on their forehead**. Put the dot on someone's head and **type their number**: it goes in by itself and they are out. Capture the flag (or team fights) in 25-minute matches: red against blue, respawning, with a red box and a blue box for the score. Press **F** for a photo or **G** for the binoculars (one press each) to read numbers from far away, grab yellow chests for a flashbang, a smoke bottle or a sound grenade, and **don't cover your number**: facing a wall or sitting still fills a red bar and you get strikes.
+A Roblox game for up to 20 players, made to match the reference trailer of the original (see [docs/VIDEO_SPEC.md](docs/VIDEO_SPEC.md) for exactly what the video shows and how each thing is done here). Everybody wears a secret **4-digit number on a mustard sign on their forehead**. Put the dot on someone's head and **type their number**: it goes in by itself and they are out. Capture the flag (or team fights) in **4-minute matches** (short on purpose, so "one more match" is easy): red against blue, respawning, with a red box and a blue box for the score. Press **F** for a photo or **G** for the binoculars (one press each) to read numbers from far away, grab yellow chests for a flashbang, a smoke bottle or a sound grenade, and **don't cover your number**: facing a wall or sitting still fills a red bar and you get strikes.
 
 Making more games? Read [docs/ROBLOX_PLAYBOOK.md](docs/ROBLOX_PLAYBOOK.md) (how Roblox ranks games and why some go viral, with sources) and [docs/GAME_FACTORY.md](docs/GAME_FACTORY.md) (reusing this project for the next game). See [docs/GAME_CONCEPT.md](docs/GAME_CONCEPT.md) for the full design and [docs/SETUP_AND_TESTING.md](docs/SETUP_AND_TESTING.md) for setup, a testing checklist and troubleshooting.
 
@@ -31,6 +31,14 @@ Or run `rojo serve` and click Connect in the Rojo plugin to live-edit.
 
 On a phone or tablet: tap a player, then the on-screen number pad; tap the F and G slots: one tap takes the photo, raises the binoculars or throws the grenade. On a controller: X guess, R2 photo, hold L2 for binoculars, Y notebook, L1/R1 choose a gadget and A to use it, Start for the menu.
 
+## Fast, replayable and fun
+
+* **Matches are 4 minutes** (capture the flag: first to 5; team fight: first to 25; free for all: 3 minutes), the lobby between them is 8 seconds, so there is never a long wait. Chests refill every 15 seconds.
+* **Anyone who joins in the first 45 seconds of a match (or during the countdown) jumps straight in.** Later arrivals wait at most a few minutes, and can press **👁 WATCH THE MATCH** to watch it live.
+* **The binoculars are fixed:** looking through them now moves the camera into your own eyes (first person) and zooms the open ground, instead of zooming on the back of your own head. Scroll to change the zoom. They go back behind you when you lower them.
+* **Dash** (Q, or the 💨 button): a quick burst forward, 3.5 second cooldown. **Jump pads** on the maps throw you up and forward. **Hit streaks** give a popup and bonus points ("DOUBLE HIT!", "ON FIRE!").
+* **Daily quests** (play 3 matches, hit 5 players, take 3 photos) pay coins, plus a bonus for all three; the **daily streak** pays more every day in a row.
+
 ## Joining, waiting and skins
 
 * **Anybody can join at any time, 20 play.** Somebody who arrives during a match **waits in the lobby** and sees a card with the time left, how many play and wait, and when their match starts. A lone player gets a 3-minute **practice round** that ends when somebody else arrives. If more than 20 are here, those who sat out the last match go first. See [docs/PUBLISH_AND_PLAY.md](docs/PUBLISH_AND_PLAY.md) for publishing (Max players, Public, Avatar type: Player Choice) and a checklist for "I cannot get into the match".
@@ -40,7 +48,7 @@ On a phone or tablet: tap a player, then the on-screen number pad; tap the F and
 
 ## The screen (like the video)
 
-Top centre: a **red box and a blue box** with the team scores and a small "-" between them, the **timer** under them (25:00 counting down), three **X marks** for your strikes, and a small **flag icon** beside a box when that team's flag has been taken. Bottom centre: the **F and G slots** (a white slot is the one in your hands). In the middle: a small dot. Under the dot while you type: the **big white digits** with underscores for the missing ones. A short white line at the bottom says "You killed Michael". On the left: your own number on a small sign. Names above heads are small, white and see-through; there are no floating numbers.
+Top centre: a **red box and a blue box** with the team scores and a small "-" between them, the **timer** under them (counting down from 04:00), three **X marks** for your strikes, and a small **flag icon** beside a box when that team's flag has been taken. Bottom centre: the **F and G slots** (a white slot is the one in your hands). In the middle: a small dot. Under the dot while you type: the **big white digits** with underscores for the missing ones. A short white line at the bottom says "You killed Michael". On the left: your own number on a small sign. Names above heads are small, white and see-through; there are no floating numbers.
 
 ## Six maps, and you vote for the next one
 

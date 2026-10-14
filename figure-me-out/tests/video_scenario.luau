@@ -11,7 +11,7 @@ check(not Config.Features.Terminals and not Config.Features.Bounty and not Confi
 check(Config.Loadout.Enabled and Config.Loadout.F == "camera" and Config.Loadout.G == "binos", "two item slots: F = camera, G = binoculars")
 check(#Config.CarriedItems == 3, "crates give a flashbang, a smoke bottle or a sound grenade")
 check(Config.Hud.Style == "video" and Config.Number.FloatingTag == false, "the video screen; no floating numbers")
-check(Config.Match.Length == 1500 and Config.Modes.List.ctf.CaptureLimit == 10 and Config.Modes.List.team.ScoreLimit == 50, "25-minute matches, captures to 10, hits to 50")
+check(Config.Match.Length == 240 and Config.Modes.List.ctf.CaptureLimit == 5 and Config.Modes.List.team.ScoreLimit == 25, "4-minute matches, captures to 5, hits to 25")
 check(Config.Modes.Rotation[1] == "ctf", "the first match is capture the flag")
 check(Config.PlateStyleById.classic ~= nil and Config.PlateStyles[1].Id == "classic" and Config.Plate.Detail == false and Config.Plate.WhiteNames == true, "the default sign is the plain mustard one with black digits; names are white")
 check(Maps.FirstMap == "school" and Config.Map.Theme == "school" and Maps.Order[1] == "school", "the game starts on the School Yard")
@@ -42,7 +42,7 @@ advance(2)
 check(State.mode and State.mode.Id == "ctf" and attrsWS.Mode == "ctf", "the first match is capture the flag")
 check(Config.Map.Theme == "school" and attrsWS.MapName == "School Yard", "...on the School Yard (" .. tostring(attrsWS.MapName) .. ")")
 advance(Config.Match.Countdown + 1)
-check(State.phase == "play" and math.abs(State.phaseEnd - State.now() - Config.Match.Length) < 12, "the match lasts 25 minutes (" .. math.floor(State.phaseEnd - State.now()) .. " s left)")
+check(State.phase == "play" and math.abs(State.phaseEnd - State.now() - Config.Match.Length) < 12, "the match lasts 4 minutes (" .. math.floor(State.phaseEnd - State.now()) .. " s left)")
 local e1, e2 = State.byPlayer(p1), State.byPlayer(p2)
 check(e1 and e2 and #e1.number == 4 and #e2.number == 4 and e1.number ~= e2.number, "everybody has their own 4-digit number")
 -- the forehead sign
@@ -90,7 +90,7 @@ local chests = 0
 for _, o in X.parts do if o.Name == "ItemCrate" and o.Material == Enum.Material.Wood then chests += 1 end end
 check(chests == #Config.Map.Crates, "every crate is a yellow wooden chest (" .. chests .. ")")
 -- team scores replicate
-check(attrsWS.Team1Score == 0 and attrsWS.Team2Score == 0 and attrsWS.ScoreLimit == 10, "scores start 0 - 0, first to 10 captures")
+check(attrsWS.Team1Score == 0 and attrsWS.Team2Score == 0 and attrsWS.ScoreLimit == 5, "scores start 0 - 0, first to 5 captures")
 -- match flow still works: a hit with the 4-digit number, and a 3-digit guess is refused
 local Guess = require(ModN.children.Guess)
 e1.protectedUntil = 0; e2.protectedUntil = 0
@@ -120,4 +120,29 @@ check(Badges.award(p1, "first_win") == false, "a badge with no number yet is ski
 Config.Badges.first_win = 4242
 check(Badges.award(p1, "first_win") == true and Badges.award(p1, "first_win") == false, "a badge with a number is asked for once per visit")
 check(Badges.award(p1, "nonsense") == false, "an unknown badge is ignored")
+-- the dash, quests, streaks and jump pads
+local Combat = require(ModN.children.Combat)
+local Quests = require(ModN.children.Quests)
+e1.stunUntil = 0
+advance(1)
+check(Combat.dash(e1, V3new(0, 0, 1)) == true and p1.attrs.DashReady ~= nil, "the dash works and publishes when it is ready again")
+check(Combat.dash(e1, V3new(0, 0, 1)) == false, "...with a cooldown")
+advance(Config.Dash.Cooldown + 0.5)
+check(Combat.dash(e1, V3new(0, 0, 1)) == true, "...and works again after it")
+local pads = 0
+for _, o in X.parts do if o.Name == "JumpPad" then pads += 1 end end
+check(pads >= 4, "jump pads on the map (" .. pads .. ")")
+local coins0 = p1.attrs.Coins
+local qd = Config.Quests.List[1]
+Quests.bump(p1, qd.Id, 0)
+check(Quests.bump(p1, qd.Id, qd.Goal - 1) == false and string.find(p1.attrs.Quests, qd.Id .. "=" .. (qd.Goal - 1) .. "/" .. qd.Goal, 1, true) ~= nil, "a quest counts up (" .. tostring(p1.attrs.Quests) .. ")")
+check(Quests.bump(p1, qd.Id, 1) == true and p1.attrs.Coins == coins0 + qd.Coins, "finishing it pays coins")
+check(Quests.bump(p1, qd.Id, 1) == false and p1.attrs.Coins == coins0 + qd.Coins, "...once")
+check(Quests.bump(p1, "play", 3, (math.floor(os.time() / 86400) + 1) * 86400) == true, "a new day starts the quests again")
+e1.streak = 0
+local before = #notifyLog
+Combat.credit(e1, e2); Combat.credit(e1, e2)
+local gotStreak
+for i = #notifyLog, before + 1, -1 do if notifyLog[i][1] == "streak" then gotStreak = notifyLog[i] break end end
+check(gotStreak and gotStreak[2] == 2 and gotStreak[3] == "DOUBLE HIT!" and gotStreak[4] == Config.Streaks.Bonus, "two hits in a row: DOUBLE HIT! with bonus points")
 print("--- video server done")

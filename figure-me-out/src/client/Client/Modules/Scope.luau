@@ -9,6 +9,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local UI = require(Shared:WaitForChild("UI"))
 local Audio = require(Shared:WaitForChild("Audio"))
 local View = require(script.Parent:WaitForChild("View"))
+local CameraView = require(script.Parent:WaitForChild("Camera"))
 
 local Scope = {}
 local VIDEO = Config.Hud.Style == "video" -- the original game: a black figure-8 view, no crosshair lines
@@ -144,6 +145,7 @@ function Scope.set(value)
 		return
 	end
 	on = value
+	CameraView.setScoped(on) -- (first person while looking through them: you see the far ground, not your own head)
 	if on then
 		layout()
 	end

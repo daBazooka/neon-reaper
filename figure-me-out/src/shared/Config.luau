@@ -23,16 +23,17 @@ Config.Features = {
 Config.Match = {
 	MaxPlayers = 20,
 	MinHumans = 1, -- real players needed before a match starts. 1 = the lobby starts a match as soon as somebody is here
-	DropIn = false, -- false: somebody who arrives while a match is on WAITS in the lobby (the screen shows the time left and when the next match starts) and plays the next one. true: they jump into the running match
+	DropIn = false, -- false: somebody who arrives while a match is well under way WAITS in the lobby (the screen shows the time left and when the next match starts, and they can watch it). true: they always jump into the running match
+	DropInWindow = 45, -- ...but somebody who arrives in the first seconds of a match (or during the countdown) still jumps straight in, so nobody waits for nothing
 	SoloPractice = true, -- with only one player the match is a short practice round (to try the items); it ends the moment somebody else arrives, so nobody waits long
 	PracticeLength = 180, -- seconds
 	FirstMatchAtOnce = true, -- the first match after the server starts begins the moment somebody is here (no lobby wait); after that, the lobby counts down
 	MinTotal = 0, -- 0 = real players only. (A number here would add bots up to that many players: handy for testing alone in Studio.)
-	Intermission = 10, -- lobby wait between matches (seconds)
-	Countdown = 5, -- before the start whistle
-	Length = 1500, -- the match: 25 minutes (a mode can set its own Length below; the timer counts down like 21:32)
+	Intermission = 8, -- lobby wait between matches (seconds)
+	Countdown = 4, -- before the start whistle
+	Length = 240, -- the match: 4 minutes. Short on purpose: nobody waits long, and "one more match" is easy (a mode can set its own Length below)
 	RevealAt = 20, -- the final stretch: the timer turns red and the music speeds up
-	ResultsTime = 8,
+	ResultsTime = 6,
 }
 
 -- Game modes. Matches rotate through them (or set Mode to one id to always play that mode).
@@ -44,9 +45,9 @@ Config.Modes = {
 	Mode = "rotate", -- "rotate" or one of the ids above
 	List = {
 		practice = { Id = "practice", Name = "PRACTICE", Icon = "🎯", Teams = false, Respawn = false, Length = 180, Practice = true, Tip = "You are the only player: try the items. The real match starts when somebody else arrives." },
-		deathmatch = { Id = "deathmatch", Name = "DEATHMATCH", Icon = "💀", Teams = false, Respawn = false, Length = 600, Tip = "Everybody for themselves. 3 lives." },
-		team = { Id = "team", Name = "TEAM DEATHMATCH", Icon = "⚔️", Teams = true, Respawn = true, ScoreLimit = 50, Tip = "Two teams. Every hit on the other team scores. First to 50." },
-		ctf = { Id = "ctf", Name = "CAPTURE THE FLAG", Icon = "🚩", Teams = true, Respawn = true, CaptureLimit = 10, Tip = "Grab the enemy flag and bring it home. First to 10 captures." },
+		deathmatch = { Id = "deathmatch", Name = "DEATHMATCH", Icon = "💀", Teams = false, Respawn = false, Length = 180, Tip = "Everybody for themselves. 3 lives." },
+		team = { Id = "team", Name = "TEAM DEATHMATCH", Icon = "⚔️", Teams = true, Respawn = true, ScoreLimit = 25, Tip = "Two teams. Every hit on the other team scores. First to 25." },
+		ctf = { Id = "ctf", Name = "CAPTURE THE FLAG", Icon = "🚩", Teams = true, Respawn = true, CaptureLimit = 5, Tip = "Grab the enemy flag and bring it home. First to 5 captures." },
 	},
 }
 Config.Teams = {
@@ -199,7 +200,7 @@ Config.Camera = { FirstPerson = false, MinZoom = 0.5, MaxZoom = 30, Occlusion = 
 Config.Scope = { Fov = 14, MinFov = 6, MaxFov = 24, NormalFov = 70 }
 
 -- Crates that hand out gadgets. Positions are on the map (see Config.Map).
-Config.Pickups = { Respawn = 30, Radius = 4.5 }
+Config.Pickups = { Respawn = 15, Radius = 4.5 }
 
 --------------------------------------------------------------------------------
 -- Bounty, alliances, information terminals and bonus events
@@ -427,6 +428,22 @@ Config.Map.Themes = {
 end
 
 --------------------------------------------------------------------------------
+-- Streaks: hit again and again without being hit yourself and you get a popup and bonus points.
+Config.Streaks = { Names = { "DOUBLE HIT!", "TRIPLE HIT!", "ON FIRE!", "UNSTOPPABLE!" }, Bonus = 10 }
+-- The dash (Q, or the DASH button): a quick burst forward to dodge, cross open ground or chase a flag carrier.
+Config.Dash = { Cooldown = 3.5, Speed = 62, Lift = 10 }
+-- Jump pads on the maps (touch one and you are thrown up and forward).
+Config.Pads = { Up = 78, Forward = 26, Gap = 0.9 }
+-- Daily quests: three small goals a day, each pays coins (and doing all three pays a bonus). They reset every day.
+Config.Quests = {
+	List = {
+		{ Id = "play", Name = "Play 3 matches", Goal = 3, Coins = 40 },
+		{ Id = "hit", Name = "Hit 5 players", Goal = 5, Coins = 40 },
+		{ Id = "photo", Name = "Take 3 photos", Goal = 3, Coins = 30 },
+	},
+	AllBonus = 50,
+}
+
 -- Badges and the daily streak: reasons to come back tomorrow.
 --  * Badges: create them on the Roblox website and paste each number here (0 = not made yet, skipped). Names: Welcome, First Hit, First Win,
 --    10 Wins, Win Streak (3 in a row), Capture! (flag), Canyon Explorer (play on Waterfall Canyon).

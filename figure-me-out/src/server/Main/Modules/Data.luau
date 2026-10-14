@@ -31,6 +31,7 @@ local function defaults()
 		Trail = "none",
 		Effect = "pixels",
 		Owned = { Trails = { none = true }, Effects = { pixels = true }, Emotes = {} },
+		Quests = { Day = 0, Progress = {}, Done = {} }, -- today's quests: progress per id and which are paid
 		LastDay = 0, -- the last day (UTC) they visited, and how many days in a row
 		DayStreak = 0,
 		LastRewardMatch = 0, -- the last match that paid out (so one match never pays twice)
