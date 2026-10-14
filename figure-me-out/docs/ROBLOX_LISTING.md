@@ -85,3 +85,7 @@ Badges are created on the website and their IDs are not in the game yet, so for 
 - Share the link with friends and ask them to play in groups: the game needs two players, and ten is best.
 - Put the play link in your social posts with thumbnail 3 and thumbnail 5.
 - Look at **Analytics** after a few days: if players leave in the first minute, the lobby wait is the first thing to shorten (`Config.Match.Intermission`).
+
+## 8. Video (Creator Hub > Videos): you record the gameplay, I made the title cards
+Roblox wants **real gameplay** (max 60 s, mp4/mov, 16:9, up to 1920x1080, 100 MB). Record 30 to 45 seconds of a real match (Xbox Game Bar `Win+G`, or OBS), then in a free editor (CapCut, DaVinci Resolve, Clipchamp) put `docs/icons/video/intro_card.mp4` (3.5 s, logo + tagline) before it and `outro_card.mp4` (3.5 s, "PLAY NOW!") after it. The cards are title cards, not gameplay; keep your real clips the main part. Regenerate them with `python3 docs/icons/make_cards.py` (needs ffmpeg).
+Shot list: 0-3 s a number on a forehead and the typed digits; 3-12 s type a number and eliminate someone; 12-22 s a gadget (photo, binoculars, stun grenade); 22-32 s the red/blue scores changing; 32-40 s the winner screen with +100 coins.
