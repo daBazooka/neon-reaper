@@ -47,12 +47,40 @@ def starburst(c, cx, cy, r, color="#ffe45a", points=14, rot=0.2):
     c.paste(l)
 
 # ====================================================================================================== GAME ICONS
+def split_bg(c, W, H, lean=0.08):
+    l, d = c.layer()
+    x = W * 0.5
+    d.polygon([(0, 0), (c.S(x + W * lean), 0), (c.S(x - W * lean), c.S(H)), (0, c.S(H))], fill=(235, 62, 62, 255))
+    d.polygon([(c.S(x + W * lean), 0), (c.S(W), 0), (c.S(W), c.S(H)), (c.S(x - W * lean), c.S(H))], fill=(58, 120, 245, 255))
+    c.paste(l)
+    c.rays(W / 2, H * 0.55, 22, (255, 255, 255, 36), spread=0.5)
+    c.glow(W / 2, H * 0.5, H * 0.55, (255, 255, 255, 255), 0.16)
+
+def crosshair(c, x, y, r):
+    l, d = c.layer()
+    w = max(3, c.S(r * 0.09))
+    d.ellipse([c.S(x - r), c.S(y - r), c.S(x + r), c.S(y + r)], outline=(255, 255, 255, 255), width=w)
+    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        d.line([c.S(x + dx * r * 0.62), c.S(y + dy * r * 0.62), c.S(x + dx * r * 1.28), c.S(y + dy * r * 1.28)], fill=(255, 255, 255, 255), width=w)
+    d.ellipse([c.S(x - r * 0.12), c.S(y - r * 0.12), c.S(x + r * 0.12), c.S(y + r * 0.12)], fill=(255, 255, 255, 255))
+    c.paste(l)
+
 def icon_hero():
-    c = Canvas(1024, 1024, "#59c4ff", "#dff6ff")
-    scenery(c, 1024, 1024, 700)
-    bubbles(c, 1024, 1024, 10, 4, 12, 44)
-    c.avatar(512, 975, 520, number="4722", shirt=SHIRTS[0], pants=PANTS[0], arm_up=True)
-    title(c, 512, 150, 140, stack=True)
+    # the hook in one look: a big Roblox face, a mustard number sign, a crosshair on it, red against blue
+    c = Canvas(1024, 1024, "#ff6b6b", "#4aa3ff")
+    split_bg(c, 1024, 1024)
+    c.avatar(512, 2290, 2100, number="4271", shirt="#ff5a5a", pants=PANTS[2], skin="#f5cd30", mood="smile", plate=False)
+    # a big readable sign on the forehead (the plate drawn by avatar() is too small at icon size)
+    l, d = c.layer()
+    d.rounded_rectangle([c.S(300), c.S(290), c.S(724), c.S(430)], radius=c.S(26), fill=(226, 178, 34, 255), outline=(120, 84, 8, 255), width=c.S(8))
+    c.paste(l)
+    c.text((512, 362), "4271", 112, fill="#16140f", stroke="#16140f", sw=0.0, shadow=False, tracking=4)
+    crosshair(c, 512, 560, 82)
+    l, d = c.layer()
+    d.rounded_rectangle([c.S(250), c.S(815), c.S(774), c.S(975)], radius=c.S(48), fill=(14, 30, 64, 240), outline=rgb("#ffe45a"), width=c.S(8))
+    c.paste(l)
+    c.text((512, 895), "42__", 130, fill="#ffffff", stroke="#0a2a5a", sw=0.05, tracking=8, shadow=False)
+    c.text((512, 105), "FIGURE ME OUT", 104, tracking=3)
     return c.done(os.path.join(HERE, "icons", "game_icon_1_hero.png"))
 
 def icon_number():
@@ -101,17 +129,28 @@ def icon_crowd():
 
 # ====================================================================================================== THUMBNAILS
 def thumb_hero():
+    # two teams, a crosshair on a number sign, the typed digits and a hit: the whole game in one look. No small text, bottom edge kept clear.
     W, H = 1920, 1080
-    c = Canvas(W, H, SKY1, SKY2)
-    scenery(c, W, H, 700)
-    bubbles(c, W, H, 18, 2, 14, 64)
-    c.tree(110, 960, 380); c.tree(1810, 970, 420)
-    cast = [(330, 1040, 430, 1, "2374"), (1590, 1040, 430, 3, "3438"), (620, 1060, 480, 4, "3413"), (1300, 1060, 480, 5, "9075")]
-    for x, y, s, i, n in cast:
-        c.avatar(x, y, s, number=n, shirt=SHIRTS[i], pants=PANTS[i % 6], skin=SKINS[i % 5], mood=["smile", "smirk", "wow", "smile", "smirk", "wow"][i % 6])
-    c.avatar(960, 1070, 600, number="4722", shirt=SHIRTS[0], pants=PANTS[0], arm_up=True)
-    c.text((960, 120), "FIGURE ME OUT", 190, tracking=6)
-    c.text((960, 262), "Type their number. Eliminate the other team!", 56, fill="#ffffff", sw=0.09)
+    c = Canvas(W, H, "#ff6b6b", "#4aa3ff")
+    split_bg(c, W, H, 0.06)
+    S = 960
+    u = S / 5.5
+    base = 1240
+    hy0 = base - 5.3 * u
+    for x, shirt, skin, pants, mood, n in ((470, "#ff5a5a", "#cc8e69", PANTS[0], "smirk", "9031"), (1450, "#4aa3ff", "#f5cd30", PANTS[4], "wow", "4271")):
+        c.avatar(x, base, S, number=None, shirt=shirt, pants=pants, skin=skin, mood=mood, plate=False)
+        l, d = c.layer()
+        d.rounded_rectangle([c.S(x - 0.62 * u), c.S(hy0 + 0.04 * u), c.S(x + 0.62 * u), c.S(hy0 + 0.44 * u)], radius=c.S(14), fill=(226, 178, 34, 255), outline=(120, 84, 8, 255), width=c.S(5))
+        c.paste(l)
+        c.text((x, hy0 + 0.24 * u), n, u * 0.34, fill="#16140f", stroke="#16140f", sw=0.0, shadow=False, tracking=3)
+    crosshair(c, 1450, hy0 + 0.1 * u + 0.45 * u, 62)
+    c.text((960, 135), "FIGURE ME OUT", 190, tracking=6)
+    l, d = c.layer()
+    d.rounded_rectangle([c.S(700), c.S(690), c.S(1220), c.S(850)], radius=c.S(48), fill=(14, 30, 64, 238), outline=rgb("#ffe45a"), width=c.S(8))
+    c.paste(l)
+    c.text((960, 770), "42__", 130, fill="#ffffff", stroke="#0a2a5a", sw=0.05, tracking=8, shadow=False)
+    starburst(c, 1010, 470, 120, "#5ad26e", 14, 0.3)
+    c.text((1010, 470), "OUT!", 80, fill="#ffffff", stroke="#0b5a1a", angle=-8)
     return c.done(os.path.join(HERE, "thumbnails", "thumbnail_1_hero.png"))
 
 def keypad(c, x, y, w, typed="47", result=None):
@@ -294,6 +333,33 @@ def thumb_lobby():
     c.text((960, 1005), "NEXT MATCH IN 30 s", 58, fill="#ffe45a", stroke="#0a2a5a", shadow=False)
     return c.done(os.path.join(HERE, "thumbnails", "thumbnail_7_lobby.png"))
 
+def thumb_real():
+    """Uses REAL Roblox avatar renders if you put PNGs (transparent background, full body) in docs/icons/avatars/ : red_1.png, red_2.png, blue_1.png, blue_2.png.
+    Get them from Roblox: Avatar editor > your avatar > or in Studio: Avatar tab > Avatar Preview > screenshot, or the website avatar image. Skipped when the folder is empty."""
+    folder = os.path.join(HERE, "avatars")
+    files = {n: os.path.join(folder, n + ".png") for n in ("red_1", "red_2", "blue_1", "blue_2")}
+    have = {n: p for n, p in files.items() if os.path.exists(p)}
+    if not have:
+        return None
+    W, H = 1920, 1080
+    c = Canvas(W, H, "#ff6b6b", "#4aa3ff")
+    split_bg(c, W, H, 0.06)
+    slots = {"red_1": (330, 1.0), "red_2": (700, 0.8), "blue_1": (1590, 1.0), "blue_2": (1220, 0.8)}
+    for n, p in have.items():
+        im = art.Image.open(p).convert("RGBA")
+        x, k = slots[n]
+        h = int(1000 * k) * art.SS
+        w = int(im.width * h / im.height)
+        im = im.resize((w, h), art.Image.LANCZOS)
+        c.img.alpha_composite(im, (c.S(x) - w // 2, c.S(1080 + 20) - h))
+    c.d = art.ImageDraw.Draw(c.img, "RGBA")
+    c.text((960, 150), "FIGURE ME OUT", 200, tracking=6)
+    l, d = c.layer()
+    d.rounded_rectangle([c.S(690), c.S(430), c.S(1230), c.S(640)], radius=c.S(44), fill=(14, 30, 64, 235), outline=rgb("#ffe45a"), width=c.S(8))
+    c.paste(l)
+    c.text((960, 535), "42__", 170, fill="#ffffff", stroke="#0a2a5a", sw=0.05, tracking=10, shadow=False)
+    return c.done(os.path.join(HERE, "thumbnails", "thumbnail_0_real_avatars.png"))
+
 # ====================================================================================================== BADGES
 def badge(name, label, c1, c2, glyph):
     c = Canvas(512, 512, c1, c2)
@@ -395,8 +461,8 @@ if __name__ == "__main__":
         for f in (icon_hero, icon_number, icon_teams, icon_crowd):
             im = f(); print("made", f.__name__)
     if "thumbs" in which:
-        for f in (thumb_hero, thumb_guess, thumb_elim, thumb_items, thumb_rewards, thumb_quick, thumb_lobby):
-            f(); print("made", f.__name__)
+        for f in (thumb_hero, thumb_guess, thumb_elim, thumb_items, thumb_rewards, thumb_quick, thumb_lobby, thumb_real):
+            r = f(); print("made" if r is not None or f.__name__ != "thumb_real" else "skipped (no avatars/ folder)", f.__name__)
     if "badges" in which:
         badges(); print("made badges")
     if "logo" in which:
