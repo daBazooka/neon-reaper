@@ -17,6 +17,7 @@ a.Music = true; a.Sfx = true; a.Fx = true; a.Alive = false
 a.Level = 3; a.Coins = 120; a.XP = 30; a.XPInto = 30; a.XPNeed = 100; a.Trail = "none"; a.Effect = "pixels"; a.Owned = "emote:wave"; a.Lives = 3; a.Score = 0; a.Ally = 0
 a.SlotF = "camera"; a.SlotG = "binos"; a.Strikes = 0
 attrsWS.Phase = "lobby"; attrsWS.PhaseEnd = clock + 9; attrsWS.Alive = 0; attrsWS.Total = 0; attrsWS.Reveal = false
+Players.NumPlayers = 2
 local ok, err = pcall(sources[ClientN], ClientN)
 check(ok, "client starts " .. tostring(err))
 frames(40)
@@ -177,4 +178,11 @@ check(X.seen("READY"), "with two or more players the lobby card has a READY butt
 local readies = fired("Ready")
 X.click("READY"); frames(2)
 check(fired("Ready") == readies + 1, "pressing READY tells the server")
+attrsWS.Phase = "play"; attrsWS.PhaseEnd = clock + 200; attrsWS.Mode = "elim"; attrsWS.ModeName = "TEAM ELIMINATION"; attrsWS.Team1Score = 3; attrsWS.Team2Score = 1; attrsWS.Team1Alive = 7; attrsWS.Team2Alive = 4
+a.Playing = true; a.Alive = true; a.QueuePos = nil; Players.NumPlayers = 2; frames(6)
+check(X.seen("🔴 7 left") and X.seen("🔵 4 left"), "team elimination shows how many are left on each team")
+check(X.seen("3") and X.seen("1"), "...and the red and blue boxes show the hits (3 and 1)")
+attrsWS.Phase = "lobby"; attrsWS.Mode = nil; a.Playing = false; a.Alive = false
+Players.NumPlayers = 1; attrsWS.PhaseEnd = clock + 30; frames(6)
+check(X.seen("WAITING FOR PLAYERS"), "alone in the lobby the card says it is waiting for players (no bots)")
 print("--- video client done")

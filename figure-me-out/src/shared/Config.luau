@@ -20,22 +20,9 @@ Config.Features = {
 	Events = true, -- double points, low gravity, supply drops... (a short event every half minute or so keeps matches changing)
 }
 
--- The bots that fill a match when there are not enough real players: they play like gods (they see far, never guess wrong
--- and guess fast). They still need a clear view of a sign, so smoke, stun grenades, covering up and turning your back all work on them.
-Config.Bots = {
-	God = true,
-	Names = { "Zeus", "Hera", "Poseidon", "Athena", "Apollo", "Artemis", "Ares", "Hermes", "Hades", "Demeter", "Dionysus", "Hephaestus" },
-	Icon = "⚡",
-	Accuracy = 1,
-	SightRange = 110,
-	GuessEvery = { 1.2, 2.5 }, -- seconds between a god's guesses
-	FirstGuess = { 4, 8 }, -- after the start whistle
-	Normal = { Accuracy = 0.12, SightRange = 70, GuessEvery = { 16, 28 }, FirstGuess = { 20, 35 } },
-}
-
 Config.Match = {
 	MaxPlayers = 20,
-	MinHumans = 1, -- real players needed before a match starts. 1 = the lobby starts a match as soon as somebody is here
+	MinHumans = 2, -- real players needed before a match starts (one on each team). With fewer the lobby waits for more players: there are no bots
 	DropIn = false, -- false: somebody who arrives while a match is well under way WAITS in the lobby (the screen shows the time left and when the next match starts, and they can watch it). true: they always jump into the running match
 	DropInWindow = 45, -- ...but somebody who arrives in the first seconds of a match (or during the countdown) still jumps straight in, so nobody waits for nothing
 	PracticeDummies = 4, -- the practice round has this many dummies to type numbers at, photograph and throw grenades at
@@ -43,26 +30,27 @@ Config.Match = {
 	PracticeLength = 180, -- seconds
 	FirstMatchAtOnce = false, -- the first match after the server starts begins the moment somebody is here (no lobby wait); after that, the lobby counts down
 	MinTotal = 0, -- 0 = real players only. (A number here would add bots up to that many players: handy for testing alone in Studio.)
-	Intermission = 30, -- the longest anybody waits in the lobby before a match (seconds)
-	SoloWait = 15, -- ...and when fewer than 2 real players are here, the lobby only waits this long, then bots fill the match
-	FillTo = 6, -- bots fill a match up to this many players when fewer than FillBelow real players are here
-	FillBelow = 3,
+	Intermission = 30, -- the longest anybody waits in the lobby before a match (seconds), counted from the moment 2 players are here
 	Countdown = 4, -- before the start whistle
 	Length = 240, -- the match: 4 minutes. Short on purpose: nobody waits long, and "one more match" is easy (a mode can set its own Length below)
 	RevealAt = 20, -- the final stretch: the timer turns red and the music speeds up
 	ResultsTime = 6,
+	WinBonus = 100, -- coins every member of the winning team gets on top of the normal rewards
+	MvpBonus = 50, -- ...and the player with the most hits in the match (on either team)
 }
 
 -- Game modes. Matches rotate through them (or set Mode to one id to always play that mode).
+--   elim:       two teams (up to 10 each), one life each: the first team to eliminate the whole other team wins (the score boxes count hits)
 --   deathmatch: everybody for themselves, 3 lives, last one standing (or most lives/points when time runs out)
 --   team:       two teams, unlimited respawns, a point for every hit on the other team, first to ScoreLimit
 --   ctf:        two teams, unlimited respawns, steal the other team's flag and bring it home, first to CaptureLimit
 Config.Modes = {
-	Rotation = { "ctf", "team", "deathmatch" },
+	Rotation = { "elim" },
 	Mode = "rotate", -- "rotate" or one of the ids above
 	List = {
 		practice = { Id = "practice", Name = "PRACTICE", Icon = "🎯", Teams = false, Respawn = false, Length = 180, Practice = true, Tip = "You are the only player: try the items. The real match starts when somebody else arrives." },
 		deathmatch = { Id = "deathmatch", Name = "DEATHMATCH", Icon = "💀", Teams = false, Respawn = false, Length = 180, Tip = "Everybody for themselves. 3 lives." },
+		elim = { Id = "elim", Name = "TEAM ELIMINATION", Icon = "🎯", Teams = true, Respawn = false, Elim = true, Lives = 1, Length = 240, Tip = "Red against blue, up to 10 each. One correct number and that player is out. Wipe out the other team to win!" },
 		team = { Id = "team", Name = "TEAM DEATHMATCH", Icon = "⚔️", Teams = true, Respawn = true, ScoreLimit = 25, Tip = "Two teams. Every hit on the other team scores. First to 25." },
 		ctf = { Id = "ctf", Name = "CAPTURE THE FLAG", Icon = "🚩", Teams = true, Respawn = true, CaptureLimit = 5, Tip = "Grab the enemy flag and bring it home. First to 5 captures." },
 	},

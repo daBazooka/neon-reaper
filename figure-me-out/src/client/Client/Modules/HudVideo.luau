@@ -534,7 +534,7 @@ function Hud.update()
 	local left = View.timeLeft()
 	local playing = player:GetAttribute("Alive") == true and (phase == "play" or phase == "countdown")
 	local mode = workspace:GetAttribute("Mode")
-	local teamMode = (mode == "team" or mode == "ctf") and (phase == "play" or phase == "countdown")
+	local teamMode = (mode == "team" or mode == "ctf" or mode == "elim") and (phase == "play" or phase == "countdown")
 
 	-- scores: the red and the blue box in team modes, one box with the people left in free for all
 	refs.redBox.Visible = teamMode
@@ -567,6 +567,10 @@ function Hud.update()
 	else
 		refs.timer.Text = clock(left)
 		refs.status.Text = phase == "countdown" and "GET READY" or ""
+		if phase == "play" and mode == "elim" then
+			-- the hits are the score; this line says how many are still standing on each side
+			refs.status.Text = "🔴 " .. (workspace:GetAttribute("Team1Alive") or 0) .. " left   •   🔵 " .. (workspace:GetAttribute("Team2Alive") or 0) .. " left"
+		end
 	end
 	local final = phase == "play" and left <= Config.Match.RevealAt
 	refs.timer.TextColor3 = final and C.Danger or Color3.new(1, 1, 1)

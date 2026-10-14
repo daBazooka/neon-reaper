@@ -125,7 +125,7 @@ function Results.show(rows, winnerId, winnerTeam, modeId, scores)
 		end
 	end
 	local winner = rows[1]
-	local teamMode = modeId == "team" or modeId == "ctf"
+	local teamMode = modeId == "team" or modeId == "ctf" or modeId == "elim"
 	heading.TextColor3 = C.Text
 	if teamMode then
 		local t = Config.Teams[winnerTeam]

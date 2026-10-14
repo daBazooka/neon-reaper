@@ -2,7 +2,6 @@
 local function check(cond, msg) print((cond and "PASS  " or "FAIL  ") .. msg) end
 local Config = require(RS.children.Shared.children.Config)
 Config.Sanity.Enabled = false
-Config.Match.FillTo = 0 -- (this scenario is about two real players; the god bots have their own checks in the joining scenario)
 local Maps = require(RS.children.Shared.children.Maps)
 local Rules = require(RS.children.Shared.children.Rules)
 -- shipped settings, straight from the config
@@ -14,7 +13,9 @@ check(Config.Loadout.Enabled and Config.Loadout.F == "camera" and Config.Loadout
 check(#Config.CarriedItems == 3, "crates give a flashbang, a smoke bottle or a sound grenade")
 check(Config.Hud.Style == "video" and Config.Number.FloatingTag == false, "the video screen; no floating numbers")
 check(Config.Match.Length == 240 and Config.Modes.List.ctf.CaptureLimit == 5 and Config.Modes.List.team.ScoreLimit == 25, "4-minute matches, captures to 5, hits to 25")
-check(Config.Modes.Rotation[1] == "ctf", "the first match is capture the flag")
+check(Config.Modes.Rotation[1] == "elim" and #Config.Modes.Rotation == 1, "the shipped game plays team elimination (checked in the joining scenario)")
+Config.Modes.Rotation = { "ctf", "team", "deathmatch" } -- (this scenario covers the other modes and the gadgets)
+Config.Match.MinHumans = 1
 check(Config.PlateStyleById.classic ~= nil and Config.PlateStyles[1].Id == "classic" and Config.Plate.Detail == false and Config.Plate.WhiteNames == true, "the default sign is the plain mustard one with black digits; names are white")
 check(Maps.FirstMap == "school" and Config.Map.Theme == "school" and Maps.Order[1] == "school", "the game starts on the School Yard")
 -- numbers

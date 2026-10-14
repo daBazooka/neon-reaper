@@ -19,4 +19,4 @@ C0.Match.Intermission = 10; C0.Match.Countdown = 5; C0.Match.ResultsTime = 8; C0
 C0.Streaks.Bonus = 0; C0.Quests.AllBonus = 0; for _, q in C0.Quests.List do q.Coins = 0 end -- (no streak points or quest coins in the older scenarios)
 C0.Bounty.Every = 70; C0.Bounty.Lasts = 90; C0.Events.First = 50; C0.Events.Gap = { 55, 90 }; C0.Events.Skip = {} -- (the older timings)
 C0.Match.PracticeDummies = 0
-C0.Match.SoloWait = 10; C0.Match.FillTo = 0; C0.Match.FirstMatchAtOnce = true; C0.Bots.God = false -- (the older timings and slow bots)
+C0.Match.FirstMatchAtOnce = true; C0.Match.MinHumans = 1; C0.Match.WinBonus = 0; C0.Match.MvpBonus = 0; C0.Modes.Rotation = { "ctf", "team", "deathmatch" } -- (the older timings and modes)

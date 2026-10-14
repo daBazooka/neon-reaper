@@ -88,7 +88,7 @@ end
 -- A hit was scored: team deathmatch scores it for the killer's team, and a flag carrier who was hit drops the flag.
 function Modes.onHit(killer, victim)
 	Flags.dropCarried(victim, "hit")
-	if State.mode.Id == "team" and killer.team and killer.team ~= victim.team then
+	if (State.mode.Id == "team" or State.mode.Elim) and killer.team and killer.team ~= victim.team then
 		State.teamScore[killer.team] += 1
 		State.writeWorld()
 	end
@@ -124,6 +124,9 @@ function Modes.over()
 		end
 	end
 	local limit = mode.ScoreLimit or mode.CaptureLimit
+	if not limit then
+		return false
+	end
 	return State.teamScore[1] >= limit or State.teamScore[2] >= limit
 end
 

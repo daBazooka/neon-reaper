@@ -162,11 +162,6 @@ function Match.activate(e, color, animal, now)
 	else
 		e.code = color.Name .. " " .. animal.Name
 		e.icon = animal.Icon
-		if Config.Bots.God and e.bot and not e.dummy then
-			local names = Config.Bots.Names
-			e.code = names[(-e.id - 1) % #names + 1]
-			e.icon = Config.Bots.Icon
-		end
 	end
 	if not e.team then
 		e.color = color.Color
@@ -183,7 +178,7 @@ function Match.activate(e, color, animal, now)
 	e.stunUntil = 0
 	e.scoped = false
 	e.lastGuess = -100
-	e.lives = e.dummy and 99 or Config.Lives.Start -- (a dummy loses a life when you get its number, and comes back)
+	e.lives = e.dummy and 99 or (State.mode and State.mode.Lives) or Config.Lives.Start -- (a dummy loses a life when you get its number, and comes back)
 	e.score = 0
 	e.hitTimes = {}
 	e.seenBy = {}
@@ -228,11 +223,7 @@ function Match.setup()
 			Match.played[o.p.UserId] = State.matchId
 		end
 	end
-	local fillTo = Config.Match.MinTotal
-	if #humans < Config.Match.FillBelow then
-		fillTo = math.max(fillTo, Config.Match.FillTo)
-	end
-	local botCount = math.max(0, math.min(fillTo, Config.Match.MaxPlayers) - #humans)
+	local botCount = math.max(0, math.min(Config.Match.MinTotal, Config.Match.MaxPlayers) - #humans)
 	-- a practice round gives the lone player dummies to type numbers at (nothing else to do alone)
 	local practice = Modes.next == "practice"
 	if practice then
@@ -551,9 +542,26 @@ function Match.finish()
 			alive = e.alive,
 		}
 	end
+	-- the best player of the match (most hits, either team) gets a bonus too
+	local mvp
+	if State.peak >= 2 and not mode.Practice then
+		for _, e in State.list() do
+			if e.player and (e.kills or 0) > 0 and (not mvp or e.kills > mvp.kills) then
+				mvp = e
+			end
+		end
+	end
 	for _, e in State.list() do
 		local won = (mode.Teams and winnerTeam ~= 0 and e.team == winnerTeam) or (not mode.Teams and e.id == winnerId)
 		won = won and State.peak >= 2 -- (winning a match nobody else was in is not a win)
+		if e.player and won then
+			e.bonusCoins = (e.bonusCoins or 0) + Config.Match.WinBonus
+			Net.toast(e.player, "🏆 YOUR TEAM WON!  +" .. Config.Match.WinBonus .. " 🪙 winner bonus", "gold")
+		end
+		if e.player and e == mvp then
+			e.bonusCoins = (e.bonusCoins or 0) + Config.Match.MvpBonus
+			Net.toast(e.player, "⭐ MVP: most hits in the match!  +" .. Config.Match.MvpBonus .. " 🪙", "gold")
+		end
 		if not mode.Practice then
 			award(e, won)
 		end
@@ -753,10 +761,7 @@ function Match.run()
 	local first = Config.Match.FirstMatchAtOnce
 	while true do
 		local lobbyOpened = State.now()
-		local function lobbyLength()
-			return #Players:GetPlayers() >= 2 and Config.Match.Intermission or math.min(Config.Match.SoloWait, Config.Match.Intermission)
-		end
-		State.setPhase("lobby", lobbyOpened + lobbyLength())
+		State.setPhase("lobby", lobbyOpened + Config.Match.Intermission)
 		Match.ready = {}
 		workspace:SetAttribute("ReadyCount", 0)
 		for _, q in Players:GetPlayers() do
@@ -771,10 +776,11 @@ function Match.run()
 			if #Players:GetPlayers() < Config.Match.MinHumans then
 				State.phaseEnd = State.now() + Config.Match.Intermission
 				lobbyOpened = State.now()
+				workspace:SetAttribute("PhaseEnd", State.phaseEnd)
 				return false
 			end
-			-- alone, the wait is short (then bots fill the match); a second player makes it the full lobby wait
-			local endsAt = lobbyOpened + lobbyLength()
+			-- the wait counts from the moment enough players are here
+			local endsAt = lobbyOpened + Config.Match.Intermission
 			if endsAt ~= State.phaseEnd then
 				State.phaseEnd = endsAt
 				workspace:SetAttribute("PhaseEnd", endsAt)

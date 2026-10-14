@@ -17,9 +17,9 @@ local Bots = {}
 local rng = Random.new()
 local LEVEL = 3.5
 
+local SKILL = { Accuracy = 0.12, SightRange = 70, GuessEvery = { 16, 28 }, FirstGuess = { 20, 35 } }
 local function skill()
-	local c = Config.Bots
-	return c.God and c or c.Normal
+	return SKILL
 end
 
 local function fallbackModel()

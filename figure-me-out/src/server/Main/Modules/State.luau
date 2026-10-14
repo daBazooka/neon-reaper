@@ -102,6 +102,14 @@ function State.writeWorld()
 	workspace:SetAttribute("ModeName", State.mode.Name)
 	workspace:SetAttribute("Team1Score", State.teamScore[1])
 	workspace:SetAttribute("Team2Score", State.teamScore[2])
+	local left = { 0, 0 }
+	for _, e in State.aliveList() do
+		if e.team then
+			left[e.team] += 1
+		end
+	end
+	workspace:SetAttribute("Team1Alive", left[1])
+	workspace:SetAttribute("Team2Alive", left[2])
 	workspace:SetAttribute("ScoreLimit", State.mode.ScoreLimit or State.mode.CaptureLimit or 0)
 end
 
