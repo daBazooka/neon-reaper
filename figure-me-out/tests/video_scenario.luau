@@ -106,4 +106,18 @@ advance(1.5)
 e1.lastGuess = -100
 Guess.handle(p1, e2.id, e2.number)
 check((e1.kills or 0) == before + 1, "the right 4-digit number takes the hit")
+-- daily streak and badges
+local Progress = require(ModN.children.Progress)
+local Badges = require(ModN.children.Badges)
+check(p1.attrs.DayStreak == 1 and p1.attrs.Coins == Config.Daily.Coins, "the first visit pays the daily coins (day 1: " .. tostring(p1.attrs.Coins) .. ")")
+check(Progress.daily(p1) == nil, "...only once a day")
+local day = math.floor(os.time() / 86400)
+local streak, coins = Progress.daily(p1, (day + 1) * 86400)
+check(streak == 2 and coins == Config.Daily.Coins * 2, "the next day in a row pays double (day 2: +" .. tostring(coins) .. ")")
+streak, coins = Progress.daily(p1, (day + 5) * 86400)
+check(streak == 1 and coins == Config.Daily.Coins, "missing days starts the streak again")
+check(Badges.award(p1, "first_win") == false, "a badge with no number yet is skipped")
+Config.Badges.first_win = 4242
+check(Badges.award(p1, "first_win") == true and Badges.award(p1, "first_win") == false, "a badge with a number is asked for once per visit")
+check(Badges.award(p1, "nonsense") == false, "an unknown badge is ignored")
 print("--- video server done")

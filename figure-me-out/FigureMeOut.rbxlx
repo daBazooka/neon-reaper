@@ -904,8 +904,9 @@ Config.CarriedItems = { "flash", "smoke", "distraction", "scanner", "sprint", "d
 
 -- Two item slots, keys F and G, like the original game. You start with the camera in F and the binoculars in G. A crate gives you
 -- a flashbang, a smoke bottle or a sound grenade: it takes over a slot (G first) until it is used up, then the camera or the
--- binoculars come back. Press F or G to hold that item, click to use it (the camera takes a photo; the binoculars zoom while held).
-Config.Loadout = { Enabled = true, F = "camera", G = "binos", Pickups = { "flash", "smoke", "distraction" } }
+-- binoculars come back. ONE press does it: F takes a photo, G looks through the binoculars (press again to lower them), and a grenade
+-- in a slot is thrown by pressing its key. (OnePress = false: the older way, press to take the item out and click to use it.)
+Config.Loadout = { Enabled = true, OnePress = true, F = "camera", G = "binos", Pickups = { "flash", "smoke", "distraction" } }
 if Config.Loadout.Enabled then
 	Config.CarriedItems = Config.Loadout.Pickups
 end
@@ -1170,6 +1171,14 @@ Config.Map.Themes = {
 end
 
 --------------------------------------------------------------------------------
+-- Badges and the daily streak: reasons to come back tomorrow.
+--  * Badges: create them on the Roblox website and paste each number here (0 = not made yet, skipped). Names: Welcome, First Hit, First Win,
+--    10 Wins, Win Streak (3 in a row), Capture! (flag), Canyon Explorer (play on Waterfall Canyon).
+--  * Daily: the first visit of each day pays Coins x the number of days in a row (up to MaxDays), so coming back every day pays more.
+Config.Badges = { welcome = 0, first_hit = 0, first_win = 0, ten_wins = 0, streak = 0, flag_capture = 0, explorer = 0 }
+Config.Daily = { Coins = 20, MaxDays = 7 }
+Config.Hud.Tips = true -- the one-line hint for the first three matches
+
 -- Audio (sounds that ship with Roblox; swap any for an asset id from the Creator Store)
 --------------------------------------------------------------------------------
 Config.Sounds = {
@@ -2799,6 +2808,50 @@ return Alliance
         </Item>
         <Item class="ModuleScript" referent="14">
           <Properties>
+            <string name="Name">Badges</string>
+            <string name="Source"><![CDATA[-- FIGURE ME OUT: Roblox badges. Badges are little achievements shown on a player's profile, and chasing them is one of the best reasons
+-- to come back. They have to be created on the Roblox website (Creator Hub > your game > Engagement > Badges: the art is in
+-- docs/icons/badges); each one gets a number. Paste the numbers into Config.Badges. A badge whose number is 0 is simply skipped, so the
+-- game works the same before you have made them.
+local BadgeService = game:GetService("BadgeService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+
+local Badges = {}
+
+local given = {} -- "userId:key" -> true, so a badge is only asked for once per visit
+
+-- Gives the badge `key` (a name from Config.Badges) to the player, if it has a number and they do not have it yet.
+function Badges.award(p, key)
+	local id = Config.Badges[key]
+	if not p or type(id) ~= "number" or id <= 0 then
+		return false
+	end
+	local tag = p.UserId .. ":" .. key
+	if given[tag] then
+		return false
+	end
+	given[tag] = true
+	task.spawn(function()
+		local ok, err = pcall(function()
+			if not BadgeService:UserHasBadgeAsync(p.UserId, id) then
+				BadgeService:AwardBadge(p.UserId, id)
+			end
+		end)
+		if not ok then
+			warn("[FigureMeOut] badge " .. key .. " failed:", err)
+		end
+	end)
+	return true
+end
+
+return Badges
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="15">
+          <Properties>
             <string name="Name">Bots</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: simple computer players that walk the streets and sometimes guess. They keep a match lively when few
 -- people are online, and they make sure "someone is always watching". They are clumsy on purpose.
@@ -3058,7 +3111,7 @@ return Bots
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="15">
+        <Item class="ModuleScript" referent="16">
           <Properties>
             <string name="Name">Bounty</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the bounty. One player at a time wears a 🎯 tag with a prize. Whoever gets them wins the prize, and a new
@@ -3156,7 +3209,7 @@ return Bounty
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="16">
+        <Item class="ModuleScript" referent="17">
           <Properties>
             <string name="Name">CanyonWorld</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: builds "Waterfall Canyon" (the layout lives in Shared/Canyon.luau): a cliff wall with three waterfalls, a
@@ -3595,7 +3648,7 @@ return CanyonWorld
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="17">
+        <Item class="ModuleScript" referent="18">
           <Properties>
             <string name="Name">Combat</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: lives, stuns, speed and eliminations. Everything that changes whether an entity can move, how many
@@ -3815,7 +3868,7 @@ return Combat
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="18">
+        <Item class="ModuleScript" referent="19">
           <Properties>
             <string name="Name">Cover</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the anti-camping rule. If a wall is right in front of your forehead for too long you get a warning,
@@ -4000,7 +4053,7 @@ return Cover
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="19">
+        <Item class="ModuleScript" referent="20">
           <Properties>
             <string name="Name">Data</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: player save data (wins, kills, plate style). Loads/saves with DataStores when available; the game
@@ -4036,6 +4089,8 @@ local function defaults()
 		Trail = "none",
 		Effect = "pixels",
 		Owned = { Trails = { none = true }, Effects = { pixels = true }, Emotes = {} },
+		LastDay = 0, -- the last day (UTC) they visited, and how many days in a row
+		DayStreak = 0,
 		LastRewardMatch = 0, -- the last match that paid out (so one match never pays twice)
 		Seen = false, -- the how-to-play card has been shown
 		Settings = { Music = true, Sfx = true, Fx = true },
@@ -4177,7 +4232,7 @@ return Data
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="20">
+        <Item class="ModuleScript" referent="21">
           <Properties>
             <string name="Name">Events</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: bonus events. Every minute or so a short event is announced, then it runs: double points, low gravity,
@@ -4302,7 +4357,7 @@ return Events
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="21">
+        <Item class="ModuleScript" referent="22">
           <Properties>
             <string name="Name">Flags</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: capture the flag. Each team has one flag standing in the middle of its base (the MARKET courtyards: red west,
@@ -4318,6 +4373,7 @@ local State = require(script.Parent.State)
 local Net = require(script.Parent.Net)
 local Plates = require(script.Parent.Plates)
 local Combat = require(script.Parent.Combat)
+local Badges = require(script.Parent.Badges)
 
 local Flags = {}
 
@@ -4505,6 +4561,7 @@ local function capture(f, e)
 	Net.sendAll("flag", "captured", team, label(e))
 	if e.player then
 		Net.send(e.player, "captured", Config.Flag.CapturePoints)
+		Badges.award(e.player, "flag_capture")
 	end
 end
 
@@ -4553,7 +4610,7 @@ return Flags
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="22">
+        <Item class="ModuleScript" referent="23">
           <Properties>
             <string name="Name">Guess</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: typing someone's number. Right = they lose a life. Wrong = you lose a bullet and freeze for a moment, and
@@ -4677,7 +4734,7 @@ return Guess
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="23">
+        <Item class="ModuleScript" referent="24">
           <Properties>
             <string name="Name">Items</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the gadgets you carry. Flashbang, smoke grenade, distraction grenade, scanner, sprint boost and decoy
@@ -5186,7 +5243,7 @@ return Items
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="24">
+        <Item class="ModuleScript" referent="25">
           <Properties>
             <string name="Name">LobbyWorld</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the lobby, a school courtyard like the one in the original game: terracotta paving, cream walls with an orange band,
@@ -5505,7 +5562,7 @@ return LobbyWorld
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="25">
+        <Item class="ModuleScript" referent="26">
           <Properties>
             <string name="Name">MapKit</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: builds the four maps that come from the map kit: Frosty Peaks, Candy Kingdom, Desert Ruins and Neon Station.
@@ -6184,7 +6241,7 @@ return MapKit
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="26">
+        <Item class="ModuleScript" referent="27">
           <Properties>
             <string name="Name">Match</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the match from start to finish: lobby wait, countdown, play, THE REVEAL, results, back to the lobby.
@@ -6214,6 +6271,7 @@ local Modes = require(script.Parent.Modes)
 local Flags = require(script.Parent.Flags)
 local Water = require(script.Parent.Water)
 local Votes = require(script.Parent.Votes)
+local Badges = require(script.Parent.Badges)
 local Maps = require(Shared:WaitForChild("Maps"))
 
 local Match = {}
@@ -6614,6 +6672,13 @@ local function award(e, won)
 		data.Streak += 1
 		data.BestStreak = math.max(data.BestStreak, data.Streak)
 		Data.recordWin(p)
+		Badges.award(p, "first_win")
+		if data.Wins >= 10 then
+			Badges.award(p, "ten_wins")
+		end
+		if data.Streak >= 3 then
+			Badges.award(p, "streak")
+		end
 		for _, style in Config.PlateStyles do
 			if before < style.Wins and data.Wins >= style.Wins then
 				Net.toast(p, "New plate unlocked: " .. style.Name .. "!", "gold")
@@ -6737,6 +6802,11 @@ function Match.onJoin(p)
 	p:SetAttribute("TotalKills", data.Kills)
 	p:SetAttribute("Style", data.Style)
 	Progress.publish(p)
+	local streak, coins = Progress.daily(p)
+	if streak and coins > 0 then
+		Net.toast(p, "🔥 Day " .. streak .. " in a row! +" .. coins .. " 🪙" .. (streak < Config.Daily.MaxDays and "  Come back tomorrow for more." or ""), "gold")
+	end
+	Badges.award(p, "welcome")
 	p:SetAttribute("Seen", data.Seen)
 	p:SetAttribute("Music", data.Settings.Music)
 	p:SetAttribute("Sfx", data.Settings.Sfx)
@@ -6846,6 +6916,9 @@ function Match.run()
 		end
 		Bounty.claim(killer, victim)
 		Modes.onHit(killer, victim)
+		if killer.player then
+			Badges.award(killer.player, "first_hit")
+		end
 	end
 	Combat.onEliminated = function(victim)
 		Flags.dropCarried(victim, "out")
@@ -6890,6 +6963,13 @@ function Match.run()
 		Modes.settle(math.min(#Players:GetPlayers(), Config.Match.MaxPlayers))
 		Match.setup()
 		Match.publishQueue()
+		if Config.Map.Theme == "canyon" then
+			for _, e in State.list() do
+				if e.player then
+					Badges.award(e.player, "explorer")
+				end
+			end
+		end
 		State.setPhase("countdown", State.now() + Config.Match.Countdown)
 		Net.sendAll("phase", "countdown", State.phaseEnd)
 		Match.tellNumbers()
@@ -6929,7 +7009,7 @@ return Match
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="27">
+        <Item class="ModuleScript" referent="28">
           <Properties>
             <string name="Name">Modes</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the game modes. One framework, three rule sets (see Config.Modes): deathmatch, team deathmatch and capture the
@@ -7083,7 +7163,7 @@ return Modes
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="28">
+        <Item class="ModuleScript" referent="29">
           <Properties>
             <string name="Name">Net</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the server's way of talking to players.
@@ -7116,7 +7196,7 @@ return Net
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="29">
+        <Item class="ModuleScript" referent="30">
           <Properties>
             <string name="Name">Photos</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the camera. The server works out who is in the picture and which digits you could actually read, so
@@ -7243,7 +7323,7 @@ return Photos
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="30">
+        <Item class="ModuleScript" referent="31">
           <Properties>
             <string name="Name">Pickups</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: glowing item crates around the map. Walk into one to get a random item (never more than you can carry).
@@ -7491,7 +7571,7 @@ return Pickups
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="31">
+        <Item class="ModuleScript" referent="32">
           <Properties>
             <string name="Name">Plates</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: everything on a player's body for the game. The number plate on the forehead (only visible from the
@@ -7974,7 +8054,7 @@ return Plates
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="32">
+        <Item class="ModuleScript" referent="33">
           <Properties>
             <string name="Name">Progress</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: what you keep between matches: coins, XP, levels and cosmetics (number plates, trails, elimination
@@ -8022,6 +8102,25 @@ function Progress.publish(p)
 	end
 	table.sort(owned)
 	p:SetAttribute("Owned", table.concat(owned, ","))
+end
+
+-- The first visit of a day pays coins, more for every day in a row. Returns (streak, coins) when it paid, else nil.
+function Progress.daily(p, now)
+	local data = Data.get(p)
+	if not data then
+		return nil
+	end
+	local day = math.floor((now or os.time()) / 86400)
+	if data.LastDay == day then
+		return nil
+	end
+	data.DayStreak = data.LastDay == day - 1 and (data.DayStreak or 0) + 1 or 1
+	data.LastDay = day
+	local coins = Config.Daily.Coins * math.min(data.DayStreak, Config.Daily.MaxDays)
+	data.Coins += coins
+	Progress.publish(p)
+	p:SetAttribute("DayStreak", data.DayStreak)
+	return data.DayStreak, coins
 end
 
 function Progress.owns(p, kind, id)
@@ -8123,7 +8222,7 @@ return Progress
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="33">
+        <Item class="ModuleScript" referent="34">
           <Properties>
             <string name="Name">State</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: who is in the match right now. Every player and bot in a match is an "entity" with an id (a player's
@@ -8277,7 +8376,7 @@ return State
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="34">
+        <Item class="ModuleScript" referent="35">
           <Properties>
             <string name="Name">Terminals</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: information terminals. Hack one to learn something TRUE about your own number (greater than, even or odd,
@@ -8396,7 +8495,7 @@ return Terminals
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="35">
+        <Item class="ModuleScript" referent="36">
           <Properties>
             <string name="Name">Vision</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: what can see what. A number can only be read, photographed or guessed when nothing solid is in the
@@ -8474,7 +8573,7 @@ return Vision
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="36">
+        <Item class="ModuleScript" referent="37">
           <Properties>
             <string name="Name">Votes</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the map vote. From the moment a match ends until the lobby wait is over, everybody can vote for the next map
@@ -8567,7 +8666,7 @@ return Votes
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="37">
+        <Item class="ModuleScript" referent="38">
           <Properties>
             <string name="Name">Water</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: the river current in Waterfall Canyon. Anybody standing in the river, a side stream, a plunge pool or
@@ -8639,7 +8738,7 @@ return Water
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="38">
+        <Item class="ModuleScript" referent="39">
           <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[-- FIGURE ME OUT: builds the world from plain parts: "Plaza Park" (the arena, a city of 8 buildings around a park, with
@@ -9327,7 +9426,7 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="39">
+  <Item class="StarterPlayer" referent="40">
     <Properties>
       <string name="Name">StarterPlayer</string>
       <float name="CameraMaxZoomDistance">30</float>
@@ -9336,11 +9435,11 @@ return World
       <token name="DevComputerCameraMovementMode">0</token>
       <token name="DevTouchCameraMovementMode">0</token>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="40">
+    <Item class="StarterPlayerScripts" referent="41">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="41">
+      <Item class="LocalScript" referent="42">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[-- FIGURE ME OUT: client entry point. Builds the screen, wires every module together and routes the server's messages.
@@ -9359,26 +9458,51 @@ local Action = Net:WaitForChild("Action")
 local Notify = Net:WaitForChild("Notify")
 
 local Modules = script:WaitForChild("Modules")
-local Fx = require(Modules.Fx)
-local Toasts = require(Modules.Toasts)
+-- One broken module must never stop the whole game: each is loaded (and started) on its own, a failure is printed and shown on
+-- screen in red, and a quiet stand-in takes its place so everything else keeps working.
+local loadErrors = {}
+local function problem(where, err)
+	warn("[FigureMeOut] " .. where .. " failed: " .. tostring(err))
+	table.insert(loadErrors, where .. ": " .. tostring(err))
+end
+local function load(name)
+	local ok, mod = pcall(function()
+		return require(Modules:WaitForChild(name, 15))
+	end)
+	if ok and mod then
+		return mod
+	end
+	problem("module " .. name, mod)
+	return setmetatable({}, { __index = function()
+		return function() end
+	end })
+end
+local function start(name, fn, ...)
+	local ok, err = pcall(fn, ...)
+	if not ok then
+		problem(name .. ".init", err)
+	end
+end
+local Fx = load("Fx")
+local Toasts = load("Toasts")
 local VIDEO = Config.Hud.Style == "video" -- the screen of the original game (Config.Hud.Style)
 local Hud = require(VIDEO and Modules.HudVideo or Modules.Hud)
-local Keypad = require(Modules.Keypad)
-local Scope = require(Modules.Scope)
-local Album = require(Modules.Album)
-local Alerts = require(Modules.Alerts)
-local Spectate = require(Modules.Spectate)
-local Results = require(Modules.Results)
-local Menu = require(Modules.Menu)
-local Controls = require(Modules.Controls)
-local OwnPlate = require(Modules.OwnPlate)
-local Ambient = require(Modules.Ambient)
-local Grade = require(Modules.Grade)
-local Markers = require(Modules.Markers)
-local Inventory = require(Modules.Inventory)
-local Emotes = require(Modules.Emotes)
-local Camera = require(Modules.Camera)
-local MapVote = require(Modules.MapVote)
+local Keypad = load("Keypad")
+local Scope = load("Scope")
+local Album = load("Album")
+local Alerts = load("Alerts")
+local Spectate = load("Spectate")
+local Results = load("Results")
+local Menu = load("Menu")
+local Controls = load("Controls")
+local OwnPlate = load("OwnPlate")
+local Ambient = load("Ambient")
+local Grade = load("Grade")
+local Markers = load("Markers")
+local Inventory = load("Inventory")
+local Emotes = load("Emotes")
+local Camera = load("Camera")
+local MapVote = load("MapVote")
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "FigureMeOut"
@@ -9422,27 +9546,46 @@ task.spawn(function()
 	end
 end)
 
-Audio.Init()
-Fx.init(gui)
-Toasts.init(gui)
-Alerts.init(gui, deps)
-Scope.init(gui, deps)
-Keypad.init(gui, deps)
-Album.init(gui, deps)
-Spectate.init(gui)
-Results.init(gui, deps)
-Menu.init(gui, deps)
-Hud.init(gui, deps)
-Inventory.init(gui, deps)
-Emotes.init(gui, deps)
-MapVote.init(gui, deps)
-Markers.init()
-Controls.init(deps)
-OwnPlate.init()
-Ambient.init()
-Grade.init()
-Camera.init()
-Audio.startMusic()
+start("Audio", Audio.Init)
+start("Fx", Fx.init, gui)
+start("Toasts", Toasts.init, gui)
+start("Alerts", Alerts.init, gui, deps)
+start("Scope", Scope.init, gui, deps)
+start("Keypad", Keypad.init, gui, deps)
+start("Album", Album.init, gui, deps)
+start("Spectate", Spectate.init, gui)
+start("Results", Results.init, gui, deps)
+start("Menu", Menu.init, gui, deps)
+start("Hud", Hud.init, gui, deps)
+start("Inventory", Inventory.init, gui, deps)
+start("Emotes", Emotes.init, gui, deps)
+start("MapVote", MapVote.init, gui, deps)
+start("Markers", Markers.init)
+start("Controls", Controls.init, deps)
+start("OwnPlate", OwnPlate.init)
+start("Ambient", Ambient.init)
+start("Grade", Grade.init)
+start("Camera", Camera.init)
+start("Audio", Audio.startMusic)
+
+-- anything that failed to start is shown in red, so it can be reported (and the rest of the game still runs)
+if #loadErrors > 0 then
+	local note = Instance.new("TextLabel")
+	note.Name = "StartupProblems"
+	note.Size = UDim2.fromOffset(560, 90)
+	note.Position = UDim2.fromOffset(12, 60)
+	note.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
+	note.BackgroundTransparency = 0.2
+	note.TextColor3 = Color3.fromRGB(255, 130, 130)
+	note.TextXAlignment = Enum.TextXAlignment.Left
+	note.TextYAlignment = Enum.TextYAlignment.Top
+	note.TextWrapped = true
+	note.TextSize = 13
+	note.Font = Enum.Font.GothamBold
+	note.ZIndex = 400
+	note.Text = "⚠ PART OF THE SCREEN FAILED TO START (please screenshot this):\n" .. string.sub(table.concat(loadErrors, "\n"), 1, 500)
+	note.Parent = gui
+end
 
 local C = UI.Colors
 
@@ -9771,11 +9914,11 @@ end)
 
 ]]></string>
         </Properties>
-        <Item class="Folder" referent="42">
+        <Item class="Folder" referent="43">
           <Properties>
             <string name="Name">Modules</string>
           </Properties>
-          <Item class="ModuleScript" referent="43">
+          <Item class="ModuleScript" referent="44">
             <Properties>
               <string name="Name">Album</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the photo notebook. Every photo fills in the digits you could read; several blurry photos of the same
@@ -10172,7 +10315,7 @@ return Album
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="44">
+          <Item class="ModuleScript" referent="45">
             <Properties>
               <string name="Name">Alerts</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: everything the game shouts at you: flashbang blindness, stun, the "don't hide your number" warning,
@@ -10529,7 +10672,7 @@ return Alerts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="45">
+          <Item class="ModuleScript" referent="46">
             <Properties>
               <string name="Name">Ambient</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the moving scenery of Waterfall Canyon, animated on your own screen (no network traffic): the ripples on the
@@ -10631,7 +10774,7 @@ return Ambient
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="46">
+          <Item class="ModuleScript" referent="47">
             <Properties>
               <string name="Name">Camera</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the camera. By default you play in third person with mouse-wheel zoom (0.5 to 30 studs) and wall-proof "Zoom" occlusion,
@@ -10718,7 +10861,7 @@ return Camera
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="47">
+          <Item class="ModuleScript" referent="48">
             <Properties>
               <string name="Name">Controls</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: keyboard and mouse. G guess, hold right mouse (or Z) for binoculars, click or F for a photo, V for
@@ -10940,7 +11083,7 @@ return Controls
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="48">
+          <Item class="ModuleScript" referent="49">
             <Properties>
               <string name="Name">Emotes</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the quick emote panel (💬 button). Tap an emoji and it pops up over your head for a few seconds. Great for
@@ -11043,7 +11186,7 @@ return Emotes
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="49">
+          <Item class="ModuleScript" referent="50">
             <Properties>
               <string name="Name">Fx</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: game-feel effects. Camera punch/shake, floating text, particle bursts and the big
@@ -11281,7 +11424,7 @@ return Fx
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="50">
+          <Item class="ModuleScript" referent="51">
             <Properties>
               <string name="Name">Grade</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: colour grading on your own screen. The look blends smoothly from one moment to the next (warm lobby, vivid
@@ -11376,7 +11519,7 @@ return Grade
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="51">
+          <Item class="ModuleScript" referent="52">
             <Properties>
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the always-on screen: timer and alive count, your codename, lives, points and bullets, the kill feed, the
@@ -11921,7 +12064,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="52">
+          <Item class="ModuleScript" referent="53">
             <Properties>
               <string name="Name">HudVideo</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the screen of the original game, and nothing else. A red box and a blue box with the team scores (a little flag
@@ -11949,13 +12092,16 @@ local gui
 local refs = {}
 local slots = {} -- key ("F" / "G") -> { frame, icon, count, shade, cd, key }
 local cooldowns = {} -- item id -> time it is ready again
-local held = nil -- "F" or "G": the slot you are holding right now
+local held = nil -- "F" or "G": the slot you are holding right now (binoculars up, or the older take-out-then-click way)
+local pulse = {} -- key -> time until which the slot lights up after a one-press use
+local shown = nil -- { id, untilT }: the camera or grenade drawn for a moment after a one-press use
 local lastSecond = -1
 local finalShown = false
 local uiScale = 1
 local scaleObjects = {}
 local scaleAt = -10
 local messages = {}
+local playStart = nil -- when the current match started playing (for the first-matches hint)
 
 local RED, BLUE = Color3.fromRGB(236, 72, 84), Color3.fromRGB(58, 128, 244)
 local SIGN, INK = Color3.fromRGB(226, 178, 34), Color3.fromRGB(22, 20, 16)
@@ -12135,6 +12281,11 @@ function Hud.init(screen, d)
 	cornerButton("?", 44, function() deps.Menu.open("How to play") end)
 	cornerButton("⚙", 88, function() deps.Menu.open("Settings") end)
 	cornerButton("💬", 132, function() deps.Emotes.toggle() end)
+	cornerButton("👥", 176, function() Hud.invite() end)
+
+	-- the one-line hint for the first three matches (never in the way afterwards)
+	refs.tip = UI.label(root, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -128), Size = UDim2.fromOffset(640, 30), Font = UI.Fonts.Bold, TextSize = 19, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 0.4, Text = "", Visible = false, ZIndex = 16 })
+	scaled(refs.tip)
 
 	-- the short lines at the bottom ("You killed Michael")
 	refs.messages = UI.new("Frame", { Name = "Messages", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0.9, 0), Size = UDim2.fromOffset(420, 70), BackgroundTransparency = 1, ZIndex = 15 }, root)
@@ -12197,14 +12348,21 @@ function Hud.unhold()
 	held = nil
 end
 
--- F or G was pressed (or the slot was tapped). Pressing again puts the item away. With `immediate` (touch screens, where there is
--- no mouse click) the item is used at once: a photo is taken, a grenade is thrown, the binoculars zoom in or out.
+-- F or G was pressed (or the slot was tapped). ONE press does the thing (Config.Loadout.OnePress): the camera takes a photo, a
+-- grenade is thrown, the binoculars look through (press again to lower them). Without OnePress (or with `immediate` off) the older
+-- way applies: the first press takes the item out, a click uses it.
 function Hud.pressSlot(key, immediate)
 	if View.phase() ~= "play" or not View.amAlive() then
 		Audio.error()
 		return
 	end
+	immediate = immediate or Config.Loadout.OnePress
 	local id = Hud.slotItem(key)
+	if immediate and id ~= "binos" then
+		-- a short flash of the slot and of the camera or grenade, so the press feels answered
+		pulse[key] = View.now() + 0.35
+		shown = { id = id, untilT = View.now() + 0.55 }
+	end
 	if id == "binos" then
 		if immediate then
 			deps.Scope.toggle()
@@ -12237,6 +12395,9 @@ end
 
 -- A left click (or the controller's A) while holding something: take the photo, throw the grenade, or zoom the binoculars.
 function Hud.useHeld()
+	if Config.Loadout.OnePress then
+		return false -- (one press already did it)
+	end
 	local id = Hud.heldItem()
 	if not id then
 		return false
@@ -12259,6 +12420,21 @@ function Hud.activate(id)
 		Hud.pressSlot(key, true)
 	else
 		Audio.error()
+	end
+end
+
+-- The invite button: opens Roblox's own "invite friends" window (friends who join play WITH you, and playing together is one of the best
+-- ways to keep a game alive). Does nothing where Roblox does not allow it.
+function Hud.invite()
+	local ok, allowed = pcall(function()
+		return game:GetService("SocialService"):CanSendGameInviteAsync(player)
+	end)
+	if ok and allowed then
+		pcall(function()
+			game:GetService("SocialService"):PromptGameInvite(player)
+		end)
+	else
+		deps.Toasts.push("Share the game link with your friends: they can join you from your profile", "info")
 	end
 end
 
@@ -12474,12 +12650,27 @@ function Hud.update()
 		end
 	end
 
+	-- the first-matches hint
+	if phase == "play" and playing then
+		playStart = playStart or os.clock()
+	else
+		playStart = nil
+	end
+	local early = Config.Hud.Tips and playStart ~= nil and (player:GetAttribute("Games") or 0) < 3 and os.clock() - playStart < 25
+	refs.tip.Visible = early == true
+	if early then
+		refs.tip.Text = mode == "practice" and "Try it: F = photo, G = binoculars. The real match starts when someone joins." or "Put the dot on a head and type their 4 digits.  F = photo, G = binoculars."
+	end
+
 	-- the two slots
 	local now = View.now()
 	if not playing or phase ~= "play" then
 		if held then
 			Hud.unhold()
 		end
+	end
+	if held and Config.Loadout.OnePress and Hud.slotItem(held) == "binos" and not deps.Scope.isOn() then
+		held = nil -- (you lowered them, or a flash knocked them down)
 	end
 	if held and (Hud.slotItem(held) ~= "camera" and Hud.slotItem(held) ~= "binos") and count(Hud.slotItem(held)) < 1 then
 		held = nil -- (used up)
@@ -12497,7 +12688,7 @@ function Hud.update()
 		local usable = playing and phase == "play" and have > 0 and cd <= 0
 		slot.shade.BackgroundTransparency = usable and 1 or 0.6
 		slot.cd.Text = cd > 0.05 and string.format(cd >= 10 and "%d" or "%.1f", cd) or ""
-		local isHeld = held == key
+		local isHeld = held == key or (pulse[key] or 0) > now
 		slot.frame.BackgroundColor3 = isHeld and Color3.new(1, 1, 1) or Color3.fromRGB(20, 24, 28)
 		slot.frame.BackgroundTransparency = isHeld and 0.04 or 0.45
 		slot.icon.TextColor3 = isHeld and Color3.fromRGB(30, 32, 38) or Color3.new(1, 1, 1)
@@ -12506,6 +12697,9 @@ function Hud.update()
 
 	-- what you hold, drawn at the bottom of the screen (the binoculars hide while you look through them)
 	local id = Hud.heldItem()
+	if not id and shown and shown.untilT > now then
+		id = shown.id
+	end
 	local zoomed = deps.Scope.isOn()
 	refs.viewmodel.Visible = id ~= nil and playing and not zoomed
 	refs.binos.Visible = id == "binos"
@@ -12533,7 +12727,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="53">
+          <Item class="ModuleScript" referent="54">
             <Properties>
               <string name="Name">Inventory</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the gadget inventory (🎒 or I). Every gadget with its charges, cooldown and what it does, plus the clues you
@@ -12654,7 +12848,7 @@ return Inventory
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="54">
+          <Item class="ModuleScript" referent="55">
             <Properties>
               <string name="Name">Keypad</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the guess panel. Press G (or tap GUESS): pick who you mean from the list of people you can see (the one under
@@ -13037,7 +13231,7 @@ return Keypad
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="55">
+          <Item class="ModuleScript" referent="56">
             <Properties>
               <string name="Name">MapVote</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the map vote. Six cards along the bottom of the screen while the vote is open (from the results screen until
@@ -13177,7 +13371,7 @@ return MapVote
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="56">
+          <Item class="ModuleScript" referent="57">
             <Properties>
               <string name="Name">Markers</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: little markers drawn only on your screen: the green 🤝 over your ally, and the pings from your scanner.
@@ -13266,7 +13460,7 @@ return Markers
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="57">
+          <Item class="ModuleScript" referent="58">
             <Properties>
               <string name="Name">Menu</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the menu window: how to play, forehead plates you unlock by winning, your stats and the settings.
@@ -13309,7 +13503,7 @@ local EXTRAS = {
 	{ "Alliances", "🤝", "Alliances", "Press T to offer an alliance, and watch your back." },
 }
 if Config.Loadout.Enabled then
-	table.insert(STEPS, { "🎒", "Two item slots: F and G", "F holds the camera, G the binoculars. Press the key to take it out, click to use it: a photo (it drops in as a polaroid), or look through the binoculars. Yellow chests give a flashbang ⚡, a smoke bottle 🧪 or a sound grenade 🔊 that take over a slot until you use them." })
+	table.insert(STEPS, { "🎒", "Two item slots: F and G", "F holds the camera, G the binoculars. ONE press does it: F takes a photo (it drops in as a polaroid), G looks through the binoculars (press again to lower them). Yellow chests give a flashbang ⚡, a smoke bottle 🧪 or a sound grenade 🔊 that take over a slot: press its key once to throw it." })
 	table.insert(STEPS, { "⚠️", "Don't hide your number", "Facing a wall or sitting still fills the red bar. Each strike is an X, and your number shows for longer every time." })
 end
 for _, x in EXTRAS do
@@ -13594,7 +13788,7 @@ return Menu
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="58">
+          <Item class="ModuleScript" referent="59">
             <Properties>
               <string name="Name">OwnPlate</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: you must never see your own number (forehead plate or the floating one). The plate is hidden on your screen only; everybody else
@@ -13640,7 +13834,7 @@ return OwnPlate
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="59">
+          <Item class="ModuleScript" referent="60">
             <Properties>
               <string name="Name">Results</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the scoreboard at the end of every match.
@@ -13874,7 +14068,7 @@ return Results
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="60">
+          <Item class="ModuleScript" referent="61">
             <Properties>
               <string name="Name">Scope</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the binoculars. Hold the right mouse button (or Z, or tap the 🔭 slot) to zoom far across the map and
@@ -14061,7 +14255,7 @@ return Scope
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="61">
+          <Item class="ModuleScript" referent="62">
             <Properties>
               <string name="Name">Spectate</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: once you are out, you watch the others. The camera follows a living player; press ◀ ▶ (or the arrow
@@ -14198,7 +14392,7 @@ return Spectate
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="62">
+          <Item class="ModuleScript" referent="63">
             <Properties>
               <string name="Name">Toasts</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: small, calm notifications. Max three at once, identical messages merge into "x2",
@@ -14308,7 +14502,7 @@ return Toasts
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="63">
+          <Item class="ModuleScript" referent="64">
             <Properties>
               <string name="Name">View</string>
               <string name="Source"><![CDATA[-- FIGURE ME OUT: the client's picture of the match. Reads the attributes the server writes and finds the people in the
@@ -14524,7 +14718,7 @@ return View
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="64">
+  <Item class="Workspace" referent="65">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

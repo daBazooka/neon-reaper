@@ -160,8 +160,9 @@ Config.CarriedItems = { "flash", "smoke", "distraction", "scanner", "sprint", "d
 
 -- Two item slots, keys F and G, like the original game. You start with the camera in F and the binoculars in G. A crate gives you
 -- a flashbang, a smoke bottle or a sound grenade: it takes over a slot (G first) until it is used up, then the camera or the
--- binoculars come back. Press F or G to hold that item, click to use it (the camera takes a photo; the binoculars zoom while held).
-Config.Loadout = { Enabled = true, F = "camera", G = "binos", Pickups = { "flash", "smoke", "distraction" } }
+-- binoculars come back. ONE press does it: F takes a photo, G looks through the binoculars (press again to lower them), and a grenade
+-- in a slot is thrown by pressing its key. (OnePress = false: the older way, press to take the item out and click to use it.)
+Config.Loadout = { Enabled = true, OnePress = true, F = "camera", G = "binos", Pickups = { "flash", "smoke", "distraction" } }
 if Config.Loadout.Enabled then
 	Config.CarriedItems = Config.Loadout.Pickups
 end
@@ -426,6 +427,14 @@ Config.Map.Themes = {
 end
 
 --------------------------------------------------------------------------------
+-- Badges and the daily streak: reasons to come back tomorrow.
+--  * Badges: create them on the Roblox website and paste each number here (0 = not made yet, skipped). Names: Welcome, First Hit, First Win,
+--    10 Wins, Win Streak (3 in a row), Capture! (flag), Canyon Explorer (play on Waterfall Canyon).
+--  * Daily: the first visit of each day pays Coins x the number of days in a row (up to MaxDays), so coming back every day pays more.
+Config.Badges = { welcome = 0, first_hit = 0, first_win = 0, ten_wins = 0, streak = 0, flag_capture = 0, explorer = 0 }
+Config.Daily = { Coins = 20, MaxDays = 7 }
+Config.Hud.Tips = true -- the one-line hint for the first three matches
+
 -- Audio (sounds that ship with Roblox; swap any for an asset id from the Creator Store)
 --------------------------------------------------------------------------------
 Config.Sounds = {

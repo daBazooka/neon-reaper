@@ -14,3 +14,4 @@ C0.Modes.List.ctf.CaptureLimit = 2
 for k in C0.Features do C0.Features[k] = false end
 C0.Map.use("canyon") -- (the older scenarios were written for Waterfall Canyon; the shipped game starts on the School Yard)
 C0.Match.DropIn = true; C0.Match.SoloPractice = false -- (the older scenarios drop late joiners straight into the running match)
+C0.Daily.Coins = 0 -- (no daily coins in the older scenarios)

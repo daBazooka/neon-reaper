@@ -65,7 +65,7 @@ Set `Config.Modes.Mode` in `Config.luau` to `"team"` or `"ctf"` and press Play (
 
 * Two players in Studio (Test > Clients and Servers). Match 1 is capture the flag on the School Yard: check the red and blue boxes, the 25:00 timer, the F and G slots, and that numbers have 4 digits on a mustard sign.
 * Aim the dot at the other player and type their 4 digits (the number is on their sign): they are out / score, and you see "You killed <name>".
-* F then click = polaroid. G then click = binoculars. Walk into a yellow chest: a slot changes to ⚡ 🧪 or 🔊; press its key and click to throw; it goes back to the camera / binoculars afterwards.
+* F once = polaroid. G once = binoculars (G again lowers them). Walk into a yellow chest: a slot changes to ⚡ 🧪 or 🔊; press its key once to throw; it goes back to the camera / binoculars afterwards.
 * Stand facing a wall: the red bar fills and "don't cover your number" shows; after the bar is full you get an X and your number glows for a while.
 
 ## Testing the maps and the vote

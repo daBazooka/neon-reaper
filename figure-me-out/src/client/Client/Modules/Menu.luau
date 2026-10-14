@@ -38,7 +38,7 @@ local EXTRAS = {
 	{ "Alliances", "🤝", "Alliances", "Press T to offer an alliance, and watch your back." },
 }
 if Config.Loadout.Enabled then
-	table.insert(STEPS, { "🎒", "Two item slots: F and G", "F holds the camera, G the binoculars. Press the key to take it out, click to use it: a photo (it drops in as a polaroid), or look through the binoculars. Yellow chests give a flashbang ⚡, a smoke bottle 🧪 or a sound grenade 🔊 that take over a slot until you use them." })
+	table.insert(STEPS, { "🎒", "Two item slots: F and G", "F holds the camera, G the binoculars. ONE press does it: F takes a photo (it drops in as a polaroid), G looks through the binoculars (press again to lower them). Yellow chests give a flashbang ⚡, a smoke bottle 🧪 or a sound grenade 🔊 that take over a slot: press its key once to throw it." })
 	table.insert(STEPS, { "⚠️", "Don't hide your number", "Facing a wall or sitting still fills the red bar. Each strike is an X, and your number shows for longer every time." })
 end
 for _, x in EXTRAS do

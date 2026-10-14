@@ -31,6 +31,8 @@ local function defaults()
 		Trail = "none",
 		Effect = "pixels",
 		Owned = { Trails = { none = true }, Effects = { pixels = true }, Emotes = {} },
+		LastDay = 0, -- the last day (UTC) they visited, and how many days in a row
+		DayStreak = 0,
 		LastRewardMatch = 0, -- the last match that paid out (so one match never pays twice)
 		Seen = false, -- the how-to-play card has been shown
 		Settings = { Music = true, Sfx = true, Fx = true },

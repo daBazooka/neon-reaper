@@ -45,6 +45,25 @@ function Progress.publish(p)
 	p:SetAttribute("Owned", table.concat(owned, ","))
 end
 
+-- The first visit of a day pays coins, more for every day in a row. Returns (streak, coins) when it paid, else nil.
+function Progress.daily(p, now)
+	local data = Data.get(p)
+	if not data then
+		return nil
+	end
+	local day = math.floor((now or os.time()) / 86400)
+	if data.LastDay == day then
+		return nil
+	end
+	data.DayStreak = data.LastDay == day - 1 and (data.DayStreak or 0) + 1 or 1
+	data.LastDay = day
+	local coins = Config.Daily.Coins * math.min(data.DayStreak, Config.Daily.MaxDays)
+	data.Coins += coins
+	Progress.publish(p)
+	p:SetAttribute("DayStreak", data.DayStreak)
+	return data.DayStreak, coins
+end
+
 function Progress.owns(p, kind, id)
 	local def = DEFS[kind] and DEFS[kind][id]
 	local data = Data.get(p)

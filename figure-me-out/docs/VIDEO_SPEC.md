@@ -41,3 +41,7 @@ The reference is a 35-second vertical trailer (720 x 1280) of the Steam game "Fi
 * The video shows the camera, binoculars, a **flashbang** (lightning-bolt icon), a smoke flask and a speaker (sound) grenade. The flashbang is the **stun grenade**: it blinds and freezes.
 * Players keep their **real Roblox avatar and name** (the video's characters are the game's own models; on Roblox the player's avatar is the natural equivalent). Only hats are removed, and in team modes an outline in the team colour replaces the red/blue shirts.
 * **Joining:** anybody can join any time, 20 play; late joiners wait in the lobby with a card showing the time left and when their match starts; a lone player gets a practice round.
+
+## One press for every power (your request)
+
+F = photo, G = binoculars (press again to lower), and a crate grenade in a slot is thrown by pressing its key once. There is no "take it out, then click" step (`Config.Loadout.OnePress = false` brings the older way back).

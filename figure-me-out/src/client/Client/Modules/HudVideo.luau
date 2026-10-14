@@ -23,13 +23,16 @@ local gui
 local refs = {}
 local slots = {} -- key ("F" / "G") -> { frame, icon, count, shade, cd, key }
 local cooldowns = {} -- item id -> time it is ready again
-local held = nil -- "F" or "G": the slot you are holding right now
+local held = nil -- "F" or "G": the slot you are holding right now (binoculars up, or the older take-out-then-click way)
+local pulse = {} -- key -> time until which the slot lights up after a one-press use
+local shown = nil -- { id, untilT }: the camera or grenade drawn for a moment after a one-press use
 local lastSecond = -1
 local finalShown = false
 local uiScale = 1
 local scaleObjects = {}
 local scaleAt = -10
 local messages = {}
+local playStart = nil -- when the current match started playing (for the first-matches hint)
 
 local RED, BLUE = Color3.fromRGB(236, 72, 84), Color3.fromRGB(58, 128, 244)
 local SIGN, INK = Color3.fromRGB(226, 178, 34), Color3.fromRGB(22, 20, 16)
@@ -209,6 +212,11 @@ function Hud.init(screen, d)
 	cornerButton("?", 44, function() deps.Menu.open("How to play") end)
 	cornerButton("⚙", 88, function() deps.Menu.open("Settings") end)
 	cornerButton("💬", 132, function() deps.Emotes.toggle() end)
+	cornerButton("👥", 176, function() Hud.invite() end)
+
+	-- the one-line hint for the first three matches (never in the way afterwards)
+	refs.tip = UI.label(root, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -128), Size = UDim2.fromOffset(640, 30), Font = UI.Fonts.Bold, TextSize = 19, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 0.4, Text = "", Visible = false, ZIndex = 16 })
+	scaled(refs.tip)
 
 	-- the short lines at the bottom ("You killed Michael")
 	refs.messages = UI.new("Frame", { Name = "Messages", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0.9, 0), Size = UDim2.fromOffset(420, 70), BackgroundTransparency = 1, ZIndex = 15 }, root)
@@ -271,14 +279,21 @@ function Hud.unhold()
 	held = nil
 end
 
--- F or G was pressed (or the slot was tapped). Pressing again puts the item away. With `immediate` (touch screens, where there is
--- no mouse click) the item is used at once: a photo is taken, a grenade is thrown, the binoculars zoom in or out.
+-- F or G was pressed (or the slot was tapped). ONE press does the thing (Config.Loadout.OnePress): the camera takes a photo, a
+-- grenade is thrown, the binoculars look through (press again to lower them). Without OnePress (or with `immediate` off) the older
+-- way applies: the first press takes the item out, a click uses it.
 function Hud.pressSlot(key, immediate)
 	if View.phase() ~= "play" or not View.amAlive() then
 		Audio.error()
 		return
 	end
+	immediate = immediate or Config.Loadout.OnePress
 	local id = Hud.slotItem(key)
+	if immediate and id ~= "binos" then
+		-- a short flash of the slot and of the camera or grenade, so the press feels answered
+		pulse[key] = View.now() + 0.35
+		shown = { id = id, untilT = View.now() + 0.55 }
+	end
 	if id == "binos" then
 		if immediate then
 			deps.Scope.toggle()
@@ -311,6 +326,9 @@ end
 
 -- A left click (or the controller's A) while holding something: take the photo, throw the grenade, or zoom the binoculars.
 function Hud.useHeld()
+	if Config.Loadout.OnePress then
+		return false -- (one press already did it)
+	end
 	local id = Hud.heldItem()
 	if not id then
 		return false
@@ -333,6 +351,21 @@ function Hud.activate(id)
 		Hud.pressSlot(key, true)
 	else
 		Audio.error()
+	end
+end
+
+-- The invite button: opens Roblox's own "invite friends" window (friends who join play WITH you, and playing together is one of the best
+-- ways to keep a game alive). Does nothing where Roblox does not allow it.
+function Hud.invite()
+	local ok, allowed = pcall(function()
+		return game:GetService("SocialService"):CanSendGameInviteAsync(player)
+	end)
+	if ok and allowed then
+		pcall(function()
+			game:GetService("SocialService"):PromptGameInvite(player)
+		end)
+	else
+		deps.Toasts.push("Share the game link with your friends: they can join you from your profile", "info")
 	end
 end
 
@@ -548,12 +581,27 @@ function Hud.update()
 		end
 	end
 
+	-- the first-matches hint
+	if phase == "play" and playing then
+		playStart = playStart or os.clock()
+	else
+		playStart = nil
+	end
+	local early = Config.Hud.Tips and playStart ~= nil and (player:GetAttribute("Games") or 0) < 3 and os.clock() - playStart < 25
+	refs.tip.Visible = early == true
+	if early then
+		refs.tip.Text = mode == "practice" and "Try it: F = photo, G = binoculars. The real match starts when someone joins." or "Put the dot on a head and type their 4 digits.  F = photo, G = binoculars."
+	end
+
 	-- the two slots
 	local now = View.now()
 	if not playing or phase ~= "play" then
 		if held then
 			Hud.unhold()
 		end
+	end
+	if held and Config.Loadout.OnePress and Hud.slotItem(held) == "binos" and not deps.Scope.isOn() then
+		held = nil -- (you lowered them, or a flash knocked them down)
 	end
 	if held and (Hud.slotItem(held) ~= "camera" and Hud.slotItem(held) ~= "binos") and count(Hud.slotItem(held)) < 1 then
 		held = nil -- (used up)
@@ -571,7 +619,7 @@ function Hud.update()
 		local usable = playing and phase == "play" and have > 0 and cd <= 0
 		slot.shade.BackgroundTransparency = usable and 1 or 0.6
 		slot.cd.Text = cd > 0.05 and string.format(cd >= 10 and "%d" or "%.1f", cd) or ""
-		local isHeld = held == key
+		local isHeld = held == key or (pulse[key] or 0) > now
 		slot.frame.BackgroundColor3 = isHeld and Color3.new(1, 1, 1) or Color3.fromRGB(20, 24, 28)
 		slot.frame.BackgroundTransparency = isHeld and 0.04 or 0.45
 		slot.icon.TextColor3 = isHeld and Color3.fromRGB(30, 32, 38) or Color3.new(1, 1, 1)
@@ -580,6 +628,9 @@ function Hud.update()
 
 	-- what you hold, drawn at the bottom of the screen (the binoculars hide while you look through them)
 	local id = Hud.heldItem()
+	if not id and shown and shown.untilT > now then
+		id = shown.id
+	end
 	local zoomed = deps.Scope.isOn()
 	refs.viewmodel.Visible = id ~= nil and playing and not zoomed
 	refs.binos.Visible = id == "binos"

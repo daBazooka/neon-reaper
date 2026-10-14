@@ -11,6 +11,7 @@ local State = require(script.Parent.State)
 local Net = require(script.Parent.Net)
 local Plates = require(script.Parent.Plates)
 local Combat = require(script.Parent.Combat)
+local Badges = require(script.Parent.Badges)
 
 local Flags = {}
 
@@ -198,6 +199,7 @@ local function capture(f, e)
 	Net.sendAll("flag", "captured", team, label(e))
 	if e.player then
 		Net.send(e.player, "captured", Config.Flag.CapturePoints)
+		Badges.award(e.player, "flag_capture")
 	end
 end
 

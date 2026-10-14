@@ -58,7 +58,7 @@ alltext = {p: open(p).read() for p in files()}
 joined = "\n".join(alltext.values())
 for kind, names in mods.items():
     for name in names:
-        if not re.search(r"require\(.*\b" + name + r"\b", joined):
+        if not re.search(r"require\(.*\b" + name + r"\b", joined) and not re.search(r'\bload\("' + name + r'"\)', joined) and not re.search(r'"' + name + r'" or "', joined):
             problems.append(f"module {kind}/{name} is never required")
 for p, text in alltext.items():
     for m in re.finditer(r"require\((?:script\.Parent|Modules|Shared)(?::WaitForChild\(\"(\w+)\"\)|\.(\w+))\)", text):

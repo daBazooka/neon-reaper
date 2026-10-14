@@ -1,8 +1,8 @@
 # Figure Me Out
 
-A Roblox game for up to 20 players, made to match the reference trailer of the original (see [docs/VIDEO_SPEC.md](docs/VIDEO_SPEC.md) for exactly what the video shows and how each thing is done here). Everybody wears a secret **4-digit number on a mustard sign on their forehead**. Put the dot on someone's head and **type their number**: it goes in by itself and they are out. Capture the flag (or team fights) in 25-minute matches: red against blue, respawning, with a red box and a blue box for the score. Take out the **camera (F)** or the **binoculars (G)** to read numbers from far away, grab yellow chests for a flashbang, a smoke bottle or a sound grenade, and **don't cover your number**: facing a wall or sitting still fills a red bar and you get strikes.
+A Roblox game for up to 20 players, made to match the reference trailer of the original (see [docs/VIDEO_SPEC.md](docs/VIDEO_SPEC.md) for exactly what the video shows and how each thing is done here). Everybody wears a secret **4-digit number on a mustard sign on their forehead**. Put the dot on someone's head and **type their number**: it goes in by itself and they are out. Capture the flag (or team fights) in 25-minute matches: red against blue, respawning, with a red box and a blue box for the score. Press **F** for a photo or **G** for the binoculars (one press each) to read numbers from far away, grab yellow chests for a flashbang, a smoke bottle or a sound grenade, and **don't cover your number**: facing a wall or sitting still fills a red bar and you get strikes.
 
-See [docs/GAME_CONCEPT.md](docs/GAME_CONCEPT.md) for the full design and [docs/SETUP_AND_TESTING.md](docs/SETUP_AND_TESTING.md) for setup, a testing checklist and troubleshooting.
+Making more games? Read [docs/ROBLOX_PLAYBOOK.md](docs/ROBLOX_PLAYBOOK.md) (how Roblox ranks games and why some go viral, with sources) and [docs/GAME_FACTORY.md](docs/GAME_FACTORY.md) (reusing this project for the next game). See [docs/GAME_CONCEPT.md](docs/GAME_CONCEPT.md) for the full design and [docs/SETUP_AND_TESTING.md](docs/SETUP_AND_TESTING.md) for setup, a testing checklist and troubleshooting.
 
 ## Open it in Roblox Studio
 
@@ -21,15 +21,15 @@ Or run `rojo serve` and click Connect in the Rojo plugin to live-edit.
 | Key | What |
 |---|---|
 | **0 to 9** | Just type the number of the player under the dot (4 digits, it sends by itself, Backspace fixes a typo) |
-| **F** | Take out the camera (slot F); press again to put it away. **Click** to take a photo (a polaroid drops in) |
-| **G** | Take out the binoculars (slot G). **Click** to look through them (click again to lower them). Or hold the **right mouse button** / **Z** to zoom, scroll to change |
-| **F / G with a crate item** | The slot now holds a flashbang ⚡, a smoke bottle 🧪 or a sound grenade 🔊: press the key, **click** to throw. When it is used up the camera / binoculars come back |
+| **F** | **One press: take a photo** (a polaroid drops in) |
+| **G** | **One press: look through the binoculars**; press again to lower them. (Or hold the **right mouse button** / **Z** to zoom, scroll to change) |
+| **F / G with a crate item** | The slot now holds a stun grenade ⚡, a smoke bottle 🧪 or a sound grenade 🔊: **one press throws it**. When it is used up the camera / binoculars come back |
 | **V** | Notebook (your photos, joined up) |
 | **B** | Quick emotes |
 | **M** | Menu (how to play, plates, stats, settings) |
 | **◀ ▶** | Change who you watch after you are out |
 
-On a phone or tablet: tap a player, then the on-screen number pad; tap the F and G slots to use the camera, the binoculars or a grenade straight away. On a controller: X guess, R2 photo, hold L2 for binoculars, Y notebook, L1/R1 choose a gadget and A to use it, Start for the menu.
+On a phone or tablet: tap a player, then the on-screen number pad; tap the F and G slots: one tap takes the photo, raises the binoculars or throws the grenade. On a controller: X guess, R2 photo, hold L2 for binoculars, Y notebook, L1/R1 choose a gadget and A to use it, Start for the menu.
 
 ## Joining, waiting and skins
 

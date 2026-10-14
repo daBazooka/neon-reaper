@@ -14,26 +14,51 @@ local Action = Net:WaitForChild("Action")
 local Notify = Net:WaitForChild("Notify")
 
 local Modules = script:WaitForChild("Modules")
-local Fx = require(Modules.Fx)
-local Toasts = require(Modules.Toasts)
+-- One broken module must never stop the whole game: each is loaded (and started) on its own, a failure is printed and shown on
+-- screen in red, and a quiet stand-in takes its place so everything else keeps working.
+local loadErrors = {}
+local function problem(where, err)
+	warn("[FigureMeOut] " .. where .. " failed: " .. tostring(err))
+	table.insert(loadErrors, where .. ": " .. tostring(err))
+end
+local function load(name)
+	local ok, mod = pcall(function()
+		return require(Modules:WaitForChild(name, 15))
+	end)
+	if ok and mod then
+		return mod
+	end
+	problem("module " .. name, mod)
+	return setmetatable({}, { __index = function()
+		return function() end
+	end })
+end
+local function start(name, fn, ...)
+	local ok, err = pcall(fn, ...)
+	if not ok then
+		problem(name .. ".init", err)
+	end
+end
+local Fx = load("Fx")
+local Toasts = load("Toasts")
 local VIDEO = Config.Hud.Style == "video" -- the screen of the original game (Config.Hud.Style)
 local Hud = require(VIDEO and Modules.HudVideo or Modules.Hud)
-local Keypad = require(Modules.Keypad)
-local Scope = require(Modules.Scope)
-local Album = require(Modules.Album)
-local Alerts = require(Modules.Alerts)
-local Spectate = require(Modules.Spectate)
-local Results = require(Modules.Results)
-local Menu = require(Modules.Menu)
-local Controls = require(Modules.Controls)
-local OwnPlate = require(Modules.OwnPlate)
-local Ambient = require(Modules.Ambient)
-local Grade = require(Modules.Grade)
-local Markers = require(Modules.Markers)
-local Inventory = require(Modules.Inventory)
-local Emotes = require(Modules.Emotes)
-local Camera = require(Modules.Camera)
-local MapVote = require(Modules.MapVote)
+local Keypad = load("Keypad")
+local Scope = load("Scope")
+local Album = load("Album")
+local Alerts = load("Alerts")
+local Spectate = load("Spectate")
+local Results = load("Results")
+local Menu = load("Menu")
+local Controls = load("Controls")
+local OwnPlate = load("OwnPlate")
+local Ambient = load("Ambient")
+local Grade = load("Grade")
+local Markers = load("Markers")
+local Inventory = load("Inventory")
+local Emotes = load("Emotes")
+local Camera = load("Camera")
+local MapVote = load("MapVote")
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "FigureMeOut"
@@ -77,27 +102,46 @@ task.spawn(function()
 	end
 end)
 
-Audio.Init()
-Fx.init(gui)
-Toasts.init(gui)
-Alerts.init(gui, deps)
-Scope.init(gui, deps)
-Keypad.init(gui, deps)
-Album.init(gui, deps)
-Spectate.init(gui)
-Results.init(gui, deps)
-Menu.init(gui, deps)
-Hud.init(gui, deps)
-Inventory.init(gui, deps)
-Emotes.init(gui, deps)
-MapVote.init(gui, deps)
-Markers.init()
-Controls.init(deps)
-OwnPlate.init()
-Ambient.init()
-Grade.init()
-Camera.init()
-Audio.startMusic()
+start("Audio", Audio.Init)
+start("Fx", Fx.init, gui)
+start("Toasts", Toasts.init, gui)
+start("Alerts", Alerts.init, gui, deps)
+start("Scope", Scope.init, gui, deps)
+start("Keypad", Keypad.init, gui, deps)
+start("Album", Album.init, gui, deps)
+start("Spectate", Spectate.init, gui)
+start("Results", Results.init, gui, deps)
+start("Menu", Menu.init, gui, deps)
+start("Hud", Hud.init, gui, deps)
+start("Inventory", Inventory.init, gui, deps)
+start("Emotes", Emotes.init, gui, deps)
+start("MapVote", MapVote.init, gui, deps)
+start("Markers", Markers.init)
+start("Controls", Controls.init, deps)
+start("OwnPlate", OwnPlate.init)
+start("Ambient", Ambient.init)
+start("Grade", Grade.init)
+start("Camera", Camera.init)
+start("Audio", Audio.startMusic)
+
+-- anything that failed to start is shown in red, so it can be reported (and the rest of the game still runs)
+if #loadErrors > 0 then
+	local note = Instance.new("TextLabel")
+	note.Name = "StartupProblems"
+	note.Size = UDim2.fromOffset(560, 90)
+	note.Position = UDim2.fromOffset(12, 60)
+	note.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
+	note.BackgroundTransparency = 0.2
+	note.TextColor3 = Color3.fromRGB(255, 130, 130)
+	note.TextXAlignment = Enum.TextXAlignment.Left
+	note.TextYAlignment = Enum.TextYAlignment.Top
+	note.TextWrapped = true
+	note.TextSize = 13
+	note.Font = Enum.Font.GothamBold
+	note.ZIndex = 400
+	note.Text = "⚠ PART OF THE SCREEN FAILED TO START (please screenshot this):\n" .. string.sub(table.concat(loadErrors, "\n"), 1, 500)
+	note.Parent = gui
+end
 
 local C = UI.Colors
 

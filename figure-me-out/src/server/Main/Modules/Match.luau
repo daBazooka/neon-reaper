@@ -25,6 +25,7 @@ local Modes = require(script.Parent.Modes)
 local Flags = require(script.Parent.Flags)
 local Water = require(script.Parent.Water)
 local Votes = require(script.Parent.Votes)
+local Badges = require(script.Parent.Badges)
 local Maps = require(Shared:WaitForChild("Maps"))
 
 local Match = {}
@@ -425,6 +426,13 @@ local function award(e, won)
 		data.Streak += 1
 		data.BestStreak = math.max(data.BestStreak, data.Streak)
 		Data.recordWin(p)
+		Badges.award(p, "first_win")
+		if data.Wins >= 10 then
+			Badges.award(p, "ten_wins")
+		end
+		if data.Streak >= 3 then
+			Badges.award(p, "streak")
+		end
 		for _, style in Config.PlateStyles do
 			if before < style.Wins and data.Wins >= style.Wins then
 				Net.toast(p, "New plate unlocked: " .. style.Name .. "!", "gold")
@@ -548,6 +556,11 @@ function Match.onJoin(p)
 	p:SetAttribute("TotalKills", data.Kills)
 	p:SetAttribute("Style", data.Style)
 	Progress.publish(p)
+	local streak, coins = Progress.daily(p)
+	if streak and coins > 0 then
+		Net.toast(p, "🔥 Day " .. streak .. " in a row! +" .. coins .. " 🪙" .. (streak < Config.Daily.MaxDays and "  Come back tomorrow for more." or ""), "gold")
+	end
+	Badges.award(p, "welcome")
 	p:SetAttribute("Seen", data.Seen)
 	p:SetAttribute("Music", data.Settings.Music)
 	p:SetAttribute("Sfx", data.Settings.Sfx)
@@ -657,6 +670,9 @@ function Match.run()
 		end
 		Bounty.claim(killer, victim)
 		Modes.onHit(killer, victim)
+		if killer.player then
+			Badges.award(killer.player, "first_hit")
+		end
 	end
 	Combat.onEliminated = function(victim)
 		Flags.dropCarried(victim, "out")
@@ -701,6 +717,13 @@ function Match.run()
 		Modes.settle(math.min(#Players:GetPlayers(), Config.Match.MaxPlayers))
 		Match.setup()
 		Match.publishQueue()
+		if Config.Map.Theme == "canyon" then
+			for _, e in State.list() do
+				if e.player then
+					Badges.award(e.player, "explorer")
+				end
+			end
+		end
 		State.setPhase("countdown", State.now() + Config.Match.Countdown)
 		Net.sendAll("phase", "countdown", State.phaseEnd)
 		Match.tellNumbers()
