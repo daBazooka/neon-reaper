@@ -2,6 +2,7 @@
 local function check(cond, msg) print((cond and "PASS  " or "FAIL  ") .. msg) end
 local Config = require(RS.children.Shared.children.Config)
 Config.Sanity.Enabled = false
+Config.Match.FillTo = 0 -- (this scenario is about two real players; the god bots have their own checks in the joining scenario)
 local Maps = require(RS.children.Shared.children.Maps)
 local Rules = require(RS.children.Shared.children.Rules)
 -- shipped settings, straight from the config
