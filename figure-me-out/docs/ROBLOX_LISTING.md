@@ -1,56 +1,71 @@
-# Roblox listing kit — Figure Me Out
+# Roblox listing kit: Figure Me Out (Team Elimination)
 
-All art is in `docs/icons/` (regenerate with `python3 docs/icons/make_icons.py`; needs Pillow).
-The art is stylised, drawn by script — classic Roblox-style blocky avatars (R6 proportions, smiley face), not real Roblox renders. For the best results, also add 2–3 real screenshots from Studio/Play.
+Everything you need for the Creator Hub page, in the order the page asks for it. All art is in `docs/icons/` (regenerate with `python3 docs/icons/make_icons.py`; needs Pillow). The art is stylised and drawn by script (blocky Roblox-style avatars), not real Roblox renders. For the best results also add 2 to 3 real screenshots from Play mode in Studio (press the camera button in the Studio test window, or use Windows Snip).
 
-## Files
-| Use | Files | Size |
+## 1. Icon and thumbnails (Creator Hub > your experience > Game details / Media)
+| Use | File | Size |
 |---|---|---|
-| Game icon (pick one) | `icons/game_icon_1_hero.png`, `game_icon_2_number.png`, `game_icon_3_canyon.png`, `game_icon_4_crowd.png` | square |
-| Thumbnails (up to 10) | `thumbnails/thumbnail_1_hero.png` … `thumbnail_5_lobby.png` | 1920×1080 |
-| Badge icons (8) | `badges/badge_*.png` | 512×512 |
-| Logo (transparent) | `logo.png` | 1400×520 |
+| **Icon** (pick one, best first) | `icons/game_icon_3_teams.png` (red vs blue, best for the game), `game_icon_1_hero.png`, `game_icon_2_number.png`, `game_icon_4_crowd.png` | square |
+| **Thumbnails** (up to 10, upload in this order) | `thumbnails/thumbnail_1_hero.png`, `_2_guess`, `_3_elim`, `_4_items`, `_5_rewards`, `_6_quick`, `_7_lobby` | 1920 x 1080 |
+| Logo (transparent) | `logo.png` | 1400 x 520 |
+| Badge icons (8) | `badges/badge_*.png` | 512 x 512 |
 
-## Upload steps
-1. Roblox Creator Hub → Creations → your experience → **Basic Settings / Icon**: upload an icon.
-2. **Media**: upload thumbnails in order (hero first).
-3. **Badges**: Creator Hub → Engagement → Badges → Create; use each badge image, name and description below. Badges are created on the website; the game code does not award them yet.
+Order matters: thumbnail 1 is the one people see in search, so it is the hero; the next ones explain the game in the order a new player needs it (type the number, red vs blue, gadgets, rewards, short rounds, lobby).
 
-## Title options
-Figure Me Out · Figure Me Out: Guess the Number · Number Hunters
+## 2. Name
+**Figure Me Out** (you chose `FigureMeOut`; the page shows it as written, so `Figure Me Out` reads better). Max 50 characters.
+Other ideas if you ever want to change it: Figure Me Out: Team Elimination, Number Hunters.
 
-## Short description
-Everyone has a secret 4-digit number on a sign on their forehead. Put the dot on a player, type their number, and take them out — but hide your own!
-
-## Long description
-Your number is on your forehead and on your screen. Everyone else can read it. Hide it, run, dodge — and figure out theirs first.
+## 3. Description (max 1000 characters; paste this one, 940 characters)
+```
+RED vs BLUE! Everyone has a secret 4-digit number on a sign on their forehead. Type the number of an enemy and they are OUT. Wipe out the other team to win!
 
 HOW TO PLAY
-- Everyone gets a random 4-digit number shown on a mustard sign on their forehead.
-- You can see your own number on your screen, so you know what to hide.
-- Players show by their real Roblox name
-- Put the dot on a player and type their 4 digits (press Enter or G, or tap). It submits by itself.
-- Right number: they are out. Wrong number: you freeze for 1.5 seconds.
-- Camera (F), binoculars (G) and chest items (flashbang, smoke, sound grenade) share two item slots.
+- Put the dot on an enemy and type their 4 digits (or tap the on-screen number pad). It sends by itself.
+- Right number: they are out. Wrong number: you freeze for a moment.
+- Hide your own number: a wall in front of your forehead does not count!
+- F = take a photo, G = binoculars. Pick up chests for stun grenades, smoke and sound grenades.
 
 FEATURES
-- Up to 20 real players, no bots
-- Deathmatch, Team Fight (red vs blue) and Capture the Flag
-- Six maps you vote on: Waterfall Canyon, Plaza Park, Frosty Peaks, Candy Kingdom, Desert Ruins and Neon Station. The map with the most votes is played
-- Floating-island lobby; a new match every 10 seconds; first player joins instantly, others drop into a running match
-- Short rounds, simple controls, works on phone, tablet and PC
+- 10 vs 10 team matches, one life each
+- Short 4-minute rounds, a new match every 30 seconds
+- Winners get bonus coins, and the MVP gets even more
+- Daily quests, win streaks and kill streaks
+- Six maps you vote on, with a School Yard map first
+- Real Roblox avatars and names
+- Works on phone, tablet and PC
 
-## Genre / tags
-Genre: Party & Casual (or Shooter-lite / Action). Tags: guessing, multiplayer, pvp, party, team, capture the flag, casual, mobile friendly.
+Invite your friends: the more players, the better the match! Wipe out the other team and claim the win.
+```
+Shorter version (for a short tagline or social posts): *Type the number on their forehead and wipe out the other team. 10 vs 10, 4-minute matches!*
 
-## Badge ideas
+## 4. Genre and tags
+Creator Hub only lets you pick from its own genre list, which changes over time, so choose the closest one you see. Best fits, in order: a party / casual or "all genres" style option, then action or shooter-like. Subgenre: leave as None if nothing fits. A genre can only be changed every 3 months, so decide once.
+Search words to use wherever the page asks for keywords or tags: guessing, numbers, team, red vs blue, 10 vs 10, multiplayer, pvp, party, casual, mobile friendly, capture, eliminate, friends.
+
+## 5. Settings to check (Creator Hub > Publish settings and Studio Game Settings)
+- **Manage audience**: access Public when you are ready; set it to Private while you test.
+- **Max players**: 20 (Studio > Home > Game Settings > Basic Info, or the place settings). Server size 20 fits 10 vs 10.
+- **Devices**: Computer, Phone, Tablet on (the game has an on-screen number pad). Console off. VR off.
+- **Avatar type**: Player Choice (the game uses real avatars).
+- **Content rating** (Publish settings > Content rating): answer the questionnaire honestly. The game has cartoon "eliminations" (a player is sent to the lobby), no blood, no weapons that look real, and no chat features of its own. If asked about violence, choose the mildest option that describes the elimination.
+- **Enable Studio access to API services**: not needed, leave it off. (The game saves coins and wins with data stores. They need this on only when testing inside Studio: Game Settings > Security > Enable Studio Access to API Services.)
+- **Monetization**: leave for later. Reaching players first matters more.
+
+## 6. Badges (Creator Hub > Engagement > Badges > Create; each costs nothing for the first few)
+Badges are created on the website and their IDs are not in the game yet, so for now they are a title for the page. Use each badge image, name and description:
 | Badge | Name | Description |
 |---|---|---|
 | welcome | Welcome! | Joined Figure Me Out |
-| first_hit | First Hit | Guessed a number right |
-| first_win | First Win | Won a match |
+| first_hit | First Hit | Typed a number right |
+| first_win | First Win | Won a match with your team |
 | ten_wins | 10 Wins | Won 10 matches |
 | streak | Win Streak | Won 3 matches in a row |
-| survivor | Survivor | Survived a full match without losing a life |
+| survivor | Survivor | Stayed alive to the end of a match |
 | flag_capture | Capture! | Captured the flag |
-| explorer | Canyon Explorer | Played in Waterfall Canyon |
+| explorer | Explorer | Played on a new map |
+
+## 7. After it is live (first week)
+- Share the link with friends and ask them to play in groups: the game needs two players, and ten is best.
+- Put the play link in your social posts with thumbnail 3 and thumbnail 5.
+- Look at **Analytics** after a few days: if players leave in the first minute, the lobby wait is the first thing to shorten (`Config.Match.Intermission`).

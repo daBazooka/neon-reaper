@@ -69,20 +69,22 @@ def icon_number():
     c.text((512, 135), "FIGURE ME OUT", 112, tracking=3)
     return c.done(os.path.join(HERE, "icons", "game_icon_2_number.png"))
 
-def icon_canyon():
-    c = Canvas(1024, 1024, "#4cc0ff", "#d8f4ff")
-    c.rays(512, 380, 20, (255, 255, 255, 45))
-    c.cloud(170, 130, 70); c.cloud(850, 170, 85)
-    c.rock(120, 260, 784, 520, "#a39682")
-    c.rock(60, 320, 220, 460, "#8f8270"); c.rock(744, 300, 220, 480, "#8f8270")
-    for x, w in [(300, 120), (512, 200), (724, 120)]:
-        c.waterfall(x, 260, w, 520)
-    c.rainbow(512, 700, 380, 36, alpha=190)
-    c.hill(512, 960, 760, 260, art.rgb("#6ccf62"))
-    c.tree(130, 860, 260); c.tree(900, 880, 300)
-    c.avatar(512, 1000, 520, number="8052", shirt=SHIRTS[1], pants=PANTS[3])
-    title(c, 512, 110, 130, stack=False)
-    return c.done(os.path.join(HERE, "icons", "game_icon_3_canyon.png"))
+def icon_teams():
+    c = Canvas(1024, 1024, "#ff6b6b", "#4aa3ff")
+    c.rays(512, 520, 22, (255, 255, 255, 50), spread=0.5)
+    l, d = c.layer()
+    d.polygon([(c.S(0), c.S(0)), (c.S(560), c.S(0)), (c.S(460), c.S(1024)), (c.S(0), c.S(1024))], fill=(235, 70, 70, 255))
+    d.polygon([(c.S(560), c.S(0)), (c.S(1024), c.S(0)), (c.S(1024), c.S(1024)), (c.S(460), c.S(1024))], fill=(70, 130, 245, 255))
+    c.paste(l)
+    c.rays(512, 560, 20, (255, 255, 255, 40), spread=0.5)
+    bubbles(c, 1024, 1024, 8, 31, 12, 40)
+    c.avatar(270, 1000, 470, number="4722", shirt="#ff5a5a", pants=PANTS[2], arm_up=True)
+    c.avatar(760, 1000, 470, number="9031", shirt="#4aa3ff", pants=PANTS[4], skin=SKINS[1], mood="smirk")
+    starburst(c, 512, 470, 120, "#ffe45a", 14, 0.2)
+    c.text((512, 470), "VS", 120, fill="#ffffff", stroke="#10325a")
+    c.text((512, 135), "FIGURE ME OUT", 112, tracking=3)
+    c.text((512, 250), "10 vs 10  TEAM ELIMINATION", 52, sw=0.09)
+    return c.done(os.path.join(HERE, "icons", "game_icon_3_teams.png"))
 
 def icon_crowd():
     c = Canvas(1024, 1024, "#7b6cff", "#c8b8ff")
@@ -109,7 +111,7 @@ def thumb_hero():
         c.avatar(x, y, s, number=n, shirt=SHIRTS[i], pants=PANTS[i % 6], skin=SKINS[i % 5], mood=["smile", "smirk", "wow", "smile", "smirk", "wow"][i % 6])
     c.avatar(960, 1070, 600, number="4722", shirt=SHIRTS[0], pants=PANTS[0], arm_up=True)
     c.text((960, 120), "FIGURE ME OUT", 190, tracking=6)
-    c.text((960, 262), "Read their number. Hide yours. Be the last one standing!", 56, fill="#ffffff", sw=0.09)
+    c.text((960, 262), "Type their number. Eliminate the other team!", 56, fill="#ffffff", sw=0.09)
     return c.done(os.path.join(HERE, "thumbnails", "thumbnail_1_hero.png"))
 
 def keypad(c, x, y, w, typed="47", result=None):
@@ -150,57 +152,112 @@ def thumb_guess():
     c.text((960, 220), "Look at a player. Type 4 digits. It sends by itself!", 48, sw=0.09)
     return c.done(os.path.join(HERE, "thumbnails", "thumbnail_2_guess.png"))
 
-def thumb_canyon():
-    W, H = 1920, 1080
-    c = Canvas(W, H, "#4cc0ff", "#d8f4ff")
-    c.rays(W / 2, 520, 24, (255, 255, 255, 40))
-    c.cloud(250, 170, 110); c.cloud(1650, 200, 130); c.cloud(980, 120, 80)
-    c.rock(140, 220, 1640, 560, "#a39682")
-    c.rock(0, 300, 300, 520, "#8f8270"); c.rock(1620, 280, 300, 540, "#8f8270")
-    for x, w in [(520, 190), (960, 300), (1400, 190)]:
-        c.waterfall(x, 220, w, 560)
-    c.rainbow(960, 790, 560, 52, alpha=175)
-    c.hill(960, 1080, 1700, 330, art.rgb("#6ccf62"))
-    # river
-    l, d = c.layer()
-    d.polygon([(c.S(880), c.S(780)), (c.S(1040), c.S(780)), (c.S(1250), c.S(1080)), (c.S(670), c.S(1080))], fill=(70, 180, 245, 255))
-    c.paste(l)
-    c.tree(160, 960, 420); c.tree(1790, 980, 460); c.tree(380, 1000, 300); c.tree(1560, 1010, 320)
-    c.avatar(1330, 1050, 560, number="5819", shirt=SHIRTS[4], pants=PANTS[4], skin=SKINS[1], mood="wow")
-    c.avatar(590, 1060, 600, number="2268", shirt=SHIRTS[5], pants=PANTS[5], skin=SKINS[2])
-    c.text((960, 115), "WATERFALL CANYON", 170, tracking=4)
-    c.text((960, 235), "Waterfalls. A river that pushes you. Planes in the sky.", 56, sw=0.09)
-    return c.done(os.path.join(HERE, "thumbnails", "thumbnail_3_canyon.png"))
+def team_row(c, x0, x1, base, size, shirt, n, seed):
+    r = random.Random(seed)
+    step = (x1 - x0) / max(1, n - 1)
+    for k in range(n):
+        i = r.randint(0, 5)
+        c.avatar(x0 + k * step, base + (k % 2) * 30, size, number=str(r.randint(1000, 9999)), shirt=shirt, pants=PANTS[i % 6], skin=SKINS[i % 5], mood=["smile", "smirk", "wow"][k % 3])
 
-def thumb_modes():
+def thumb_elim():
+    W, H = 1920, 1080
+    c = Canvas(W, H, "#7fd0ff", "#e6f8ff")
+    c.rays(W / 2, 600, 26, (255, 255, 255, 45))
+    c.cloud(250, 170, 100); c.cloud(1700, 190, 120)
+    l, d = c.layer()
+    d.rectangle([c.S(0), c.S(700), c.S(W), c.S(H)], fill=rgb("#3b8fe8"))
+    d.rectangle([c.S(0), c.S(700), c.S(W), c.S(730)], fill=rgb("#ff9b3d"))
+    d.ellipse([c.S(760), c.S(780), c.S(1160), c.S(980)], outline=(255, 255, 255, 255), width=c.S(8))
+    c.paste(l)
+    team_row(c, 190, 760, 1000, 300, "#ff5a5a", 4, 3)
+    team_row(c, 1160, 1730, 1000, 300, "#4aa3ff", 4, 9)
+    for x, col, n in [(560, "#eb4646", "7"), (1360, "#4682f5", "4")]:
+        l, d = c.layer()
+        d.rounded_rectangle([c.S(x - 150), c.S(235), c.S(x + 150), c.S(445)], radius=c.S(40), fill=rgb(col), outline=rgb("#ffffff"), width=c.S(8))
+        c.paste(l)
+        c.text((x, 340), n, 200, shadow=False)
+    c.text((960, 340), "-", 150, shadow=False)
+    c.text((960, 100), "TEAM ELIMINATION", 150, tracking=4)
+    c.text((960, 480), "RED vs BLUE   up to 10 vs 10", 66, fill="#ffffff", sw=0.1)
+    c.text((960, 570), "Type their number. One hit and they are out!", 50, sw=0.09)
+    return c.done(os.path.join(HERE, "thumbnails", "thumbnail_3_elim.png"))
+
+def gadget(c, kind, cx, cy, r):
+    l, d = c.layer()
+    d.ellipse([c.S(cx - r), c.S(cy - r), c.S(cx + r), c.S(cy + r)], fill=(14, 30, 64, 235), outline=rgb("#ffffff"), width=c.S(8))
+    c.paste(l)
+    l, d = c.layer()
+    if kind == "camera":
+        d.rounded_rectangle([c.S(cx - r * 0.55), c.S(cy - r * 0.3), c.S(cx + r * 0.55), c.S(cy + r * 0.38)], radius=c.S(18), fill=rgb("#e8e8f0"), outline=rgb("#10325a"), width=c.S(5))
+        d.ellipse([c.S(cx - r * 0.25), c.S(cy - r * 0.2), c.S(cx + r * 0.25), c.S(cy + r * 0.3)], fill=rgb("#2b3a67"), outline=rgb("#10325a"), width=c.S(5))
+    elif kind == "binos":
+        for dx in (-0.3, 0.3):
+            d.rounded_rectangle([c.S(cx + dx * r - r * 0.24), c.S(cy - r * 0.45), c.S(cx + dx * r + r * 0.24), c.S(cy + r * 0.4)], radius=c.S(20), fill=rgb("#2b2f3a"), outline=rgb("#ff9b3d"), width=c.S(8))
+        d.rectangle([c.S(cx - r * 0.1), c.S(cy - r * 0.1), c.S(cx + r * 0.1), c.S(cy + r * 0.15)], fill=rgb("#2b2f3a"))
+    elif kind == "stun":
+        d.polygon([(c.S(cx + r * 0.1), c.S(cy - r * 0.6)), (c.S(cx - r * 0.35), c.S(cy + r * 0.1)), (c.S(cx - r * 0.02), c.S(cy + r * 0.1)), (c.S(cx - r * 0.15), c.S(cy + r * 0.6)), (c.S(cx + r * 0.38), c.S(cy - r * 0.15)), (c.S(cx + r * 0.04), c.S(cy - r * 0.15))], fill=rgb("#ffe45a"), outline=rgb("#10325a"))
+    else:
+        d.ellipse([c.S(cx - r * 0.45), c.S(cy - r * 0.35), c.S(cx + r * 0.45), c.S(cy + r * 0.55)], fill=rgb("#cfd6e6"), outline=rgb("#10325a"), width=c.S(5))
+        d.rectangle([c.S(cx - r * 0.12), c.S(cy - r * 0.62), c.S(cx + r * 0.12), c.S(cy - r * 0.3)], fill=rgb("#8a93ab"))
+    c.paste(l)
+
+def thumb_items():
     W, H = 1920, 1080
     c = Canvas(W, H, "#8a7bff", "#c8c0ff")
     c.rays(W / 2, 560, 28, (255, 255, 255, 40), spread=0.4)
     bubbles(c, W, H, 18, 11, 14, 60)
-    panels = [(70, "#ff9f43", "DEATHMATCH", "everybody for themselves", "💀"), (700, "#4aa3ff", "TEAM FIGHT", "red vs blue", "⚔"), (1330, "#ff5a5a", "CAPTURE THE FLAG", "grab it. bring it home.", "⚑")]
-    for i, (x, col, name, sub, glyph) in enumerate(panels):
+    items = [("camera", "PHOTO", "press F"), ("binos", "BINOCULARS", "press G"), ("stun", "STUN GRENADE", "freeze + blind"), ("smoke", "SMOKE", "hide in the cloud")]
+    for i, (k, name, sub) in enumerate(items):
+        x = 270 + i * 460
         l, d = c.layer()
-        d.rounded_rectangle([c.S(x), c.S(330), c.S(x + 520), c.S(960)], radius=c.S(60), fill=(255, 255, 255, 235), outline=rgb(col), width=c.S(14))
-        d.rounded_rectangle([c.S(x), c.S(330), c.S(x + 520), c.S(470)], radius=c.S(60), fill=rgb(col))
-        d.rectangle([c.S(x), c.S(420), c.S(x + 520), c.S(470)], fill=rgb(col))
+        d.rounded_rectangle([c.S(x - 205), c.S(360), c.S(x + 205), c.S(900)], radius=c.S(50), fill=(255, 255, 255, 235), outline=rgb("#ffe45a"), width=c.S(10))
         c.paste(l)
-        c.text((x + 260, 400), name, 54 if len(name) < 14 else 44, sw=0.09, shadow=False)
-        c.text((x + 260, 505), sub, 38, fill="#16408a", stroke="#ffffff", sw=0.0, shadow=False)
-        if i == 0:
-            for k, (dx, ny) in enumerate([(-160, "3184"), (0, "9059"), (160, "2742")]):
-                c.avatar(x + 260 + dx, 940, 250, number=ny, shirt=SHIRTS[(k * 3) % 8], pants=PANTS[k], skin=SKINS[k], tag=False, plate=False)
-        elif i == 1:
-            for k, (dx, ny, shirt) in enumerate([(-195, "6113", "#ff5a5a"), (-65, "2022", "#ff5a5a"), (65, "8748", "#4aa3ff"), (195, "4354", "#4aa3ff")]):
-                c.avatar(x + 260 + dx, 940, 210, number=ny, shirt=shirt, pants=PANTS[k], skin=SKINS[k], tag=False, plate=False)
-        else:
-            c.avatar(x + 150, 940, 270, number="7537", shirt="#ff5a5a", pants=PANTS[0], plate=False)
-            l, d = c.layer()
-            d.rectangle([c.S(x + 330), c.S(560), c.S(x + 350), c.S(940)], fill=rgb("#5a5f73"))
-            d.polygon([(c.S(x + 350), c.S(570)), (c.S(x + 470), c.S(620)), (c.S(x + 350), c.S(680))], fill=rgb("#4aa3ff"), outline=rgb("#10325a"))
-            c.paste(l)
-    c.text((960, 120), "FIGURE ME OUT", 170, tracking=5)
-    c.text((960, 235), "3 game modes. Up to 20 real players. Drop in any time.", 58, sw=0.09)
-    return c.done(os.path.join(HERE, "thumbnails", "thumbnail_4_modes.png"))
+        gadget(c, k, x, 560, 130)
+        c.text((x, 760), name, 46 if len(name) < 12 else 38, fill="#16408a", stroke="#ffffff", sw=0.0, shadow=False)
+        c.text((x, 830), sub, 36, fill="#4a5a8a", stroke="#ffffff", sw=0.0, shadow=False)
+    c.text((960, 120), "USE YOUR GADGETS", 160, tracking=4)
+    c.text((960, 250), "One press. No fuss. Outsmart the other team.", 58, sw=0.09)
+    return c.done(os.path.join(HERE, "thumbnails", "thumbnail_4_items.png"))
+
+def thumb_rewards():
+    W, H = 1920, 1080
+    c = Canvas(W, H, "#ffd86b", "#ffb347")
+    c.rays(W / 2, 560, 30, (255, 255, 255, 60), spread=0.5)
+    c.glow(W / 2, 600, 700, (255, 255, 255, 255), 0.35)
+    bubbles(c, W, H, 16, 17, 14, 56)
+    for i, x in enumerate([420, 700, 1220, 1500]):
+        c.avatar(x, 1040, 330, number=None, shirt="#ff5a5a" if i < 2 else "#ff5a5a", pants=PANTS[i], skin=SKINS[i], mood="smile", arm_up=True, plate=False)
+    l, d = c.layer()
+    d.rounded_rectangle([c.S(790), c.S(520), c.S(1130), c.S(760)], radius=c.S(30), fill=rgb("#ffe45a"), outline=rgb("#10325a"), width=c.S(8))
+    d.ellipse([c.S(700), c.S(560), c.S(860), c.S(700)], outline=rgb("#ffe45a"), width=c.S(26))
+    d.ellipse([c.S(1060), c.S(560), c.S(1220), c.S(700)], outline=rgb("#ffe45a"), width=c.S(26))
+    d.rectangle([c.S(915), c.S(760), c.S(1005), c.S(860)], fill=rgb("#e0b000"))
+    d.rounded_rectangle([c.S(840), c.S(860), c.S(1080), c.S(910)], radius=c.S(14), fill=rgb("#c99a00"))
+    c.paste(l)
+    c.text((960, 640), "1", 190, fill="#ffffff", stroke="#7a5200", shadow=False)
+    c.text((960, 120), "WIN AS A TEAM!", 170, tracking=4)
+    c.text((960, 255), "Winners get +100 coins. The MVP gets a bonus. Win streaks pay more!", 54, sw=0.09)
+    starburst(c, 1560, 470, 120, "#5ad26e", 14, 0.3)
+    c.text((1560, 470), "+100", 70, fill="#ffffff", stroke="#0b5a1a", angle=-8)
+    starburst(c, 360, 470, 110, "#ff8fab", 12, 0.1)
+    c.text((360, 470), "MVP", 62, fill="#ffffff", stroke="#7a1030", angle=8)
+    return c.done(os.path.join(HERE, "thumbnails", "thumbnail_5_rewards.png"))
+
+def thumb_quick():
+    W, H = 1920, 1080
+    c = Canvas(W, H, "#5cc4ff", "#bfeaff")
+    scenery(c, W, H, 760, rainbow=False)
+    bubbles(c, W, H, 12, 3, 14, 54)
+    for i, (txt, sub, col) in enumerate([("4 MIN", "quick matches", "#ff9f43"), ("30 s", "short lobby", "#4aa3ff"), ("20", "players per match", "#5ad26e"), ("FREE", "phone, tablet, PC", "#ff6b8b")]):
+        x = 240 + i * 480
+        l, d = c.layer()
+        d.rounded_rectangle([c.S(x - 210), c.S(380), c.S(x + 210), c.S(780)], radius=c.S(60), fill=(255, 255, 255, 240), outline=rgb(col), width=c.S(14))
+        c.paste(l)
+        c.text((x, 520), txt, 130, fill=col, stroke="#10325a", sw=0.06)
+        c.text((x, 680), sub, 42, fill="#16408a", stroke="#ffffff", sw=0.0, shadow=False)
+    c.text((960, 125), "ONE MORE MATCH!", 170, tracking=4)
+    c.text((960, 255), "Short rounds. Quick rewards. Daily quests and win streaks.", 56, sw=0.09)
+    return c.done(os.path.join(HERE, "thumbnails", "thumbnail_6_quick.png"))
 
 def thumb_lobby():
     W, H = 1920, 1080
@@ -234,8 +291,8 @@ def thumb_lobby():
     l, d = c.layer()
     d.rounded_rectangle([c.S(620), c.S(960), c.S(1300), c.S(1050)], radius=c.S(45), fill=(14, 30, 64, 235), outline=rgb("#6fdcff"), width=c.S(6))
     c.paste(l)
-    c.text((960, 1005), "NEXT MATCH IN 10 s", 58, fill="#ffe45a", stroke="#0a2a5a", shadow=False)
-    return c.done(os.path.join(HERE, "thumbnails", "thumbnail_5_lobby.png"))
+    c.text((960, 1005), "NEXT MATCH IN 30 s", 58, fill="#ffe45a", stroke="#0a2a5a", shadow=False)
+    return c.done(os.path.join(HERE, "thumbnails", "thumbnail_7_lobby.png"))
 
 # ====================================================================================================== BADGES
 def badge(name, label, c1, c2, glyph):
@@ -335,10 +392,10 @@ if __name__ == "__main__":
     import sys
     which = sys.argv[1:] or ["icons", "thumbs", "badges", "logo"]
     if "icons" in which:
-        for f in (icon_hero, icon_number, icon_canyon, icon_crowd):
+        for f in (icon_hero, icon_number, icon_teams, icon_crowd):
             im = f(); print("made", f.__name__)
     if "thumbs" in which:
-        for f in (thumb_hero, thumb_guess, thumb_canyon, thumb_modes, thumb_lobby):
+        for f in (thumb_hero, thumb_guess, thumb_elim, thumb_items, thumb_rewards, thumb_quick, thumb_lobby):
             f(); print("made", f.__name__)
     if "badges" in which:
         badges(); print("made badges")
