@@ -19,7 +19,10 @@ check(State.phase == "lobby" and #State.order == 0, "an empty server waits in th
 -- the first player: a practice round at once
 local p1 = join(1, "Alice")
 advance(2)
-check(State.mode and State.mode.Id == "practice" and #State.order == 1, "the first player is alone: a practice round starts at once (" .. tostring(State.mode and State.mode.Id) .. ")")
+check(State.mode and State.mode.Id == "practice" and #State.order == 1 + Config.Match.PracticeDummies, "the first player is alone: a practice round with " .. Config.Match.PracticeDummies .. " dummies starts at once (" .. tostring(State.mode and State.mode.Id) .. ", " .. #State.order .. " in it)")
+local dummies = 0
+for _, e in State.list() do if e.dummy then dummies += 1 if #e.number ~= 4 or e.lives < 50 then dummies = -100 end end end
+check(dummies == Config.Match.PracticeDummies, "the dummies have 4-digit numbers to read and plenty of lives")
 check(p1.attrs.Playing == true and attrsWS.ModeName == "PRACTICE", "...and is marked as playing")
 advance(Config.Match.Countdown + 1)
 check(State.phase == "play", "the practice round runs")

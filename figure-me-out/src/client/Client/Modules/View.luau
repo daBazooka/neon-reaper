@@ -203,4 +203,37 @@ function View.aimed()
 	return best, bestDistance
 end
 
+-- Who is at this point on the screen (a mouse click)? Returns an entity you could guess, or nil. Works from the ray through that point:
+-- the person whose head or body is closest to it (within a few degrees), in range and in sight.
+function View.atScreen(x, y)
+	local head = View.myHead()
+	local camera = View.camera()
+	if not head or not camera then
+		return nil
+	end
+	local ok, ray = pcall(function()
+		return camera:ViewportPointToRay(x, y)
+	end)
+	if not ok or typeof(ray) ~= "Ray" then
+		return (View.aimed()) -- (no ray to work with: the person under the crosshair)
+	end
+	local origin, dir = ray.Origin, ray.Direction.Unit
+	local best, bestAngle
+	for _, e in View.entities() do
+		if not e.me and (e.alive or e.decoy) then
+			for _, point in { e.head.Position, e.head.Position - Vector3.new(0, 1.6, 0) } do
+				local to = point - origin
+				local along = to:Dot(dir)
+				if along > 1 and along <= Config.Guess.MaxDistance then
+					local angle = (to - dir * along).Magnitude / along
+					if angle < 0.08 and (not bestAngle or angle < bestAngle) and not View.blocked(origin, e.head.Position) and not View.blocked(head.Position, e.head.Position) then
+						best, bestAngle = e, angle
+					end
+				end
+			end
+		end
+	end
+	return best
+end
+
 return View

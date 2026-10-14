@@ -33,10 +33,17 @@ function X.seen(sub)
 	end
 	return false
 end
+local function labelled(b, sub)
+	if string.find(textOf(b), sub, 1, true) then return true end
+	for _, c in X.texts do
+		if rawequal(c.Parent, b) and string.find(textOf(c), sub, 1, true) then return true end
+	end
+	return false
+end
 function X.click(sub, nth)
 	local n = 0
 	for _, b in X.buttons do
-		if string.find(textOf(b), sub, 1, true) and visible(b) then
+		if labelled(b, sub) and visible(b) then
 			n += 1
 			if n == (nth or 1) then
 				for _, f in b.MouseButton1Click.fns do f() end

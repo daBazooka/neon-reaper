@@ -20,6 +20,10 @@ Or run `rojo serve` and click Connect in the Rojo plugin to live-edit.
 
 | Key | What |
 |---|---|
+| **Click a player** | Click anyone you can see: the number readout opens for them, then type or tap their 4 digits |
+| **123 NUMBER button** (right side) | Shows an on-screen number pad. Always there on phones; on PC press it if you do not want to use the keyboard |
+| **READY** (lobby card, 2+ players) | When everybody presses it the match starts at once |
+| **F8** | Shows a small debug line (the last key the game saw): handy if a button seems dead |
 | **0 to 9** | Just type the number of the player under the dot (4 digits, it sends by itself, Backspace fixes a typo) |
 | **F** | **One press: take a photo** (a polaroid drops in) |
 | **G** | **One press: look through the binoculars**; press again to lower them. (Or hold the **right mouse button** / **Z** to zoom, scroll to change) |
@@ -28,6 +32,8 @@ Or run `rojo serve` and click Connect in the Rojo plugin to live-edit.
 | **B** | Quick emotes |
 | **M** | Menu (how to play, plates, stats, settings) |
 | **◀ ▶** | Change who you watch after you are out |
+
+Playing alone gives a practice round with 4 **dummies** that stand still and carry numbers: walk up, read the sign, type it. Bounties (a player worth extra coins) and short events keep real matches changing.
 
 On a phone or tablet: tap a player, then the on-screen number pad; tap the F and G slots: one tap takes the photo, raises the binoculars or throws the grenade. On a controller: X guess, R2 photo, hold L2 for binoculars, Y notebook, L1/R1 choose a gadget and A to use it, Start for the menu.
 

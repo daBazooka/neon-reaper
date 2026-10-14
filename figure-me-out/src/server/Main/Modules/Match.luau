@@ -43,6 +43,36 @@ local function toLobby(p)
 	end
 end
 
+Match.ready = {} -- userId -> true: pressed READY in the lobby (when everybody has, the match starts at once)
+
+function Match.setReady(p, on)
+	if State.phase ~= "lobby" or not p or not p.Parent then
+		return false
+	end
+	Match.ready[p.UserId] = on ~= false or nil
+	local n = 0
+	for _, q in Players:GetPlayers() do
+		if Match.ready[q.UserId] then
+			n += 1
+		end
+	end
+	workspace:SetAttribute("ReadyCount", n)
+	p:SetAttribute("Ready", Match.ready[p.UserId] == true)
+	return true
+end
+
+-- Has every player here pressed READY? (Never true with nobody here.)
+function Match.allReady()
+	local any = false
+	for _, q in Players:GetPlayers() do
+		any = true
+		if not Match.ready[q.UserId] then
+			return false
+		end
+	end
+	return any
+end
+
 Match.played = {} -- userId -> the last match they played in (the queue for a full server goes by this)
 
 -- Who is waiting in the lobby for the next match (not in the one that is running), and how many are playing. Also tells every
@@ -136,6 +166,10 @@ function Match.activate(e, color, animal, now)
 	if not e.team then
 		e.color = color.Color
 	end
+	if e.dummy then
+		e.code = "Dummy " .. e.dummyIndex
+		e.icon = "🎯"
+	end
 	e.number = Rules.newNumber(roll, State.takenNumbers())
 	e.alive = true
 	e.kills = 0
@@ -144,7 +178,7 @@ function Match.activate(e, color, animal, now)
 	e.stunUntil = 0
 	e.scoped = false
 	e.lastGuess = -100
-	e.lives = Config.Lives.Start
+	e.lives = e.dummy and 99 or Config.Lives.Start -- (a dummy loses a life when you get its number, and comes back)
 	e.score = 0
 	e.hitTimes = {}
 	e.seenBy = {}
@@ -190,6 +224,11 @@ function Match.setup()
 		end
 	end
 	local botCount = math.max(0, math.min(Config.Match.MinTotal, Config.Match.MaxPlayers) - #humans)
+	-- a practice round gives the lone player dummies to type numbers at (nothing else to do alone)
+	local practice = Modes.next == "practice"
+	if practice then
+		botCount = Config.Match.PracticeDummies
+	end
 	local total = #humans + botCount
 	local names = Rules.codenames(roll, total)
 	local arena = World.arenaSpawns()
@@ -219,7 +258,7 @@ function Match.setup()
 		table.insert(list, e)
 	end
 	for b = 1, botCount do
-		table.insert(list, { id = -b, bot = true, char = Bots.makeModel("Bot" .. b), style = "classic" })
+		table.insert(list, { id = -b, bot = true, dummy = practice or nil, dummyIndex = b, char = Bots.makeModel(practice and ("Dummy " .. b) or ("Bot" .. b)), style = "classic" })
 	end
 	Modes.assignTeams(list)
 	-- team modes: each team spawns on its own side of the map (red west, blue east)
@@ -245,7 +284,11 @@ function Match.setup()
 		else
 			spawn = arena[spawnOrder[(index - 1) % #spawnOrder + 1]]
 		end
-		if e.bot then
+		if e.dummy then
+			-- dummies stand in the open ground near the middle of the map, where the terminals are
+			local spots = Config.Map.Terminals
+			Bots.place(e, spots[(e.dummyIndex - 1) % #spots + 1])
+		elseif e.bot then
 			Bots.place(e, spawn)
 		elseif e.char then
 			e.char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
@@ -502,11 +545,13 @@ function Match.finish()
 	for _, e in State.list() do
 		local won = (mode.Teams and winnerTeam ~= 0 and e.team == winnerTeam) or (not mode.Teams and e.id == winnerId)
 		won = won and State.peak >= 2 -- (winning a match nobody else was in is not a win)
-		award(e, won)
+		if not mode.Practice then
+			award(e, won)
+		end
 		if e.player and not mode.Practice and State.peak >= 2 then
 			Quests.bump(e.player, "play", 1)
 		end
-		if e.player then
+		if e.player and not mode.Practice then
 			Progress.award(e.player, e.score or 0, won, State.matchId, e.bonusCoins)
 		end
 	end
@@ -699,6 +744,11 @@ function Match.run()
 	local first = Config.Match.FirstMatchAtOnce
 	while true do
 		State.setPhase("lobby", State.now() + Config.Match.Intermission)
+		Match.ready = {}
+		workspace:SetAttribute("ReadyCount", 0)
+		for _, q in Players:GetPlayers() do
+			q:SetAttribute("Ready", false)
+		end
 		Modes.settle(#Players:GetPlayers())
 		Net.sendAll("phase", "lobby", State.phaseEnd)
 		Match.publishQueue()
@@ -709,8 +759,9 @@ function Match.run()
 				State.phaseEnd = State.now() + Config.Match.Intermission
 				return false
 			end
-			-- the very first match starts the moment somebody is here (no lobby wait); after that the lobby counts down
-			return first or State.now() >= State.phaseEnd
+			-- the very first match starts the moment somebody is here (no lobby wait); after that the lobby counts down, or ends
+			-- early when everybody has pressed READY
+			return first or State.now() >= State.phaseEnd or (Match.allReady() and #Players:GetPlayers() >= 2)
 		end)
 		-- the map: the first match uses the starter map; after that the one with the most votes (a tie: one of the tied maps)
 		if Config.Vote.Enabled then

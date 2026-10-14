@@ -759,9 +759,9 @@ Config.Features = {
 	Photos = true, -- the camera (slot F at the start): a click takes a photo and a polaroid shows what you could read
 	Binoculars = true, -- the binoculars (slot G at the start): zoom with a black figure-8 view
 	Terminals = false, -- hack a terminal for a clue
-	Bounty = false, -- a gold-tagged target with a prize
+	Bounty = true, -- a gold-tagged target with a prize (a new one every 35 seconds: everybody hunts the same person)
 	Alliances = false, -- ask somebody to team up
-	Events = false, -- double points, low gravity, blackout...
+	Events = true, -- double points, low gravity, supply drops... (a short event every half minute or so keeps matches changing)
 }
 
 Config.Match = {
@@ -769,6 +769,7 @@ Config.Match = {
 	MinHumans = 1, -- real players needed before a match starts. 1 = the lobby starts a match as soon as somebody is here
 	DropIn = false, -- false: somebody who arrives while a match is well under way WAITS in the lobby (the screen shows the time left and when the next match starts, and they can watch it). true: they always jump into the running match
 	DropInWindow = 45, -- ...but somebody who arrives in the first seconds of a match (or during the countdown) still jumps straight in, so nobody waits for nothing
+	PracticeDummies = 4, -- the practice round has this many dummies to type numbers at, photograph and throw grenades at
 	SoloPractice = true, -- with only one player the match is a short practice round (to try the items); it ends the moment somebody else arrives, so nobody waits long
 	PracticeLength = 180, -- seconds
 	FirstMatchAtOnce = true, -- the first match after the server starts begins the moment somebody is here (no lobby wait); after that, the lobby counts down
@@ -915,6 +916,7 @@ end
 -- The look of the screen. "video" = the minimal screen of the original game (red and blue score boxes, timer, strike marks, two
 -- item slots, big typed digits); "classic" = the older glass panels.
 Config.Hud = { Style = "video" }
+Config.Debug = { Input = false } -- true: shows the last key you pressed and what the game made of it (also toggled with F8), for finding out why something does not respond
 
 Config.Flash = { Radius = 80, Fuse = 1.6, MaxBlind = 6.5, MinBlind = 1.2, ThrowSpeed = 55, ThrowUp = 22, Stun = 2.0 } -- the stun grenade (flashbang): everybody who sees it go off is blinded AND frozen for up to Stun seconds (less the further away they are)
 Config.Smoke = { Radius = 9, Duration = 15, Fuse = 1.3, Fade = 3 }
@@ -949,15 +951,16 @@ Config.Pickups = { Respawn = 15, Radius = 4.5 }
 --------------------------------------------------------------------------------
 -- Bounty, alliances, information terminals and bonus events
 --------------------------------------------------------------------------------
-Config.Bounty = { Reward = 150, Coins = 25, Every = 70, Lasts = 90 } -- a new target every so many seconds
+Config.Bounty = { Reward = 150, Coins = 25, Every = 35, Lasts = 50 } -- a new target every so many seconds
 
 Config.Alliance = { Duration = 90, Range = 60, Cooldown = 40, MaxShare = 12, ReAllyAfterBetrayal = 60 }
 
 Config.Terminal = { Uses = 3, Cooldown = 20, Range = 10, Reveal = 5 } -- uses per player per match; seconds between uses; using one shows your position for Reveal seconds
 
 Config.Events = {
-	First = 50, -- no event before this many seconds into the match
-	Gap = { 55, 90 }, -- random seconds between events
+	First = 25, -- no event before this many seconds into the match
+	Gap = { 35, 55 },
+	Skip = { blackout = true }, -- events left out (the blackout is hard to play in) -- random seconds between events
 	Warn = 5, -- announced this many seconds before it starts
 	List = {
 		{ Id = "double", Name = "DOUBLE POINTS", Icon = "✨", Seconds = 25, Text = "Every successful guess is worth double!" },
@@ -2581,6 +2584,9 @@ function handlers.Dash(p, look)
 		Combat.dash(e, look)
 	end
 end
+function handlers.Ready(p, on)
+	Match.setReady(p, on == true)
+end
 function handlers.Seen(p)
 	local data = Data.get(p)
 	if data then
@@ -3112,7 +3118,14 @@ function Bots.tick(now)
 		return
 	end
 	for _, e in State.aliveList() do
-		if e.bot then
+		if e.dummy then
+			-- a practice dummy never walks or guesses: it turns slowly on the spot, so its sign can be read from every side
+			e.turn = (e.turn or 0) + 0.22
+			local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+			if root then
+				e.char:PivotTo(CFrame.new(root.Position) * CFrame.Angles(0, e.turn, 0))
+			end
+		elseif e.bot then
 			walk(e, now)
 			think(e, now)
 		end
@@ -4409,7 +4422,12 @@ function Events.tick(now)
 	end
 	-- not in the last stretch of the match: the finale stays clean
 	if not running and not pending and now >= nextAt and State.phaseEnd - now > Config.Match.RevealAt + 20 then
-		local list = Config.Events.List
+		local list = {}
+		for _, ev in Config.Events.List do
+			if not Config.Events.Skip[ev.Id] then
+				table.insert(list, ev)
+			end
+		end
 		local pick = list[rng:NextInteger(1, #list)]
 		if pick.Id == last then
 			pick = list[(rng:NextInteger(1, #list - 1) + (table.find(list, pick) or 1) - 1) % #list + 1]
@@ -6397,6 +6415,36 @@ local function toLobby(p)
 	end
 end
 
+Match.ready = {} -- userId -> true: pressed READY in the lobby (when everybody has, the match starts at once)
+
+function Match.setReady(p, on)
+	if State.phase ~= "lobby" or not p or not p.Parent then
+		return false
+	end
+	Match.ready[p.UserId] = on ~= false or nil
+	local n = 0
+	for _, q in Players:GetPlayers() do
+		if Match.ready[q.UserId] then
+			n += 1
+		end
+	end
+	workspace:SetAttribute("ReadyCount", n)
+	p:SetAttribute("Ready", Match.ready[p.UserId] == true)
+	return true
+end
+
+-- Has every player here pressed READY? (Never true with nobody here.)
+function Match.allReady()
+	local any = false
+	for _, q in Players:GetPlayers() do
+		any = true
+		if not Match.ready[q.UserId] then
+			return false
+		end
+	end
+	return any
+end
+
 Match.played = {} -- userId -> the last match they played in (the queue for a full server goes by this)
 
 -- Who is waiting in the lobby for the next match (not in the one that is running), and how many are playing. Also tells every
@@ -6490,6 +6538,10 @@ function Match.activate(e, color, animal, now)
 	if not e.team then
 		e.color = color.Color
 	end
+	if e.dummy then
+		e.code = "Dummy " .. e.dummyIndex
+		e.icon = "🎯"
+	end
 	e.number = Rules.newNumber(roll, State.takenNumbers())
 	e.alive = true
 	e.kills = 0
@@ -6498,7 +6550,7 @@ function Match.activate(e, color, animal, now)
 	e.stunUntil = 0
 	e.scoped = false
 	e.lastGuess = -100
-	e.lives = Config.Lives.Start
+	e.lives = e.dummy and 99 or Config.Lives.Start -- (a dummy loses a life when you get its number, and comes back)
 	e.score = 0
 	e.hitTimes = {}
 	e.seenBy = {}
@@ -6544,6 +6596,11 @@ function Match.setup()
 		end
 	end
 	local botCount = math.max(0, math.min(Config.Match.MinTotal, Config.Match.MaxPlayers) - #humans)
+	-- a practice round gives the lone player dummies to type numbers at (nothing else to do alone)
+	local practice = Modes.next == "practice"
+	if practice then
+		botCount = Config.Match.PracticeDummies
+	end
 	local total = #humans + botCount
 	local names = Rules.codenames(roll, total)
 	local arena = World.arenaSpawns()
@@ -6573,7 +6630,7 @@ function Match.setup()
 		table.insert(list, e)
 	end
 	for b = 1, botCount do
-		table.insert(list, { id = -b, bot = true, char = Bots.makeModel("Bot" .. b), style = "classic" })
+		table.insert(list, { id = -b, bot = true, dummy = practice or nil, dummyIndex = b, char = Bots.makeModel(practice and ("Dummy " .. b) or ("Bot" .. b)), style = "classic" })
 	end
 	Modes.assignTeams(list)
 	-- team modes: each team spawns on its own side of the map (red west, blue east)
@@ -6599,7 +6656,11 @@ function Match.setup()
 		else
 			spawn = arena[spawnOrder[(index - 1) % #spawnOrder + 1]]
 		end
-		if e.bot then
+		if e.dummy then
+			-- dummies stand in the open ground near the middle of the map, where the terminals are
+			local spots = Config.Map.Terminals
+			Bots.place(e, spots[(e.dummyIndex - 1) % #spots + 1])
+		elseif e.bot then
 			Bots.place(e, spawn)
 		elseif e.char then
 			e.char:PivotTo(CFrame.new(spawn + Vector3.new(0, 2, 0), Vector3.new(0, spawn.Y + 2, 0)))
@@ -6856,11 +6917,13 @@ function Match.finish()
 	for _, e in State.list() do
 		local won = (mode.Teams and winnerTeam ~= 0 and e.team == winnerTeam) or (not mode.Teams and e.id == winnerId)
 		won = won and State.peak >= 2 -- (winning a match nobody else was in is not a win)
-		award(e, won)
+		if not mode.Practice then
+			award(e, won)
+		end
 		if e.player and not mode.Practice and State.peak >= 2 then
 			Quests.bump(e.player, "play", 1)
 		end
-		if e.player then
+		if e.player and not mode.Practice then
 			Progress.award(e.player, e.score or 0, won, State.matchId, e.bonusCoins)
 		end
 	end
@@ -7053,6 +7116,11 @@ function Match.run()
 	local first = Config.Match.FirstMatchAtOnce
 	while true do
 		State.setPhase("lobby", State.now() + Config.Match.Intermission)
+		Match.ready = {}
+		workspace:SetAttribute("ReadyCount", 0)
+		for _, q in Players:GetPlayers() do
+			q:SetAttribute("Ready", false)
+		end
 		Modes.settle(#Players:GetPlayers())
 		Net.sendAll("phase", "lobby", State.phaseEnd)
 		Match.publishQueue()
@@ -7063,8 +7131,9 @@ function Match.run()
 				State.phaseEnd = State.now() + Config.Match.Intermission
 				return false
 			end
-			-- the very first match starts the moment somebody is here (no lobby wait); after that the lobby counts down
-			return first or State.now() >= State.phaseEnd
+			-- the very first match starts the moment somebody is here (no lobby wait); after that the lobby counts down, or ends
+			-- early when everybody has pressed READY
+			return first or State.now() >= State.phaseEnd or (Match.allReady() and #Players:GetPlayers() >= 2)
 		end)
 		-- the map: the first match uses the starter map; after that the one with the most votes (a tie: one of the tied maps)
 		if Config.Vote.Enabled then
@@ -11105,6 +11174,8 @@ local Controls = {}
 local player = Players.LocalPlayer
 local deps
 local lastSnap = -100
+local debugOn = Config.Debug.Input
+local lastInput = "(nothing yet)"
 local padSelected = 3 -- the gadget a controller player has selected (hotbar slot)
 
 -- The older screen: gadgets on the number keys 1 to 8. (With the two item slots the number keys are for typing the number.)
@@ -11147,6 +11218,30 @@ function Controls.ally()
 		return
 	end
 	deps.send("AllyAsk", target.id)
+end
+
+-- A mouse click on a player: the readout opens for them (type or tap their number).
+function Controls.clickTarget()
+	if not canAct() then
+		return false
+	end
+	local loc
+	pcall(function()
+		loc = UserInputService:GetMouseLocation()
+	end)
+	local entity = View.atScreen(type(loc) == "table" and loc.X or 0, type(loc) == "table" and loc.Y or 0)
+	if not entity then
+		return false
+	end
+	return deps.Keypad.open(entity)
+end
+
+function Controls.debugOn()
+	return debugOn
+end
+
+function Controls.debugText()
+	return "last input: " .. lastInput
 end
 
 function Controls.guessSent(target)
@@ -11203,6 +11298,11 @@ function Controls.init(d)
 		end
 		local kc = input.KeyCode
 		local kind = input.UserInputType
+		lastInput = tostring(kc and kc.Name or "?") .. " / " .. tostring(kind and kind.Name or "?") .. "  (taken by a button or chat first: " .. tostring(processed) .. ")"
+		if kc == Enum.KeyCode.F8 then
+			debugOn = not debugOn
+			return
+		end
 		local F = Config.Features
 		local loadout = Config.Loadout.Enabled
 		if loadout and (kc == Enum.KeyCode.F or kc == Enum.KeyCode.G) then
@@ -11283,7 +11383,9 @@ function Controls.init(d)
 				deps.Keypad.press(deps.Keypad.digitOf(kc))
 			end
 		elseif kind == Enum.UserInputType.MouseButton1 and not deps.Menu.isOpen() and not deps.Album.isOpen() and Config.Loadout.Enabled then
-			deps.Hud.useHeld() -- click: take the photo, throw the grenade, zoom the binoculars
+			if not deps.Hud.useHeld() then
+				Controls.clickTarget() -- click on a player: the number readout opens for them
+			end
 		elseif kind == Enum.UserInputType.MouseButton1 and not deps.Menu.isOpen() and not deps.Album.isOpen() then
 			if F.Photos then
 				Controls.snap()
@@ -12462,6 +12564,12 @@ local function buildWaiting(root)
 		Audio.click()
 		deps.Spectate.toggleWatch()
 	end)
+	-- READY: when everybody here presses it the next match starts at once (no waiting out the clock)
+	refs.waitReady = UI.button(card, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 150), Size = UDim2.fromOffset(300, 40), Text = "▶ READY: start now", TextSize = 18, BackgroundColor3 = Color3.fromRGB(60, 170, 90), ZIndex = 20, Visible = false }, "card")
+	refs.waitReady.MouseButton1Click:Connect(function()
+		Audio.click()
+		deps.send("Ready", player:GetAttribute("Ready") ~= true)
+	end)
 	refs.waitNext = UI.label(card, { Position = UDim2.fromOffset(10, 100), Size = UDim2.new(1, -20, 0, 42), Font = UI.Fonts.Bold, TextSize = 18, TextColor3 = C.Mint, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = true, Text = "", ZIndex = 19 })
 end
 
@@ -12501,8 +12609,8 @@ function Hud.init(screen, d)
 
 	-- small round buttons, top right: menu, help, settings, emotes
 	local function cornerButton(text, x, onClick)
-		local b = UI.new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12 - x, 0, 12), Size = UDim2.fromOffset(38, 38), BackgroundColor3 = Color3.fromRGB(20, 24, 28), BackgroundTransparency = 0.45, AutoButtonColor = false, BorderSizePixel = 0, Font = UI.Fonts.Title, TextSize = 20, TextColor3 = Color3.new(1, 1, 1), Text = text }, root)
-		UI.corner(b, 19)
+		local b = UI.new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 68 + x), Size = UDim2.fromOffset(46, 46), BackgroundColor3 = Color3.fromRGB(20, 24, 28), BackgroundTransparency = 0.45, AutoButtonColor = false, BorderSizePixel = 0, Font = UI.Fonts.Title, TextSize = 20, TextColor3 = Color3.new(1, 1, 1), Text = text }, root)
+		UI.corner(b, 23)
 		UI.stroke(b, Color3.new(1, 1, 1), 1.5, 0.3)
 		b.MouseButton1Click:Connect(function()
 			Audio.click()
@@ -12511,13 +12619,13 @@ function Hud.init(screen, d)
 		return b
 	end
 	cornerButton("☰", 0, function() deps.Menu.toggle() end)
-	cornerButton("?", 44, function() deps.Menu.open("How to play") end)
-	cornerButton("⚙", 88, function() deps.Menu.open("Settings") end)
-	cornerButton("💬", 132, function() deps.Emotes.toggle() end)
-	cornerButton("👥", 176, function() Hud.invite() end)
+	cornerButton("?", 52, function() deps.Menu.open("How to play") end)
+	cornerButton("⚙", 104, function() deps.Menu.open("Settings") end)
+	cornerButton("💬", 156, function() deps.Emotes.toggle() end)
+	cornerButton("👥", 208, function() Hud.invite() end)
 
 	-- the dash button (bottom right; also the Q key)
-	local dash = UI.new("TextButton", { Name = "Dash", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -22, 1, -26), Size = UDim2.fromOffset(96, 96), BackgroundColor3 = Color3.fromRGB(20, 24, 28), BackgroundTransparency = 0.45, AutoButtonColor = false, BorderSizePixel = 0, Text = "", Visible = false }, root)
+	local dash = UI.new("TextButton", { Name = "Dash", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -150, 1, -26), Size = UDim2.fromOffset(96, 96), BackgroundColor3 = Color3.fromRGB(20, 24, 28), BackgroundTransparency = 0.45, AutoButtonColor = false, BorderSizePixel = 0, Text = "", Visible = false }, root)
 	UI.corner(dash, 48)
 	UI.stroke(dash, Color3.new(1, 1, 1), 2.5, 0.05)
 	scaled(dash)
@@ -12528,6 +12636,25 @@ function Hud.init(screen, d)
 		Hud.dash()
 	end)
 	refs.dash = dash
+
+	-- the number pad button (123): shows the on-screen pad, for tapping the number instead of typing it
+	local numbers = UI.new("TextButton", { Name = "NumbersButton", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -258, 1, -30), Size = UDim2.fromOffset(88, 88), BackgroundColor3 = Color3.fromRGB(20, 24, 28), BackgroundTransparency = 0.45, AutoButtonColor = false, BorderSizePixel = 0, Text = "", Visible = false }, root)
+	UI.corner(numbers, 44)
+	UI.stroke(numbers, Color3.new(1, 1, 1), 2.5, 0.05)
+	scaled(numbers)
+	UI.label(numbers, { Size = UDim2.new(1, 0, 0, 46), Position = UDim2.fromOffset(0, 10), Font = UI.Fonts.Title, TextSize = 32, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 1, Text = "123" })
+	refs.numbersLabel = UI.label(numbers, { Size = UDim2.new(1, 0, 0, 22), Position = UDim2.fromOffset(0, 58), Font = UI.Fonts.Title, TextSize = 15, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 1, Text = "NUMBER" })
+	numbers.MouseButton1Click:Connect(function()
+		Audio.click()
+		Hud.numbers()
+	end)
+	refs.numbers = numbers
+
+	-- a small line that says what the game made of your last key press or click (F8 turns it on and off), for finding out why something does not respond
+	refs.debug = UI.label(root, { Position = UDim2.new(0, 14, 1, -190), Size = UDim2.fromOffset(520, 60), Font = UI.Fonts.Bold, TextSize = 13, TextColor3 = Color3.fromRGB(150, 255, 170), TextYAlignment = Enum.TextYAlignment.Top, BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.5, Visible = false, ZIndex = 250, Text = "" })
+
+	-- the bounty: one player carries a gold target; whoever gets their number gets the prize
+	refs.bounty = UI.label(root, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 158), Size = UDim2.fromOffset(420, 26), Font = UI.Fonts.Bold, TextSize = 18, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 0.4, Text = "", Visible = false, ZIndex = 16 })
 
 	-- the one-line hint for the first three matches (never in the way afterwards)
 	refs.tip = UI.label(root, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -128), Size = UDim2.fromOffset(640, 30), Font = UI.Fonts.Bold, TextSize = 19, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 0.4, Text = "", Visible = false, ZIndex = 16 })
@@ -12753,7 +12880,20 @@ function Hud.cooldownLeft(id)
 	return math.max(0, (cooldowns[id] or 0) - View.now())
 end
 
-function Hud.setBounty() end
+-- The bounty chip text under the timer while a bounty target is alive.
+local bounty = nil -- { label, reward, id }
+function Hud.setBounty(label, reward, id)
+	bounty = { label = label, reward = reward, id = id }
+end
+
+-- The 123 button: shows or hides the on-screen number pad.
+function Hud.numbers()
+	local on = deps.Keypad.togglePad()
+	if on and View.phase() == "play" and View.amAlive() then
+		deps.Toasts.push("Tap the digits of the number on their sign: it picks the person under the dot, or the nearest one you can see", "info")
+	end
+	return on
+end
 function Hud.setAlly() end
 
 function Hud.uiScale()
@@ -12892,11 +13032,14 @@ function Hud.update()
 	local canWatch = showWait and not inMatch and (phase == "play" or phase == "countdown")
 	local watching = canWatch and deps.Spectate.wantsToWatch() == true
 	refs.waitWatch.Visible = canWatch
+	local canReady = showWait and phase == "lobby" and Players.NumPlayers >= 2
+	refs.waitReady.Visible = canReady
+	refs.waitReady.Text = player:GetAttribute("Ready") == true and ("✔ READY  " .. (workspace:GetAttribute("ReadyCount") or 0) .. "/" .. Players.NumPlayers .. "  (tap to cancel)") or "▶ READY: start now"
 	refs.waitWatch.Text = watching and "↩ BACK TO THE LOBBY" or "👁 WATCH THE MATCH"
 	for _, l in { refs.waitTitle, refs.waitMode, refs.waitInfo, refs.waitNext } do
 		l.Visible = not watching
 	end
-	refs.wait.Size = watching and UDim2.fromOffset(300, 60) or UDim2.fromOffset(460, canWatch and 198 or 150)
+	refs.wait.Size = watching and UDim2.fromOffset(300, 60) or UDim2.fromOffset(460, (canWatch or canReady) and 198 or 150)
 	refs.waitWatch.Position = watching and UDim2.new(0.5, 0, 0, 10) or UDim2.new(0.5, 0, 0, 150)
 	if showWait then
 		local waiters = workspace:GetAttribute("Waiting") or 0
@@ -12937,10 +13080,10 @@ function Hud.update()
 	else
 		playStart = nil
 	end
-	local early = Config.Hud.Tips and playStart ~= nil and (player:GetAttribute("Games") or 0) < 3 and os.clock() - playStart < 25
+	local early = Config.Hud.Tips and playStart ~= nil and ((player:GetAttribute("Games") or 0) < 3 or mode == "practice") and os.clock() - playStart < (mode == "practice" and 60 or 25)
 	refs.tip.Visible = early == true
 	if early then
-		refs.tip.Text = mode == "practice" and "Try it: F = photo, G = binoculars. The real match starts when someone joins." or "Put the dot on a head and type their 4 digits.  F = photo, G = binoculars."
+		refs.tip.Text = mode == "practice" and "PRACTICE: walk up to a dummy, read the number on its sign and type it.  F = photo, G = binoculars." or "Put the dot on a head and type their 4 digits.  F = photo, G = binoculars."
 	end
 
 	-- the two slots
@@ -12976,6 +13119,21 @@ function Hud.update()
 	end
 	refs.slotBar.Visible = playing
 	refs.dash.Visible = playing and phase == "play"
+	refs.numbers.Visible = playing and phase == "play"
+	refs.numbersLabel.Text = deps.Keypad.padShown() and "HIDE" or "NUMBER"
+	local bountyAlive = false
+	if bounty and phase == "play" then
+		local e = View.byId(bounty.id)
+		bountyAlive = e ~= nil and e.alive == true
+	end
+	refs.bounty.Visible = bountyAlive
+	if bountyAlive then
+		refs.bounty.Text = "🎯 BOUNTY  " .. bounty.label .. "  +" .. bounty.reward
+	end
+	refs.debug.Visible = deps.Controls.debugOn()
+	if refs.debug.Visible then
+		refs.debug.Text = deps.Controls.debugText() .. "\nphase=" .. phase .. "  alive=" .. tostring(player:GetAttribute("Alive")) .. "  playing=" .. tostring(player:GetAttribute("Playing")) .. "  target=" .. (View.aimed() and View.aimed().code or "none")
+	end
 	local dashWait = math.max(0, (player:GetAttribute("DashReady") or 0) - View.now())
 	refs.dashShade.BackgroundTransparency = dashWait > 0 and 0.55 or 1
 	refs.dashLabel.Text = dashWait > 0.05 and string.format("%.1f", dashWait) or "DASH  Q"
@@ -13163,6 +13321,8 @@ local lastGuessAt = -100
 local chips = {}
 local VIDEO = Config.Hud.Style == "video" -- the original game: no panel, just big digits where you look
 local lastKeyAt = -100
+local padFrame -- the on-screen number pad (video style)
+local padWanted = false -- the pad stays on screen once it has been asked for (the 123 button), and always on phones
 
 local DIGIT_KEYS = {}
 for i = 0, 9 do
@@ -13291,29 +13451,30 @@ local function initVideo(gui)
 	-- not used in this version, but the shared code writes to them
 	chipRow = UI.new("Frame", { Size = UDim2.fromOffset(1, 1), BackgroundTransparency = 1, Visible = false }, panel)
 	confirm = UI.new("TextButton", { Size = UDim2.fromOffset(1, 1), BackgroundTransparency = 1, Visible = false, Text = "" }, panel)
-	if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
-		local pad = UI.new("Frame", { Name = "NumberPad", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -16, 1, -120), Size = UDim2.fromOffset(190, 250), BackgroundTransparency = 1, ZIndex = 33 }, gui)
-		local function key(text, x, y, onClick, color)
-			local b = UI.button(pad, { Position = UDim2.fromOffset(x * 64, y * 62), Size = UDim2.fromOffset(58, 56), Text = text, TextSize = 24, BackgroundColor3 = color or C.Card, ZIndex = 34 }, "card")
-			b.MouseButton1Click:Connect(onClick)
-		end
-		for n = 1, 9 do
-			key(tostring(n), (n - 1) % 3, math.floor((n - 1) / 3), function() Keypad.press(tostring(n)) end)
-		end
-		key("⌫", 0, 3, function() Keypad.back() end)
-		key("0", 1, 3, function() Keypad.press("0") end)
-		key("✕", 2, 3, function() Keypad.close() end, C.Danger)
-		panel:GetPropertyChangedSignal("Visible"):Connect(function()
-			pad.Visible = panel.Visible
-		end)
-		pad.Visible = false
+	-- the number pad: tap digits instead of typing (it picks the person under the dot, or the nearest one you can see). Phones have it
+	-- from the start; everybody else gets it with the 123 button.
+	padWanted = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	local pad = UI.new("Frame", { Name = "NumberPad", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -16, 1, -130), Size = UDim2.fromOffset(204, 270), BackgroundColor3 = Color3.fromRGB(16, 20, 26), BackgroundTransparency = 0.4, Visible = false, ZIndex = 33 }, gui)
+	UI.corner(pad, 16)
+	UI.stroke(pad, Color3.new(1, 1, 1), 2, 0.4)
+	local function key(text, x, y, onClick, color)
+		local b = UI.button(pad, { Position = UDim2.fromOffset(8 + x * 66, 8 + y * 64), Size = UDim2.fromOffset(60, 58), Text = text, TextSize = 26, BackgroundColor3 = color or C.Card, ZIndex = 34 }, "card")
+		b.MouseButton1Click:Connect(onClick)
 	end
+	for n = 1, 9 do
+		key(tostring(n), (n - 1) % 3, math.floor((n - 1) / 3), function() Keypad.padPress(tostring(n)) end)
+	end
+	key("⌫", 0, 3, function() Keypad.back() end)
+	key("0", 1, 3, function() Keypad.padPress("0") end)
+	key("✕", 2, 3, function() Keypad.close() end, C.Danger)
+	padFrame = pad
 	task.spawn(function()
 		while true do
 			task.wait(0.2)
+			padFrame.Visible = padWanted and View.phase() == "play" and View.amAlive()
 			if panel.Visible then
 				Keypad.update()
-				-- a half-typed number is forgotten after a few seconds, so the pad never lingers
+				-- a half-typed number is forgotten after a few seconds, so the readout never lingers
 				if View.now() - lastKeyAt > 6 then
 					Keypad.close()
 				end
@@ -13425,6 +13586,26 @@ function Keypad.update()
 end
 
 -- Opens the panel for whoever is under the crosshair (or `entity` when given, or the nearest person in sight).
+-- A digit tapped on the on-screen pad: opens the readout on whoever you aim at (or the nearest person) first, then types it.
+function Keypad.padPress(ch)
+	if not Keypad.isOpen() then
+		if not Keypad.open() then
+			return
+		end
+	end
+	Keypad.press(ch)
+end
+
+-- The 123 button: show or hide the on-screen number pad.
+function Keypad.togglePad()
+	padWanted = not padWanted
+	return padWanted
+end
+
+function Keypad.padShown()
+	return padWanted
+end
+
 function Keypad.open(entity)
 	if not panel then
 		return false
@@ -13507,7 +13688,8 @@ function Keypad.key(input)
 		return true
 	elseif input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.G then
 		Keypad.close()
-		return true
+		-- with the item slots, G is also the binoculars: close the readout and let the key through
+		return not (input.KeyCode == Enum.KeyCode.G and Config.Loadout.Enabled)
 	end
 	return false
 end
@@ -15012,6 +15194,39 @@ function View.aimed()
 		end
 	end
 	return best, bestDistance
+end
+
+-- Who is at this point on the screen (a mouse click)? Returns an entity you could guess, or nil. Works from the ray through that point:
+-- the person whose head or body is closest to it (within a few degrees), in range and in sight.
+function View.atScreen(x, y)
+	local head = View.myHead()
+	local camera = View.camera()
+	if not head or not camera then
+		return nil
+	end
+	local ok, ray = pcall(function()
+		return camera:ViewportPointToRay(x, y)
+	end)
+	if not ok or typeof(ray) ~= "Ray" then
+		return (View.aimed()) -- (no ray to work with: the person under the crosshair)
+	end
+	local origin, dir = ray.Origin, ray.Direction.Unit
+	local best, bestAngle
+	for _, e in View.entities() do
+		if not e.me and (e.alive or e.decoy) then
+			for _, point in { e.head.Position, e.head.Position - Vector3.new(0, 1.6, 0) } do
+				local to = point - origin
+				local along = to:Dot(dir)
+				if along > 1 and along <= Config.Guess.MaxDistance then
+					local angle = (to - dir * along).Magnitude / along
+					if angle < 0.08 and (not bestAngle or angle < bestAngle) and not View.blocked(origin, e.head.Position) and not View.blocked(head.Position, e.head.Position) then
+						best, bestAngle = e, angle
+					end
+				end
+			end
+		end
+	end
+	return best
 end
 
 return View

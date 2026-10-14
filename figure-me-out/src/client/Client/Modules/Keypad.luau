@@ -25,6 +25,8 @@ local lastGuessAt = -100
 local chips = {}
 local VIDEO = Config.Hud.Style == "video" -- the original game: no panel, just big digits where you look
 local lastKeyAt = -100
+local padFrame -- the on-screen number pad (video style)
+local padWanted = false -- the pad stays on screen once it has been asked for (the 123 button), and always on phones
 
 local DIGIT_KEYS = {}
 for i = 0, 9 do
@@ -153,29 +155,30 @@ local function initVideo(gui)
 	-- not used in this version, but the shared code writes to them
 	chipRow = UI.new("Frame", { Size = UDim2.fromOffset(1, 1), BackgroundTransparency = 1, Visible = false }, panel)
 	confirm = UI.new("TextButton", { Size = UDim2.fromOffset(1, 1), BackgroundTransparency = 1, Visible = false, Text = "" }, panel)
-	if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
-		local pad = UI.new("Frame", { Name = "NumberPad", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -16, 1, -120), Size = UDim2.fromOffset(190, 250), BackgroundTransparency = 1, ZIndex = 33 }, gui)
-		local function key(text, x, y, onClick, color)
-			local b = UI.button(pad, { Position = UDim2.fromOffset(x * 64, y * 62), Size = UDim2.fromOffset(58, 56), Text = text, TextSize = 24, BackgroundColor3 = color or C.Card, ZIndex = 34 }, "card")
-			b.MouseButton1Click:Connect(onClick)
-		end
-		for n = 1, 9 do
-			key(tostring(n), (n - 1) % 3, math.floor((n - 1) / 3), function() Keypad.press(tostring(n)) end)
-		end
-		key("⌫", 0, 3, function() Keypad.back() end)
-		key("0", 1, 3, function() Keypad.press("0") end)
-		key("✕", 2, 3, function() Keypad.close() end, C.Danger)
-		panel:GetPropertyChangedSignal("Visible"):Connect(function()
-			pad.Visible = panel.Visible
-		end)
-		pad.Visible = false
+	-- the number pad: tap digits instead of typing (it picks the person under the dot, or the nearest one you can see). Phones have it
+	-- from the start; everybody else gets it with the 123 button.
+	padWanted = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	local pad = UI.new("Frame", { Name = "NumberPad", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -16, 1, -130), Size = UDim2.fromOffset(204, 270), BackgroundColor3 = Color3.fromRGB(16, 20, 26), BackgroundTransparency = 0.4, Visible = false, ZIndex = 33 }, gui)
+	UI.corner(pad, 16)
+	UI.stroke(pad, Color3.new(1, 1, 1), 2, 0.4)
+	local function key(text, x, y, onClick, color)
+		local b = UI.button(pad, { Position = UDim2.fromOffset(8 + x * 66, 8 + y * 64), Size = UDim2.fromOffset(60, 58), Text = text, TextSize = 26, BackgroundColor3 = color or C.Card, ZIndex = 34 }, "card")
+		b.MouseButton1Click:Connect(onClick)
 	end
+	for n = 1, 9 do
+		key(tostring(n), (n - 1) % 3, math.floor((n - 1) / 3), function() Keypad.padPress(tostring(n)) end)
+	end
+	key("⌫", 0, 3, function() Keypad.back() end)
+	key("0", 1, 3, function() Keypad.padPress("0") end)
+	key("✕", 2, 3, function() Keypad.close() end, C.Danger)
+	padFrame = pad
 	task.spawn(function()
 		while true do
 			task.wait(0.2)
+			padFrame.Visible = padWanted and View.phase() == "play" and View.amAlive()
 			if panel.Visible then
 				Keypad.update()
-				-- a half-typed number is forgotten after a few seconds, so the pad never lingers
+				-- a half-typed number is forgotten after a few seconds, so the readout never lingers
 				if View.now() - lastKeyAt > 6 then
 					Keypad.close()
 				end
@@ -287,6 +290,26 @@ function Keypad.update()
 end
 
 -- Opens the panel for whoever is under the crosshair (or `entity` when given, or the nearest person in sight).
+-- A digit tapped on the on-screen pad: opens the readout on whoever you aim at (or the nearest person) first, then types it.
+function Keypad.padPress(ch)
+	if not Keypad.isOpen() then
+		if not Keypad.open() then
+			return
+		end
+	end
+	Keypad.press(ch)
+end
+
+-- The 123 button: show or hide the on-screen number pad.
+function Keypad.togglePad()
+	padWanted = not padWanted
+	return padWanted
+end
+
+function Keypad.padShown()
+	return padWanted
+end
+
 function Keypad.open(entity)
 	if not panel then
 		return false
@@ -369,7 +392,8 @@ function Keypad.key(input)
 		return true
 	elseif input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.G then
 		Keypad.close()
-		return true
+		-- with the item slots, G is also the binoculars: close the readout and let the key through
+		return not (input.KeyCode == Enum.KeyCode.G and Config.Loadout.Enabled)
 	end
 	return false
 end

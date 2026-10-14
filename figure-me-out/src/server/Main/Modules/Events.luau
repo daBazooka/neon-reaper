@@ -104,7 +104,12 @@ function Events.tick(now)
 	end
 	-- not in the last stretch of the match: the finale stays clean
 	if not running and not pending and now >= nextAt and State.phaseEnd - now > Config.Match.RevealAt + 20 then
-		local list = Config.Events.List
+		local list = {}
+		for _, ev in Config.Events.List do
+			if not Config.Events.Skip[ev.Id] then
+				table.insert(list, ev)
+			end
+		end
 		local pick = list[rng:NextInteger(1, #list)]
 		if pick.Id == last then
 			pick = list[(rng:NextInteger(1, #list - 1) + (table.find(list, pick) or 1) - 1) % #list + 1]

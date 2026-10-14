@@ -143,6 +143,9 @@ function handlers.Dash(p, look)
 		Combat.dash(e, look)
 	end
 end
+function handlers.Ready(p, on)
+	Match.setReady(p, on == true)
+end
 function handlers.Seen(p)
 	local data = Data.get(p)
 	if data then

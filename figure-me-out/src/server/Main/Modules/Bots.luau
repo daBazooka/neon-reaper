@@ -229,7 +229,14 @@ function Bots.tick(now)
 		return
 	end
 	for _, e in State.aliveList() do
-		if e.bot then
+		if e.dummy then
+			-- a practice dummy never walks or guesses: it turns slowly on the spot, so its sign can be read from every side
+			e.turn = (e.turn or 0) + 0.22
+			local root = e.char and e.char:FindFirstChild("HumanoidRootPart")
+			if root then
+				e.char:PivotTo(CFrame.new(root.Position) * CFrame.Angles(0, e.turn, 0))
+			end
+		elseif e.bot then
 			walk(e, now)
 			think(e, now)
 		end

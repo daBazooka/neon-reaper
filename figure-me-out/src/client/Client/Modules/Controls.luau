@@ -14,6 +14,8 @@ local Controls = {}
 local player = Players.LocalPlayer
 local deps
 local lastSnap = -100
+local debugOn = Config.Debug.Input
+local lastInput = "(nothing yet)"
 local padSelected = 3 -- the gadget a controller player has selected (hotbar slot)
 
 -- The older screen: gadgets on the number keys 1 to 8. (With the two item slots the number keys are for typing the number.)
@@ -56,6 +58,30 @@ function Controls.ally()
 		return
 	end
 	deps.send("AllyAsk", target.id)
+end
+
+-- A mouse click on a player: the readout opens for them (type or tap their number).
+function Controls.clickTarget()
+	if not canAct() then
+		return false
+	end
+	local loc
+	pcall(function()
+		loc = UserInputService:GetMouseLocation()
+	end)
+	local entity = View.atScreen(type(loc) == "table" and loc.X or 0, type(loc) == "table" and loc.Y or 0)
+	if not entity then
+		return false
+	end
+	return deps.Keypad.open(entity)
+end
+
+function Controls.debugOn()
+	return debugOn
+end
+
+function Controls.debugText()
+	return "last input: " .. lastInput
 end
 
 function Controls.guessSent(target)
@@ -112,6 +138,11 @@ function Controls.init(d)
 		end
 		local kc = input.KeyCode
 		local kind = input.UserInputType
+		lastInput = tostring(kc and kc.Name or "?") .. " / " .. tostring(kind and kind.Name or "?") .. "  (taken by a button or chat first: " .. tostring(processed) .. ")"
+		if kc == Enum.KeyCode.F8 then
+			debugOn = not debugOn
+			return
+		end
 		local F = Config.Features
 		local loadout = Config.Loadout.Enabled
 		if loadout and (kc == Enum.KeyCode.F or kc == Enum.KeyCode.G) then
@@ -192,7 +223,9 @@ function Controls.init(d)
 				deps.Keypad.press(deps.Keypad.digitOf(kc))
 			end
 		elseif kind == Enum.UserInputType.MouseButton1 and not deps.Menu.isOpen() and not deps.Album.isOpen() and Config.Loadout.Enabled then
-			deps.Hud.useHeld() -- click: take the photo, throw the grenade, zoom the binoculars
+			if not deps.Hud.useHeld() then
+				Controls.clickTarget() -- click on a player: the number readout opens for them
+			end
 		elseif kind == Enum.UserInputType.MouseButton1 and not deps.Menu.isOpen() and not deps.Album.isOpen() then
 			if F.Photos then
 				Controls.snap()

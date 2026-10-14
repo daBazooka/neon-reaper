@@ -29,4 +29,5 @@ I cannot press these buttons for you: they are in your Roblox account, not in th
 2. **Did you arrive while a match was on?** Then you are waiting by design. Look at the card at the top of the screen: it says when the next match starts. (Matches are 4 minutes. Anyone who arrives in the first 45 seconds jumps straight in. Use **Test > Clients and Servers** to start two players at the same time.)
 3. **Is there a red "SERVER PROBLEM" box on the screen?** Take a screenshot of it. It lists what failed.
 4. **Open View > Output** in Studio and look for lines starting with `[FigureMeOut]`. Send me those lines.
-5. If the screen stays on the "FIGURE ME OUT" loading picture for more than 10 seconds, press **Stop** and **Play** again.
+5. **A button seems dead?** Press **F8**: a line appears showing the last key or click the game received. All side buttons sit in a column below Roblox's own top bar (clicks there are swallowed by Roblox). Send me that line and a screenshot.
+6. If the screen stays on the "FIGURE ME OUT" loading picture for more than 10 seconds, press **Stop** and **Play** again.

@@ -15,9 +15,9 @@ Config.Features = {
 	Photos = true, -- the camera (slot F at the start): a click takes a photo and a polaroid shows what you could read
 	Binoculars = true, -- the binoculars (slot G at the start): zoom with a black figure-8 view
 	Terminals = false, -- hack a terminal for a clue
-	Bounty = false, -- a gold-tagged target with a prize
+	Bounty = true, -- a gold-tagged target with a prize (a new one every 35 seconds: everybody hunts the same person)
 	Alliances = false, -- ask somebody to team up
-	Events = false, -- double points, low gravity, blackout...
+	Events = true, -- double points, low gravity, supply drops... (a short event every half minute or so keeps matches changing)
 }
 
 Config.Match = {
@@ -25,6 +25,7 @@ Config.Match = {
 	MinHumans = 1, -- real players needed before a match starts. 1 = the lobby starts a match as soon as somebody is here
 	DropIn = false, -- false: somebody who arrives while a match is well under way WAITS in the lobby (the screen shows the time left and when the next match starts, and they can watch it). true: they always jump into the running match
 	DropInWindow = 45, -- ...but somebody who arrives in the first seconds of a match (or during the countdown) still jumps straight in, so nobody waits for nothing
+	PracticeDummies = 4, -- the practice round has this many dummies to type numbers at, photograph and throw grenades at
 	SoloPractice = true, -- with only one player the match is a short practice round (to try the items); it ends the moment somebody else arrives, so nobody waits long
 	PracticeLength = 180, -- seconds
 	FirstMatchAtOnce = true, -- the first match after the server starts begins the moment somebody is here (no lobby wait); after that, the lobby counts down
@@ -171,6 +172,7 @@ end
 -- The look of the screen. "video" = the minimal screen of the original game (red and blue score boxes, timer, strike marks, two
 -- item slots, big typed digits); "classic" = the older glass panels.
 Config.Hud = { Style = "video" }
+Config.Debug = { Input = false } -- true: shows the last key you pressed and what the game made of it (also toggled with F8), for finding out why something does not respond
 
 Config.Flash = { Radius = 80, Fuse = 1.6, MaxBlind = 6.5, MinBlind = 1.2, ThrowSpeed = 55, ThrowUp = 22, Stun = 2.0 } -- the stun grenade (flashbang): everybody who sees it go off is blinded AND frozen for up to Stun seconds (less the further away they are)
 Config.Smoke = { Radius = 9, Duration = 15, Fuse = 1.3, Fade = 3 }
@@ -205,15 +207,16 @@ Config.Pickups = { Respawn = 15, Radius = 4.5 }
 --------------------------------------------------------------------------------
 -- Bounty, alliances, information terminals and bonus events
 --------------------------------------------------------------------------------
-Config.Bounty = { Reward = 150, Coins = 25, Every = 70, Lasts = 90 } -- a new target every so many seconds
+Config.Bounty = { Reward = 150, Coins = 25, Every = 35, Lasts = 50 } -- a new target every so many seconds
 
 Config.Alliance = { Duration = 90, Range = 60, Cooldown = 40, MaxShare = 12, ReAllyAfterBetrayal = 60 }
 
 Config.Terminal = { Uses = 3, Cooldown = 20, Range = 10, Reveal = 5 } -- uses per player per match; seconds between uses; using one shows your position for Reveal seconds
 
 Config.Events = {
-	First = 50, -- no event before this many seconds into the match
-	Gap = { 55, 90 }, -- random seconds between events
+	First = 25, -- no event before this many seconds into the match
+	Gap = { 35, 55 },
+	Skip = { blackout = true }, -- events left out (the blackout is hard to play in) -- random seconds between events
 	Warn = 5, -- announced this many seconds before it starts
 	List = {
 		{ Id = "double", Name = "DOUBLE POINTS", Icon = "✨", Seconds = 25, Text = "Every successful guess is worth double!" },

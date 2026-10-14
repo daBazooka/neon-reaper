@@ -166,6 +166,12 @@ local function buildWaiting(root)
 		Audio.click()
 		deps.Spectate.toggleWatch()
 	end)
+	-- READY: when everybody here presses it the next match starts at once (no waiting out the clock)
+	refs.waitReady = UI.button(card, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 150), Size = UDim2.fromOffset(300, 40), Text = "▶ READY: start now", TextSize = 18, BackgroundColor3 = Color3.fromRGB(60, 170, 90), ZIndex = 20, Visible = false }, "card")
+	refs.waitReady.MouseButton1Click:Connect(function()
+		Audio.click()
+		deps.send("Ready", player:GetAttribute("Ready") ~= true)
+	end)
 	refs.waitNext = UI.label(card, { Position = UDim2.fromOffset(10, 100), Size = UDim2.new(1, -20, 0, 42), Font = UI.Fonts.Bold, TextSize = 18, TextColor3 = C.Mint, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = true, Text = "", ZIndex = 19 })
 end
 
@@ -205,8 +211,8 @@ function Hud.init(screen, d)
 
 	-- small round buttons, top right: menu, help, settings, emotes
 	local function cornerButton(text, x, onClick)
-		local b = UI.new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12 - x, 0, 12), Size = UDim2.fromOffset(38, 38), BackgroundColor3 = Color3.fromRGB(20, 24, 28), BackgroundTransparency = 0.45, AutoButtonColor = false, BorderSizePixel = 0, Font = UI.Fonts.Title, TextSize = 20, TextColor3 = Color3.new(1, 1, 1), Text = text }, root)
-		UI.corner(b, 19)
+		local b = UI.new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 68 + x), Size = UDim2.fromOffset(46, 46), BackgroundColor3 = Color3.fromRGB(20, 24, 28), BackgroundTransparency = 0.45, AutoButtonColor = false, BorderSizePixel = 0, Font = UI.Fonts.Title, TextSize = 20, TextColor3 = Color3.new(1, 1, 1), Text = text }, root)
+		UI.corner(b, 23)
 		UI.stroke(b, Color3.new(1, 1, 1), 1.5, 0.3)
 		b.MouseButton1Click:Connect(function()
 			Audio.click()
@@ -215,13 +221,13 @@ function Hud.init(screen, d)
 		return b
 	end
 	cornerButton("☰", 0, function() deps.Menu.toggle() end)
-	cornerButton("?", 44, function() deps.Menu.open("How to play") end)
-	cornerButton("⚙", 88, function() deps.Menu.open("Settings") end)
-	cornerButton("💬", 132, function() deps.Emotes.toggle() end)
-	cornerButton("👥", 176, function() Hud.invite() end)
+	cornerButton("?", 52, function() deps.Menu.open("How to play") end)
+	cornerButton("⚙", 104, function() deps.Menu.open("Settings") end)
+	cornerButton("💬", 156, function() deps.Emotes.toggle() end)
+	cornerButton("👥", 208, function() Hud.invite() end)
 
 	-- the dash button (bottom right; also the Q key)
-	local dash = UI.new("TextButton", { Name = "Dash", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -22, 1, -26), Size = UDim2.fromOffset(96, 96), BackgroundColor3 = Color3.fromRGB(20, 24, 28), BackgroundTransparency = 0.45, AutoButtonColor = false, BorderSizePixel = 0, Text = "", Visible = false }, root)
+	local dash = UI.new("TextButton", { Name = "Dash", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -150, 1, -26), Size = UDim2.fromOffset(96, 96), BackgroundColor3 = Color3.fromRGB(20, 24, 28), BackgroundTransparency = 0.45, AutoButtonColor = false, BorderSizePixel = 0, Text = "", Visible = false }, root)
 	UI.corner(dash, 48)
 	UI.stroke(dash, Color3.new(1, 1, 1), 2.5, 0.05)
 	scaled(dash)
@@ -232,6 +238,25 @@ function Hud.init(screen, d)
 		Hud.dash()
 	end)
 	refs.dash = dash
+
+	-- the number pad button (123): shows the on-screen pad, for tapping the number instead of typing it
+	local numbers = UI.new("TextButton", { Name = "NumbersButton", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -258, 1, -30), Size = UDim2.fromOffset(88, 88), BackgroundColor3 = Color3.fromRGB(20, 24, 28), BackgroundTransparency = 0.45, AutoButtonColor = false, BorderSizePixel = 0, Text = "", Visible = false }, root)
+	UI.corner(numbers, 44)
+	UI.stroke(numbers, Color3.new(1, 1, 1), 2.5, 0.05)
+	scaled(numbers)
+	UI.label(numbers, { Size = UDim2.new(1, 0, 0, 46), Position = UDim2.fromOffset(0, 10), Font = UI.Fonts.Title, TextSize = 32, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 1, Text = "123" })
+	refs.numbersLabel = UI.label(numbers, { Size = UDim2.new(1, 0, 0, 22), Position = UDim2.fromOffset(0, 58), Font = UI.Fonts.Title, TextSize = 15, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 1, Text = "NUMBER" })
+	numbers.MouseButton1Click:Connect(function()
+		Audio.click()
+		Hud.numbers()
+	end)
+	refs.numbers = numbers
+
+	-- a small line that says what the game made of your last key press or click (F8 turns it on and off), for finding out why something does not respond
+	refs.debug = UI.label(root, { Position = UDim2.new(0, 14, 1, -190), Size = UDim2.fromOffset(520, 60), Font = UI.Fonts.Bold, TextSize = 13, TextColor3 = Color3.fromRGB(150, 255, 170), TextYAlignment = Enum.TextYAlignment.Top, BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.5, Visible = false, ZIndex = 250, Text = "" })
+
+	-- the bounty: one player carries a gold target; whoever gets their number gets the prize
+	refs.bounty = UI.label(root, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 158), Size = UDim2.fromOffset(420, 26), Font = UI.Fonts.Bold, TextSize = 18, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 0.4, Text = "", Visible = false, ZIndex = 16 })
 
 	-- the one-line hint for the first three matches (never in the way afterwards)
 	refs.tip = UI.label(root, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -128), Size = UDim2.fromOffset(640, 30), Font = UI.Fonts.Bold, TextSize = 19, TextColor3 = C.Gold, TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false, TextStrokeTransparency = 0.4, Text = "", Visible = false, ZIndex = 16 })
@@ -457,7 +482,20 @@ function Hud.cooldownLeft(id)
 	return math.max(0, (cooldowns[id] or 0) - View.now())
 end
 
-function Hud.setBounty() end
+-- The bounty chip text under the timer while a bounty target is alive.
+local bounty = nil -- { label, reward, id }
+function Hud.setBounty(label, reward, id)
+	bounty = { label = label, reward = reward, id = id }
+end
+
+-- The 123 button: shows or hides the on-screen number pad.
+function Hud.numbers()
+	local on = deps.Keypad.togglePad()
+	if on and View.phase() == "play" and View.amAlive() then
+		deps.Toasts.push("Tap the digits of the number on their sign: it picks the person under the dot, or the nearest one you can see", "info")
+	end
+	return on
+end
 function Hud.setAlly() end
 
 function Hud.uiScale()
@@ -596,11 +634,14 @@ function Hud.update()
 	local canWatch = showWait and not inMatch and (phase == "play" or phase == "countdown")
 	local watching = canWatch and deps.Spectate.wantsToWatch() == true
 	refs.waitWatch.Visible = canWatch
+	local canReady = showWait and phase == "lobby" and Players.NumPlayers >= 2
+	refs.waitReady.Visible = canReady
+	refs.waitReady.Text = player:GetAttribute("Ready") == true and ("✔ READY  " .. (workspace:GetAttribute("ReadyCount") or 0) .. "/" .. Players.NumPlayers .. "  (tap to cancel)") or "▶ READY: start now"
 	refs.waitWatch.Text = watching and "↩ BACK TO THE LOBBY" or "👁 WATCH THE MATCH"
 	for _, l in { refs.waitTitle, refs.waitMode, refs.waitInfo, refs.waitNext } do
 		l.Visible = not watching
 	end
-	refs.wait.Size = watching and UDim2.fromOffset(300, 60) or UDim2.fromOffset(460, canWatch and 198 or 150)
+	refs.wait.Size = watching and UDim2.fromOffset(300, 60) or UDim2.fromOffset(460, (canWatch or canReady) and 198 or 150)
 	refs.waitWatch.Position = watching and UDim2.new(0.5, 0, 0, 10) or UDim2.new(0.5, 0, 0, 150)
 	if showWait then
 		local waiters = workspace:GetAttribute("Waiting") or 0
@@ -641,10 +682,10 @@ function Hud.update()
 	else
 		playStart = nil
 	end
-	local early = Config.Hud.Tips and playStart ~= nil and (player:GetAttribute("Games") or 0) < 3 and os.clock() - playStart < 25
+	local early = Config.Hud.Tips and playStart ~= nil and ((player:GetAttribute("Games") or 0) < 3 or mode == "practice") and os.clock() - playStart < (mode == "practice" and 60 or 25)
 	refs.tip.Visible = early == true
 	if early then
-		refs.tip.Text = mode == "practice" and "Try it: F = photo, G = binoculars. The real match starts when someone joins." or "Put the dot on a head and type their 4 digits.  F = photo, G = binoculars."
+		refs.tip.Text = mode == "practice" and "PRACTICE: walk up to a dummy, read the number on its sign and type it.  F = photo, G = binoculars." or "Put the dot on a head and type their 4 digits.  F = photo, G = binoculars."
 	end
 
 	-- the two slots
@@ -680,6 +721,21 @@ function Hud.update()
 	end
 	refs.slotBar.Visible = playing
 	refs.dash.Visible = playing and phase == "play"
+	refs.numbers.Visible = playing and phase == "play"
+	refs.numbersLabel.Text = deps.Keypad.padShown() and "HIDE" or "NUMBER"
+	local bountyAlive = false
+	if bounty and phase == "play" then
+		local e = View.byId(bounty.id)
+		bountyAlive = e ~= nil and e.alive == true
+	end
+	refs.bounty.Visible = bountyAlive
+	if bountyAlive then
+		refs.bounty.Text = "🎯 BOUNTY  " .. bounty.label .. "  +" .. bounty.reward
+	end
+	refs.debug.Visible = deps.Controls.debugOn()
+	if refs.debug.Visible then
+		refs.debug.Text = deps.Controls.debugText() .. "\nphase=" .. phase .. "  alive=" .. tostring(player:GetAttribute("Alive")) .. "  playing=" .. tostring(player:GetAttribute("Playing")) .. "  target=" .. (View.aimed() and View.aimed().code or "none")
+	end
 	local dashWait = math.max(0, (player:GetAttribute("DashReady") or 0) - View.now())
 	refs.dashShade.BackgroundTransparency = dashWait > 0 and 0.55 or 1
 	refs.dashLabel.Text = dashWait > 0.05 and string.format("%.1f", dashWait) or "DASH  Q"

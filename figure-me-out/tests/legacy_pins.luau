@@ -17,3 +17,5 @@ C0.Match.DropIn = true; C0.Match.SoloPractice = false -- (the older scenarios dr
 C0.Daily.Coins = 0 -- (no daily coins in the older scenarios)
 C0.Match.Intermission = 10; C0.Match.Countdown = 5; C0.Match.ResultsTime = 8; C0.Match.DropInWindow = 0; C0.Pickups.Respawn = 30
 C0.Streaks.Bonus = 0; C0.Quests.AllBonus = 0; for _, q in C0.Quests.List do q.Coins = 0 end -- (no streak points or quest coins in the older scenarios)
+C0.Bounty.Every = 70; C0.Bounty.Lasts = 90; C0.Events.First = 50; C0.Events.Gap = { 55, 90 }; C0.Events.Skip = {} -- (the older timings)
+C0.Match.PracticeDummies = 0
