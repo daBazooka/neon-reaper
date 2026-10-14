@@ -2,7 +2,7 @@
 local function check(cond, msg) print((cond and "PASS  " or "FAIL  ") .. msg) end
 local Config = require(RS.children.Shared.children.Config)
 Config.Sanity.Enabled = false
-check(Config.Match.MaxPlayers == 20 and Config.Match.DropIn == false and Config.Match.SoloPractice == true, "shipped: 20 players, nobody drops into a running match, a lone player practises")
+check(Config.Match.MaxPlayers == 20 and Config.Match.DropIn == false and Config.Match.SoloPractice == false, "shipped: 20 players, nobody drops into a running match, no practice round")
 local ok, err = pcall(sources[MainN], MainN)
 check(ok, "Main runs without error " .. tostring(err))
 local State = require(ModN.children.State)
@@ -16,27 +16,45 @@ local function waitPhase(name, limit) local t = 0 while State.phase ~= name and 
 -- an empty server waits
 advance(5)
 check(State.phase == "lobby" and #State.order == 0, "an empty server waits in the lobby")
--- the first player: a practice round at once
+-- the first player: the lobby waits 15 seconds, then bots fill the match
+check(Config.Match.Intermission == 30 and Config.Match.SoloWait == 15 and Config.Match.FillTo == 6, "shipped: 30 seconds in the lobby at most, 15 when alone, bots fill up to 6")
 local p1 = join(1, "Alice")
-advance(2)
-check(State.mode and State.mode.Id == "practice" and #State.order == 1 + Config.Match.PracticeDummies, "the first player is alone: a practice round with " .. Config.Match.PracticeDummies .. " dummies starts at once (" .. tostring(State.mode and State.mode.Id) .. ", " .. #State.order .. " in it)")
-local dummies = 0
-for _, e in State.list() do if e.dummy then dummies += 1 if #e.number ~= 4 or e.lives < 50 then dummies = -100 end end end
-check(dummies == Config.Match.PracticeDummies, "the dummies have 4-digit numbers to read and plenty of lives")
-check(p1.attrs.Playing == true and attrsWS.ModeName == "PRACTICE", "...and is marked as playing")
+advance(1)
+check(State.phase == "lobby" and attrsWS.PhaseEnd - State.now() > 12 and attrsWS.PhaseEnd - State.now() <= 15, "alone, the lobby counts down from 15 (" .. string.format("%.1f", attrsWS.PhaseEnd - State.now()) .. ")")
+advance(12)
+check(State.phase == "lobby", "...and nothing starts early")
+advance(4)
+check(State.phase == "countdown" and #State.order == Config.Match.FillTo, "then the match starts with bots filling it up to " .. Config.Match.FillTo .. " (" .. #State.order .. ")")
+local gods, names = 0, {}
+for _, n in Config.Bots.Names do names[n] = true end
+for _, e in State.list() do if e.bot and names[e.code] then gods += 1 end end
+check(gods == Config.Match.FillTo - 1, "the bots are the gods: Zeus, Athena and the rest (" .. gods .. ")")
+check(p1.attrs.Playing == true, "...and the real player is playing")
 advance(Config.Match.Countdown + 1)
-check(State.phase == "play", "the practice round runs")
--- a second player arrives: they wait, the practice round ends at once
+check(State.phase == "play", "the match runs")
+-- the bots play like gods: fast, far-sighted and never wrong
+local victim = State.byPlayer(p1)
+local godBot
+for _, e in State.list() do if e.bot and (not e.team or e.team ~= State.byPlayer(p1).team) then godBot = e break end end
+check(Config.Bots.God and Config.Bots.Accuracy == 1 and Config.Bots.GuessEvery[2] < 5 and Config.Bots.SightRange > 100, "god bots: perfect aim, a guess every couple of seconds, long sight")
+for _, e in State.list() do e.protectedUntil = 0 end
+victim.char:PivotTo(CFrame.new(V3new(0, 5, 0), V3new(0, 5, 1)))
+godBot.char:PivotTo(CFrame.new(V3new(0, 5, 12)))
+godBot.nextGuessAt = 0
+local killsBefore = godBot.kills or 0
+godBot.nextGuessAt = 0
+advance(6)
+check((godBot.kills or 0) > killsBefore, "a god bot with a clear view of the sign hits you within seconds (" .. killsBefore .. " -> " .. tostring(godBot.kills) .. ")")
+-- end this match, then a second player arrives in the lobby: the wait is the full 30 seconds
+State.phaseEnd = State.now() + 1
+check(waitPhase("lobby", 40), "the match ends and the lobby opens")
+Config.Match.FillTo = 0 -- (the rest of this scenario is about real players only)
 local p2 = join(2, "Bob")
 advance(1)
-check(State.byPlayer(p2) == nil and p2.attrs.Playing == false and p2.attrs.QueuePos == 1 and attrsWS.Waiting == 1, "a player who arrives mid-match waits in the lobby, first in line")
-check(attrsWS.MaxPlayers == 20, "the screens are told the limit (20)")
-advance(1)
-check(State.phase == "results", "the practice round ends as soon as somebody else is here (" .. State.phase .. ")")
-check(waitPhase("lobby", 10), "back to the lobby")
-check(attrsWS.NextMode == "ctf" and attrsWS.NextModeName == "CAPTURE THE FLAG", "with two players the next match is capture the flag (" .. tostring(attrsWS.NextModeName) .. ")")
-check(waitPhase("countdown", 30), "the real match starts after the lobby wait")
-check(#State.order == 2 and State.mode.Id == "ctf" and State.byPlayer(p1) and State.byPlayer(p2), "both players are in it, in teams")
+check(attrsWS.PhaseEnd - State.now() > 25 and attrsWS.PhaseEnd - State.now() <= 30, "with two players the lobby wait is 30 seconds (" .. string.format("%.1f", attrsWS.PhaseEnd - State.now()) .. ")")
+check(attrsWS.NextMode == "team" and attrsWS.NextModeName == "TEAM DEATHMATCH", "with two players the next match is the next mode in the rotation (" .. tostring(attrsWS.NextModeName) .. ")")
+check(waitPhase("countdown", 40), "the real match starts after the lobby wait")
+check(#State.order == 2 and State.mode.Id == "team" and State.byPlayer(p1) and State.byPlayer(p2), "both players are in it, in teams")
 local e1, e2 = State.byPlayer(p1), State.byPlayer(p2)
 check(e1.team ~= e2.team and e1.outline ~= nil, "they are on different teams, each with a team outline")
 check(e1.char:FindFirstChild("Humanoid") ~= nil or true, "real skin kept")
@@ -74,7 +92,7 @@ for _, e in State.list() do e.protectedUntil = 0 end
 advance(Config.Match.Countdown + 1)
 check(Config.ItemById.flash.Name == "Stun Grenade", "the flashbang is called the stun grenade")
 local thrower, victim
-for _, e in State.list() do if e.player and e.team == 1 and not thrower then thrower = e elseif e.player and e.team == 2 and not victim then victim = e end end
+for _, e in State.list() do if e.player and not thrower then thrower = e elseif e.player and not victim then victim = e end end
 Items.give(thrower, "flash", 1)
 thrower.char:PivotTo(CFrame.new(V3new(0, 5, 0), V3new(0, 5, 1)))
 victim.char:PivotTo(CFrame.new(V3new(0, 5, 8)))

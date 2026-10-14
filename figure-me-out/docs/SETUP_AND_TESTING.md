@@ -24,7 +24,7 @@ The game is for **real players only** (no bots). The first player to arrive goes
 1. In Studio go to the **Test** tab, choose **Clients and Servers**, set **Players** to 2 or more, and press **Start**. Each extra window is another player.
 2. Everyone joins the lobby. After the 10-second countdown they are all in the same match.
 
-Testing alone? Just press Play: you get a practice match at once (it runs until the clock ends and pays no win). Start a second test player and they drop in. To add bots as opponents set `Config.Match.MinTotal = 10` (put it back to 0 before publishing).
+Testing alone? Just press Play: after the 15-second lobby you get a match with god bots. A second test player who arrives in the first 45 seconds drops in.
 
 ## 3. Saving (coins, XP, cosmetics, wins)
 
@@ -45,7 +45,7 @@ Only use sounds you are allowed to use. If an id can't load, the game skips it s
 
 | Check | Expected |
 |---|---|
-| Press Play alone | You are in a match at once (practice, no bots). A second player drops straight in. After the match: results, then the 10-second lobby, then the next match. |
+| Press Play alone | 15-second lobby, then a match with god bots. A second player drops straight in. After the match: results, then the lobby (30 s at most), then the next match. |
 | Your screen | Your own number is shown big in the top-left box; others' numbers float over their heads (and sit on their foreheads). |
 | Look at a player and type 3 digits (or G / Enter / tap first) | The guess goes in by itself on the third digit. Wrong: -1 bullet, frozen 1.5 s. Right: they lose a life, you get points. |
 | Hit the same bot again quickly | Refused (protected, then anti-farm pause). |
@@ -122,4 +122,4 @@ Workspace
 ```
 
 Camera: third person, mouse-wheel zoom 0.5 to 30 studs, walls pull the camera in (no clipping). Change it in `Config.Camera`.
-Timers: lobby wait 10 s (`Config.Match.Intermission`), losing a life or being eliminated sends you back after 3 s (`Config.Lives.RespawnDelay`, `Config.Lives.EliminatedDelay`).
+Timers: lobby wait 30 s, or 15 s alone (`Config.Match.Intermission`, `SoloWait`), losing a life or being eliminated sends you back after 3 s (`Config.Lives.RespawnDelay`, `Config.Lives.EliminatedDelay`).

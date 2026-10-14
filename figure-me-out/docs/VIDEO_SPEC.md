@@ -40,7 +40,7 @@ The reference is a 35-second vertical trailer (720 x 1280) of the Steam game "Fi
 * The video never shows a lobby, so the lobby is a courtyard in the same style as the School Yard map.
 * The video shows the camera, binoculars, a **flashbang** (lightning-bolt icon), a smoke flask and a speaker (sound) grenade. The flashbang is the **stun grenade**: it blinds and freezes.
 * Players keep their **real Roblox avatar and name** (the video's characters are the game's own models; on Roblox the player's avatar is the natural equivalent). Only hats are removed, and in team modes an outline in the team colour replaces the red/blue shirts.
-* **Joining:** anybody can join any time, 20 play; late joiners wait in the lobby with a card showing the time left and when their match starts; a lone player gets a practice round.
+* **Joining:** anybody can join any time, 20 play; late joiners wait in the lobby with a card showing the time left and when their match starts; the lobby waits at most 30 seconds (15 alone) and bots play like gods when there are too few real players.
 
 ## One press for every power (your request)
 

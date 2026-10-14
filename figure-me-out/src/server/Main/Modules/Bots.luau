@@ -17,8 +17,10 @@ local Bots = {}
 local rng = Random.new()
 local LEVEL = 3.5
 
-Bots.Accuracy = 0.12 -- chance that a bot's guess is right when it has a clear view
-Bots.SightRange = 70
+local function skill()
+	local c = Config.Bots
+	return c.God and c or c.Normal
+end
 
 local function fallbackModel()
 	local model = Instance.new("Model")
@@ -195,7 +197,7 @@ local function candidates(e)
 		if other ~= e and head and not (State.mode.Teams and other.team == e.team) then
 			local offset = mine.Position - head.Position
 			local d = offset.Magnitude
-			if d <= Bots.SightRange and d > 1 and head.CFrame.LookVector:Dot(offset.Unit) > 0.55 and not Vision.blocked(mine.Position, head.Position, true) then
+			if d <= skill().SightRange and d > 1 and head.CFrame.LookVector:Dot(offset.Unit) > 0.55 and not Vision.blocked(mine.Position, head.Position, true) then
 				table.insert(list, other)
 			end
 		end
@@ -207,7 +209,8 @@ local function think(e, now)
 	if now < (e.nextGuessAt or 0) or (e.blindUntil or 0) > now or (e.stunUntil or 0) > now then
 		return
 	end
-	e.nextGuessAt = now + rng:NextNumber(16, 28)
+	local gap = skill().GuessEvery
+	e.nextGuessAt = now + rng:NextNumber(gap[1], gap[2])
 	local list = candidates(e)
 	if #list == 0 then
 		e.nextGuessAt = now + rng:NextNumber(2, 4)
@@ -215,7 +218,7 @@ local function think(e, now)
 	end
 	local target = list[rng:NextInteger(1, #list)]
 	local text = target.number
-	if rng:NextNumber() > Bots.Accuracy then
+	if rng:NextNumber() > skill().Accuracy then
 		text = Rules.digitsOf(rng:NextInteger(Config.Number.Min, Config.Number.Max))
 		if text == target.number then
 			text = Rules.digitsOf(Config.Number.Min + (tonumber(text) - Config.Number.Min + 1) % 900)
@@ -247,7 +250,8 @@ end
 function Bots.startPlay(now)
 	for _, e in State.list() do
 		if e.bot then
-			e.nextGuessAt = now + rng:NextNumber(20, 35)
+			local f = skill().FirstGuess
+			e.nextGuessAt = now + rng:NextNumber(f[1], f[2])
 		end
 	end
 end

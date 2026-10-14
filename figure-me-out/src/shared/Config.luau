@@ -20,17 +20,33 @@ Config.Features = {
 	Events = true, -- double points, low gravity, supply drops... (a short event every half minute or so keeps matches changing)
 }
 
+-- The bots that fill a match when there are not enough real players: they play like gods (they see far, never guess wrong
+-- and guess fast). They still need a clear view of a sign, so smoke, stun grenades, covering up and turning your back all work on them.
+Config.Bots = {
+	God = true,
+	Names = { "Zeus", "Hera", "Poseidon", "Athena", "Apollo", "Artemis", "Ares", "Hermes", "Hades", "Demeter", "Dionysus", "Hephaestus" },
+	Icon = "⚡",
+	Accuracy = 1,
+	SightRange = 110,
+	GuessEvery = { 1.2, 2.5 }, -- seconds between a god's guesses
+	FirstGuess = { 4, 8 }, -- after the start whistle
+	Normal = { Accuracy = 0.12, SightRange = 70, GuessEvery = { 16, 28 }, FirstGuess = { 20, 35 } },
+}
+
 Config.Match = {
 	MaxPlayers = 20,
 	MinHumans = 1, -- real players needed before a match starts. 1 = the lobby starts a match as soon as somebody is here
 	DropIn = false, -- false: somebody who arrives while a match is well under way WAITS in the lobby (the screen shows the time left and when the next match starts, and they can watch it). true: they always jump into the running match
 	DropInWindow = 45, -- ...but somebody who arrives in the first seconds of a match (or during the countdown) still jumps straight in, so nobody waits for nothing
 	PracticeDummies = 4, -- the practice round has this many dummies to type numbers at, photograph and throw grenades at
-	SoloPractice = true, -- with only one player the match is a short practice round (to try the items); it ends the moment somebody else arrives, so nobody waits long
+	SoloPractice = false, -- with only one player the match is a short practice round (to try the items); it ends the moment somebody else arrives, so nobody waits long
 	PracticeLength = 180, -- seconds
-	FirstMatchAtOnce = true, -- the first match after the server starts begins the moment somebody is here (no lobby wait); after that, the lobby counts down
+	FirstMatchAtOnce = false, -- the first match after the server starts begins the moment somebody is here (no lobby wait); after that, the lobby counts down
 	MinTotal = 0, -- 0 = real players only. (A number here would add bots up to that many players: handy for testing alone in Studio.)
-	Intermission = 8, -- lobby wait between matches (seconds)
+	Intermission = 30, -- the longest anybody waits in the lobby before a match (seconds)
+	SoloWait = 15, -- ...and when fewer than 2 real players are here, the lobby only waits this long, then bots fill the match
+	FillTo = 6, -- bots fill a match up to this many players when fewer than FillBelow real players are here
+	FillBelow = 3,
 	Countdown = 4, -- before the start whistle
 	Length = 240, -- the match: 4 minutes. Short on purpose: nobody waits long, and "one more match" is easy (a mode can set its own Length below)
 	RevealAt = 20, -- the final stretch: the timer turns red and the music speeds up

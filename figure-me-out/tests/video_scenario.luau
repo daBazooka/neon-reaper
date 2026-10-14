@@ -39,7 +39,7 @@ local function lastNote(kind) for i = #notifyLog, 1, -1 do if notifyLog[i][1] ==
 
 -- a match: two players, capture the flag
 local p1, p2 = join(1, "Alice"), join(2, "Bob")
-advance(2)
+advance(Config.Match.Intermission + 1)
 check(State.mode and State.mode.Id == "ctf" and attrsWS.Mode == "ctf", "the first match is capture the flag")
 check(Config.Map.Theme == "school" and attrsWS.MapName == "School Yard", "...on the School Yard (" .. tostring(attrsWS.MapName) .. ")")
 advance(Config.Match.Countdown + 1)

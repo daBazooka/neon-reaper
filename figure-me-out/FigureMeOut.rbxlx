@@ -764,17 +764,33 @@ Config.Features = {
 	Events = true, -- double points, low gravity, supply drops... (a short event every half minute or so keeps matches changing)
 }
 
+-- The bots that fill a match when there are not enough real players: they play like gods (they see far, never guess wrong
+-- and guess fast). They still need a clear view of a sign, so smoke, stun grenades, covering up and turning your back all work on them.
+Config.Bots = {
+	God = true,
+	Names = { "Zeus", "Hera", "Poseidon", "Athena", "Apollo", "Artemis", "Ares", "Hermes", "Hades", "Demeter", "Dionysus", "Hephaestus" },
+	Icon = "⚡",
+	Accuracy = 1,
+	SightRange = 110,
+	GuessEvery = { 1.2, 2.5 }, -- seconds between a god's guesses
+	FirstGuess = { 4, 8 }, -- after the start whistle
+	Normal = { Accuracy = 0.12, SightRange = 70, GuessEvery = { 16, 28 }, FirstGuess = { 20, 35 } },
+}
+
 Config.Match = {
 	MaxPlayers = 20,
 	MinHumans = 1, -- real players needed before a match starts. 1 = the lobby starts a match as soon as somebody is here
 	DropIn = false, -- false: somebody who arrives while a match is well under way WAITS in the lobby (the screen shows the time left and when the next match starts, and they can watch it). true: they always jump into the running match
 	DropInWindow = 45, -- ...but somebody who arrives in the first seconds of a match (or during the countdown) still jumps straight in, so nobody waits for nothing
 	PracticeDummies = 4, -- the practice round has this many dummies to type numbers at, photograph and throw grenades at
-	SoloPractice = true, -- with only one player the match is a short practice round (to try the items); it ends the moment somebody else arrives, so nobody waits long
+	SoloPractice = false, -- with only one player the match is a short practice round (to try the items); it ends the moment somebody else arrives, so nobody waits long
 	PracticeLength = 180, -- seconds
-	FirstMatchAtOnce = true, -- the first match after the server starts begins the moment somebody is here (no lobby wait); after that, the lobby counts down
+	FirstMatchAtOnce = false, -- the first match after the server starts begins the moment somebody is here (no lobby wait); after that, the lobby counts down
 	MinTotal = 0, -- 0 = real players only. (A number here would add bots up to that many players: handy for testing alone in Studio.)
-	Intermission = 8, -- lobby wait between matches (seconds)
+	Intermission = 30, -- the longest anybody waits in the lobby before a match (seconds)
+	SoloWait = 15, -- ...and when fewer than 2 real players are here, the lobby only waits this long, then bots fill the match
+	FillTo = 6, -- bots fill a match up to this many players when fewer than FillBelow real players are here
+	FillBelow = 3,
 	Countdown = 4, -- before the start whistle
 	Length = 240, -- the match: 4 minutes. Short on purpose: nobody waits long, and "one more match" is easy (a mode can set its own Length below)
 	RevealAt = 20, -- the final stretch: the timer turns red and the music speeds up
@@ -2906,8 +2922,10 @@ local Bots = {}
 local rng = Random.new()
 local LEVEL = 3.5
 
-Bots.Accuracy = 0.12 -- chance that a bot's guess is right when it has a clear view
-Bots.SightRange = 70
+local function skill()
+	local c = Config.Bots
+	return c.God and c or c.Normal
+end
 
 local function fallbackModel()
 	local model = Instance.new("Model")
@@ -3084,7 +3102,7 @@ local function candidates(e)
 		if other ~= e and head and not (State.mode.Teams and other.team == e.team) then
 			local offset = mine.Position - head.Position
 			local d = offset.Magnitude
-			if d <= Bots.SightRange and d > 1 and head.CFrame.LookVector:Dot(offset.Unit) > 0.55 and not Vision.blocked(mine.Position, head.Position, true) then
+			if d <= skill().SightRange and d > 1 and head.CFrame.LookVector:Dot(offset.Unit) > 0.55 and not Vision.blocked(mine.Position, head.Position, true) then
 				table.insert(list, other)
 			end
 		end
@@ -3096,7 +3114,8 @@ local function think(e, now)
 	if now < (e.nextGuessAt or 0) or (e.blindUntil or 0) > now or (e.stunUntil or 0) > now then
 		return
 	end
-	e.nextGuessAt = now + rng:NextNumber(16, 28)
+	local gap = skill().GuessEvery
+	e.nextGuessAt = now + rng:NextNumber(gap[1], gap[2])
 	local list = candidates(e)
 	if #list == 0 then
 		e.nextGuessAt = now + rng:NextNumber(2, 4)
@@ -3104,7 +3123,7 @@ local function think(e, now)
 	end
 	local target = list[rng:NextInteger(1, #list)]
 	local text = target.number
-	if rng:NextNumber() > Bots.Accuracy then
+	if rng:NextNumber() > skill().Accuracy then
 		text = Rules.digitsOf(rng:NextInteger(Config.Number.Min, Config.Number.Max))
 		if text == target.number then
 			text = Rules.digitsOf(Config.Number.Min + (tonumber(text) - Config.Number.Min + 1) % 900)
@@ -3136,7 +3155,8 @@ end
 function Bots.startPlay(now)
 	for _, e in State.list() do
 		if e.bot then
-			e.nextGuessAt = now + rng:NextNumber(20, 35)
+			local f = skill().FirstGuess
+			e.nextGuessAt = now + rng:NextNumber(f[1], f[2])
 		end
 	end
 end
@@ -6534,6 +6554,11 @@ function Match.activate(e, color, animal, now)
 	else
 		e.code = color.Name .. " " .. animal.Name
 		e.icon = animal.Icon
+		if Config.Bots.God and e.bot and not e.dummy then
+			local names = Config.Bots.Names
+			e.code = names[(-e.id - 1) % #names + 1]
+			e.icon = Config.Bots.Icon
+		end
 	end
 	if not e.team then
 		e.color = color.Color
@@ -6595,7 +6620,11 @@ function Match.setup()
 			Match.played[o.p.UserId] = State.matchId
 		end
 	end
-	local botCount = math.max(0, math.min(Config.Match.MinTotal, Config.Match.MaxPlayers) - #humans)
+	local fillTo = Config.Match.MinTotal
+	if #humans < Config.Match.FillBelow then
+		fillTo = math.max(fillTo, Config.Match.FillTo)
+	end
+	local botCount = math.max(0, math.min(fillTo, Config.Match.MaxPlayers) - #humans)
 	-- a practice round gives the lone player dummies to type numbers at (nothing else to do alone)
 	local practice = Modes.next == "practice"
 	if practice then
@@ -7115,7 +7144,11 @@ function Match.run()
 	end
 	local first = Config.Match.FirstMatchAtOnce
 	while true do
-		State.setPhase("lobby", State.now() + Config.Match.Intermission)
+		local lobbyOpened = State.now()
+		local function lobbyLength()
+			return #Players:GetPlayers() >= 2 and Config.Match.Intermission or math.min(Config.Match.SoloWait, Config.Match.Intermission)
+		end
+		State.setPhase("lobby", lobbyOpened + lobbyLength())
 		Match.ready = {}
 		workspace:SetAttribute("ReadyCount", 0)
 		for _, q in Players:GetPlayers() do
@@ -7129,7 +7162,14 @@ function Match.run()
 			Match.publishQueue()
 			if #Players:GetPlayers() < Config.Match.MinHumans then
 				State.phaseEnd = State.now() + Config.Match.Intermission
+				lobbyOpened = State.now()
 				return false
+			end
+			-- alone, the wait is short (then bots fill the match); a second player makes it the full lobby wait
+			local endsAt = lobbyOpened + lobbyLength()
+			if endsAt ~= State.phaseEnd then
+				State.phaseEnd = endsAt
+				workspace:SetAttribute("PhaseEnd", endsAt)
 			end
 			-- the very first match starts the moment somebody is here (no lobby wait); after that the lobby counts down, or ends
 			-- early when everybody has pressed READY

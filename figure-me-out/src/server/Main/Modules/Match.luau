@@ -162,6 +162,11 @@ function Match.activate(e, color, animal, now)
 	else
 		e.code = color.Name .. " " .. animal.Name
 		e.icon = animal.Icon
+		if Config.Bots.God and e.bot and not e.dummy then
+			local names = Config.Bots.Names
+			e.code = names[(-e.id - 1) % #names + 1]
+			e.icon = Config.Bots.Icon
+		end
 	end
 	if not e.team then
 		e.color = color.Color
@@ -223,7 +228,11 @@ function Match.setup()
 			Match.played[o.p.UserId] = State.matchId
 		end
 	end
-	local botCount = math.max(0, math.min(Config.Match.MinTotal, Config.Match.MaxPlayers) - #humans)
+	local fillTo = Config.Match.MinTotal
+	if #humans < Config.Match.FillBelow then
+		fillTo = math.max(fillTo, Config.Match.FillTo)
+	end
+	local botCount = math.max(0, math.min(fillTo, Config.Match.MaxPlayers) - #humans)
 	-- a practice round gives the lone player dummies to type numbers at (nothing else to do alone)
 	local practice = Modes.next == "practice"
 	if practice then
@@ -743,7 +752,11 @@ function Match.run()
 	end
 	local first = Config.Match.FirstMatchAtOnce
 	while true do
-		State.setPhase("lobby", State.now() + Config.Match.Intermission)
+		local lobbyOpened = State.now()
+		local function lobbyLength()
+			return #Players:GetPlayers() >= 2 and Config.Match.Intermission or math.min(Config.Match.SoloWait, Config.Match.Intermission)
+		end
+		State.setPhase("lobby", lobbyOpened + lobbyLength())
 		Match.ready = {}
 		workspace:SetAttribute("ReadyCount", 0)
 		for _, q in Players:GetPlayers() do
@@ -757,7 +770,14 @@ function Match.run()
 			Match.publishQueue()
 			if #Players:GetPlayers() < Config.Match.MinHumans then
 				State.phaseEnd = State.now() + Config.Match.Intermission
+				lobbyOpened = State.now()
 				return false
+			end
+			-- alone, the wait is short (then bots fill the match); a second player makes it the full lobby wait
+			local endsAt = lobbyOpened + lobbyLength()
+			if endsAt ~= State.phaseEnd then
+				State.phaseEnd = endsAt
+				workspace:SetAttribute("PhaseEnd", endsAt)
 			end
 			-- the very first match starts the moment somebody is here (no lobby wait); after that the lobby counts down, or ends
 			-- early when everybody has pressed READY

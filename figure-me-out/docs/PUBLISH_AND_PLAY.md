@@ -20,12 +20,12 @@ I cannot press these buttons for you: they are in your Roblox account, not in th
 * **Anybody can join at any time.** Up to **20 play in a match**.
 * **Somebody who arrives in the first 45 seconds of a match (or during the countdown) jumps straight in. Somebody who arrives later waits in the lobby** (and can press "WATCH THE MATCH"). The screen shows a card: "MATCH IN PROGRESS", the mode and map, **how much time is left**, how many are playing (of 20) and how many are waiting, and **when their match starts** ("about 22:00"). When the match is nearly over it says "MATCH ENDING SOON!". The big screen on the lobby wall shows the same.
 * While they wait they can walk around the courtyard, vote for the next map when the match ends, and read the boards.
-* **A lone player gets a short practice round** (3 minutes, to try the camera, the binoculars and the grenades). It ends the moment somebody else arrives, so nobody waits for it.
+* **The lobby waits at most 30 seconds, and only 15 when you are alone.** Then the match starts, and when fewer than 3 real players are here, god bots (Zeus, Athena, Ares...) fill it up to 6 so you always have somebody to play.
 * If more than 20 are waiting, the ones who sat out the last match go first, then whoever has waited longest.
 
 ## 3. "I cannot get into the match": checklist
 
-1. **Are you the only player?** You get a practice round. It starts about 5 seconds after you appear. For the real game (capture the flag, red against blue) you need a second player: in Studio use **Test > Clients and Servers > 2 Players**.
+1. **Are you the only player?** The lobby counts down 15 seconds, then the match starts with god bots. For the real game (capture the flag, red against blue) you need a second player: in Studio use **Test > Clients and Servers > 2 Players**.
 2. **Did you arrive while a match was on?** Then you are waiting by design. Look at the card at the top of the screen: it says when the next match starts. (Matches are 4 minutes. Anyone who arrives in the first 45 seconds jumps straight in. Use **Test > Clients and Servers** to start two players at the same time.)
 3. **Is there a red "SERVER PROBLEM" box on the screen?** Take a screenshot of it. It lists what failed.
 4. **Open View > Output** in Studio and look for lines starting with `[FigureMeOut]`. Send me those lines.
