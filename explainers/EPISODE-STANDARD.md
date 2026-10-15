@@ -76,3 +76,9 @@ Every new episode must clear **all** of these before it ships, and beat the prev
 - **Cutaway with physics**: handle, chain, flapper, float, fill valve, overflow tube, rim wash, and water flowing through the real trap with siphon, gurgle and air-pressure arrows.
 - **Follow-the-duck loop game**: a rubber duck is sucked through the siphon and floats back; the last frame equals the first.
 - **Actionable value**: a free leak test and a $10 fix.
+
+## EP 09 (Memory) raised the bar by
+- **A test inside the video**: a 4-digit code at 0 s, recalled at the end, so the viewer experiences the point. The first and last frames match for the loop.
+- **A new, directly useful tool**: the forgetting curve turned into a 1-3-7-21 day review schedule plus a 4-step self-test routine.
+- **Unique visual explanation**: the curve is drawn live, then a green "flatter every time" sawtooth builds with star chimes rising in pitch at each review.
+- **Interactive quiz** (reread vs self-test) with a 3-2-1 countdown and named concepts (active recall, spaced repetition).

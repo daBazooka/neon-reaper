@@ -475,6 +475,61 @@ Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synth
 
 ---------------------------------------------------------------------
 
+## VIDEO 9: Why You Forget Everything (and the 20-Minute Fix)
+**File:** `episode-09-memory-final.mp4` · 76 s · 1080×1920 · *the most useful episode so far: a memory test inside the video, the forgetting curve, and a study schedule people can copy today*
+
+### Title (pick one; A is the default)
+- **A:** `Why You Forget Everything (and the 20-Minute Fix)` (50 chars)
+- B: `The Forgetting Curve: Why You Forget (and the Schedule That Fixes It)`
+- C: `Study Less, Remember More: The 20-Minute Memory System`
+
+### Description
+```
+You forget fast. The forgetting curve explains why, and one simple schedule flattens it. Memorize the code at the start, then test yourself at the end.
+
+00:00 Memorize this code
+00:06 The forgetting curve (Ebbinghaus, 1885)
+00:25 The trick: every recall flattens the curve
+00:35 The timing: 1 day, 3 days, 1 week, 3 weeks
+00:42 Quick test: reread or self-test?
+00:51 The answer: active recall
+00:58 The system (4 reviews x 5 minutes)
+01:07 Did the code survive?
+
+The 4-step review: 1) close the notes, 2) write what you remember, 3) check and mark the gaps, 4) re-test just the gaps.
+
+Simplified for clarity: the curve shape, the 1-3-7-21 day schedule, and the memory-strength bars are illustrative. Real forgetting depends on the material, sleep, and how well you learned it first. Testing yourself (active recall) and spacing reviews (spaced repetition) are well supported by memory research, but the exact intervals vary. General information, not medical or educational advice.
+
+Subscribe to CUTAWAY: everything has an inside.
+
+Voice: AI-generated narration. Animation made for CUTAWAY.
+
+#shorts #studytips #memory
+```
+
+### Hashtags
+`#shorts #studytips #memory` + `#learning #spacedrepetition #activerecall #productivity #science`
+
+### Tags
+`forgetting curve, spaced repetition, active recall, how to remember anything, study tips, how memory works, Ebbinghaus, how to study effectively, remember what you learn, memory technique, flashcards, learning how to learn, brain facts`
+
+### TikTok / Instagram caption
+```
+What was the code? 🧠 You forget fast, but this 20-minute schedule flattens the curve: 1 day, 3 days, 1 week, 3 weeks. Save this for your next exam 📌
+#studytips #memory #spacedrepetition #learning #science
+```
+
+### Cover / thumbnail
+Frame at **41 s** (`episode-09-memory.html?t=41`): the green sawtooth with four gold stars. Or **2 s** for the code boxes.
+
+### Pinned comment
+`Did you remember the code? Type it below 👇 (no scrolling up!) Then try the 4-step review on something you learned today.`
+
+### Settings
+Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synthetic content: **yes for the AI voice** if asked · Category: Education / How-to & Style
+
+---------------------------------------------------------------------
+
 ## Posting checklist (each video)
 1. Upload MP4 → paste title / description / tags.
 2. Set cover frame (Shorts: pick a frame in the editor; TikTok/IG: choose cover).
