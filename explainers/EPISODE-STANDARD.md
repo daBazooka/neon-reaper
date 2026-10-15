@@ -95,3 +95,9 @@ Every new episode must clear **all** of these before it ships, and beat the prev
 - **Honest limits**: a dedicated scene on why the mirror arrives late for sudden sounds (bark) while steady hums cancel.
 - **Sound design tied to the idea**: a low drone in the mix fades out exactly when the mirror image arrives.
 - **Useful takeaways**: listen quieter (hearing safety) and a snug fit; quiz with 3-2-1 countdown; "find the mirror image" loop game.
+
+## EP 12 (Lock) raised the bar by
+- **A working mechanism, not a drawing**: every pin height is computed from the key's cut profile as it slides in, so springs compress and pin pairs ride each cut live; check marks appear only where a pin pair truly meets the shear line.
+- **Right key vs wrong key** on the same lock, with the straddling pins flagged in red.
+- **A surprising number**: the 6x6x6x6x6 = 7,776 build, framed as "a deterrent, not a vault".
+- **Practical tips** (dry lubricant, copy from the original) and a "find the shear line" loop game.

@@ -650,6 +650,66 @@ Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synth
 
 ---------------------------------------------------------------------
 
+## VIDEO 12: How a Lock Actually Works
+**File:** `episode-12-lock-final.mp4` · 83 s · 1080×1920 · *a live cutaway of a pin tumbler lock: the key lifts five pin pairs to the shear line, then a wrong key jams it*
+
+### Title (pick one; A is the default)
+- **A:** `A Lock Doesn't Know Your Key. It Checks One Thing.` (51 chars)
+- B: `How a Lock Works (and Why There Are Only ~8,000 Keys)`
+- C: `Never Oil Your Lock: Do This Instead`
+
+### Description
+```
+A lock has no idea what your key looks like. It only checks one thing: whether every pair of tiny pins lines up at one gap. Watch it happen inside a real pin tumbler lock.
+
+00:00 What does the lock check?
+00:09 The plug, the pins, the springs
+00:20 The right key and the shear line
+00:31 Plug turns, bolt slides back. The wrong key jams.
+00:42 Quick test: how many different keys?
+00:56 The answer (6 x 6 x 6 x 6 x 6)
+01:05 Two tips: dry lube and copy from the original
+01:20 Find the shear line
+
+Key ideas:
+- A pin tumbler lock has pairs of pins (key pins and driver pins) pushed down by springs across the gap between the plug and the housing.
+- The right key lifts every pair so the break between them sits exactly at the shear line; then the plug turns and the bolt retracts.
+- A wrong key leaves at least one pin straddling the gap, so the plug cannot turn.
+- Five pins with six possible heights each is 6^5 = 7,776 key combinations at most: a lock is a deterrent, not a vault.
+- Tips: use dry lubricant (graphite or Teflon), not oil; cut new keys from the original, not from copies.
+
+Simplified for clarity: pin sizes, spring strength and the 5-pin, 6-height example are illustrative; real locks add security pins, more pins, and restricted key blanks. General information, not security advice.
+
+Subscribe to CUTAWAY: everything has an inside.
+
+Voice: AI-generated narration. Animation made for CUTAWAY.
+
+#shorts #howitworks #lock
+```
+
+### Hashtags
+`#shorts #howitworks #lock` + `#locksmith #engineering #homehacks #diy #science`
+
+### Tags
+`how a lock works, pin tumbler lock explained, shear line, how keys work, why keys have teeth, how many keys per lock, lubricate a lock, graphite lock lubricant, don't oil a lock, key copy tolerance, engineering explained, how things work`
+
+### TikTok / Instagram caption
+```
+A lock doesn't know your key 🔑 It checks ONE thing: do all the pins line up at the shear line? Only ~8,000 possible keys for a typical lock. Which did you guess: 50, 8,000 or 8 million? 👇
+#lock #howitworks #engineering #homehacks #science
+```
+
+### Cover / thumbnail
+Frame at **29 s** (`episode-12-lock.html?t=29`): the right key with five green check marks at the green shear line. Or **38 s** for the wrong key.
+
+### Pinned comment
+`A, B or C? Did you guess 8,000? 👇 And did you spot the shear line at the end? 🔑 Tip: never oil your lock, use dry graphite.`
+
+### Settings
+Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synthetic content: **yes for the AI voice** if asked · Category: Education / How-to & Style
+
+---------------------------------------------------------------------
+
 ## Posting checklist (each video)
 1. Upload MP4 → paste title / description / tags.
 2. Set cover frame (Shorts: pick a frame in the editor; TikTok/IG: choose cover).
