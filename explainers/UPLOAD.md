@@ -530,6 +530,66 @@ Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synth
 
 ---------------------------------------------------------------------
 
+## VIDEO 10: How GPS Actually Works
+**File:** `episode-10-gps-final.mp4` · 98 s · 1080×1920 · *the "high-IQ" episode: rings that find you, a clock puzzle that explains the 4th satellite, and Einstein's relativity fix*
+
+### Title (pick one; A is the default)
+- **A:** `Your Phone Never Talks to GPS Satellites. So How Does It Know?` (62 chars)
+- B: `Why GPS Needs 4 Satellites (and Einstein)`
+- C: `How GPS Works: Rings, Clocks, and Einstein`
+
+### Description
+```
+Your phone knows where you are within a few meters, but it never sends a single signal to space. Here's the trick: rings, a clock puzzle, and Einstein.
+
+00:00 How does it know?
+00:08 The signals (about 30 satellites, 20,000 km up)
+00:29 The rings: how 3 satellites find you
+00:42 Quick test: why does your phone need 4?
+00:55 The answer: the clock (4 unknowns, 4 satellites)
+01:08 Einstein: why GPS would drift ~10 km a day
+01:23 Two tips: window + offline maps
+01:34 Count the satellites
+
+Key ideas:
+- Each GPS satellite broadcasts its position and the exact time. Your phone only listens.
+- The delay of each signal x the speed of light = distance. Distances from several satellites pin down your position (shown as rings on a flat map; real GPS uses spheres).
+- Your phone's clock is cheap, so its error is one more unknown: x, y, z, and clock = 4 unknowns = 4 satellites.
+- Relativity makes satellite clocks run about 38 microseconds a day fast (net of speed and gravity effects); GPS corrects for it, and the clocks are tuned before launch.
+- Tips: GPS is weak indoors, and GPS itself uses no mobile data. Offline maps let you navigate anywhere.
+
+Simplified for clarity: the flat-map rings stand in for 3D spheres; the 300 m per microsecond, the ~67 ms signal time and the ~38 microsecond/day figures are rounded. Real receivers use more than four satellites and many corrections. General information.
+
+Subscribe to CUTAWAY: everything has an inside.
+
+Voice: AI-generated narration. Animation made for CUTAWAY.
+
+#shorts #howitworks #gps
+```
+
+### Hashtags
+`#shorts #howitworks #gps` + `#physics #einstein #relativity #science #tech`
+
+### Tags
+`how does GPS work, how GPS works, why GPS needs 4 satellites, GPS relativity Einstein, GPS satellites explained, trilateration, GPS clock error, how phone knows location, offline maps tips, GPS indoors, engineering explained, how things work`
+
+### TikTok / Instagram caption
+```
+Your phone NEVER talks to GPS satellites 🛰️ It just listens, and Einstein keeps it honest. Which did you guess: backup, accuracy, or the clock? 👇 Count the satellites on replay!
+#gps #einstein #howitworks #science #tech
+```
+
+### Cover / thumbnail
+Frame at **40 s** (`episode-10-gps.html?t=40`): three glowing rings crossing at one point. Or **3 s** for the globe with satellites.
+
+### Pinned comment
+`Backup, accuracy or the clock: what was your guess? 👇 And how many satellites did you count on the replay? 🛰️ Try offline maps on your next trip.`
+
+### Settings
+Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synthetic content: **yes for the AI voice** if asked · Category: Education / Science & Technology
+
+---------------------------------------------------------------------
+
 ## Posting checklist (each video)
 1. Upload MP4 → paste title / description / tags.
 2. Set cover frame (Shorts: pick a frame in the editor; TikTok/IG: choose cover).

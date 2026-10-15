@@ -82,3 +82,10 @@ Every new episode must clear **all** of these before it ships, and beat the prev
 - **A new, directly useful tool**: the forgetting curve turned into a 1-3-7-21 day review schedule plus a 4-step self-test routine.
 - **Unique visual explanation**: the curve is drawn live, then a green "flatter every time" sawtooth builds with star chimes rising in pitch at each review.
 - **Interactive quiz** (reread vs self-test) with a 3-2-1 countdown and named concepts (active recall, spaced repetition).
+
+## EP 10 (GPS) raised the bar by
+- **Counter-intuitive hook**: "your phone never sends a signal to space", proven by the end.
+- **Three-layer explanation**: orbit view, a flat-map ring geometry that draws itself ring by ring, then the clock puzzle (4 unknowns = 4 satellites) with a live 300 m error ruler.
+- **A "wow" payoff**: Einstein's relativity fix as a ticking error gauge (+38 µs/day, about 10 km), and why satellite clocks are tuned before launch.
+- **Quiz with a real insight** (backup / accuracy / clock) and new practical tips (window, offline maps; GPS uses no data).
+- **Loop game**: count the satellites; the orbit/satellite motion is periodic so the ending flows into the start.
