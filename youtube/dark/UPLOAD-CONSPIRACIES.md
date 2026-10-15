@@ -17,8 +17,31 @@ Rule for inclusion: a claim only counts if it was confirmed by (1) a court rulin
 
 CHAPTERS
 0:00 Why this film
-0:45 The rules: what counts as proof
-(Chapter times: fill in from the final cut using the case order below.)
+0:29 The rules: what counts as proof
+1:02 Tuskegee syphilis study
+1:51 MKUltra
+2:36 Rapid fire: radiation experiments, Sea-Spray, poisoned alcohol, Paperclip
+3:25 Operation Northwoods
+4:13 Gulf of Tonkin
+4:56 Rapid fire: Pentagon Papers, incubator story, Lavon Affair, Business Plot
+5:51 Watergate
+6:27 COINTELPRO
+7:14 Mass surveillance (Snowden)
+7:58 Iran–Contra
+8:42 Operation Ajax
+9:22 Rapid fire: CIA & the press, Gladio, Castro plots, Operation Popeye
+10:12 Big Tobacco
+10:46 Leaded gasoline
+11:30 The sugar cover-up
+12:15 Exxon
+12:50 OxyContin
+13:35 Dieselgate
+14:16 Rapid fire: DuPont, Radium Girls, Phoebus cartel, LIBOR
+15:11 The Post Office scandal
+15:57 Rapid fire: Cambridge Analytica, phone hacking, Hillsborough
+16:36 What did NOT come true
+17:14 How to tell real from false
+17:53 Three lessons
 
 CASE ORDER
 Deep dives: Tuskegee · MKUltra · Operation Northwoods · Gulf of Tonkin · Watergate · COINTELPRO · Mass surveillance (Snowden) · Iran–Contra · Operation Ajax · Big Tobacco · Leaded gasoline · The sugar cover-up · Exxon · OxyContin/Purdue · Dieselgate · Post Office/Horizon scandal
