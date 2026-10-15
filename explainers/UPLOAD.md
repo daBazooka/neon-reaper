@@ -352,6 +352,68 @@ Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synth
 
 ---------------------------------------------------------------------
 
+## VIDEO 7: How a Fridge Actually Works
+**File:** `episode-07-fridge-final.mp4` · 74 s · 1080×1920 · *the most detailed animation of the set; strong "save money" and "share with a friend" value*
+
+### Title (pick one; A is the default)
+- **A:** `Your Fridge Doesn't Make Cold. It Moves Heat.` (46 chars)
+- B: `How a Fridge Actually Works (and 3 Tips to Save Money)`
+- C: `Why Leaving the Fridge Door Open Makes Your Kitchen Warmer`
+
+### Description
+```
+Your fridge doesn't make anything cold. It moves heat. Follow one molecule of refrigerant around the loop and you'll understand every fridge, freezer and air conditioner on Earth.
+
+00:00 Your fridge doesn't make cold
+00:12 Step 1: the evaporator (liquid boils, soaks up heat)
+00:20 Step 2: the compressor (squeeze, hot vapor)
+00:27 Step 3: the condenser (heat flows out, vapor turns to liquid)
+00:36 Step 4: the expansion valve (pressure drops, flashes cold)
+00:45 The secret: pressure sets the boiling point
+00:53 The catch: where the heat goes (and the open door)
+01:00 3 tips to save money
+
+Key ideas:
+• A refrigerant is a liquid that boils far below freezing. Boiling soaks up heat, which cools your food.
+• The compressor squeezes the vapor so it gets hotter than the room; then heat flows out of the coils on the back and the vapor condenses.
+• The expansion valve drops the pressure so the liquid flashes cold, and the loop restarts.
+• Pressure sets the boiling point: low pressure boils at a freezing temperature, high pressure condenses while hot.
+• Heat out = heat from your food + the compressor's electricity. An open fridge door can only warm the room.
+
+Tips: clean the coils twice a year; test the door seal with a dollar bill; keep the fridge near 37-40°F (3-4°C).
+
+Simplified for clarity: temperatures, pressures and the 100 + 30 = 130 example are typical illustrative values (R134a-style refrigerant); real fridges vary, and many use isobutane (R600a). General information, not appliance-repair advice.
+
+Subscribe to CUTAWAY: everything has an inside.
+
+Voice: AI-generated narration. Animation made for CUTAWAY.
+
+#shorts #howitworks #engineering
+```
+
+### Hashtags
+`#shorts #howitworks #engineering` + `#fridge #physics #homehacks #savemoney #science`
+
+### Tags
+`how a fridge works, how does a refrigerator work, refrigeration cycle explained, compressor condenser evaporator, expansion valve, refrigerant, why does the fridge get warm at the back, leaving fridge door open, dollar bill test fridge seal, clean fridge coils, fridge temperature, how air conditioners work, heat pump explained, engineering explained, how things work`
+
+### TikTok / Instagram caption
+```
+Your fridge doesn't make cold. It MOVES heat 🧊➡️🔥 Follow one molecule around the loop (and do the dollar-bill test on your door seal 💵). Save this! 👇
+#fridge #howitworks #engineering #homehacks #science
+```
+
+### Cover / thumbnail
+Frame at **15 s** (`episode-07-fridge.html?t=15`): the blue boiling evaporator coil with heat arrows. Or **9 s** for the full loop view (fridge + hot condenser).
+
+### Pinned comment
+`Try the dollar-bill test on your fridge door and tell me: did the bill slide out? 💵 Follow the white ring around the loop. How many times did you catch it? 👇`
+
+### Settings
+Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synthetic content: **yes for the AI voice** if asked · Category: Education / How-to & Style
+
+---------------------------------------------------------------------
+
 ## Posting checklist (each video)
 1. Upload MP4 → paste title / description / tags.
 2. Set cover frame (Shorts: pick a frame in the editor; TikTok/IG: choose cover).

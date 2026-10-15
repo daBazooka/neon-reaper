@@ -28,7 +28,7 @@ Every new episode must clear **all** of these before it ships, and beat the prev
 ## Backlog ranked by importance
 1. ~~GFCI outlet~~ (done: EP 03)
 2. ~~Smoke detector~~ (done: EP 04). Next: CO detector
-3. ~~Fridge / 2-hour rule~~ (done: EP 05). Next: how a fridge works
+3. ~~Fridge / 2-hour rule~~ (done: EP 05); ~~how a fridge works~~ (done: EP 07). Next: air conditioner / heat pump
 4. Bleach + ammonia: what actually happens (chemistry of chloramine gas)
 5. Seat belt + airbag: the 30 ms sequence
 6. Pressure cooker: why it's faster and why lids explode
@@ -63,3 +63,10 @@ Every new episode must clear **all** of these before it ships, and beat the prev
 - **Real numbers, honest simplifications**: 1 : 100,000 nucleus-to-atom, ~0.3 nm gap, ~250,000× thinner than a hair, 8 billion humans ≈ 2 cm³ (nuclei packed), plus the Pauli rule.
 - **A question that follows the viewer out**: "So what else have you been so sure about?"
 - **Loop game**: the final frame is the first frame; "find where your finger actually touches".
+
+## EP 07 (Fridge) raised the bar by
+- **The most detailed cutaway yet**: a full side-view fridge with a real refrigerant loop; ~220 molecules that change state (liquid droplets, vapor bubbles), pipes colour-graded by temperature, frost on the evaporator, a compressor with a working piston, fins and heat arrows on the condenser, expansion valve, live low/high-side pressure gauges.
+- **A follow-the-ring hook**: one highlighted molecule you can track around the whole loop (the "watch again" driver).
+- **Camera choreography**: each step zooms to its component, with a numbered station card (temperature, pressure, state).
+- **The key insight as a chart**: boiling temperature vs pressure, with food (4 °C) and room (22 °C) lines showing *why* heat flows in at the evaporator and out at the condenser.
+- **Everyday payoff**: heat out = heat in + electricity (door open warms the room) and three money-saving tips, with animated mini-demos (dust wiped off coils, dollar-bill test).
