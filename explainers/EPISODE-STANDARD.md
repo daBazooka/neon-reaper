@@ -28,7 +28,7 @@ Every new episode must clear **all** of these before it ships, and beat the prev
 ## Backlog ranked by importance
 1. ~~GFCI outlet~~ (done: EP 03)
 2. ~~Smoke detector~~ (done: EP 04). Next: CO detector
-3. ~~Fridge / 2-hour rule~~ (done: EP 05); ~~how a fridge works~~ (done: EP 07). Next: air conditioner / heat pump
+3. ~~Fridge / 2-hour rule~~ (done: EP 05); ~~how a fridge works~~ (done: EP 07). Toilet flush done (EP 08). Next: air conditioner / heat pump
 4. Bleach + ammonia: what actually happens (chemistry of chloramine gas)
 5. Seat belt + airbag: the 30 ms sequence
 6. Pressure cooker: why it's faster and why lids explode
@@ -70,3 +70,9 @@ Every new episode must clear **all** of these before it ships, and beat the prev
 - **Camera choreography**: each step zooms to its component, with a numbered station card (temperature, pressure, state).
 - **The key insight as a chart**: boiling temperature vs pressure, with food (4 °C) and room (22 °C) lines showing *why* heat flows in at the evaporator and out at the condenser.
 - **Everyday payoff**: heat out = heat in + electricity (door open warms the room) and three money-saving tips, with animated mini-demos (dust wiped off coils, dollar-bill test).
+
+## EP 08 (Toilet) raised the bar by
+- **Micro-engagement layer**: push/pull poll in the first 3 s, a 3-2-1 countdown quiz ("which part is leaking?") with A/B/C tags, four timed "did you know" fact toasts, and a dye-test clock.
+- **Cutaway with physics**: handle, chain, flapper, float, fill valve, overflow tube, rim wash, and water flowing through the real trap with siphon, gurgle and air-pressure arrows.
+- **Follow-the-duck loop game**: a rubber duck is sucked through the siphon and floats back; the last frame equals the first.
+- **Actionable value**: a free leak test and a $10 fix.

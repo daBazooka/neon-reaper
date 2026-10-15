@@ -414,6 +414,67 @@ Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synth
 
 ---------------------------------------------------------------------
 
+## VIDEO 8: How a Toilet Flush Actually Works
+**File:** `episode-08-toilet-final.mp4` · 78.5 s · 1080×1920 · *built for interaction: a push/pull poll, a follow-the-duck loop game, and a "which part is leaking?" quiz with a 3-2-1 countdown*
+
+### Title (pick one; A is the default)
+- **A:** `Your Toilet Doesn't Push. It Pulls.` (35 chars)
+- B: `How a Toilet Flush Really Works (and How to Find a Leak for Free)`
+- C: `The Dye Test That Finds a Silent Toilet Leak`
+
+### Description
+```
+Does a toilet push waste down, or pull it? Most people guess wrong. Follow the rubber duck through the hidden siphon, then take the 3-2-1 quiz: which part is leaking?
+
+00:00 Push or pull? (vote in your head)
+00:07 The flush: handle, chain, flapper
+00:22 The siphon: gravity pulls, air pressure pushes
+00:33 The gurgle and the water seal
+00:41 The refill: float and fill valve
+00:45 Quick test: flapper, float or chain?
+00:55 The answer
+01:02 The dye test
+01:10 The $10 fix
+
+Key ideas:
+- Pressing the handle lifts a flapper; the tank dumps into the bowl faster than the drain can swallow it.
+- The rising water fills a curved pipe (the trap). The instant it is full, a siphon starts and pulls the bowl contents away.
+- Air breaks the siphon (the gurgle) and the water left behind seals out sewer gas.
+- A float shuts the fill valve when the tank is full.
+- A worn flapper is the usual cause of a toilet that keeps running. Test: food coloring in the tank, wait ten minutes; color in the bowl means a leak.
+
+Simplified for clarity: shapes, water levels and timings are illustrative, and the flush types differ (many modern toilets are tuned for roughly 1.28-1.6 gallons per flush, older ones used up to 3.5-7). Leak size varies; "hundreds of gallons a day" is an upper-end figure for a large leak. General information, not plumbing advice.
+
+Subscribe to CUTAWAY: everything has an inside.
+
+Voice: AI-generated narration. Animation made for CUTAWAY.
+
+#shorts #howitworks #plumbing
+```
+
+### Hashtags
+`#shorts #howitworks #plumbing` + `#toilet #diy #homehacks #savemoney #science`
+
+### Tags
+`how a toilet works, how does a toilet flush, toilet siphon explained, toilet keeps running, toilet flapper replacement, toilet dye test, find toilet leak, fill valve and float, why toilet gurgles, water seal trap, how things work, engineering explained, home repair tips`
+
+### TikTok / Instagram caption
+```
+Your toilet doesn't push, it PULLS 🚽 Follow the rubber duck 🦆 and do the dye test to catch a silent leak. Which part did YOU guess? A, B or C? 👇
+#toilet #howitworks #diy #homehacks #science
+```
+
+### Cover / thumbnail
+Frame at **26 s** (`episode-08-toilet.html?t=26`): the duck racing through the siphon with the glowing water. Or **3 s** for the "PUSH vs PULL" poll.
+
+### Pinned comment
+`Did you guess A (flapper), B (float) or C (chain) before the answer? Drop your letter 👇 And did you catch the duck both times? 🦆`
+
+### Settings
+Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synthetic content: **yes for the AI voice** if asked · Category: Education / How-to & Style
+
+---------------------------------------------------------------------
+
 ## Posting checklist (each video)
 1. Upload MP4 → paste title / description / tags.
 2. Set cover frame (Shorts: pick a frame in the editor; TikTok/IG: choose cover).
