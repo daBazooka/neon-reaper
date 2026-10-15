@@ -113,3 +113,9 @@ Every new episode must clear **all** of these before it ships, and beat the prev
 - **Myth-correcting insight**: soap mostly *lifts* germs rather than killing them.
 - **Everyday value**: the 20-second rule (with a counting ring), the virus fatty-coat explanation, and two handwashing tips; quiz with 3-2-1 countdown.
 - **Loop game**: count the micelles.
+
+## EP 15 (Battery) raised the bar by
+- **A mechanism you can follow**: 14 lithium ions leave the graphite, cross the electrolyte, and the electrons take the external wire through the phone; the phone % and the electron flow are driven by the same state, so charging visibly runs it backwards.
+- **A wear story**: heat and 100% holds crack the graphite and turn ions grey (trapped), while a capacity readout falls.
+- **Everyday value**: the 20-80% zone graphic, cool-temperature tip, and optimized charging; quiz with 3-2-1 countdown.
+- **Loop game**: count the ions that cross.

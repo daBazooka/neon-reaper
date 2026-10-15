@@ -832,6 +832,67 @@ Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synth
 
 ---------------------------------------------------------------------
 
+## VIDEO 15: How a Phone Battery Actually Works
+**File:** `episode-15-battery-final.mp4` · 87 s · 1080×1920 · *live lithium-ion cutaway, plus the 20-80% habit that makes batteries last*
+
+### Title (pick one; A is the default)
+- **A:** `Your Battery Doesn't Store Electricity. It Stores THIS.` (53 chars)
+- B: `How a Phone Battery Works (and the 20-80% Rule)`
+- C: `Stop Charging Your Phone to 100%? Here's the Science`
+
+### Description
+```
+Your phone battery doesn't store electricity. It stores lithium ions in a high-energy spot. Watch them cross the cell, then learn the charging habits that make a battery last longer.
+
+00:00 Ions, not electricity
+00:10 The cell: graphite, metal oxide, electrolyte
+00:22 Discharge: ions swim, electrons take the long way
+00:34 Charging: winding the spring back
+00:41 The wear: heat and 100%
+00:50 Quick test: which habit is healthiest?
+01:03 The answer: 20-80% and keep it cool
+01:11 Two tips
+01:22 Count the ions that cross
+
+Key ideas:
+- A lithium-ion cell has graphite (anode) full of lithium on one side, a metal oxide (cathode) on the other, and an electrolyte between them that passes ions but not electrons.
+- Discharging: ions move to the oxide while electrons take the external circuit through your phone. That flow is the current.
+- Charging pushes the ions back into the graphite.
+- Heat and sitting at 100% strain the graphite and trap lithium, reducing capacity over time.
+- Habits: stay roughly between 20% and 80% when you can, keep the phone cool, and use optimized or limit-charge settings.
+
+Simplified for clarity: the cell is drawn in 2D with 14 ions, the 20-80% range is a rule of thumb, and real cells have many stacked layers and a battery-management chip. Battery lifespans vary by device and use. General information.
+
+Subscribe to CUTAWAY: everything has an inside.
+
+Voice: AI-generated narration. Animation made for CUTAWAY.
+
+#shorts #howitworks #battery
+```
+
+### Hashtags
+`#shorts #howitworks #battery` + `#iphone #android #lithium #science #techtips`
+
+### Tags
+`how a phone battery works, lithium ion battery explained, how to make your battery last longer, 20 80 charging rule, should you charge to 100, battery health tips, why batteries degrade, optimized battery charging, how things work, engineering explained`
+
+### TikTok / Instagram caption
+```
+Your battery doesn't store electricity. It stores lithium IONS 🔋 Charge to 100% all the time? Drain to zero? Which habit is healthiest: A, B or C? 👇 Count the ions that cross!
+#battery #howitworks #techtips #science #phonetips
+```
+
+### Cover / thumbnail
+Frame at **28 s** (`episode-15-battery.html?t=28`): glowing ions crossing the cell. Or **66 s** for the green 20-80% zone.
+
+### Pinned comment
+`A, B or C? What did you guess? 👇 How many ions did you count crossing at the end? 🔋 Tip: turn on optimized charging today.`
+
+### Settings
+Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synthetic content: **yes for the AI voice** if asked · Category: Education / Science & Technology
+
+---------------------------------------------------------------------
+
 ## Posting checklist (each video)
 1. Upload MP4 → paste title / description / tags.
 2. Set cover frame (Shorts: pick a frame in the editor; TikTok/IG: choose cover).
