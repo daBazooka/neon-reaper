@@ -770,6 +770,68 @@ Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synth
 
 ---------------------------------------------------------------------
 
+## VIDEO 14: How Soap Actually Works
+**File:** `episode-14-soap-final.mp4` · 81 s · 1080×1920 · *tadpole-shaped soap molecules wrap grease into micelles, then tear a virus's fatty coat apart*
+
+### Title (pick one; A is the default)
+- **A:** `Soap Doesn't Kill Germs. It Pulls Them Off.` (43 chars)
+- B: `How Soap Works (Why 20 Seconds Matters)`
+- C: `Why Soap Beats Water: The Tadpole Molecule`
+
+### Description
+```
+Rinsing with water barely cleans your hands. Add soap and the grease and germs get pulled right off. Meet the tadpole-shaped molecule that does it, then take the 3-2-1 quiz: how long should you scrub?
+
+00:00 Why water alone isn't enough
+00:10 The molecule: a head that loves water, a tail that loves grease
+00:18 The grease: tails dive in, heads stay out
+00:28 Micelles: water carries the whole ball away
+00:39 Quick test: how long should you scrub?
+00:49 The answer: 20 seconds
+00:57 The virus: soap tears a fatty coat apart
+01:06 Two tips
+01:17 Count the micelles
+
+Key ideas:
+- A soap molecule has a water-loving head and a grease-loving tail.
+- Soap's tails dive into the grease that holds dirt and germs on your skin; scrubbing wraps the grease into tiny balls (micelles) with heads facing out, and water rinses them away.
+- Soap mostly lifts germs off your hands rather than just killing them.
+- About 20 seconds of scrubbing gives soap time and friction to do its job.
+- Some viruses (including flu and coronaviruses) have a fatty coat that soap's tails can tear apart.
+- Don't skip thumbs, fingertips and between the fingers; water temperature barely matters for removing germs.
+
+Simplified for clarity: molecule sizes and shapes are drawn for illustration, and micelles are shown in 2D. Soap affects some germs more than others. For medical or workplace guidance, follow your local health authority. General information.
+
+Subscribe to CUTAWAY: everything has an inside.
+
+Voice: AI-generated narration. Animation made for CUTAWAY.
+
+#shorts #howitworks #handwashing
+```
+
+### Hashtags
+`#shorts #howitworks #handwashing` + `#soap #chemistry #science #health #didyouknow`
+
+### Tags
+`how soap works, why wash hands for 20 seconds, soap micelles, soap molecule head and tail, how soap kills viruses, handwashing tips, hand washing science, chemistry explained, engineering explained, how things work`
+
+### TikTok / Instagram caption
+```
+Soap doesn't just kill germs. It PULLS them off 🧼 Tadpole molecules wrap grease into tiny balls and water carries them away. A, B or C: how long should you scrub? 👇 Count the micelles!
+#soap #handwashing #howitworks #chemistry #science
+```
+
+### Cover / thumbnail
+Frame at **79 s** (`episode-14-soap.html?t=79`): four glowing micelles. Or **14 s** for the tadpole molecule.
+
+### Pinned comment
+`A, B or C? What did you guess? 👇 And how many micelles did you count? 🧼`
+
+### Settings
+Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synthetic content: **yes for the AI voice** if asked · Category: Education / Science & Technology
+
+---------------------------------------------------------------------
+
 ## Posting checklist (each video)
 1. Upload MP4 → paste title / description / tags.
 2. Set cover frame (Shorts: pick a frame in the editor; TikTok/IG: choose cover).

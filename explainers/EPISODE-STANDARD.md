@@ -107,3 +107,9 @@ Every new episode must clear **all** of these before it ships, and beat the prev
 - **A "wow" experiment**: the chocolate-bar measurement of the speed of light, built up as a step-by-step equation.
 - **Layered explanation**: reflected waves (forward + reflected = standing), water molecules flipping, then the 2D hot-spot map.
 - **Safety value**: stir/stand and the superheated-water warning; quiz with 3-2-1 countdown; "count the hot spots" loop game.
+
+## EP 14 (Soap) raised the bar by
+- **A molecular-scale story**: a single soap molecule (head and tail) scaled up, then 40 tadpoles swim in, dive into four grease blobs, wrap them into micelles and carry them off.
+- **Myth-correcting insight**: soap mostly *lifts* germs rather than killing them.
+- **Everyday value**: the 20-second rule (with a counting ring), the virus fatty-coat explanation, and two handwashing tips; quiz with 3-2-1 countdown.
+- **Loop game**: count the micelles.
