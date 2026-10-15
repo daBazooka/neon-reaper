@@ -89,3 +89,9 @@ Every new episode must clear **all** of these before it ships, and beat the prev
 - **A "wow" payoff**: Einstein's relativity fix as a ticking error gauge (+38 µs/day, about 10 km), and why satellite clocks are tuned before launch.
 - **Quiz with a real insight** (backup / accuracy / clock) and new practical tips (window, offline maps; GPS uses no data).
 - **Loop game**: count the satellites; the orbit/satellite motion is periodic so the ending flows into the start.
+
+## EP 11 (Noise Cancelling) raised the bar by
+- **Live wave math on screen**: noise, its flipped mirror image and their sum are all computed live, so the viewer watches push + pull go flat.
+- **Honest limits**: a dedicated scene on why the mirror arrives late for sudden sounds (bark) while steady hums cancel.
+- **Sound design tied to the idea**: a low drone in the mix fades out exactly when the mirror image arrives.
+- **Useful takeaways**: listen quieter (hearing safety) and a snug fit; quiz with 3-2-1 countdown; "find the mirror image" loop game.

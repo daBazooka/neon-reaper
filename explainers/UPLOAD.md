@@ -590,6 +590,66 @@ Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synth
 
 ---------------------------------------------------------------------
 
+## VIDEO 11: How Noise-Cancelling Headphones Work
+**File:** `episode-11-anc-final.mp4` · 76 s · 1080×1920 · *clean wave visuals you can actually watch cancel, plus a quiz and two hearing-safety tips*
+
+### Title (pick one; A is the default)
+- **A:** `Noise-Cancelling Headphones Add Sound to Make Silence` (53 chars)
+- B: `How Noise Cancelling Works (and What It Can't Cancel)`
+- C: `Why Noise Cancelling Fails on Voices and Barks`
+
+### Description
+```
+Noise-cancelling headphones don't block noise. They add more sound, on purpose. Watch push meet pull and cancel.
+
+00:00 How can more sound make silence?
+00:08 The wave: sound is air pressure
+00:16 The mirror image (mic, chip, speaker)
+00:25 Destructive interference
+00:33 The limit: why sudden sounds slip through
+00:41 Quick test: engine, bark or voice?
+00:51 The answer
+00:59 Two tips: listen quieter, get a snug fit
+01:12 Find the mirror image
+
+Key ideas:
+- Sound is a wave of air pressure pushing and pulling on your eardrum.
+- A microphone hears the noise, a chip flips it upside down, and the speaker plays the mirror image. Push + pull = almost flat.
+- It reacts with a tiny delay, so steady low sounds (engine, fans, trains) cancel best; sudden or fast-changing sounds (barks, speech) leak through.
+- Cancelling noise lets you listen at a lower volume, which is easier on your hearing, and a snug fit blocks high notes that electronics cannot.
+
+Simplified for clarity: waveforms are illustrative; real systems use several microphones, fast filters and often both feedforward and feedback designs. The "below about 1,000 Hz" figure is a rule of thumb. General information.
+
+Subscribe to CUTAWAY: everything has an inside.
+
+Voice: AI-generated narration. Animation made for CUTAWAY.
+
+#shorts #howitworks #headphones
+```
+
+### Hashtags
+`#shorts #howitworks #headphones` + `#sound #physics #science #tech #hearing`
+
+### Tags
+`how noise cancelling works, active noise cancellation explained, destructive interference, how headphones work, why noise cancelling doesn't block voices, sound waves explained, protect your hearing, engineering explained, how things work`
+
+### TikTok / Instagram caption
+```
+Noise cancelling doesn't block sound. It ADDS sound 🎧 Push + pull = silence. Which one cancels best: engine, bark or voice? 👇 Find the mirror image!
+#headphones #howitworks #sound #science #tech
+```
+
+### Cover / thumbnail
+Frame at **29 s** (`episode-11-anc.html?t=29`): the orange noise, blue mirror and flat green result. Or **4 s** for the headphones.
+
+### Pinned comment
+`A, B or C? What did you guess? 👇 Did you spot the mirror image at the end? 🎧`
+
+### Settings
+Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synthetic content: **yes for the AI voice** if asked · Category: Education / Science & Technology
+
+---------------------------------------------------------------------
+
 ## Posting checklist (each video)
 1. Upload MP4 → paste title / description / tags.
 2. Set cover frame (Shorts: pick a frame in the editor; TikTok/IG: choose cover).
