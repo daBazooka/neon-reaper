@@ -101,3 +101,9 @@ Every new episode must clear **all** of these before it ships, and beat the prev
 - **Right key vs wrong key** on the same lock, with the straddling pins flagged in red.
 - **A surprising number**: the 6x6x6x6x6 = 7,776 build, framed as "a deterrent, not a vault".
 - **Practical tips** (dry lubricant, copy from the original) and a "find the shear line" loop game.
+
+## EP 13 (Microwave) raised the bar by
+- **A real simulation**: the food's colour map is integrated live from the standing-wave pattern and the plate's motion, so you watch hot spots even out only once the plate turns.
+- **A "wow" experiment**: the chocolate-bar measurement of the speed of light, built up as a step-by-step equation.
+- **Layered explanation**: reflected waves (forward + reflected = standing), water molecules flipping, then the 2D hot-spot map.
+- **Safety value**: stir/stand and the superheated-water warning; quiz with 3-2-1 countdown; "count the hot spots" loop game.

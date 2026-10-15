@@ -710,6 +710,66 @@ Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synth
 
 ---------------------------------------------------------------------
 
+## VIDEO 13: How a Microwave Actually Works
+**File:** `episode-13-microwave-final.mp4` · 89 s · 1080×1920 · *a live standing-wave heat map, plus a chocolate-bar trick that measures the speed of light*
+
+### Title (pick one; A is the default)
+- **A:** `Your Microwave Has Hot Spots 6 cm Apart (Measure Light With Chocolate)` (66 chars)
+- B: `How a Microwave Works (and Why the Middle Stays Cold)`
+- C: `The Chocolate Trick That Measures the Speed of Light`
+
+### Description
+```
+Your microwave doesn't cook from the outside in. It shakes your food with radio waves. Watch the hidden hot-spot pattern, then measure the speed of light with a chocolate bar.
+
+00:00 Why is the edge lava and the middle cold?
+00:10 The waves: a magnetron and a metal box
+00:22 The heat: water molecules flip billions of times a second
+00:35 The hot spots: a standing-wave pattern
+00:47 Quick test: why does the plate spin?
+00:58 The answer + the chocolate trick
+01:13 Two tips: stir and stand, and short bursts for water
+01:26 Count the hot spots
+
+Key ideas:
+- A magnetron makes radio waves (about 12 cm long, 2.45 GHz) that bounce around the metal box.
+- Water molecules have a plus and a minus end. The flipping field makes them wiggle and rub, which makes heat.
+- The reflected waves form a standing pattern: fixed hot and cold spots about 6 cm apart. The turntable moves the food through them.
+- Chocolate trick: measure the gap between melted spots (about 6 cm), double it (about 12 cm), multiply by 2.45 billion per second: about 300,000 km/s, the speed of light. (Rough in practice: your oven's frequency and spacing vary.)
+- Tips: stir halfway and let food stand a minute; heat plain water in short bursts, since it can superheat and erupt.
+
+Simplified for clarity: the heat map is an illustrative 2D model of the pattern; real ovens have mode stirrers and more complex fields. The chocolate trick gives a rough estimate. Check your oven's label for its frequency. General information, not appliance-safety advice.
+
+Subscribe to CUTAWAY: everything has an inside.
+
+Voice: AI-generated narration. Animation made for CUTAWAY.
+
+#shorts #howitworks #microwave
+```
+
+### Hashtags
+`#shorts #howitworks #microwave` + `#physics #speedoflight #kitchenhacks #science #foodscience`
+
+### Tags
+`how a microwave works, microwave hot spots, why microwave heats unevenly, microwave turntable, standing wave, speed of light chocolate experiment, magnetron, 2.45 GHz, superheated water microwave, microwave tips, engineering explained, how things work`
+
+### TikTok / Instagram caption
+```
+Your microwave has hidden hot spots 6 cm apart 🔥 Melt a chocolate bar, measure the gap, and you can calculate the speed of light 🍫 Which did you guess for the spinning plate: A, B or C? 👇
+#microwave #howitworks #physics #kitchenhacks #science
+```
+
+### Cover / thumbnail
+Frame at **46 s** (`episode-13-microwave.html?t=46`): the glowing hot-spot grid with the spinning plate. Or **70 s** for the chocolate bar.
+
+### Pinned comment
+`A, B or C? What did you guess? 👇 Have you done the chocolate trick? Tell me your answer in km/s! 🍫 Count the hot spots on replay.`
+
+### Settings
+Not made for kids · Comments on · Playlist "CUTAWAY Season 1" · Altered/synthetic content: **yes for the AI voice** if asked · Category: Education / Science & Technology
+
+---------------------------------------------------------------------
+
 ## Posting checklist (each video)
 1. Upload MP4 → paste title / description / tags.
 2. Set cover frame (Shorts: pick a frame in the editor; TikTok/IG: choose cover).
