@@ -1,7 +1,7 @@
 # UPLOAD — All the Conspiracy Theories That Came True (35 documented cases)
 
 **Runtime:** ~18:30 · **Master:** `youtube/masters/conspiracies-1440p-hevc.mp4` · **Short:** `youtube/videos/dark/conspiracies-short-1.mp4`
-**Thumbnails:** `youtube/brand/thumbs/thumbnail-cc-A.png`, `-B`, `-C`
+**Thumbnails:** `youtube/brand/thumbs/thumbnail-cc-A.jpg`, `-B.jpg`, `-C.jpg`
 
 ## Title options
 1. 35 Conspiracy Theories That Turned Out to Be TRUE (Documented)

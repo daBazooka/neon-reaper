@@ -19,7 +19,7 @@ function ccIcon(k,x,y,S,col,t=0){c.save();c.translate(x,y);c.scale(S,S);c.stroke
  case 'cube':P(0,-70,70,-35,0,0,-70,-35,0,-70);P(-70,-35,-70,45,0,80,0,0);P(70,-35,70,45,0,80);break;
  case 'thermo':R(-16,-90,32,130,0,16);C(0,62,32);C(0,62,18,1);P(0,-60,0,50);P(24,-60,44,-60);P(24,-30,44,-30);break;
  case 'pill':c.save();c.rotate(-.7);R(-95,-36,190,72,0,36);P(0,-36,0,36);c.restore();break;
- case 'exhaust':R(-100,-20,120,40,0);P(20,-8,70,-8);for(let i=0;i<3;i++){C(60+i*36,-34-i*18+Math.sin(t*3+i)*6,12+i*6)}break;
+ case 'exhaust':R(-100,-20,120,40,0);P(20,-8,70,-8);for(let i=0;i<3;i++){C(40+i*28,-34-i*16+Math.sin(t*3+i)*6,10+i*5)}break;
  case 'monitor':R(-90,-70,180,120,0,10);P(-30,80,30,80);P(0,50,0,80);P(-60,-30,-20,-30);P(-60,0,40,0);P(-60,25,10,25);break;
  case 'radiation':C(0,0,12,1);for(let i=0;i<3;i++){c.save();c.rotate(i*2.094+t*.4);c.beginPath();c.arc(0,0,86,-.5,.5);c.lineTo(34,0);c.closePath();c.fill();c.restore()}break;
  case 'germ':C(0,0,44);for(let i=0;i<8;i++){const a=i*PI/4;P(Math.cos(a)*44,Math.sin(a)*44,Math.cos(a)*74,Math.sin(a)*74);C(Math.cos(a)*80,Math.sin(a)*80,8,1)}break;
@@ -117,12 +117,12 @@ function ccEnd(t){ccBg(t,3);const p=eo(t/1.2);c.save();c.globalAlpha*=p;oFit('TR
 ['u04','u07','u13','u20','u22'].forEach(id=>{SC['a_'+id]=(t)=>ccRapid(id,t)});
 SC.a_u00=ccIntro;SC.a_u01=ccRules;SC.a_u23=ccNot;SC.a_u24=ccMethod;SC.a_u25=ccLessons;SC.a_uend=ccEnd;
 // thumbnails
-SC.thumb_cc_A=(t)=>{ccBg(0,3);oGlow(960,540,900,'#58e08a',.12);c.save();c.fillStyle='rgba(0,0,0,.0)';c.restore();
- oFit('THEY SAID',480,300,860,150,'#9fb2d0','center',900);oFit('"CONSPIRACY"',480,470,860,140,'#ff6a6a','center',900,24);
- c.save();c.translate(1360,540);ccStamp('CONFIRMED',0,0,'#58e08a',1,-.14,170);c.restore();oFit('35 DOCUMENTED CASES',960,860,1700,90,'#fff','center',900,18,'#7fb2ff');ctVignette(.5)};
-SC.thumb_cc_B=(t)=>{ccBg(0,3);c.save();c.translate(960,470);for(let i=0;i<4;i++){c.fillStyle='#e6edf9';c.fillRect(-600,-200+i*95,Math.min(1200,700+i*170),48)}c.restore();
+SC.a_ccthA=(t)=>{ccBg(0,3);oGlow(960,540,900,'#58e08a',.12);c.save();c.fillStyle='rgba(0,0,0,.0)';c.restore();
+ oFit('THEY SAID',480,300,780,130,'#9fb2d0','center',900);oFit('"CONSPIRACY"',480,450,780,120,'#ff6a6a','center',900,24);
+ ccStamp('CONFIRMED',1400,560,'#58e08a',1,-.12,125);oFit('35 DOCUMENTED CASES',960,860,1700,90,'#fff','center',900,18,'#7fb2ff');ctVignette(.5)};
+SC.a_ccthB=(t)=>{ccBg(0,3);c.save();c.translate(960,470);for(let i=0;i<4;i++){c.fillStyle='#e6edf9';c.fillRect(-600,-200+i*95,Math.min(1200,700+i*170),48)}c.restore();
  c.save();c.fillStyle='#0b1018';c.fillRect(300,180,1320,500);c.restore();for(let i=0;i<5;i++){c.fillStyle=i%2?'#e6edf9':'#c8d4e8';c.fillRect(380,230+i*88,i===4?500:1160-i*70,46)}
  ccStamp('TRUE',1360,500,'#58e08a',1,-.16,220);oFit('DECLASSIFIED',960,820,1700,130,'#ff6a6a','center',900,26);ctVignette(.5)};
-SC.thumb_cc_C=(t)=>{ccBg(0,3);oFit('"THAT\'S JUST A',960,260,1700,130,'#9fb2d0','center',900);oFit('CONSPIRACY THEORY"',960,410,1700,140,'#fff','center',900,18);
- c.save();c.strokeStyle='#ff6a6a';c.lineWidth=14;c.shadowColor='#ff6a6a';c.shadowBlur=24;c.beginPath();c.moveTo(220,470);c.lineTo(1700,360);c.stroke();c.restore();
+SC.a_ccthC=(t)=>{ccBg(0,3);oFit('"THAT\'S JUST A',960,260,1700,130,'#9fb2d0','center',900);oFit('CONSPIRACY THEORY"',960,410,1700,140,'#fff','center',900,18);
+ c.save();c.strokeStyle='#ff6a6a';c.lineWidth=14;c.shadowColor='#ff6a6a';c.shadowBlur=24;c.beginPath();c.moveTo(170,415);c.lineTo(1750,415);c.stroke();c.restore();
  oFit('...UNTIL THE FILES',960,640,1700,110,'#ffcb5b','center',900);oFit('CAME OUT',960,770,1700,150,'#58e08a','center',900,28);ctVignette(.55)};
