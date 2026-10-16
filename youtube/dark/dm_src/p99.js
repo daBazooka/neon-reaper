@@ -1,41 +1,41 @@
 /* DM-TIMING */
-ATM.d00={start:0,dur:24.8,lines:[1.0, 6.6, 15.0],len:[4.0, 4.0, 4.0]};
+ATM.d00={start:0.0,dur:19.899,lines:[0.7, 5.655, 13.029],len:[4.0, 4.0, 4.0]};
 OTX.d00=[["You", "opened", "an", "app", "today", "without", "deciding", "to.", "Your", "thumb", "did", "it", "for", "you."], ["Then", "it", "kept", "moving.", "One", "more", "post.", "One", "more", "video.", "One", "more", "bad", "headline.", "And", "somewhere", "in", "there,", "an", "hour", "disappeared."], ["This", "is", "a", "film", "about", "the", "thing", "in", "your", "pocket", "that", "has", "no", "bottom.", "And", "about", "how", "to", "get", "your", "time", "back."]];
-ATM.d01={start:24.8,dur:29.200000000000003,lines:[1.0, 7.8, 22.6],len:[4.0, 4.0, 4.0]};
+ATM.d01={start:19.899,dur:25.236,lines:[0.7, 7.487, 19.7],len:[4.0, 4.0, 4.0]};
 OTX.d01=[["It", "has", "a", "name.", "Doomscrolling.", "Endlessly", "scrolling", "through", "bad", "news,", "long", "after", "it", "has", "stopped", "helping", "you."], ["And", "it", "has", "a", "cousin.", "In", "December", "twenty", "twenty", "four,", "Oxford", "University", "Press", "named", "brain", "rot", "its", "word", "of", "the", "year,", "and", "said", "use", "of", "the", "term", "had", "risen", "two", "hundred", "and", "thirty", "percent", "in", "a", "year."], ["So", "this", "is", "not", "just", "you.", "It", "is", "a", "pattern.", "And", "patterns", "have", "causes."]];
-ATM.d02={start:54.0,dur:43.6,lines:[1.0, 9.4, 30.6],len:[4.0, 4.0, 4.0]};
+ATM.d02={start:45.135,dur:34.937,lines:[0.7, 7.735, 25.24],len:[4.0, 4.0, 4.0]};
 OTX.d02=[["Cause", "number", "one.", "Nothing", "tells", "you", "to", "stop.", "A", "book", "has", "chapters.", "A", "show", "has", "an", "ending.", "A", "feed", "has", "neither."], ["The", "designer", "who", "built", "infinite", "scroll,", "Aza", "Raskin,", "has", "said", "he", "regrets", "it.", "In", "one", "talk,", "he", "estimated", "it", "wastes", "on", "the", "order", "of", "a", "hundred", "thousand", "human", "lifetimes", "every", "day.", "That", "is", "his", "estimate,", "and", "numbers", "like", "this", "are", "hard", "to", "check.", "But", "the", "point", "stands.", "The", "design", "removed", "the", "stopping", "point."], ["When", "there", "is", "no", "natural", "end,", "the", "only", "way", "to", "stop", "is", "to", "decide", "to", "stop.", "And", "deciding", "is", "the", "part", "that", "is", "hardest", "to", "do", "when", "you", "are", "tired."]];
-ATM.d03={start:97.6,dur:38.400000000000006,lines:[1.0, 10.6, 27.4],len:[4.0, 4.0, 4.0]};
+ATM.d03={start:80.072,dur:33.422,lines:[0.7, 8.775, 24.065],len:[4.0, 4.0, 4.0]};
 OTX.d03=[["Cause", "number", "two.", "You", "never", "know", "what", "is", "coming", "next.", "Maybe", "the", "next", "post", "is", "boring.", "Maybe", "it", "is", "funny.", "Maybe", "it", "is", "frightening."], ["That", "unpredictability", "is", "the", "same", "principle", "that", "makes", "slot", "machines", "hard", "to", "walk", "away", "from.", "Rewards", "that", "arrive", "at", "random", "keep", "people", "pulling.", "Researchers", "have", "compared", "feeds", "to", "this", "for", "years,", "and", "while", "the", "comparison", "is", "not", "perfect,", "the", "pull", "is", "real."], ["And", "bad", "news", "has", "an", "extra", "hook.", "Human", "attention", "is", "built", "to", "notice", "threats.", "A", "scary", "headline", "gets", "your", "eyes", "before", "a", "calm", "one", "does."]];
-ATM.d04={start:136.0,dur:40.400000000000006,lines:[1.0, 13.0, 27.8],len:[4.0, 4.0, 4.0]};
+ATM.d04={start:113.494,dur:33.625,lines:[0.7, 11.263, 23.454],len:[4.0, 4.0, 4.0]};
 OTX.d04=[["Now", "do", "the", "math.", "Worldwide,", "the", "average", "person", "spends", "about", "two", "hours", "and", "twenty", "one", "minutes", "a", "day", "on", "social", "media.", "That", "is", "the", "number", "reported", "for", "twenty", "twenty", "five."], ["Two", "hours", "twenty", "one,", "every", "day,", "for", "fifty", "years,", "adds", "up", "to", "about", "eighteen", "hundred", "days.", "Nearly", "five", "full", "years,", "around", "the", "clock.", "If", "you", "count", "only", "the", "hours", "you", "are", "awake,", "it", "is", "more", "than", "seven."], ["This", "is", "simple", "arithmetic", "on", "an", "average,", "not", "a", "prediction", "about", "you.", "But", "look", "at", "what", "it", "means.", "Seven", "years", "is", "about", "nine", "percent", "of", "an", "eighty", "year", "life."]];
-ATM.d05={start:176.4,dur:34.0,lines:[1.0, 19.0],len:[4.0, 4.0]};
+ATM.d05={start:147.12,dur:26.929,lines:[0.7, 15.944],len:[4.0, 4.0]};
 OTX.d05=[["And", "what", "does", "it", "do", "to", "focus?", "Professor", "Gloria", "Mark", "has", "measured", "how", "long", "people", "stay", "on", "one", "screen", "before", "switching.", "In", "two", "thousand", "four,", "it", "was", "about", "two", "and", "a", "half", "minutes.", "In", "studies", "since", "around", "twenty", "sixteen,", "she", "reports", "about", "forty", "seven", "seconds."], ["A", "caution.", "That", "number", "measures", "how", "long", "you", "stay", "on", "one", "screen,", "not", "how", "long", "your", "brain", "can", "pay", "attention.", "But", "it", "fits", "what", "most", "of", "us", "feel.", "We", "switch", "more,", "and", "we", "stay", "less."]];
-ATM.d06={start:210.4,dur:49.60000000000001,lines:[1.0, 7.4, 20.2, 33.4],len:[4.0, 4.0, 4.0, 4.0]};
+ATM.d06={start:174.049,dur:45.771,lines:[0.7, 6.582, 19.881, 32.027],len:[4.0, 4.0, 4.0, 4.0]};
 OTX.d06=[["What", "do", "studies", "say", "about", "doomscrolling", "itself?", "Here", "is", "what", "is", "known,", "and", "what", "is", "not."], ["A", "survey", "of", "eleven", "hundred", "American", "adults", "found", "about", "sixteen", "and", "a", "half", "percent", "had", "a", "severely", "problematic", "habit", "of", "consuming", "bad", "news,", "and", "heavier", "consumers", "reported", "more", "stress,", "anxiety", "and", "depression."], ["A", "University", "College", "London", "study", "of", "over", "a", "thousand", "people", "found", "it", "runs", "both", "ways.", "People", "who", "felt", "worse", "sought", "out", "more", "negative", "content,", "and", "the", "negative", "content", "made", "them", "feel", "worse", "still."], ["The", "honest", "caveat.", "Most", "of", "this", "is", "correlation,", "and", "a", "lot", "of", "it", "is", "self", "reported.", "Nobody", "has", "proven", "that", "scrolling", "alone", "causes", "depression.", "But", "the", "loop", "between", "feeling", "bad", "and", "looking", "at", "bad", "things", "is", "well", "supported."]];
-ATM.d07={start:260.0,dur:37.2,lines:[1.0, 12.6, 23.8],len:[4.0, 4.0, 4.0]};
+ATM.d07={start:219.82,dur:35.548,lines:[0.7, 12.213, 23.522],len:[4.0, 4.0, 4.0]};
 OTX.d07=[["And", "your", "feed", "does", "not", "only", "show", "you", "moods.", "It", "can", "pass", "them", "on.", "In", "twenty", "fourteen,", "researchers", "from", "Facebook", "and", "two", "universities", "published", "an", "experiment", "on", "emotional", "contagion."], ["When", "they", "reduced", "positive", "posts", "in", "people's", "feeds,", "those", "people", "wrote", "fewer", "positive", "posts", "and", "more", "negative", "ones.", "And", "the", "reverse", "was", "true", "when", "negative", "posts", "were", "reduced."], ["The", "effects", "were", "small.", "But", "across", "a", "very", "large", "number", "of", "people,", "it", "showed", "that", "emotions", "can", "spread", "through", "a", "screen.", "The", "study", "also", "drew", "criticism", "for", "running", "without", "informed", "consent."]];
-ATM.d08={start:297.2,dur:36.400000000000006,lines:[1.0, 12.2, 21.8],len:[4.0, 4.0, 4.0]};
+ATM.d08={start:255.368,dur:28.56,lines:[0.7, 10.268, 17.936],len:[4.0, 4.0, 4.0]};
 OTX.d08=[["Now,", "an", "honest", "point.", "Staying", "informed", "is", "not", "the", "problem.", "Caring", "about", "the", "world", "is", "not", "the", "problem.", "News", "can", "be", "important,", "and", "some", "of", "it", "is", "urgent."], ["The", "problem", "is", "the", "loop.", "Scrolling", "without", "a", "goal,", "with", "no", "end,", "with", "a", "mood", "that", "gets", "worse", "and", "no", "action", "that", "gets", "better."], ["There", "is", "a", "simple", "test.", "Ask,", "is", "this", "making", "me", "more", "able", "to", "do", "something,", "or", "just", "more", "worried?", "If", "it", "is", "only", "worry,", "you", "are", "not", "informing", "yourself.", "You", "are", "feeding", "the", "loop."]];
-ATM.d09={start:333.6,dur:66.0,lines:[1.0, 11.0, 21.8, 31.0, 39.4, 49.0, 58.2],len:[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]};
+ATM.d09={start:283.928,dur:52.993,lines:[0.7, 8.798, 17.688, 25.65, 31.962, 38.816, 46.123],len:[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]};
 OTX.d09=[["So", "how", "do", "you", "break", "it?", "Six", "steps.", "None", "of", "them", "need", "willpower,", "because", "willpower", "is", "the", "thing", "a", "feed", "is", "designed", "to", "wear", "down."], ["One.", "Add", "friction.", "Log", "out,", "move", "the", "app", "off", "your", "home", "screen,", "or", "delete", "it", "and", "use", "the", "browser.", "Every", "extra", "step", "is", "a", "chance", "to", "notice."], ["Two.", "Give", "it", "an", "ending.", "Choose", "news", "from", "sources", "that", "finish,", "a", "newsletter", "or", "a", "bulletin,", "instead", "of", "a", "feed", "that", "never", "does."], ["Three.", "Decide", "before", "you", "open", "it.", "Say", "out", "loud", "what", "you", "are", "there", "for,", "and", "leave", "when", "you", "have", "done", "it."], ["Four.", "Protect", "the", "first", "and", "last", "ten", "minutes", "of", "your", "day.", "Do", "not", "let", "a", "screen", "be", "the", "first", "or", "last", "thing", "you", "see."], ["Five.", "Replace,", "do", "not", "just", "remove.", "Pick", "the", "thing", "your", "thumb", "will", "do", "instead,", "a", "book", "on", "the", "table,", "a", "walk,", "a", "call."], ["Six.", "Check", "your", "weekly", "screen", "time,", "and", "set", "a", "limit", "you", "will", "actually", "keep.", "Small", "beats", "perfect."]];
-ATM.d10={start:399.6,dur:29.600000000000005,lines:[1.0, 8.6, 16.2, 23.8],len:[4.0, 4.0, 4.0, 4.0]};
+ATM.d10={start:336.921,dur:23.09,lines:[0.7, 6.944, 12.396, 18.798],len:[4.0, 4.0, 4.0, 4.0]};
 OTX.d10=[["One", "last", "thing.", "Your", "phone", "will", "never", "tell", "you", "that", "you", "have", "scrolled", "enough.", "It", "was", "not", "built", "to."], ["So", "you", "have", "to", "be", "the", "bottom", "of", "the", "feed.", "The", "end.", "The", "moment", "where", "you", "put", "it", "down."], ["You", "have", "probably", "scrolled", "for", "a", "while", "today.", "That", "is", "fine.", "The", "next", "move", "is", "the", "one", "that", "counts."], ["Put", "it", "down.", "Look", "up.", "That", "is", "the", "end", "of", "the", "feed."]];
-ATM.dend={start:429.20000000000005,dur:4.0,lines:[1.0],len:[4.0]};
+ATM.dend={start:360.011,dur:7,lines:[0.7],len:[4.0]};
 OTX.dend=[["You", "have", "reached", "the", "end."]];
 const EPDM=[
- sg7('a_d00',24.8,[],{noOsd:true,xd:.7,xfk:'zoom',fl:0,en:1,xf:0}),
- sg7('a_d01',29.200000000000003,[],{noOsd:true,xd:.7,xfk:'slide',fl:1,en:1}),
- sg7('a_d02',43.6,[],{noOsd:true,xd:.7,xfk:'zoom',fl:3,en:1}),
- sg7('a_d03',38.400000000000006,[],{noOsd:true,xd:.7,xfk:'slide',fl:4,en:1}),
- sg7('a_d04',40.400000000000006,[],{noOsd:true,xd:.7,xfk:'zoom',fl:2,en:1,impact:true}),
- sg7('a_d05',34.0,[],{noOsd:true,xd:.7,xfk:'slide',fl:3,en:1}),
- sg7('a_d06',49.60000000000001,[],{noOsd:true,xd:.7,xfk:'zoom',fl:4,en:1}),
- sg7('a_d07',37.2,[],{noOsd:true,xd:.7,xfk:'slide',fl:2,en:1}),
- sg7('a_d08',36.400000000000006,[],{noOsd:true,xd:.7,xfk:'zoom',fl:3,en:1}),
- sg7('a_d09',66.0,[],{noOsd:true,xd:.7,xfk:'slide',fl:5,en:1}),
- sg7('a_d10',29.600000000000005,[],{noOsd:true,xd:.7,xfk:'zoom',fl:5,en:1}),
- sg7('a_dend',4.0,[],{noOsd:true,xd:.7,xfk:'slide',fl:6,en:1})
+ sg7('a_d00',19.899,[],{noOsd:true,xd:.7,xfk:'zoom',fl:0,en:1,xf:0}),
+ sg7('a_d01',25.236,[],{noOsd:true,xd:.7,xfk:'slide',fl:1,en:1}),
+ sg7('a_d02',34.937,[],{noOsd:true,xd:.7,xfk:'zoom',fl:3,en:1}),
+ sg7('a_d03',33.422,[],{noOsd:true,xd:.7,xfk:'slide',fl:4,en:1}),
+ sg7('a_d04',33.625,[],{noOsd:true,xd:.7,xfk:'zoom',fl:2,en:1,impact:true}),
+ sg7('a_d05',26.929,[],{noOsd:true,xd:.7,xfk:'slide',fl:3,en:1}),
+ sg7('a_d06',45.771,[],{noOsd:true,xd:.7,xfk:'zoom',fl:4,en:1}),
+ sg7('a_d07',35.548,[],{noOsd:true,xd:.7,xfk:'slide',fl:2,en:1}),
+ sg7('a_d08',28.56,[],{noOsd:true,xd:.7,xfk:'zoom',fl:3,en:1}),
+ sg7('a_d09',52.993,[],{noOsd:true,xd:.7,xfk:'slide',fl:5,en:1}),
+ sg7('a_d10',23.09,[],{noOsd:true,xd:.7,xfk:'zoom',fl:5,en:1}),
+ sg7('a_dend',7,[],{noOsd:true,xd:.7,xfk:'slide',fl:6,en:1})
 ];
 Object.assign(PROJ,{dm:EPDM});
 PMETA.dm={hires:true,wide:true,smooth:true,clean:true,cine:true,tag:'',date:''};
