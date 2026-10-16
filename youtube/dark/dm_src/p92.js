@@ -1,7 +1,7 @@
 // ---------- DM vertical Short (dm-s1): column x 690-1230, content above y 800 ----------
-SC.a_e0=(t)=>{const L=ATM.e0.lines;dmBg(t);dmPhone(960,470,.78,t,300+t*120);
- oShow(t-.2,(p)=>{c.save();c.translate(960,170);c.scale(p,p);oFit('7 YEARS',0,0,520,120,'#ff5a6a','center',900,26);c.restore()});
- oShow(t-.5,()=>oFit('OF YOUR WAKING LIFE',960,250,520,34,'#e8ecf8','center',800));
+SC.a_e0=(t)=>{const L=ATM.e0.lines;dmBg(t);dmPhone(960,545,.7,t,300+t*120);
+ oShow(t-.2,(p)=>{c.save();c.translate(960,150);c.scale(p,p);oFit('7 YEARS',0,0,520,120,'#ff5a6a','center',900,26);c.restore()});
+ oShow(t-.5,()=>oFit('OF YOUR WAKING LIFE',960,225,520,34,'#e8ecf8','center',800));
  oShow(t-(L[1]+.1),(p)=>{c.save();c.translate(960,780);c.scale(p,p);oChip('HERE IS THE MATH',0,0,28,'#4fd8ff');c.restore()});ctVignette(.55)};
 SC.a_e1=(t)=>{const L=ATM.e1.lines;dmBg(t,'#4fd8ff');
  oShow(t-.2,(p)=>{c.save();c.translate(960,200);c.scale(p,p);oFit('2h 21m',0,0,520,130,'#4fd8ff','center',900,26);oTxt('PER DAY · GLOBAL AVERAGE',0,80,24,'#9aa4c0','center',800);c.restore()});
