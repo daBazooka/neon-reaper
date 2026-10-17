@@ -1,6 +1,6 @@
 'use strict';
 /* =====================================================================
-   SCORCHWAY: simulation
+   TORCH DRIFT: simulation
    Top-down arcade car physics. Drifting sets the ground on fire behind
    your rear wheels; pursuers that drive through it ignite and explode,
    and explosions set off chain reactions. Heat rises, the chase grows.

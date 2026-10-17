@@ -1,9 +1,9 @@
-# SCORCHWAY: CrazyGames Resubmission
+# TORCH DRIFT: CrazyGames Submission
 
-Resubmission of a game that ran in Basic Launch (8:09 average playtime) and was not promoted because day-1 retention was too low. This version adds the long-term progression and daily reasons to return that the first version lacked.
+This is a heavily reworked version of SCORCHWAY. SCORCHWAY went through Basic Launch (26.09–08.10.2026) and was rejected for not reaching the performance benchmarks: CTR 0.5% (bottom 20%) and almost no returning players (552 plays from 509 players). The name SCORCHWAY is still taken by that rejected entry, so this version has a new name, new covers and a new long-term progression.
 
 ## Game name
-SCORCHWAY
+Torch Drift
 
 ## Category
 Driving
@@ -33,10 +33,11 @@ Yes, through the CrazyGames SDK Data Module.
 
 ## Assets
 - Game: `scorchway/dist/index.html` (zip it). Single file, about 155 KB.
-- Covers: `promo/cover-1920x1080.png`, `promo/cover-800x1200.png`, `promo/cover-800x800.png`. The only text is the game title.
+- Covers (new, brighter, readable as small thumbnails): `promo/cover-1920x1080.png`, `promo/cover-800x1200.png`, `promo/cover-800x800.png`. The only text is the game title.
 - Videos: `promo/trailer-1920x1080.mp4` and `promo/trailer-1080x1620.mp4`. 18 seconds of gameplay, no logo, captions or end card.
 
-## Note for the reviewer (what changed since the first submission)
+## Note for the reviewer
+This game is a reworked version of our earlier submission SCORCHWAY, which was rejected after Basic Launch. What changed:
 - New bounty career: 50 short bounties in 5 regions with 3-star ratings, region and car unlocks.
 - Deeper workshop: upgrades now go to level 10 (previously 3).
 - Daily retention features: a 7-day login reward, a garage stash that fills while the player is away, plus the existing Daily Run and missions.
