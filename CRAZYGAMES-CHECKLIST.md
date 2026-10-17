@@ -1,5 +1,38 @@
 # CrazyGames checklist
 
+## Status on 17 Oct: every game is rejected
+All 24 submissions show "Rejected", including the 6 that had been in Basic Launch.
+
+**Why the 6 Basic Launch games were rejected (metrics gate).** Basic Launch ends after 7 days and 500 plays, or after 21 days. Ours started 26–28 Sep, so it ended around 17 Oct. Promotion to Full Launch depends on playtime, conversion and day-1 retention, benchmarked against other games:
+
+| Metric | Our 6 games | Platform average | Action / Shooting average | "Strong" games |
+|---|---|---|---|---|
+| Day-1 retention | 1.1–1.9 % | 6.7 % | 8.1 % / 6.5 % | 10–15 % |
+| Avg playtime | 3:19–8:09 | – | ~13 min / ~12 min | 10+ min |
+| Conversion (1 min) | 48–75 % | – | – | top games 80 %+ |
+
+Day-1 retention was 4–6× below the platform average. No cover, video or listing change fixes that: almost nobody came back the next day.
+
+**Why the other 18 were rejected (initial review).** CrazyGames does not give per-game reasons. Likely factors: shallow games (a hook but no reason to keep playing for days), genres where we look like a smaller copy of a big hit, games too similar to our own earlier ones, and about 24 submissions from one account in about 3 weeks.
+
+**What the games that pass have in common (from CrazyGames' docs and developer reports).**
+- A long progression players care about across days: levels, unlocks, upgrades, an incremental layer. Liquid Swarm (an incremental roguelite that passed) had metrics "many in the top 20%".
+- Daily hooks: login bonuses, daily quests.
+- Progress saved through the Data Module.
+- Polish, with no rough edges, and the mobile first minute working (One More Fly failed mainly on mobile conversion).
+- Tuning based on real player data (A/B tests, analytics such as ByteBrew), not bots.
+
+**New rules for us.**
+1. One game at a time, developed over weeks, not hours.
+2. Real people play it before submission. Measure playtime and whether they come back the next day.
+3. Target day-1 retention of 8 % or more and playtime of 12 minutes or more before submitting.
+4. Resubmit only after meaningful improvements (CrazyGames FAQ).
+5. Ask CrazyGames support why the initial-review rejections happened.
+
+---
+
+## Earlier notes
+
 Lessons from 22 submissions: 6 approved (Basic Launch), 12 rejected with "overall quality does not yet meet the expectations of our platform", 4 awaiting review (as of 1 Oct).
 
 | Approved | Rejected | Awaiting |
