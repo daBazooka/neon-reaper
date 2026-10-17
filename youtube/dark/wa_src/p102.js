@@ -1,0 +1,21 @@
+// ---------- WA vertical Short (wa-s1): column x 690-1230, content above y 800 ----------
+SC.a_y0=(t)=>{const L=ATM.y0.lines;waBg(t);const p=eo((t-.3)/2.4);
+ c.save();c.translate(960,430);c.scale(.33,.33);c.translate(-960,-540);waArc(Math.min(1,p),26);c.restore();
+ oShow(t-.3,()=>{oFit('WINTER ARC',960,190,520,92,'#fff','center',900,24,WAC.ice)});
+ oShow(t-(L[0]+.5),(q)=>{c.save();c.translate(960,590);c.scale(q,q);oFit('FAILS IF IT NEEDS',0,0,520,44,WAC.dim,'center',800);oFit('PERFECT DAYS',0,70,520,76,WAC.red,'center',900,18);c.restore()});
+ oShow(t-(L[1]+.1),(q)=>{c.save();c.translate(960,760);c.scale(q,q);oChip('HERE IS THE VERSION THAT SURVIVES',0,0,22,WAC.grn);c.restore()});ctVignette(.55)};
+SC.a_y1=(t)=>{const L=ATM.y1.lines;waBg(t);oTxt('STEP 1',960,150,32,WAC.amb,'center',900);
+ oShow(t-.3,(q)=>{c.save();c.translate(960,250);c.scale(q,q);oFit('TWO HABITS',0,0,520,100,'#fff','center',900,22,WAC.ice);c.restore()});
+ ['10 MIN OF MOVEMENT','10 PAGES','LIGHTS OUT AT A SET TIME'].forEach((s,i)=>oShow(t-(1.4+i*1.1),(q)=>{c.save();c.translate(960,400+i*110);c.scale(q,q);oPanel(-270,-44,540,88,.74,hexa(WAC.grn,.6),20);oFit(s,0,0,480,34,'#fff','center',900);c.restore()}));
+ oShow(t-5.5,(q)=>{c.save();c.translate(960,760);c.scale(q,q);oChip('DOABLE ON YOUR WORST DAY',0,0,24,WAC.grn);c.restore()});ctVignette(.55)};
+SC.a_y2=(t)=>{waBg(t,'#ffb454');oTxt('STEP 2',960,150,32,WAC.amb,'center',900);
+ oShow(t-.3,(q)=>{c.save();c.translate(960,250);c.scale(q,q);oFit('IF-THEN PLAN',0,0,520,100,'#fff','center',900,22,WAC.amb);c.restore()});
+ const typ=(s,u)=>s.slice(0,Math.max(0,Math.min(s.length,Math.floor(u*16))));
+ oShow(t-1.2,(q)=>{c.save();c.translate(960,430);c.scale(q,q);oPanel(-270,-110,540,220,.74,hexa(WAC.amb,.7),22);oTxt('IF',-230,-62,30,WAC.amb,'left',900);oFit(typ('IT IS 7:00 PM',t-1.8),-10,-4,440,38,'#fff','center',800);oFit(typ('AND I AM HOME',t-2.8),-10,52,440,38,'#fff','center',800);c.restore()});
+ oShow(t-4.3,(q)=>{c.save();c.translate(960,610);c.scale(q,q);c.strokeStyle=WAC.amb;c.lineWidth=10;c.beginPath();c.moveTo(0,-30);c.lineTo(0,30);c.lineTo(-24,6);c.moveTo(0,30);c.lineTo(24,6);c.stroke();c.restore()});
+ oShow(t-4.8,(q)=>{c.save();c.translate(960,740);c.scale(q,q);oPanel(-270,-70,540,140,.74,hexa(WAC.grn,.7),22);oTxt('THEN',-230,-38,28,WAC.grn,'left',900);oFit(typ('SHOES ON · 10-MIN WALK',t-5.2),0,16,480,34,'#fff','center',800);c.restore()});ctVignette(.55)};
+SC.a_y3=(t)=>{const L=ATM.y3.lines;waBg(t);oTxt('STEP 3',960,150,32,WAC.amb,'center',900);
+ const fill=Math.floor(90*eo((t-.6)/(L[1]-1)));
+ oShow(t-.3,(q)=>{c.save();c.globalAlpha*=q;waGrid(720,200,9,10,fill,13,50,40,WAC.amb);c.restore()});
+ oShow(t-(L[0]+3),(q)=>{c.save();c.translate(960,700);c.scale(q,q);oChip('MISS 1: SMALL VERSION TOMORROW',0,0,22,WAC.grn);c.translate(0,64);oChip('MISS 2: SHRINK THE HABIT',0,0,22,WAC.amb);c.restore()});
+ oShow(t-(L[1]+.1),(q)=>{c.save();c.fillStyle='rgba(6,10,21,.82)';c.fillRect(0,0,1920,1080);c.translate(960,430);c.scale(q,q);oFit('DAY 1',0,0,520,170,'#fff','center',900,34,WAC.amb);oFit('IS TODAY',0,120,520,62,WAC.ice,'center',900);c.restore()});ctVignette(.55)};
