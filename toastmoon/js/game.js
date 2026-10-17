@@ -186,7 +186,7 @@ function demoTarget(){
   return best;
 }
 function demoSteer(){ const o = demoTarget(); if(!o) return 0; return clamp(wrapDx(o.x, G.T.x) / 60, -1, 1); }
-function demoJet(){ const T = G.T; if(T.vy < -250) return false; const o = demoTarget(); return !o || T.vy > 0; }
+function demoJet(){ const T = G.T; if(T.vy < -250) return false; const o = demoTarget(); if(!o) return true; const reach = T.vy < 0 ? T.vy * T.vy / (2 * GRAV) : 0; return reach < T.y - o.y + 20; }
 
 /* ---------------- effects ---------------- */
 function updateFx(dt){
