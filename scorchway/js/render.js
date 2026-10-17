@@ -13,11 +13,11 @@ function resize(){
   lightC = document.createElement('canvas'); lightC.width = Math.max(2, W >> 1); lightC.height = Math.max(2, H >> 1); lx = lightC.getContext('2d');
   if(!sandTile) makeTextures();
 }
-function makeTextures(){
+function makeTextures(base){
   const r = mulberry32(21), S = 256;
   sandTile = document.createElement('canvas'); sandTile.width = sandTile.height = S;
   const g = sandTile.getContext('2d');
-  g.fillStyle = '#e2b47a'; g.fillRect(0, 0, S, S);
+  g.fillStyle = base || '#e2b47a'; g.fillRect(0, 0, S, S);
   // wind ripples
   g.lineCap = 'round';
   for(let i = 0; i < 26; i++){

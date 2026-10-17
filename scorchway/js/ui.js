@@ -1,5 +1,5 @@
 'use strict';
-const SCREENS = ['menu', 'cards', 'pause', 'revive', 'over', 'shop', 'missions', 'settings', 'confirm'];
+const SCREENS = ['menu', 'cards', 'pause', 'revive', 'over', 'shop', 'missions', 'settings', 'confirm', 'board', 'won', 'login'];
 const show = id => $(id).classList.remove('hidden');
 const hide = id => $(id).classList.add('hidden');
 function hideAll(){ SCREENS.forEach(hide); }
@@ -48,15 +48,22 @@ function updateHUD(){
   const n = Math.round(G.nitro);
   setH('n', n, v => { $('nBar').firstElementChild.style.width = v + '%'; $('nBar').classList.toggle('full', v >= 100); $('nitroBtn').classList.toggle('empty', v <= 0); });
   setH('non', P.nitroOn ? 1 : 0, v => $('nitroBtn').classList.toggle('on', !!v));
+  if(G.bounty){
+    const b = G.bounty, pr = Math.min(b.n, bountyProg());
+    setH('obj', pr, v => { $('objTxt').textContent = bountyText(b).toUpperCase() + '  ' + fmt(v) + ' / ' + fmt(b.n); $('objBar').firstElementChild.style.width = (v / b.n * 100) + '%'; });
+    const left = b.type === 'survive' ? Math.max(0, b.n - G.t) : Math.max(0, b.limit - G.t);
+    setH('objT', Math.ceil(left), v => { const t = $('objTime'); t.textContent = b.type === 'survive' ? 'HOLD ON ' + mmss(v) : mmss(v) + ' LEFT' + (G.t <= b.t3 ? ' · ★★★ under ' + b.t3 + 's' : G.t <= b.t2 ? ' · ★★ under ' + b.t2 + 's' : ''); t.classList.toggle('low', b.type !== 'survive' && v <= 10); });
+  }
 }
 
 /* ---------------- run flow ---------------- */
-function startRun(daily){
+function startRun(daily, bounty){
   hideAll(); tip(null); $('toasts').innerHTML = '';
+  $('obj').classList.toggle('hidden', bounty == null);
   for(const k in hudC) delete hudC[k];
   P = null;
   show('hud'); const t = isTouch(); $('nitroBtn').classList.toggle('hidden', !t); $('driftBtn').classList.toggle('hidden', !t);
-  newRun(daily);
+  newRun(daily, bounty);
   SDK.gameplayStart();
   AU.init(); AU.resume();
 }
@@ -112,8 +119,9 @@ function pickCard(i){
 const REVIVE_COST = 150;
 let revIV = 0;
 function onDeathDone(){
+  if(G.won){ bountyWon(); return; }
   const canPay = save.cash + G.cashRun >= REVIVE_COST;
-  if(!G.revived && G.t > 40 && (SDK.canRewarded() || canPay)) openRevive(); else gameOver();
+  if(!G.revived && !G.timeUp && G.t > (G.bounty ? 15 : 40) && (SDK.canRewarded() || canPay)) openRevive(); else gameOver();
 }
 function openRevive(){
   G.state = 'revive'; SDK.gameplayStop();
@@ -160,15 +168,15 @@ function gameOver(){
     if(!save.daily.bonus){ save.daily.bonus = true; cash += 60; extra = '<div class="oM"><span>Daily run driven</span><b>+$60</b></div>'; }
   }
   save.cash += cash; save.runs++;
-  const newBest = G.score > save.best;
-  save.best = Math.max(save.best, Math.floor(G.score)); save.bestTime = Math.max(save.bestTime, Math.floor(G.t)); save.bestHeat = Math.max(save.bestHeat, G.heat);
+  const newBest = !G.bounty && G.score > save.best;
+  if(!G.bounty) save.best = Math.max(save.best, Math.floor(G.score)); save.bestTime = Math.max(save.bestTime, Math.floor(G.t)); save.bestHeat = Math.max(save.bestHeat, G.heat);
   save.stats.kills += G.kills; save.stats.drift += Math.floor(G.driftDist);
   const xp0 = save.xp, lv0 = save.level;
   save.xp += Math.floor(G.score / 40 + G.kills * 3 + G.t);
   let lvls = 0;
   while(save.xp >= xpNeed(save.level)){ save.xp -= xpNeed(save.level); save.level++; lvls++; save.cash += 40; }
   writeSave();
-  $('oTitle').textContent = G.daily ? 'DAILY: ' + G.mod.name : 'WRECKED';
+  $('oTitle').textContent = G.bounty ? (G.timeUp ? 'TIME UP' : 'BOUNTY FAILED') : G.daily ? 'DAILY: ' + G.mod.name : 'WRECKED';
   $('oTag').classList.toggle('hidden', !newBest);
   $('oTime').textContent = mmss(G.t); $('oKills').textContent = fmt(G.kills); $('oChain').textContent = 'x' + G.maxChain; $('oCash').textContent = '+$' + fmt(cash);
   $('oLevel').textContent = save.level;
@@ -178,9 +186,10 @@ function gameOver(){
   if(lvls) mh += `<div class="oM"><span>LEVEL UP! Now level ${save.level}</span><b>+$${lvls * 40}</b></div>`;
   for(const q of save.missions) if(q.fresh){ mh += `<div class="oM"><span>✔ ${q.txt}</span><b>+$${q.reward}</b></div>`; q.fresh = false; }
   $('oMissions').innerHTML = mh;
-  $('oNext').innerHTML = newBest ? 'The desert will remember this one!' : `Best: <b>${fmt(save.best)}</b> · Longest run <b>${mmss(save.bestTime)}</b>`;
+  $('oNext').innerHTML = G.bounty ? `${bountyText(G.bounty)}: <b>${fmt(Math.min(G.bounty.n, bountyProg()))} / ${fmt(G.bounty.n)}</b> · so close, try again!` : newBest ? 'The desert will remember this one!' : `Best: <b>${fmt(save.best)}</b> · Longest run <b>${mmss(save.bestTime)}</b>`;
   $('oTip').innerHTML = 'TIP: ' + pick(TIPS);
   $('dblBtn').classList.toggle('hidden', !SDK.canRewarded() || cash <= 0); $('dblBtn').disabled = false;
+  save.stashT = save.stashT || Date.now();
   G.lastCash = cash;
   const el = $('oScore'), t0 = performance.now(), sc = Math.floor(G.score);
   (function tick(){ const k = Math.min(1, (performance.now() - t0) / 900); el.textContent = fmt(sc * (1 - Math.pow(1 - k, 3))); if(k < 1) requestAnimationFrame(tick); })();
@@ -193,6 +202,7 @@ function goMenu(){
   hideAll(); hide('hud'); tip(null);
   rollMissions(); persist();
   refreshMenu(); show('menu');
+  checkLogin();
 }
 function refreshMenu(){
   $('mCash').textContent = fmt(save.cash);
@@ -202,6 +212,99 @@ function refreshMenu(){
   const seed = hashStr('scorchway:' + todayKey()), mod = MODS[seed % MODS.length], today = save.daily.key === todayKey();
   $('dailyMod').textContent = mod.name + ': ' + mod.desc + (today && save.daily.best ? ' · BEST ' + fmt(save.daily.best) : !today || !save.daily.bonus ? ' · +$60' : '');
   $('missDot').classList.toggle('hidden', !save.mNew);
+  const n = nextBounty(), st = totalStars();
+  $('starTxt').textContent = '★ ' + st + ' / ' + BOUNTIES.length * 3;
+  if(n >= 0){ const b = BOUNTIES[n]; $('playMain').textContent = 'PLAY'; $('playSub').textContent = REGIONS[b.r].name + ' · BOUNTY ' + (n + 1) + ': ' + bountyText(b); }
+  else { const r = REGIONS.findIndex((rg, i) => !regionOpen(i)); $('playMain').textContent = 'BOUNTIES'; $('playSub').textContent = r >= 0 ? `Earn ${REGIONS[r].need - st} more ★ to open ${REGIONS[r].name}` : 'Every bounty cleared. Go for ★★★!'; }
+  if(!save.stashT) save.stashT = Date.now();
+  const sv = stashValue(); $('stashVal').textContent = '$' + fmt(sv);
+  $('stashSub').textContent = sv >= stashRate() * STASH_CAP_H ? 'FULL! Claim it' : `+$${stashRate()}/hour while you're away · full in ${hhmm((STASH_CAP_H * 36e5) - (Date.now() - save.stashT))}`;
+  $('stashBtn').disabled = sv < 1;
+}
+function claimStash(){
+  const v = stashValue(); if(v < 1) return;
+  save.cash += v; save.stashT = Date.now(); writeSave(); AU.pick(); refreshMenu();
+  flyCash('+$' + fmt(v));
+}
+function flyCash(t){ const a = $('announce'); a.innerHTML = t; a.style.color = '#2e7d32'; a.classList.remove('go'); void a.offsetWidth; a.classList.add('go'); setTimeout(() => a.classList.remove('go'), 1200); }
+function checkLogin(){
+  const k = todayKey(); if(save.login.key === k) return false;
+  const y = new Date(Date.now() - 864e5), yk = y.getUTCFullYear() + '-' + (y.getUTCMonth() + 1) + '-' + y.getUTCDate();
+  G.loginDay = save.login.key === yk ? (save.login.day % 7) + 1 : 1;
+  const row = $('loginRow'); row.innerHTML = '';
+  LOGIN.forEach((v, i) => row.insertAdjacentHTML('beforeend', `<div class="${i + 1 < G.loginDay ? 'got' : i + 1 === G.loginDay ? 'today' : ''}"><small>DAY ${i + 1}</small>$${fmt(v)}</div>`));
+  hideAll(); show('login'); return true;
+}
+function claimLogin(){
+  const v = LOGIN[G.loginDay - 1];
+  save.login = { key:todayKey(), day:G.loginDay }; save.cash += v; writeSave(); AU.stinger(3);
+  hide('login'); refreshMenu(); show('menu'); flyCash('+$' + fmt(v));
+}
+
+/* ---------------- bounty board + results ---------------- */
+let boardReg = 0;
+function openBoard(r){
+  hideAll();
+  const n = nextBounty();
+  boardReg = r != null ? r : n >= 0 ? BOUNTIES[n].r : Math.max(0, REGIONS.findIndex((rg, i) => !regionOpen(i)) - 1);
+  if(boardReg < 0) boardReg = REGIONS.length - 1;
+  renderBoard(); show('board');
+}
+function renderBoard(){
+  $('bStars').textContent = totalStars() + ' / ' + BOUNTIES.length * 3;
+  const tabs = $('regTabs'); tabs.innerHTML = '';
+  REGIONS.forEach((rg, i) => { const t = document.createElement('button'); t.className = 'tab' + (i === boardReg ? ' on' : '') + (regionOpen(i) ? '' : ' locked'); t.textContent = (regionOpen(i) ? '' : '🔒 ') + rg.name; onTap(t, () => { boardReg = i; renderBoard(); }); tabs.appendChild(t); });
+  const rg = REGIONS[boardReg], open = regionOpen(boardReg);
+  $('regInfo').innerHTML = open ? `Clear a bounty to open the next one. Finish fast for ★★★.` : `Earn <b>${rg.need - totalStars()} more ★</b> to open ${rg.name}.`;
+  const g = $('bGrid'); g.innerHTML = ''; const nb = nextBounty();
+  for(let k = 0; k < 10; k++){
+    const i = boardReg * 10 + k, b = BOUNTIES[i], st = save.career.stars[i] || 0;
+    const ok = open && (i === 0 || (save.career.stars[i - 1] || 0) > 0);
+    const btn = document.createElement('button');
+    btn.className = (b.type === 'boss' ? 'boss' : '') + (i === nb ? ' next' : '');
+    btn.innerHTML = `${b.type === 'boss' ? '<span class="ico">👑</span>' : ''}${i + 1}<small>${'★'.repeat(st)}${'☆'.repeat(3 - st)}</small>`;
+    btn.title = bountyText(b);
+    btn.disabled = !ok;
+    onTap(btn, () => startRun(false, i));
+    g.appendChild(btn);
+  }
+}
+function bountyWon(){
+  const b = G.bounty, prev = save.career.stars[b.i] || 0, st = G.stars;
+  G.state = 'won'; SDK.gameplayStop(); tip(null); AU.setMusic(0); AU.engineOff(); releaseInput();
+  hide('hud'); hideAll(); $('toasts').innerHTML = '';
+  commitMissions();
+  const regionsBefore = REGIONS.map((r, i) => regionOpen(i));
+  const firstClear = prev === 0;
+  let cash = Math.floor(G.cashRun) + (st > prev ? Math.round(b.cash * (firstClear ? 1 : .5) * (1 + .25 * (st - 1))) : Math.round(b.cash * .25));
+  cash = Math.round(cash * cashMul());
+  save.career.stars[b.i] = Math.max(prev, st);
+  save.cash += cash; save.runs++;
+  save.stats.kills += G.kills; save.stats.drift += Math.floor(G.driftDist);
+  save.xp += Math.floor(G.score / 40 + G.kills * 3 + G.t + 40); let lv = 0;
+  while(save.xp >= xpNeed(save.level)){ save.xp -= xpNeed(save.level); save.level++; lv++; save.cash += 40; }
+  writeSave();
+  $('wReg').textContent = REGIONS[b.r].name + ' · BOUNTY ' + (b.i + 1);
+  $('wTitle').textContent = st === 3 ? 'PERFECT BOUNTY!' : 'BOUNTY COMPLETE';
+  const lines = starText(b);
+  const okN = b.type === 'survive' ? [true, G.kills >= b.s2, G.kills >= b.s3] : [true, G.t <= b.t2, G.t <= b.t3];
+  $('wGoals').innerHTML = lines.map((t, i) => `<span class="${okN[i] ? 'ok' : ''}">${okN[i] ? '★' : '☆'} ${t}</span>`).join('');
+  $('wTime').textContent = mmss(G.t); $('wKills').textContent = fmt(G.kills); $('wChain').textContent = 'x' + G.maxChain; $('wCash').textContent = '+$' + fmt(cash);
+  let ex = '';
+  if(lv) ex += `<div class="oM"><span>LEVEL UP! Now level ${save.level}</span><b>+$${lv * 40}</b></div>`;
+  REGIONS.forEach((r, i) => { if(!regionsBefore[i] && regionOpen(i)) ex += `<div class="oM"><span>🗺 NEW REGION: ${r.name}</span><b>OPEN</b></div>`; });
+  const nc = CARS.find(c => !save.cars.includes(c.id) && c.stars <= totalStars() && c.stars > totalStars() - (save.career.stars[b.i] - prev));
+  if(nc) ex += `<div class="oM"><span>🚗 ${nc.name} can now be bought in the GARAGE</span><b>$${fmt(nc.cost)}</b></div>`;
+  for(const q of save.missions) if(q.fresh){ ex += `<div class="oM"><span>✔ ${q.txt}</span><b>+$${q.reward}</b></div>`; q.fresh = false; }
+  $('wExtra').innerHTML = ex;
+  const nx = b.i + 1 < BOUNTIES.length && regionOpen(BOUNTIES[b.i + 1].r) ? b.i + 1 : -1;
+  G.wonNext = nx;
+  $('wNext').textContent = nx >= 0 ? 'NEXT BOUNTY ▶' : 'BOUNTY BOARD';
+  $('wRetry').classList.toggle('hidden', st >= 3);
+  const ss = $('wStars').children;
+  for(let i = 0; i < 3; i++){ ss[i].className = ''; }
+  show('won');
+  for(let i = 0; i < 3; i++) setTimeout(() => { ss[i].className = (i < st ? 'on ' : '') + 'show'; if(i < st) AU.pick(); }, 300 + i * 320);
 }
 
 /* ---------------- garage / missions / settings ---------------- */
@@ -219,7 +322,8 @@ function renderShop(){
       const t = document.createElement('div'); t.className = 'it';
       t.innerHTML = `<b>${c.name}</b><span>${c.desc}</span><div class="stats"><i>SPD ${Math.round(c.spd * KMH)}</i><i>ARMOR ${c.hp}</i><i>GRIP ${c.grip}</i><i>FIRE ${Math.round(c.fire * 100)}%</i></div>`;
       it.appendChild(t);
-      const b = document.createElement('button'); b.className = 'btn'; b.innerHTML = eq ? 'IN USE' : own ? 'DRIVE' : '$' + fmt(c.cost); b.disabled = eq || (!own && save.cash < c.cost);
+      const lockS = !own && totalStars() < (c.stars || 0);
+      const b = document.createElement('button'); b.className = 'btn'; b.innerHTML = eq ? 'IN USE' : own ? 'DRIVE' : lockS ? '🔒 ★' + c.stars : '$' + fmt(c.cost); b.disabled = eq || lockS || (!own && save.cash < c.cost);
       onTap(b, () => { if(!own){ if(!buy(c.cost)) return; save.cars.push(c.id); } save.car = c.id; persist(); renderShop(); });
       it.appendChild(b); L.appendChild(it);
     }
@@ -261,7 +365,14 @@ function askConfirm(msg, yes){
 function wire(){
   document.body.classList.toggle('touch', isTouch());
   if(isTouch()) $('keysHint').textContent = 'Drag anywhere to steer (turn hard to drift) · Hold NITRO to boost · Hold DRIFT to slide';
-  onTap('playBtn', () => startRun(false));
+  onTap('playBtn', () => { const n = nextBounty(); if(n < 0){ openBoard(); return; } startRun(false, n); });
+  onTap('endlessBtn', () => startRun(false));
+  onTap('boardBtn', () => openBoard());
+  onTap('stashBtn', claimStash);
+  onTap('loginBtn', claimLogin);
+  onTap('wNext', () => { const n = G.wonNext; SDK.midgame(() => { if(n != null && n >= 0) startRun(false, n); else { goMenu(); openBoard(); } }); });
+  onTap('wRetry', () => { const i = G.bounty.i; SDK.midgame(() => startRun(false, i)); });
+  onTap('wMenu', () => SDK.midgame(goMenu));
   onTap('dailyBtn', () => startRun(true));
   onTap('shopBtn', () => { hideAll(); renderShop(); show('shop'); });
   onTap('missBtn', openMissions);
@@ -273,7 +384,7 @@ function wire(){
   onTap('revAdBtn', () => SDK.rewarded(ok => { if(ok) doRevive(); else toast('AD UNAVAILABLE', 'Try again in a moment.', '#b3262d'); }));
   onTap('revPayBtn', () => { const fr = Math.min(G.cashRun, REVIVE_COST); G.cashRun -= fr; save.cash -= REVIVE_COST - fr; doRevive(); });
   onTap('revNoBtn', () => { clearInterval(revIV); hide('revive'); gameOver(); });
-  onTap('retryBtn', () => { const d = G.daily; SDK.midgame(() => startRun(d)); });
+  onTap('retryBtn', () => { const d = G.daily, b = G.bounty ? G.bounty.i : null; SDK.midgame(() => startRun(d, b)); });
   onTap('oMenuBtn', () => SDK.midgame(goMenu));
   onTap('dblBtn', () => { $('dblBtn').disabled = true; SDK.rewarded(ok => { if(ok){ save.cash += G.lastCash; writeSave(); $('oCash').textContent = '+$' + fmt(G.lastCash * 2); } else $('dblBtn').disabled = false; }); });
   document.querySelectorAll('.backBtn').forEach(b => onTap(b, () => {
@@ -323,13 +434,15 @@ function wire(){
     if([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'tab'].includes(k)) e.preventDefault();
     IN.keys[k] = true;
     if(e.repeat) return;
-    if(k === 'escape' || k === 'p'){
+    // Escape is reserved by the browser (it exits fullscreen); pause is on P
+    if(k === 'p'){
       if(G.state === 'play') pauseGame();
       else if(G.state === 'pause' && $('settings').classList.contains('hidden') && $('confirm').classList.contains('hidden')) resumeGame();
       return;
     }
     if(G.state === 'cards' && ['1', '2', '3'].includes(k)) pickCard(+k - 1);
     else if(G.state === 'over' && k === 'enter') $('retryBtn').click();
+    else if(G.state === 'won' && k === 'enter') $('wNext').click();
     else if(G.state === 'menu' && !$('menu').classList.contains('hidden') && (k === 'enter' || k === ' ')) $('playBtn').click();
   });
   addEventListener('keyup', e => { IN.keys[e.key.toLowerCase()] = false; });
@@ -370,7 +483,8 @@ addEventListener('unhandledrejection', e => { try{ e.preventDefault(); console.e
   loadSave();
   applyQuality();
   wire();
-  goMenu();
   SDK.loadingStop();
+  if(save.first){ save.first = false; save.stashT = Date.now(); save.login = { key:todayKey(), day:1 }; writeSave(); startRun(false, 0); }
+  else goMenu();
   $('boot').classList.add('gone'); setTimeout(() => $('boot').remove(), 500);
 })();

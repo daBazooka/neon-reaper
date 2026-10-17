@@ -25,13 +25,13 @@ const KMH = .36;            // world units per second -> displayed km/h
 /* ---------------- cars ----------------
    spd: top speed, acc: acceleration, grip: tire grip, hp: armor, fire: burn time multiplier */
 const CARS = [
-  { id:'rustler',  name:'Rustler',     kind:'muscle', body:'#d9572b', stripe:'#f6e7c8', roof:'#b8431f', spd:560, acc:420, grip:4.2, hp:125, fire:1,   cost:0,    desc:'An old muscle car. Balanced and loud.' },
-  { id:'hopper',   name:'Dune Hopper', kind:'buggy',  body:'#f2b134', stripe:'#3a2418', roof:'#3a2418', spd:590, acc:480, grip:4.8, hp:105,  fire:.9,  cost:300,  desc:'A light buggy. Turns on a dime.' },
-  { id:'longhorn', name:'Longhorn',    kind:'pickup', body:'#b3262d', stripe:'#f4ecdc', roof:'#8e1d23', spd:530, acc:380, grip:4.0, hp:175, fire:1,   cost:600,  desc:'A heavy pickup. Takes a beating.' },
-  { id:'mirage',   name:'Mirage',      kind:'wagon',   body:'#e9dfb8', stripe:'#8a5a2b', roof:'#c9bd92', spd:545, acc:400, grip:3.9, hp:140, fire:1.35, cost:900, desc:'A wood-panel wagon. Its fire lasts longer.' },
-  { id:'coyote',   name:'Coyote GT',   kind:'coupe',   body:'#2a9d8f', stripe:'#f6f1e4', roof:'#1f7a6f', spd:620, acc:460, grip:4.3, hp:120,  fire:1,   cost:1300, desc:'A sports coupe. Very fast.' },
-  { id:'sandstorm',name:'Sandstorm',   kind:'rally',   body:'#f4f1ea', stripe:'#2f6db5', roof:'#dcd6ca', spd:590, acc:470, grip:3.5, hp:130, fire:1.15, cost:1900, desc:'A rally hatch. Drifts forever.' },
-  { id:'diablo',   name:'El Diablo',   kind:'hotrod',  body:'#1d1a1c', stripe:'#ff6a1a', roof:'#2c2729', spd:640, acc:520, grip:4.1, hp:135, fire:1.3, cost:3000, desc:'A hot rod. The legend of the desert.' },
+  { id:'rustler',  name:'Rustler',     kind:'muscle', body:'#d9572b', stripe:'#f6e7c8', roof:'#b8431f', spd:560, acc:420, grip:4.2, hp:125, fire:1,   stars:0, cost:0,    desc:'An old muscle car. Balanced and loud.' },
+  { id:'hopper',   name:'Dune Hopper', kind:'buggy',  body:'#f2b134', stripe:'#3a2418', roof:'#3a2418', spd:590, acc:480, grip:4.8, hp:105,  fire:.9,  stars:6, cost:300,  desc:'A light buggy. Turns on a dime.' },
+  { id:'longhorn', name:'Longhorn',    kind:'pickup', body:'#b3262d', stripe:'#f4ecdc', roof:'#8e1d23', spd:530, acc:380, grip:4.0, hp:175, fire:1,   stars:14, cost:600,  desc:'A heavy pickup. Takes a beating.' },
+  { id:'mirage',   name:'Mirage',      kind:'wagon',   body:'#e9dfb8', stripe:'#8a5a2b', roof:'#c9bd92', spd:545, acc:400, grip:3.9, hp:140, fire:1.35, stars:24, cost:900, desc:'A wood-panel wagon. Its fire lasts longer.' },
+  { id:'coyote',   name:'Coyote GT',   kind:'coupe',   body:'#2a9d8f', stripe:'#f6f1e4', roof:'#1f7a6f', spd:620, acc:460, grip:4.3, hp:120,  fire:1,   stars:36, cost:1300, desc:'A sports coupe. Very fast.' },
+  { id:'sandstorm',name:'Sandstorm',   kind:'rally',   body:'#f4f1ea', stripe:'#2f6db5', roof:'#dcd6ca', spd:590, acc:470, grip:3.5, hp:130, fire:1.15, stars:50, cost:1900, desc:'A rally hatch. Drifts forever.' },
+  { id:'diablo',   name:'El Diablo',   kind:'hotrod',  body:'#1d1a1c', stripe:'#ff6a1a', roof:'#2c2729', spd:640, acc:520, grip:4.1, hp:135, fire:1.3, stars:70, cost:3000, desc:'A hot rod. The legend of the desert.' },
 ];
 
 /* ---------------- pursuers ---------------- */
@@ -64,12 +64,13 @@ const PERKS = [
 ];
 
 /* ---------------- meta ---------------- */
+const costs = (base, n, k) => Array.from({ length:n }, (_, i) => Math.round(base * Math.pow(k || 1.45, i) / 10) * 10);
 const META = [
-  { id:'engine', name:'Engine Tune',   icon:'⚙', desc:'+4% top speed',                    costs:[120, 300, 600] },
-  { id:'armor',  name:'Roll Cage',     icon:'▣', desc:'+15 armor',                        costs:[100, 260, 520] },
-  { id:'fuel',   name:'Fuel Mix',      icon:'♨', desc:'Fire burns 15% longer',            costs:[90, 240, 480] },
-  { id:'nitro',  name:'Bigger Bottle', icon:'⚡', desc:'Start every run with 50% nitro',   costs:[150] },
-  { id:'cash',   name:'Fence Deals',   icon:'$', desc:'+15% cash from every run',         costs:[110, 280, 560] },
+  { id:'engine', name:'Engine Tune',   icon:'⚙', desc:'+2.5% top speed per level',          costs:costs(120, 10) },
+  { id:'armor',  name:'Roll Cage',     icon:'▣', desc:'+10 armor per level',                costs:costs(100, 10) },
+  { id:'fuel',   name:'Fuel Mix',      icon:'♨', desc:'Fire burns 8% longer per level',      costs:costs(90, 10) },
+  { id:'nitro',  name:'Bigger Bottle', icon:'⚡', desc:'Start with +20% nitro per level',     costs:costs(150, 5, 1.6) },
+  { id:'cash',   name:'Fence Deals',   icon:'$', desc:'+8% cash per level',                 costs:costs(110, 10) },
 ];
 const MODS = [
   { id:'night',   name:'MIDNIGHT RUN',  desc:'It is always night. Cash x1.5.' },
@@ -88,6 +89,51 @@ const MT = [
   { id:'boss',   ev:'boss',   kind:'sum', vals:[1,3,6],              txt:n => `Wreck ${n} Juggernaut${n > 1 ? 's' : ''}` },
 ];
 
+/* ---------------- bounty career ----------------
+   50 short bounties in 5 regions. Each has one goal; finishing it fast (or
+   torching more chasers while you survive) earns up to 3 stars. Stars open
+   new regions and cars. */
+const REGIONS = [
+  { id:'flats',  name:'DUSTY FLATS',   sand:'#e2b47a', tod:.15, need:0 },
+  { id:'canyon', name:'RED CANYON',    sand:'#d99468', tod:.36, need:14 },
+  { id:'salt',   name:'SALT LAKE',     sand:'#eee5d3', tod:.12, need:34 },
+  { id:'night',  name:'MIDNIGHT MESA', sand:'#caa276', tod:.64, need:56 },
+  { id:'ash',    name:'ASH VALLEY',    sand:'#a59383', tod:.44, need:80 },
+];
+const BOUNTY_SLOTS = ['kills', 'drift', 'chain', 'survive', 'kills', 'near', 'chain', 'survive', 'kills', 'boss'];
+const BOUNTIES = [];
+REGIONS.forEach((rg, r) => BOUNTY_SLOTS.forEach((type, k) => {
+  const i = r * 10 + k, step = i / 49;
+  const b = { i, r, k, type, heat:Math.min(6, 1 + r + (k >= 6 ? 1 : 0)), limit:0, n:0, s2:0, s3:0 };
+  if(type === 'kills'){ b.n = Math.round(4 + step * 22 + (k === 8 ? 6 : 0)); b.t3 = Math.round(6 + b.n * 1.15); b.t2 = Math.round(12 + b.n * 1.8); b.limit = Math.round(35 + b.n * 4); }
+  if(type === 'drift'){ b.n = Math.round(60 + step * 160); b.t3 = Math.round(4 + b.n / 4.2); b.t2 = Math.round(8 + b.n / 3.2); b.limit = Math.round(30 + b.n / 1.8); }
+  if(type === 'chain'){ b.n = Math.round(3 + step * 7); b.t3 = Math.round(16 + b.n * 2); b.t2 = Math.round(28 + b.n * 3.5); b.limit = Math.round(60 + b.n * 6); }
+  if(type === 'near'){ b.n = Math.round(4 + step * 12); b.t3 = Math.round(8 + b.n * 2); b.t2 = Math.round(14 + b.n * 3.2); b.limit = Math.round(40 + b.n * 5); }
+  if(type === 'survive'){ b.heat = Math.max(1, b.heat - 1); b.n = Math.round(40 + step * 50); b.limit = b.n; b.s2 = Math.round(4 + step * 12); b.s3 = Math.round(8 + step * 22); }
+  if(type === 'boss'){ b.n = 1; b.t3 = 25; b.t2 = 45; b.limit = Math.round(120 + r * 20); }
+  b.cash = Math.round(70 + i * 12);
+  BOUNTIES.push(b);
+}));
+function bountyText(b){
+  return ({ kills:`Torch ${b.n} chasers`, drift:`Drift ${fmt(b.n)} m`, chain:`Burn ${b.n} cars in one chain`, survive:`Survive ${b.n} seconds`, near:`Make ${b.n} near misses`, boss:'Wreck the Juggernaut' })[b.type];
+}
+function starText(b){
+  if(b.type === 'survive') return [`Survive`, `Torch ${b.s2}`, `Torch ${b.s3}`];
+  return [`Finish in ${b.limit}s`, `Under ${b.t2}s`, `Under ${b.t3}s`];
+}
+const totalStars = () => (save.career.stars || []).reduce((a, b) => a + (b || 0), 0);
+const regionOpen = r => totalStars() >= REGIONS[r].need;
+const bountyOpen = i => i === 0 || (save.career.stars[i - 1] || 0) > 0 || (i % 10 === 0 && regionOpen(i / 10) && (save.career.stars[i - 1] || 0) > 0);
+function nextBounty(){ for(let i = 0; i < BOUNTIES.length; i++) if(!(save.career.stars[i] > 0)) return regionOpen(BOUNTIES[i].r) ? i : -1; return -1; }
+
+/* ---------------- daily login + garage stash (reasons to come back) ---------------- */
+const LOGIN = [100, 150, 200, 300, 400, 500, 1000];
+const STASH_CAP_H = 8;
+const stashRate = () => 30 + totalStars() * 3;           // $ per hour, fills while you're away
+function stashValue(){ const h = Math.min(STASH_CAP_H, Math.max(0, (Date.now() - (save.stashT || Date.now())) / 36e5)); return Math.floor(h * stashRate()); }
+function msToNextDay(){ const d = new Date(), n = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1); return n - d.getTime(); }
+const hhmm = ms => { const m = Math.max(0, Math.ceil(ms / 6e4)); return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'm'; };
+
 /* ---------------- save ---------------- */
 const SAVE_KEY = 'scorchway_save_v1';
 function defSave(){
@@ -100,6 +146,7 @@ function defSave(){
     seen:{}, tut:false,
     opt:{ sfx:true, music:true, shake:true, quality:'auto' },
     daily:{ key:'', best:0, bonus:false },
+    career:{ stars:[], best:[] }, login:{ key:'', day:0 }, stashT:0, first:true,
   };
 }
 let save = defSave();

@@ -17,10 +17,10 @@ let P = null;
 /* ---------------- tuning ---------------- */
 const modId = () => G.mod ? G.mod.id : '';
 const carDef = () => CARS.find(c => c.id === save.car) || CARS[0];
-const topSpd = () => P.car.spd * (1 + .07 * (G.up.engine || 0)) * (1 + .04 * (save.meta.engine || 0));
-const fireLife = () => 2.7 * (1 + .3 * (G.up.burn || 0)) * (1 + .15 * (save.meta.fuel || 0)) * P.car.fire * (modId() === 'inferno' ? 2 : 1);
+const topSpd = () => P.car.spd * (1 + .07 * (G.up.engine || 0)) * (1 + .025 * (save.meta.engine || 0));
+const fireLife = () => 2.7 * (1 + .3 * (G.up.burn || 0)) * (1 + .08 * (save.meta.fuel || 0)) * P.car.fire * (modId() === 'inferno' ? 2 : 1);
 const fireR = () => 17 * (1 + .25 * (G.up.flame || 0));
-const cashMul = () => (1 + .15 * (save.meta.cash || 0)) * (({ night:1.5, glass:2, heat:1.5 })[modId()] || 1);
+const cashMul = () => (1 + .08 * (save.meta.cash || 0)) * (({ night:1.5, glass:2, heat:1.5 })[modId()] || 1);
 function targetZoom(){ const sp = P ? Math.hypot(P.vx, P.vy) : 0; return clamp(Math.sqrt(W * H) / 760, .6, 1.3) * (1 - .22 * clamp(sp / 650, 0, 1)); }
 function viewR(){ return Math.hypot(W, H) / 2 / G.camZ; }
 
@@ -62,17 +62,19 @@ function onRoad(x, y, pad){
 }
 
 /* ---------------- run lifecycle ---------------- */
-function newRun(daily){
-  G.daily = !!daily;
+function newRun(daily, bounty){
+  G.daily = !!daily; G.bounty = bounty == null ? null : BOUNTIES[bounty]; G.bossK = 0; G.won = false; G.timeUp = false;
+  setRegion(G.bounty ? G.bounty.r : 0);
   if(daily){ const seed = hashStr('scorchway:' + todayKey()); grng = mulberry32(seed); G.mod = MODS[seed % MODS.length]; }
   else { grng = Math.random; G.mod = null; }
   for(const k of ['E','F','PT','SM','DB','POP','FX','TM','PK','BM','MK','SC','MN']) G[k].length = 0;
   destroyed.clear();
   Object.assign(G, { t:0, score:0, kills:0, cashRun:0, heat:modId() === 'heat' ? 3 : 1, heatT:0, chain:0, chainT:0, maxChain:0, nearN:0, driftDist:0,
-    nitro:save.meta.nitro ? 50 : 0, up:{}, revived:false, hitstop:0, slow:0, timeScale:1, shake:0, flash:0, runEv:{}, dieT:0,
+    nitro:Math.min(100, (save.meta.nitro || 0) * 20), up:{}, revived:false, hitstop:0, slow:0, timeScale:1, shake:0, flash:0, runEv:{}, dieT:0,
     spawnT:3, pickT:6, boss:null, pendingCards:false, heliT:40, tod:modId() === 'night' ? .7 : .12 });
+  if(G.bounty){ G.heat = G.bounty.heat; G.tod = REGIONS[G.bounty.r].tod; G.spawnT = 1.5; if(G.bounty.type === 'boss') G.TM.push({ t:3, f:() => { if(G.state === 'play') spawnBoss(); } }); }
   const c = carDef();
-  const hp = (c.hp + 15 * (save.meta.armor || 0)) * (modId() === 'glass' ? .5 : 1);
+  const hp = (c.hp + 10 * (save.meta.armor || 0)) * (modId() === 'glass' ? .5 : 1);
   P = { x:0, y:0, h:-Math.PI / 2, vx:0, vy:-80, steer:0, hp, maxHp:hp, inv:1, drift:false, slip:0, nitroOn:false, car:c, fireAcc:0, mineT:6, phoenix:false, wheels:null, len:54, wid:27, hurtT:0 };
   G.camX = 0; G.camY = 0; G.camZ = targetZoom();
   G.tut = !save.tut; G.tutStep = 0; G.tutT = 0;
@@ -108,9 +110,9 @@ function update(dt){
   G.timeScale = lerp(G.timeScale, target, Math.min(1, dt * 8));
   if(G.slow > 0) G.slow -= dt;
   const gdt = dt * G.timeScale;
-  if(G.state === 'dying'){ G.dieT -= dt; carPhysics(P, gdt, 0, true, false, 0); tickWorld(gdt); if(G.dieT <= 0) onDeathDone(); updCamera(dt); return; }
+  if(G.state === 'dying'){ G.dieT -= dt; carPhysics(P, gdt, 0, true, false, 0); if(G.won) updEnemies(gdt); tickWorld(gdt); if(G.dieT <= 0) onDeathDone(); updCamera(dt); return; }
   G.t += gdt;
-  if(modId() !== 'night') G.tod = (.12 + G.t / 300) % 1;
+  if(modId() !== 'night' && !G.bounty) G.tod = (.12 + G.t / 300) % 1;
   updPlayer(gdt);
   updEnemies(gdt);
   tickWorld(gdt);
@@ -127,7 +129,8 @@ function update(dt){
     else if(G.tutStep === 1 && G.kills > 0){ G.tutStep = 2; G.tutT = 0; tip('Drifts and near misses charge <em>NITRO</em>. ' + (isTouch() ? 'Hold <b>NITRO</b>' : 'Hold the <b>left mouse button</b> or <b>SHIFT</b>') + ' to boost and ram!'); }
     else if(G.tutStep === 2 && G.tutT > 7){ G.tut = false; save.tut = true; persist(); tip(null); }
   }
-  if(G.pendingCards){ G.pendingCards = false; openCards(); }
+  if(G.bounty) bountyTick();
+  if(G.pendingCards && G.state === 'play'){ G.pendingCards = false; openCards(); }
 }
 function updCamera(dt){
   G.camZ = lerp(G.camZ, targetZoom(), Math.min(1, dt * 1.5));
@@ -397,7 +400,7 @@ function updHeli(e, dt){
   if(e.bombT <= 0){ e.bombT = 2.6; G.BM.push({ x:P.x + P.vx * 1.15 + rnd(-40, 40), y:P.y + P.vy * 1.15 + rnd(-40, 40), t:0, dur:1.25, r:95 }); AU.bombDrop(); }
 }
 function bossDown(e){
-  G.boss = null; ev('boss', 1);
+  G.boss = null; ev('boss', 1); G.bossK = (G.bossK || 0) + 1;
   for(let k = 0; k < 4; k++) G.TM.push({ t:k * .18, f:() => explode(e.x + rnd(-50, 50), e.y + rnd(-50, 50), 1.6, 'kill') });
   G.slow = 1.2; G.flash = 1; G.flashCol = '#fff3b0'; shakeIt(24);
   for(let k = 0; k < 25; k++) G.PK.push({ x:e.x + rnd(-80, 80), y:e.y + rnd(-80, 80), kind:'cash', v:6, t:0 });
@@ -426,7 +429,7 @@ function updHeat(dt){
     G.heatT = 0; G.heat++; ev('heat', G.heat);
     announce('HEAT ' + G.heat, '#b3262d', G.heat % 4 === 1 ? 'JUGGERNAUT INCOMING' : 'MORE OF THEM');
     AU.siren1(); G.score += 500 * G.heat;
-    if(G.heat % 4 === 1 && !G.boss) G.TM.push({ t:2.5, f:() => { if(G.state === 'play') spawnBoss(); } });
+    if(G.heat % 4 === 1 && !G.boss && !G.bounty) G.TM.push({ t:2.5, f:() => { if(G.state === 'play') spawnBoss(); } });
     if(!G.boss) AU.setMusic(G.heat >= 3 ? 2 : 1);
     G.TM.push({ t:1.4, f:() => { if(G.state === 'play') G.pendingCards = true; } });
   }
@@ -514,4 +517,32 @@ function rollMissions(){
     save.missions.push({ id:t.id, ev:t.ev, n, p:0, done:false, txt:t.txt(n), reward:40 + tier * 30 });
     have.add(t.id); save.mNew = true;
   }
+}
+
+/* ---------------- bounties ---------------- */
+function bountyProg(){
+  const b = G.bounty;
+  return ({ kills:G.kills, drift:Math.floor(G.driftDist), chain:G.maxChain, survive:Math.floor(G.t), near:G.nearN, boss:G.bossK || 0 })[b.type];
+}
+function bountyStars(){
+  const b = G.bounty;
+  if(b.type === 'survive') return G.kills >= b.s3 ? 3 : G.kills >= b.s2 ? 2 : 1;
+  return G.t <= b.t3 ? 3 : G.t <= b.t2 ? 2 : 1;
+}
+function bountyTick(){
+  if(G.state !== 'play') return;
+  const b = G.bounty;
+  if(bountyProg() >= b.n){
+    G.won = true; G.stars = bountyStars(); G.state = 'dying'; G.dieT = 1.4; G.slow = 1.4;
+    for(const e of G.E) if(!e.gone && e.type !== 'heli' && Math.hypot(e.x - P.x, e.y - P.y) < 900) e.fuse = e.fuse > 0 ? e.fuse : rnd(.1, .7);
+    announce('BOUNTY COMPLETE', '#2a9d8f', '★'.repeat(G.stars)); AU.stinger(5); SDK.happytime();
+    return;
+  }
+  if(b.type !== 'survive' && G.t >= b.limit){ G.timeUp = true; announce('TIME UP', '#b3262d', bountyText(b)); P.hp = 0; die(); }
+}
+function setRegion(r){
+  const rg = REGIONS[r] || REGIONS[0];
+  if(G.regionSand === rg.sand) return;
+  G.regionSand = rg.sand;
+  if(typeof makeTextures === 'function'){ sandTile = null; makeTextures(rg.sand); tileScaled.px = 0; }
 }
