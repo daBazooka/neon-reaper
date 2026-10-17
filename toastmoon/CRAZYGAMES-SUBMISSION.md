@@ -6,7 +6,7 @@ A launch-and-upgrade game, built on the pattern in `CRAZYGAMES-CHECKLIST.md`. Ev
 Toast to the Moon
 
 ## Category
-Casual
+Action (if the portal offers Arcade, that fits too; Clicker is a weaker fit, since play is real-time steering, not clicking)
 
 ## Tags
 Upgrade, Flying, Physics, Idle, Cute, One Button
