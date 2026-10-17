@@ -29,6 +29,20 @@ Day-1 retention was 4–6× below the platform average. No cover, video or listi
 4. Resubmit only after meaningful improvements (CrazyGames FAQ).
 5. Ask CrazyGames support why the initial-review rejections happened.
 
+## What the most-played CrazyGames games have in common (research, 17 Oct)
+CrazyGames' own homepage lists its most popular games as Shell Shockers, Agar.io, Uno Online, Geometry Dash, Moto X3M, Smash Karts, GeoGuessr and Hangman. On mobile, Bloxd.io and Ragdoll Archers lead. Zombie Launcher X reportedly held #1 for six weeks, and idle tycoons and merge puzzles are among the top single-player picks. Liquid Swarm, an incremental roguelite, passed Basic Launch with metrics in the top 20 %.
+
+Patterns:
+1. **Familiar format, understood in one second.** No hit needs a tutorial.
+2. **Short attempts with constant visible progress.** Levels (Moto X3M, Geometry Dash) or launch → earn → upgrade → launch further (Zombie Launcher X). Every attempt makes the player measurably stronger.
+3. **A long goal you can see from the first minute** (finish all levels, reach the end, max everything).
+4. **Incremental and idle layers keep sessions long** (clicker average 15 min, versus 12–13 for shooting and action).
+5. **Multiplayer drives the very top**, but needs servers. That isn't possible for a single-file game, so we use the single-player patterns above.
+
+**What our 24 games did instead:** a new, unfamiliar mechanic every time, runs that ended with little permanent gain, and no visible long goal.
+
+**Next game:** a launch-and-upgrade game. Every attempt takes 15–40 s and ends on an upgrade screen. The goal (reach the Moon) is visible from the first launch. A bakery earns coins while you're away, and there are a daily reward, missions and collectible breads.
+
 ---
 
 ## Earlier notes
